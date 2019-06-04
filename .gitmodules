@@ -1,0 +1,6 @@
+[submodule "GSL"]
+	path = GSL
+	url = https://github.com/Microsoft/GSL.git
+[submodule "threaded"]
+	path = threaded
+	url = https://github.com/monkey-g/threaded
