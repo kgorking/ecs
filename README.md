@@ -2,9 +2,10 @@
 **ecs** is a header-only c++17 implementation, with focus on ease of use and speed.
 
 # Examples
-### A simple example
+### 1. A simple example
 ```cpp
 #include <iostream>
+#include <string>
 #include <ecs/ecs.h>
 
 int main()
@@ -16,9 +17,9 @@ int main()
 	
 	// Set up some entities with their ids and components
 	ecs::entity
-		a{ 0, 4 },
-		b{ 1, 8 },
-		c{ 2, 12 };
+		jon{ 0, 4 },
+		sean{ 1, 8 },
+		jimmy{ 2, 12 };
 
 	// Commit the changes and run the systems
 	ecs::update_systems();
@@ -27,30 +28,25 @@ int main()
 Running this code will print out
 > 4 8 12
 
-### Another example with 2 components
+### 2. Adding a second component
+At the end of the previous main I can add the following code
 ```cpp
-#include <iostream>
-#include <string>
-#include <ecs/ecs.h>
+// Add another system that operates on entities that hold an 'int' and 'std::string' (order is irrelevant)
+ecs::add_system([](int const& i, std::string const& s) {
+    std::cout << i << ": " << s << "\n";
+});
 
-int main()
-{
-	// A system that operates on entities that hold an 'int' and 'std::string' (order is irrelevant)
-	ecs::add_system([](int const& i, std::string const& s) {
-	    std::cout << i << ": " << s << "\n";
-	});
-	
-	// Set up some entities with their ids and components
-	ecs::entity
-		jon{ 0, 4, std::string{"jon"},
-		sean{ 1, 8, std::string{"sean"} },
-		jimmy{ 2, 12, std::string{"jimmy"} };
+// Add a second component to the entities
+jon.add(std::string{"jon"});
+sean.add(std::string{"sean"});
+jimmy.add(std::string{"jimmy"});
 
-	// Commit the changes and run the systems
-	ecs::update_systems();
-}
+// Commit the changes and run the systems
+
+ecs::update_systems();
 ```
-Running this code will print out
+Running this code will print out the following, because both systems are run
+> 4 8 12
 > 4: jon
 > 8: sean
 > 12: jimmy
