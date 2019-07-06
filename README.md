@@ -26,7 +26,9 @@ int main()
 }
 ```
 Running this code will print out
-> 4 8 12
+```
+4 8 12
+```
 
 ### 2. Adding a second component
 At the end of the previous main I can add the following code
@@ -46,8 +48,9 @@ jimmy.add(std::string{"jimmy"});
 ecs::update_systems();
 ```
 Running this code will print out the following, because both systems are run
-> 4 8 12
-> 4: jon
-> 8: sean
-> 12: jimmy
-
+```
+4 8 12
+4: jon
+8: sean
+12: jimmy
+```
