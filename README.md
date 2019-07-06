@@ -1,3 +1,4 @@
+
 # ecs - An entity/component/system project.
 **ecs** is a header-only c++17 implementation, with focus on ease of use and speed.
 
@@ -44,13 +45,28 @@ sean.add(std::string{"sean"});
 jimmy.add(std::string{"jimmy"});
 
 // Commit the changes and run the systems
-
 ecs::update_systems();
 ```
-Running this code will print out the following, because both systems are run
+Adding this code and running it will print out the following, because both systems are run
 ```
 4 8 12
 4: jon
 8: sean
+12: jimmy
+```
+
+### 3. Removing a component
+Now lets remove a component and see what happens
+```cpp
+// Remove the integer component from the 'sean' entity
+sean.remove<int>();
+
+// Commit the changes and run the systems
+ecs::update_systems();
+```
+Running the code now will print out the following
+```
+4 12
+4: jon
 12: jimmy
 ```
