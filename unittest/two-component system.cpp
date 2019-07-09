@@ -8,7 +8,7 @@ TEST_CASE("Two-component system")
 		ecs::runtime::reset();
 
 		// Add a system for the C_Counter+C_Name component
-		auto &sys = ecs::add_system([](int const& i, unsigned const& u) {
+		ecs::add_system([](int const& i, unsigned const& u) {
 			REQUIRE(i == 1);
 			REQUIRE(u == 2);
 		});
@@ -17,9 +17,8 @@ TEST_CASE("Two-component system")
 		ecs::entity_id const e = 0;
 		ecs::add_component(e, int{ 1 });
 		ecs::add_component(e, unsigned{ 2 });
-		ecs::commit_changes();
 
 		// Run the system
-		sys.update();
+		ecs::update_systems();
 	}
 }
