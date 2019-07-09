@@ -1,5 +1,4 @@
 #include <iostream>
-#include <atomic>
 #include <ecs/ecs.h>
 #include <ecs/entity_range.h>
 
@@ -11,8 +10,8 @@ int main()
 		// Manually allow floats to be added to entities.
 		ecs::runtime::init_components<float>();
 
-		// Concurrently add new components to entities
-		ecs::add_system_concurrent([](ecs::entity e, int const&) {
+		// Add a system that processes components in parallel
+		ecs::add_system_parallel([](ecs::entity e, int const&) {
 			e.add<float>();
 			e.remove<int>();
 		});
