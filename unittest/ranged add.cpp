@@ -29,7 +29,7 @@ TEST_CASE("Ranged add")
 
 		ecs::commit_changes();
 
-		for (auto i = 0; i < 5; ++i) {
+		for (auto i = 0; i <= 10; ++i) {
 			size_t const& loc = ecs::get_component<size_t>(i);
 			REQUIRE(loc == i*2);
 		}
