@@ -18,7 +18,7 @@ TEST_CASE("Memory model")
 
 		// Find the distance between component 0 and 100
 		size_t const& c0 = ecs::get_component<size_t>(0);
-		size_t const& c100 = ecs::get_component<size_t>(99);
+		size_t const& c100 = ecs::get_component<size_t>(100);
 		ptrdiff_t const distance_between_components = &c100 - &c0;
 
 		REQUIRE(distance_between_components == 1);

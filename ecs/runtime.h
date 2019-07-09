@@ -121,11 +121,9 @@ namespace ecs
 		// Add it to the component pool
 		detail::component_pool<T>& pool = runtime::get_component_pool<T>();
 
-		auto id = first.id;
-		while (id <= last.id) {
+		for (auto id = first.id; id <= last.id; ++id) {
 			auto const ent = entity_id{ id };
 			pool.add(ent, init(ent));
-			++id;
 		}
 	}
 
@@ -139,11 +137,9 @@ namespace ecs
 		// Add it to the component pool
 		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
 
-		auto id = first.id;
-		while (id <= last.id) {
+		for (auto id = first.id; id <= last.id; ++id) {
 			T tmp{ val };
 			pool.add(entity_id{ id }, std::move(tmp));
-			++id;
 		}
 	}
 
@@ -168,7 +164,7 @@ namespace ecs
 
 		// Remove the entities from the components pool
 		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
-		for (auto id = first.id; id < last.id; ++id) {
+		for (auto id = first.id; id <= last.id; ++id) {
 			pool.remove(id);
 		}
 	}
