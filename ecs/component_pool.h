@@ -118,7 +118,8 @@ namespace ecs::detail
 			// Transient components are removed each cycle
 			if constexpr (std::is_base_of_v<ecs::transient, T>) {
 				if (entities.size() > 0) {
-					clear();
+					entities.clear();
+					data.clear();
 					set_flag(modified_state::remove);
 				}
 			}

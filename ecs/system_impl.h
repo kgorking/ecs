@@ -48,7 +48,9 @@ namespace ecs::detail
 		) noexcept
 			: pools{ first_pool, pools... }
 			, update_func{ update_func }
-		{ }
+		{
+			build_args();
+		}
 
 		// Constructor for when the first argument to the system _is_ an entity
 		system_impl(
@@ -57,7 +59,9 @@ namespace ecs::detail
 		) noexcept
 			: pools{ pools... }
 			, update_func{ update_func }
-		{ }
+		{
+			build_args();
+		}
 
 		void update() noexcept override
 		{
@@ -91,21 +95,35 @@ namespace ecs::detail
 			// Leave if nothing has changed
 			bool const modified = (get_pool<Components>().was_changed() || ... || false);
 
-			if (std::get<0>(arguments).size() > 0) {
-				if constexpr (!has_entity) {
-					bool const first_modified = get_pool<FirstComponent>().was_changed();
-					if (!(modified || first_modified))
-						return;
-				}
-				else {
-					if (!modified)
-						return;
-				}
+			if constexpr (!has_entity) {
+				bool const first_modified = get_pool<FirstComponent>().was_changed();
+				if (!(modified || first_modified))
+					return;
+			}
+			else {
+				if (!modified)
+					return;
 			}
 
+			build_args();
+		}
+
+	protected:
+		template <typename Component>
+		component_pool<Component>& get_pool() const noexcept
+		{
+			return std::get<component_pool<Component>&>(pools);
+		}
+
+		template <typename Component>
+		Component* get_component(entity_id const entity)
+		{
+			return get_pool<Component>().find_component_data(entity);
+		}
+
+		void build_args()
+		{
 			gsl::span<entity_id const> const entities_set = std::get<0>(pools).get_entities();
-			if (entities_set.size() == 0)
-				return;
 
 			if constexpr (num_components == 1)
 			{
@@ -114,7 +132,7 @@ namespace ecs::detail
 			}
 			else
 			{
-				auto const intersector = [](auto & intersect, auto const set) {
+				auto const intersector = [](auto& intersect, auto const set) {
 					if (set.empty()) {
 						intersect.clear();
 						return;
@@ -136,19 +154,6 @@ namespace ecs::detail
 				// Build the arguments
 				build_args(gsl::make_span(intersect));
 			}
-		}
-
-	protected:
-		template <typename Component>
-		component_pool<Component>& get_pool() const noexcept
-		{
-			return std::get<component_pool<Component>&>(pools);
-		}
-
-		template <typename Component>
-		Component* get_component(entity_id const entity)
-		{
-			return get_pool<Component>().find_component_data(entity);
 		}
 
 		// Convert a set of entities into arguments that can be passed to the system
