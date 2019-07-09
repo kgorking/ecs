@@ -7,7 +7,8 @@ project ("ecs")
 
 # Include sub-projects.
 add_subdirectory ("ecs")
-add_subdirectory ("examples/concurrency")
+add_subdirectory ("examples/example")
+add_subdirectory ("examples/parallelism")
 add_subdirectory ("examples/finite_state_machine")
 add_subdirectory ("examples/mandelbrot")
 add_subdirectory ("examples/shared_components")
