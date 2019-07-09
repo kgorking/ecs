@@ -78,7 +78,19 @@ Running the code now will print out the following
 12: jimmy
 ```
 
-### 4. Parallelism
+### 4. Accessing the entity id
+If you need to access the entity id, it's as easy as adding either an
+[ecs::entity_id](https://github.com/monkey-g/ecs/blob/master/ecs/types.h) or an [ecs::entity](https://github.com/monkey-g/ecs/blob/master/ecs/entity.h)
+as the first argument in the lambda.
+```cpp
+ecs::add_system([](ecs::entity_id ent, std::string const& s) {
+	std::cout << "entity with id " << ent.id << " is named " << s << '\n';
+	});
+ecs::update_systems();
+```
+
+
+### 5. Parallelism
 Systems can process the components of entities in parallel, simply by marking the system as being parallel.
 ```cpp
 #include <iostream>

@@ -294,14 +294,20 @@ namespace ecs
 			using inspector = detail::system_inspector<System>;
 
 			using first_type = typename inspector::template arg_at<0>;
+
+			// Make sure any entity types are not passed as references or pointers
+			if constexpr (std::is_reference_v<first_type>) {
+				static_assert(!std::is_same_v<std::decay_t<first_type>, entity_id>, "Entities are only passed by value; remove the &");
+				static_assert(!std::is_same_v<std::decay_t<first_type>, entity>, "Entities are only passed by value; remove the &");
+			}
+			if constexpr (std::is_pointer_v<first_type>) {
+				static_assert(!std::is_same_v<std::remove_pointer_t<first_type>, entity_id>, "Entity ids are only passed by value; remove the *");
+				static_assert(!std::is_same_v<std::remove_pointer_t<first_type>, entity>, "Entity ids are only passed by value; remove the *");
+			}
+
 			bool constexpr has_entity_id = std::is_same_v<first_type, entity_id>;
 			bool constexpr has_entity_struct = std::is_same_v<first_type, entity>;
 			bool constexpr has_entity = has_entity_id || has_entity_struct;
-
-			if constexpr (has_entity) {
-				static_assert(!std::is_reference_v<first_type>, "Entities are only passed by value; remove the &");
-				static_assert(!std::is_pointer_v<first_type>, "Entity ids are only passed by value; remove the *");
-			}
 
 			//
 			// Implement the rules for systems

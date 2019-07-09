@@ -91,21 +91,22 @@ namespace ecs::detail
 			// Leave if nothing has changed
 			bool const modified = (get_pool<Components>().was_changed() || ... || false);
 
-			if constexpr (!has_entity)
-			{
-				bool const first_modified = get_pool<FirstComponent>().was_changed();
-				if (!(modified || first_modified)) {
-					return;
+			if (std::get<0>(arguments).size() > 0) {
+				if constexpr (!has_entity) {
+					bool const first_modified = get_pool<FirstComponent>().was_changed();
+					if (!(modified || first_modified))
+						return;
 				}
-			}
-			else
-			{
-				if (!modified) {
-					return;
+				else {
+					if (!modified)
+						return;
 				}
 			}
 
 			gsl::span<entity_id const> const entities_set = std::get<0>(pools).get_entities();
+			if (entities_set.size() == 0)
+				return;
+
 			if constexpr (num_components == 1)
 			{
 				// Build the arguments
