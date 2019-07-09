@@ -120,3 +120,8 @@ int main()
 	std::cout << "parallel system took " << parallel_time.count() << " seconds\n";
 }
 ```
+Running this on my machine prints out
+```
+serial system took 5.2987 seconds
+parallel system took 0.766407 seconds
+```
