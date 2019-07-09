@@ -63,9 +63,9 @@ int main()
 	auto& serial_sys   = ecs::add_system(sys_sleep);
 	auto& parallel_sys = ecs::add_system_parallel(sys_sleep);
 
-	// Create a range of entites that would
+	// Create a range of 500 entites that would
 	// take 5 seconds to process serially
-	ecs::entity_range ents{ 0, 500 - 1, short{0} };
+	ecs::entity_range ents{ 0, 499, short{0} };
 
 	// Commit the components (does not run the systems)
 	ecs::commit_changes();
