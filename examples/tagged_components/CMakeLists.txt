@@ -4,7 +4,3 @@
 include_directories(../../)
 include_directories(../../GSL/include)
 add_executable (tagged_components "tagged_components.cpp")
-
-# C++ 17 is required
-set_property(TARGET tagged_components PROPERTY CXX_STANDARD 17)
-set_property(TARGET tagged_components PROPERTY CXX_STANDARD_REQUIRED on)

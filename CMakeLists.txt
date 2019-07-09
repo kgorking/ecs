@@ -5,8 +5,16 @@ cmake_minimum_required (VERSION 3.8)
 
 project ("ecs")
 
+enable_testing()
+
+# GSL throws an exception instead of calling std::terminate
+add_compile_definitions(GSL_THROW_ON_CONTRACT_VIOLATION)
+set( CMAKE_CXX_STANDARD 17 )
+set( CXX_STANDARD_REQUIRED on)
+
 # Include sub-projects.
 add_subdirectory ("ecs")
+add_subdirectory ("unittest")
 add_subdirectory ("examples/example")
 add_subdirectory ("examples/parallelism")
 add_subdirectory ("examples/finite_state_machine")
