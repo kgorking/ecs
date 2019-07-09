@@ -5,12 +5,12 @@ TEST_CASE("Simple system")
 {
 	SECTION("Test simple system")
 	{
-		// Add a system for the C_Counter component
+		// Add a system with a size_t component
 		ecs::system & sys = ecs::add_system([](size_t &c) {
 			c++;
 		});
 
-		// Create an entity and add a C_Counter component initialized to zero
+		// Create an entity and add a size_t component initialized to zero
 		ecs::entity_id const e = 0;
 		ecs::add_component(e, size_t{ 0 });
 		ecs::commit_changes();
