@@ -52,6 +52,13 @@ int main()
 
 
 	std::cout << "\n#4\n";
+	ecs::add_system([](ecs::entity_id ent, std::string const& s) {
+		std::cout << "entity with id " << ent.id << " is named " << s << '\n';
+		});
+	ecs::update_systems();
+
+
+	std::cout << "\n#5\n";
 	ecs::runtime::reset(); // remove the existing systems and components
 
 	// The lambda used by both the serial- and parallel systems

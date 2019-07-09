@@ -88,7 +88,12 @@ ecs::add_system([](ecs::entity_id ent, std::string const& s) {
 	});
 ecs::update_systems();
 ```
-
+Running this will print out
+```
+entity with id 0 is named jon
+entity with id 1 is named sean
+entity with id 2 is named jimmy
+```
 
 ### 5. Parallelism
 Systems can process the components of entities in parallel, simply by marking the system as being parallel.
