@@ -313,6 +313,12 @@ namespace ecs::detail
 						new_data.emplace_back(std::move(t));
 					}
 
+					// Move the remaining ids
+					while (ent_id != entities.cend()) {
+						new_ents.emplace_back(*ent_id++);
+						new_data.emplace_back(std::move(*component++));
+					}
+
 					entities = std::move(new_ents);
 					data = std::move(new_data);
 				}
