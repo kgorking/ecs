@@ -13,7 +13,7 @@ See 'examples/example' for the code.
 
 int main()
 {
-	// A system that operates on entities that hold an 'int'
+	// A system that operates on entities with 'int' components
 	ecs::add_system([](int const& i) {
 	    std::cout << i << '\n';
 	});
@@ -38,7 +38,7 @@ Running this code will print out
 ### 2. Adding a second component
 At the end of the previous main I can add the following code
 ```cpp
-// Add another system that operates on entities that hold an 'int' and 'std::string' (order is irrelevant)
+// Add another system that operates on entities with 'int' and 'std::string' components
 ecs::add_system([](int const& i, std::string const& s) {
     std::cout << i << ": " << s << '\n';
 });
@@ -100,11 +100,11 @@ int main()
 	auto& serial_sys   = ecs::add_system(sys_sleep);
 	auto& parallel_sys = ecs::add_system_parallel(sys_sleep);
 
-	// Create a range of entites that would
+	// Create a range of 500 entites that would
 	// take 5 seconds to process serially
-	ecs::entity_range ents{ 0, 500 - 1, short{0} };
+	ecs::entity_range ents{ 0, 499, short{0} };
 
-	// Commit the components (does not run the systems)
+	// Commit the components to the entities (does not run the systems)
 	ecs::commit_changes();
 
 	// Time the serial system
