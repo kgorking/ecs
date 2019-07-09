@@ -315,10 +315,10 @@ namespace ecs
 		}
 	}
 
-	// Add a new system to the runtime. It will be run concurrently on the components.
+	// Add a new system to the runtime. It will process components in parallel.
 	template <typename System>
 	// requires Callable<System>
-	system& add_system_concurrent(System update_func)
+	system& add_system_parallel(System update_func)
 	{
 		detail::verify_system(update_func);
 		return runtime::create_system<std::execution::parallel_unsequenced_policy, System>(update_func, &System::operator());
