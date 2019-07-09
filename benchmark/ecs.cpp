@@ -2,7 +2,7 @@
 #include <random>
 #include <complex>
 #include <ecs/ecs.h>
-#include "benchmark/benchmark.h"
+#include "gbench/include/benchmark/benchmark.h"
 
 //size_t constexpr start_range = 4096;
 //size_t constexpr end_range = 1024 * 1024;
@@ -48,9 +48,9 @@ void raw_update(benchmark::State& state) {
 
 	for (auto const _ : state) {
 		state.PauseTiming();
+		auto colors = std::vector<size_t>(nentities);
 		state.ResumeTiming();
 
-		auto colors = std::vector<size_t>(nentities);
 		for (auto i = 0u; i < nentities; i++) {
 			mandelbrot_system(i, colors.at(i), shared);
 		}
@@ -66,20 +66,42 @@ void system_update(benchmark::State& state) {
 
 	for (auto const _ : state) {
 		state.PauseTiming();
-			ecs::runtime::reset();
-			ecs::add_system(mandelbrot_system);
-			ecs::get_shared_component<mandelbrot_shared>()->dimension = nentities;
-			ecs::add_component_range<mandelbrot_shared>(0, nentities);
+		ecs::runtime::reset();
+		ecs::add_system(mandelbrot_system);
+		ecs::get_shared_component<mandelbrot_shared>()->dimension = nentities;
+		ecs::add_component_range<mandelbrot_shared>(0, nentities);
+		ecs::add_component_range<size_t>(0, nentities);
+		ecs::commit_changes();
 		state.ResumeTiming();
 
-		ecs::add_component_range<size_t>(0, nentities);
-		ecs::update_systems();
+		ecs::run_systems();
 	}
 
 	state.SetItemsProcessed(nentities * state.iterations());
 	state.SetBytesProcessed(nentities * state.iterations() * sizeof(size_t) + sizeof(mandelbrot_shared));
 }
 BENCHMARK(system_update)->RangeMultiplier(2)->Range(start_range, end_range);
+
+void system_update_parallel(benchmark::State& state) {
+	uint32_t const nentities = gsl::narrow_cast<uint32_t>(state.range(0));
+
+	for (auto const _ : state) {
+		state.PauseTiming();
+		ecs::runtime::reset();
+		ecs::add_system_parallel(mandelbrot_system);
+		ecs::get_shared_component<mandelbrot_shared>()->dimension = nentities;
+		ecs::add_component_range<mandelbrot_shared>(0, nentities);
+		ecs::add_component_range<size_t>(0, nentities);
+		ecs::commit_changes();
+		state.ResumeTiming();
+
+		ecs::run_systems();
+	}
+
+	state.SetItemsProcessed(nentities * state.iterations());
+	state.SetBytesProcessed(nentities * state.iterations() * sizeof(size_t) + sizeof(mandelbrot_shared));
+}
+BENCHMARK(system_update_parallel)->RangeMultiplier(2)->Range(start_range, end_range);
 
 void component_add(benchmark::State& state) {
 	uint32_t const nentities = gsl::narrow_cast<uint32_t>(state.range(0));
