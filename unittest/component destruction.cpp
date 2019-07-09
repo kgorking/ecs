@@ -29,7 +29,7 @@ struct C_GlobalCounter {
 TEST_CASE("Component destruction")
 {
 	// Component pools work with uninitialized memory internally,
-	// so make sure objects are cleanup up properly
+	// so make sure objects are cleaned up properly
 	SECTION("Test destruction")
 	{
 		ecs::runtime::reset();
