@@ -47,10 +47,10 @@ void raw_update(benchmark::State& state) {
 	shared.dimension = nentities;
 
 	for (auto const _ : state) {
-		state.PauseTiming();
-		auto colors = std::vector<size_t>(nentities);
-		state.ResumeTiming();
+		//state.PauseTiming();
+		//state.ResumeTiming();
 
+		auto colors = std::vector<size_t>(nentities);
 		for (auto i = 0u; i < nentities; i++) {
 			mandelbrot_system(i, colors.at(i), shared);
 		}
@@ -69,11 +69,11 @@ void system_update(benchmark::State& state) {
 		ecs::runtime::reset();
 		ecs::add_system(mandelbrot_system);
 		ecs::get_shared_component<mandelbrot_shared>()->dimension = nentities;
+		state.ResumeTiming();
+
 		ecs::add_component_range<mandelbrot_shared>(0, nentities);
 		ecs::add_component_range<size_t>(0, nentities);
 		ecs::commit_changes();
-		state.ResumeTiming();
-
 		ecs::run_systems();
 	}
 
@@ -90,11 +90,11 @@ void system_update_parallel(benchmark::State& state) {
 		ecs::runtime::reset();
 		ecs::add_system_parallel(mandelbrot_system);
 		ecs::get_shared_component<mandelbrot_shared>()->dimension = nentities;
+		state.ResumeTiming();
+
 		ecs::add_component_range<mandelbrot_shared>(0, nentities);
 		ecs::add_component_range<size_t>(0, nentities);
 		ecs::commit_changes();
-		state.ResumeTiming();
-
 		ecs::run_systems();
 	}
 
