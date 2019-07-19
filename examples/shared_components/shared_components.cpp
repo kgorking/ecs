@@ -12,9 +12,9 @@ struct SharedState : ecs::shared {
 static void print_shared_state()
 {
 	auto shared = ecs::get_shared_component<SharedState>();
-	std::cout << " SharedState::a     ticks: " << shared->a << "\n";
-	std::cout << " SharedState::b     ticks: " << shared->b << "\n";
-	std::cout << " SharedState::total ticks: " << shared->total << "\n\n";
+	std::cout << " SharedState - a:     " << shared->a << "\n";
+	std::cout << " SharedState - b:     " << shared->b << "\n";
+	std::cout << " SharedState - total: " << shared->total << "\n\n";
 }
 
 int main()

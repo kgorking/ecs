@@ -1,6 +1,7 @@
 #pragma once
 #include <gsl/gsl>
 #include "types.h"
+#include "entity_range.h"
 
 namespace ecs::detail
 {
@@ -20,7 +21,7 @@ namespace ecs::detail
 		virtual void clear() = 0;
 		virtual void clear_flags() noexcept = 0;
 
-		virtual gsl::span<entity_id const> get_entities() const noexcept = 0;
+		virtual gsl::span<entity_range const> get_entities() const noexcept = 0;
 
 		//virtual void remove(entity_id id) = 0;
 	};

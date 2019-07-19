@@ -7,12 +7,12 @@
 
 constexpr size_t dimension = 500;
 
-constexpr auto mandelbrot_system = [](ecs::entity_id ent, size_t &color) {
-	constexpr size_t max_iterations = 500;
-	constexpr double fr_w = 1.5;
-	constexpr double fr_h = 1.5;
-	constexpr double fr_x = -2.2;
-	constexpr double fr_y = 1.2;
+auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color) {
+	size_t constexpr max_iterations = 500;
+	double constexpr fr_w = 1.5;
+	double constexpr fr_h = 1.5;
+	double constexpr fr_x = -2.2;
+	double constexpr fr_y = 1.2;
 
 	size_t x = ent.id % dimension;
 	size_t y = ent.id / dimension;
@@ -47,7 +47,7 @@ int main()
 
 		// Count the pixels equal to one
 		size_t counter = 0;
-		for (auto const& color : ents.get<size_t>())
+		for (size_t const& color : ents.get<size_t>())
 			if (color == 1)
 				counter++;
 

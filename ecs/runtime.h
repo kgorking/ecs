@@ -101,46 +101,34 @@ namespace ecs
 
 	// Adds a component to an entity.
 	template <typename T>
-	void add_component(entity_id const id, T val = T{})
+	void add_component(entity_id const id, T val)
 	{
-		static_assert(std::is_move_assignable_v<T>, "An 'operator=(T&)' function is required for this type");
-		static_assert(std::is_move_constructible_v<T>, "A 'T(T&)' constructor is required for this type");
-
-		// Add it to the component pool
-		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
-		pool.add(id, std::move(val));
+		add_component_range(id, id, std::move(val));
 	}
 
 	// Adds a component to a range of entities. 'last' is included in the range.
-	// The initializer function 'init' is called for each entity
-	template <typename T>
-	void add_component_range(entity_id const first, entity_id const last, std::function<T(entity_id)> init)
+	// The initializer function 'init' is called for each entity, its return type is the component type
+	template <typename Fn>
+	void add_component_range_init(entity_id const first, entity_id const last, Fn init)
 	{
 		Expects(first.id <= last.id);
 
 		// Add it to the component pool
+		using T = decltype(init(0));
 		detail::component_pool<T>& pool = runtime::get_component_pool<T>();
-
-		for (auto id = first.id; id <= last.id; ++id) {
-			auto const ent = entity_id{ id };
-			pool.add(ent, init(ent));
-		}
+		pool.add_range_init(first, last, init);
 	}
 
 	// Adds a component to a range of entities. 'last' is included in the range.
 	template <typename T>
-	void add_component_range(entity_id const first, entity_id const last, T const& val = T{})
+	void add_component_range(entity_id const first, entity_id const last, T val)
 	{
 		static_assert(std::is_copy_constructible_v<T>, "A copy-constructor for type T is required for this function to work");
 		Expects(first.id <= last.id);
 
 		// Add it to the component pool
 		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
-
-		for (auto id = first.id; id <= last.id; ++id) {
-			T tmp{ val };
-			pool.add(entity_id{ id }, std::move(tmp));
-		}
+		pool.add_range(first, last, std::move(val));
 	}
 
 	// Removes a component from an entity.
@@ -164,9 +152,7 @@ namespace ecs
 
 		// Remove the entities from the components pool
 		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
-		for (auto id = first.id; id <= last.id; ++id) {
-			pool.remove(id);
-		}
+		pool.remove_range(first, last);
 	}
 
 	// Returns a shared component. Can be called before a system for it has been added

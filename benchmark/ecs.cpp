@@ -6,10 +6,11 @@
 
 //size_t constexpr start_range = 4096;
 //size_t constexpr end_range = 1024 * 1024;
-//size_t constexpr start_range = 32;
+size_t constexpr start_range = 32;
 //size_t constexpr end_range = 256 * 1024;
-size_t constexpr start_range = 256 * 1024;
-size_t constexpr end_range = 20 * 1024 * 1024;
+//size_t constexpr start_range = 256 * 1024;
+size_t constexpr end_range = 16 * 1024 * 1024;
+//size_t constexpr end_range = 1024 * 1024 * 1024;  // 1 billion entities
 
 struct mandelbrot_shared : ecs::shared {
 	size_t dimension;
@@ -42,22 +43,18 @@ auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color, mandelb
 };
 
 void raw_update(benchmark::State& state) {
-	int64_t const nentities = state.range(0);
+	uint32_t const nentities = gsl::narrow_cast<uint32_t>(state.range(0));
 	mandelbrot_shared shared;
 	shared.dimension = nentities;
 
 	for (auto const _ : state) {
-		//state.PauseTiming();
-		//state.ResumeTiming();
-
-		auto colors = std::vector<size_t>(nentities);
-		for (auto i = 0u; i < nentities; i++) {
-			mandelbrot_system(i, colors.at(i), shared);
-		}
+		std::vector<size_t> colors(nentities);
+		for (auto i = 0u; i < nentities; i++)
+			mandelbrot_system(i, colors[i], shared);
 	}
 
 	state.SetItemsProcessed(nentities * state.iterations());
-	state.SetBytesProcessed(nentities * state.iterations() * (sizeof(size_t)));
+	state.SetBytesProcessed(nentities * state.iterations() * sizeof(size_t) + sizeof(mandelbrot_shared));
 }
 BENCHMARK(raw_update)->RangeMultiplier(2)->Range(start_range, end_range);
 
@@ -65,14 +62,12 @@ void system_update(benchmark::State& state) {
 	uint32_t const nentities = gsl::narrow_cast<uint32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		state.PauseTiming();
 		ecs::runtime::reset();
 		ecs::add_system(mandelbrot_system);
 		ecs::get_shared_component<mandelbrot_shared>()->dimension = nentities;
-		state.ResumeTiming();
 
-		ecs::add_component_range<mandelbrot_shared>(0, nentities);
-		ecs::add_component_range<size_t>(0, nentities);
+		ecs::add_component_range(0, nentities, mandelbrot_shared{});
+		ecs::add_component_range(0, nentities, size_t{});
 		ecs::commit_changes();
 		ecs::run_systems();
 	}
@@ -86,14 +81,12 @@ void system_update_parallel(benchmark::State& state) {
 	uint32_t const nentities = gsl::narrow_cast<uint32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		state.PauseTiming();
 		ecs::runtime::reset();
 		ecs::add_system_parallel(mandelbrot_system);
 		ecs::get_shared_component<mandelbrot_shared>()->dimension = nentities;
-		state.ResumeTiming();
 
-		ecs::add_component_range<mandelbrot_shared>(0, nentities);
-		ecs::add_component_range<size_t>(0, nentities);
+		ecs::add_component_range(0, nentities, mandelbrot_shared{});
+		ecs::add_component_range(0, nentities, size_t{});
 		ecs::commit_changes();
 		ecs::run_systems();
 	}
@@ -114,7 +107,7 @@ void component_add(benchmark::State& state) {
 			ent.add(3.14f);
 		});
 
-		ecs::add_component_range<size_t>(0, nentities);
+		ecs::add_component_range(0, nentities, size_t{});
 		ecs::commit_changes();
 		state.ResumeTiming();
 
@@ -141,7 +134,7 @@ void component_add_concurrent(benchmark::State& state) {
 			ent.add(3.14f);
 		});
 
-		ecs::add_component_range<size_t>(0, nentities);
+		ecs::add_component_range(0, nentities, size_t{});
 		ecs::commit_changes();
 		state.ResumeTiming();
 
@@ -174,7 +167,7 @@ void component_randomized_add(benchmark::State& state) {
 		state.ResumeTiming();
 
 		for (auto id : ids) {
-			ecs::add_component<size_t>(id);
+			ecs::add_component(id, size_t{});
 		}
 		ecs::commit_changes();
 	}
@@ -192,7 +185,7 @@ void component_remove(benchmark::State& state) {
 			ecs::runtime::reset();
 			ecs::add_system(mandelbrot_system);
 
-			ecs::add_component_range<size_t>(0, nentities);
+			ecs::add_component_range(0, nentities, size_t{});
 			ecs::commit_changes();
 		state.ResumeTiming();
 

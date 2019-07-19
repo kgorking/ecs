@@ -9,7 +9,7 @@ using namespace std::chrono_literals;
 
 int main()
 {
-	std::cout << "# 1. A simple example\n";
+	std::cout << "#1\n";
 	// A system that operates on entities that hold an 'int'
 	ecs::add_system([](int const& i) {
 		std::cout << i << '\n';
@@ -26,7 +26,7 @@ int main()
 
 
 
-	std::cout << "\n# 2. Adding a second component\n";
+	std::cout << "\n#2\n";
 	// Add another system that operates on entities that hold an 'int' and 'std::string' (order is irrelevant)
 	ecs::add_system([](int const& i, std::string const& s) {
 		std::cout << i << ": " << s << '\n';
@@ -42,7 +42,7 @@ int main()
 
 
 
-	std::cout << "\n# 3. Removing a component\n";
+	std::cout << "\n#3\n";
 	// Remove the integer component from the 'sean' entity
 	sean.remove<int>();
 
@@ -50,15 +50,14 @@ int main()
 	ecs::update_systems();
 
 
-
-	std::cout << "\n# 4. Accessing the entity id\n";
+	std::cout << "\n#4\n";
 	ecs::add_system([](ecs::entity_id ent, std::string const& s) {
 		std::cout << "entity with id " << ent.id << " is named " << s << '\n';
 		});
 	ecs::update_systems();
 
 
-	std::cout << "\n# 5. Parallelism\n";
+	std::cout << "\n#5\n";
 	ecs::runtime::reset(); // remove the existing systems and components
 
 	// The lambda used by both the serial- and parallel systems
@@ -70,9 +69,9 @@ int main()
 	auto& serial_sys   = ecs::add_system(sys_sleep);
 	auto& parallel_sys = ecs::add_system_parallel(sys_sleep);
 
-	// Create a range of 500 entites that would
+	// Create a range of entites that would
 	// take 5 seconds to process serially
-	ecs::entity_range ents{ 0, 499, short{0} };
+	ecs::entity_range ents{ 0, 500 - 1, short{0} };
 
 	// Commit the components (does not run the systems)
 	ecs::commit_changes();

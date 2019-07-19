@@ -12,7 +12,6 @@ TEST_CASE("Component growth")
 			REQUIRE(ent.id == c);
 		});
 
-		// Create an entity and add a C_Counter component initialized to zero
 		for (auto e = 0u; e < 100; e++) {
 			// Force a grow and check everytime a new component is added
 			ecs::add_component(e, e);

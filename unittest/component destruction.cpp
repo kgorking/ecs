@@ -15,7 +15,7 @@ struct C_GlobalCounter {
 		copy_count++;
 	}
 	C_GlobalCounter(C_GlobalCounter &&) noexcept {
-		ctr_count++;
+		//ctr_count++;
 		move_count++;
 	}
 	~C_GlobalCounter() {
@@ -29,20 +29,21 @@ struct C_GlobalCounter {
 TEST_CASE("Component destruction")
 {
 	// Component pools work with uninitialized memory internally,
-	// so make sure objects are cleaned up properly
+	// so make sure objects are cleanup up properly
 	SECTION("Test destruction")
 	{
 		ecs::runtime::reset();
 
-		ecs::add_system([](C_GlobalCounter const&) {});
+		// Sets up the internal storage for C_GlobalCounter components
+		ecs::runtime::init_components<C_GlobalCounter>();
 
-		for (auto i = 0u; i < 5; i++)
-			ecs::add_component<C_GlobalCounter>(i);
+		for (auto i = 0u; i <= 50; i++)
+			ecs::add_component(i, C_GlobalCounter{});
 		ecs::commit_changes();
 
-		ecs::remove_component_range<C_GlobalCounter>(0, 5);
+		ecs::remove_component_range<C_GlobalCounter>(0, 50);
 		ecs::commit_changes();
 
-		REQUIRE(C_GlobalCounter::ctr_count == C_GlobalCounter::dtr_count);
+		REQUIRE(C_GlobalCounter::copy_count == 51);
 	}
 }

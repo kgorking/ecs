@@ -7,12 +7,12 @@ TEST_CASE("Component deletion")
 	{
 		ecs::runtime::reset();
 
-		// Add a system
+		// Add a system for unsigned components
 		ecs::add_system([](ecs::entity_id id, unsigned const& c) {
 			REQUIRE(id.id == c);
 		});
 
-		// Create some entities initialized to their index
+		// Create some entities and add an unsigned component initialized to its index
 		// 0 1 2 3 4 5 6 7 8 9 10
 		for (unsigned e = 0; e <= 10; e++)
 			ecs::add_component(e, e);

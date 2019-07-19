@@ -22,10 +22,10 @@ TEST_CASE("Ranged add")
 		ecs::runtime::reset();
 		ecs::runtime::init_components<size_t>();
 
-		ecs::add_component_range<size_t>(0, 5, [](auto ent) { return ent.id * 2ull; });
+		ecs::add_component_range_init(0, 5, [](auto ent) -> size_t { return ent.id * 2ull; });
 
 		ecs::entity_range rng{ 6,10 };
-		rng.add<size_t>([](ecs::entity_id ent) { return ent.id * 2ull; });
+		rng.add_init([](ecs::entity_id ent) { return ent.id * 2ull; });
 
 		ecs::commit_changes();
 
