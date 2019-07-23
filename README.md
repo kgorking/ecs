@@ -102,7 +102,6 @@ Systems can process the components of entities in parallel, simply by marking th
 #include <thread>
 #include <chrono>
 #include <ecs/ecs.h>
-#include <ecs/entity_range.h>
 
 using namespace std::chrono_literals;
 
