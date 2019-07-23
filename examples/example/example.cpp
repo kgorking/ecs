@@ -3,7 +3,6 @@
 #include <thread>
 #include <chrono>
 #include <ecs/ecs.h>
-#include <ecs/entity_range.h>
 
 using namespace std::chrono_literals;
 
