@@ -13,23 +13,23 @@ struct state_connecting {
 };
 
 // Events. Marked as transient so they are automatically removed
-struct ev_connect    : ecs::transient {};
-struct ev_timeout    : ecs::transient {};
-struct ev_connected  : ecs::transient {};
-struct ev_disconnect : ecs::transient {};
+struct ev_connect_t    : ecs::transient {};
+struct ev_timeout_t    : ecs::transient {};
+struct ev_connected_t  : ecs::transient {};
+struct ev_disconnect_t : ecs::transient {};
 
 // Add the systems that handle state/event interactions
 void add_systems() {
-	// state_idle + ev_connect -> state_connecting
-	ecs::add_system([](ecs::entity fsm, state_idle const&, ev_connect const& /*ev*/) {
-		std::cout << "ev_connect: state_idle -> state_connecting\n";
+	// state_idle + ev_connect_t -> state_connecting (1)
+	ecs::add_system([](ecs::entity fsm, state_idle const&, ev_connect_t const& /*ev*/) {
+		std::cout << "ev_connect_t: state_idle -> state_connecting\n";
 		fsm.remove<state_idle>();
 		fsm.add<state_connecting>();
 	});
 
-	// state_connecting + ev_timeout [-> state_idle]
-	ecs::add_system([](ecs::entity fsm, state_connecting& state, ev_timeout const& /*ev*/) {
-		std::cout << "ev_timeout: ";
+	// state_connecting + ev_timeout_t [-> state_idle] (2)
+	ecs::add_system([](ecs::entity fsm, state_connecting& state, ev_timeout_t const& /*ev*/) {
+		std::cout << "ev_timeout_t: ";
 		if (++state.n >= state_connecting::max_n) {
 			std::cout << "state_connecting -> state_idle\n";
 			fsm.remove<state_connecting>();
@@ -40,16 +40,16 @@ void add_systems() {
 		}
 	});
 
-	// state_connecting + ev_connected -> state_connected
-	ecs::add_system([](ecs::entity fsm, state_connecting const&, ev_connected const& /*ev*/) {
-		std::cout << "ev_connected: state_connecting -> state_connected\n";
+	// state_connecting + ev_connected_t -> state_connected (3)
+	ecs::add_system([](ecs::entity fsm, state_connecting const&, ev_connected_t const& /*ev*/) {
+		std::cout << "ev_connected_t: state_connecting -> state_connected\n";
 		fsm.remove<state_connecting>();
 		fsm.add<state_connected>();
 	});
 
-	// state_connected + ev_disconnect -> state_idle
-	ecs::add_system([](ecs::entity fsm, state_connected&, ev_disconnect const& /*ev*/) {
-		std::cout << "ev_disconnect: state_connected -> state_idle\n";
+	// state_connected + ev_disconnect_t -> state_idle (4)
+	ecs::add_system([](ecs::entity fsm, state_connected&, ev_disconnect_t const& /*ev*/) {
+		std::cout << "ev_disconnect_t: state_connected -> state_idle\n";
 		fsm.remove<state_connected>();
 		fsm.add<state_idle>();
 	});
@@ -61,28 +61,26 @@ int main() {
 
 	// Create the finite state machine entity with the initial state of idle
 	ecs::entity fsm{ 0, state_idle{} };
-
-	// Commit the changes internally
 	ecs::commit_changes();
 
 	// Add a 'connect' event to the fsm, and commit and run any appropiate systems.
-	// Will trigger the 'state_idle/ev_connect' system and change the state to 'connecting'
-	fsm.add<ev_connect>();
+	// Will trigger the 'state_idle/ev_connect_t' system (1) and change the state to 'state_connecting'
+	fsm.add<ev_connect_t>();
 	ecs::update_systems();
 
 	// Add a 'timeout' event to the fsm, and commit and run any appropiate systems.
-	// Will trigger the 'state_connecting/ev_timeout' system. If too many timeouts happen, change the state back to idle
-	fsm.add<ev_timeout>();
+	// Will trigger the 'state_connecting/ev_timeout_t' system (2). If too many timeouts happen, change the state back to idle
+	fsm.add<ev_timeout_t>();
 	ecs::update_systems();
 
 	// Add a 'connected' event to the fsm, and commit and run any appropiate systems.
-	// Will trigger the 'state_connecting/ev_connected' system and change the state to 'connected'
-	fsm.add<ev_connected>();
+	// Will trigger the 'state_connecting/ev_connected_t' system (3) and change the state to 'state_connected'
+	fsm.add<ev_connected_t>();
 	ecs::update_systems();
 
 	// Add a 'disconnect' event to the fsm, and commit and run any appropiate systems.
-	// Will trigger the 'state_connected/ev_disconnect' system and change the state to 'idle'
-	fsm.add<ev_disconnect>();
+	// Will trigger the 'state_connected/ev_disconnect_t' system (4) and change the state to 'state_idle'
+	fsm.add<ev_disconnect_t>();
 	ecs::update_systems();
 
 	// Add a new event and system

@@ -1,32 +1,36 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-struct C_TransientTest : ecs::transient {
-	int i = 0;
-};
-
-TEST_CASE("Transient components")
+TEST_CASE("Test of transient components", "[component][transient]")
 {
-	SECTION("Test of transient components")
-	{
-		ecs::runtime::reset();
+	struct foo {};
+	struct test_t : ecs::transient {};
 
-		int counter = 0;
-		ecs::add_system([&counter](C_TransientTest const&) {
-			counter++;
-		});
+	ecs::runtime::reset();
 
-		ecs::add_component_range(0, 99, C_TransientTest{});
+	int counter = 0;
+	ecs::add_system([&counter](foo const&, test_t const&) {
+		counter++;
+	});
 
-		ecs::update_systems();
-		REQUIRE(100 == counter);
+	ecs::add_component(0, test_t{});
+	ecs::add_component(0, foo{});
+	ecs::update_systems();
+	CHECK(1 == counter);
 
-		// C_TransientTest will be removed in this update,
-		// and the counter should thus not be incremented
-		ecs::update_systems();
-		REQUIRE(100 == counter);
+	// test_t will be removed in this update,
+	// and the counter should thus not be incremented
+	ecs::update_systems();
+	CHECK(1 == counter);
 
-		// No transient components should be active
-		REQUIRE(0ull == ecs::get_component_count<C_TransientTest>());
-	}
+	// Add the test_t again, should increment the count
+	ecs::add_component(0, test_t{});
+	ecs::update_systems();
+	CHECK(2 == counter);
+
+	// This should clean up test_t
+	ecs::commit_changes();
+
+	// No transient components should be active
+	CHECK(0ull == ecs::get_component_count<test_t>());
 }

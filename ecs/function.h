@@ -4,7 +4,7 @@
 namespace ecs::detail {
 	//
 	// A small hack to add noexcept to std:functions move constructor.
-	// Without noexcept a lot copies would take place when component_pool::deferred_adds is resized,
+	// Without noexcept a lot of copies would take place when component_pool::deferred_adds is resized,
 	// which should be moved instead
 	template <typename F>
 	class function_fix : public std::function<F>

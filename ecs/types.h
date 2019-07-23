@@ -1,25 +1,32 @@
 #pragma once
 #include <cstdint>
-#include <utility>
 
 namespace ecs
 {
+	// Use a struct so the typesystem can differentiate
+	// between entity ids and regular integers in system arguments
 	struct entity_id final
 	{
-		std::uint32_t id = 0;
+		std::int32_t id;
 
-		entity_id() = default;
-		entity_id(std::uint32_t id) noexcept
-			: id(id)
+		entity_id() noexcept
+			: id{ std::numeric_limits<std::int32_t>::max() }
+		{ }
+		entity_id(std::int32_t _id) noexcept
+			: id(_id)
 		{ }
 
-		friend bool operator == (entity_id const& a, entity_id const& b) noexcept {
-			return a.id == b.id;
-		}
+		//auto operator <=> (entity_id const&) = default;
+		bool operator < (entity_id const& other) const noexcept { return id < other.id; }
+		bool operator <=(entity_id const& other) const noexcept { return id <= other.id; }
+		bool operator ==(entity_id const& other) const noexcept { return id == other.id; }
+		bool operator !=(entity_id const& other) const noexcept { return id != other.id; }
+		bool operator >=(entity_id const& other) const noexcept { return id >= other.id; }
+		bool operator > (entity_id const& other) const noexcept { return id > other.id; }
 
-		friend bool operator < (entity_id const& a, entity_id const& b) noexcept
-		{
-			return a.id < b.id;
-		}
+		entity_id& operator ++() noexcept { ++id; return *this; }
+		entity_id& operator --() noexcept { --id; return *this; }
+		entity_id operator ++(int) noexcept { auto copy = *this; id++; return copy; }
+		entity_id operator --(int) noexcept { auto copy = *this; id--; return copy; }
 	};
 }

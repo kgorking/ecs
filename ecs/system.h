@@ -6,7 +6,7 @@ namespace ecs
 	{
 	public:
 		// Run this system on all of its associated components
-		virtual void update() noexcept = 0;
+		virtual void update() = 0;
 
 		// Process changes to component layouts
 		virtual void process_changes() = 0;

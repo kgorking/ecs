@@ -1,47 +1,32 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Component deletion")
+//
+// Test to make sure components are properly removed from systems.
+// This is based on a bug that was exposed by the 'finite_state_machine' example.
+TEST_CASE("Test the deletion of components")
 {
-	SECTION("Test the deletion of components")
-	{
-		ecs::runtime::reset();
+	ecs::runtime::reset();
 
-		// Add a system for unsigned components
-		ecs::add_system([](ecs::entity_id id, unsigned const& c) {
-			REQUIRE(id.id == c);
-		});
+	struct state_idle {};
+	struct state_connecting {};
+	struct ev_connect : ecs::transient {};
+	struct ev_timeout : ecs::transient {};
 
-		// Create some entities and add an unsigned component initialized to its index
-		// 0 1 2 3 4 5 6 7 8 9 10
-		for (unsigned e = 0; e <= 10; e++)
-			ecs::add_component(e, e);
+	int run_counter_idle = 0;
+	ecs::runtime::init_components<ev_timeout>();
+	ecs::add_system([&](state_idle const&, ev_connect const& /*ev*/) {
+		run_counter_idle++;
+	});
 
-		// This should be zero, because changes hasn't been processed yet
-		REQUIRE(0ull == ecs::get_component_count<unsigned>());
+	ecs::entity fsm{ 0, state_idle{} };
+	ecs::commit_changes();
 
-		// commit and run
-		ecs::update_systems();
+	fsm.add<ev_connect>();
+	ecs::update_systems();
+	CHECK(run_counter_idle == 1);
 
-		// Verify the component count and data
-		REQUIRE(11ull == ecs::get_component_count<unsigned>());
-
-		// Remove some components
-		// 0 1 2 3 4 10
-		for (unsigned e = 9; e >= 5; --e)
-			ecs::remove_component<unsigned>(e);
-		ecs::update_systems();
-
-		// Make sure components are deleted
-		REQUIRE(6ull == ecs::get_component_count<unsigned>());
-
-		// re-insert new stuff
-		// 0 1 2 3 4 6 7 8 9 10
-		for (unsigned e = 6; e <= 9; e++)
-			ecs::add_component(e, e);
-		ecs::update_systems();
-
-		// There should now be 10 components
-		REQUIRE(10ull == ecs::get_component_count<unsigned>());
-	}
+	fsm.add<ev_timeout>();
+	ecs::update_systems();
+	CHECK(run_counter_idle == 1);
 }

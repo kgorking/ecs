@@ -1,27 +1,26 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Component growth")
+TEST_CASE("Test that components remain valid after memory reallocation")
 {
-	SECTION("Test that components are stored properly")
-	{
-		ecs::runtime::reset();
+	ecs::runtime::reset();
 
-		// Add a system to verify the values of a component
-		ecs::add_system([](ecs::entity_id ent, unsigned &c) {
-			REQUIRE(ent.id == c);
-		});
+	// Add a system to verify the values of a component
+	ecs::add_system([](ecs::entity_id ent, int const& c) {
+		CHECK(ent == c);
+	});
 
-		for (auto e = 0u; e < 100; e++) {
-			// Force a grow and check everytime a new component is added
-			ecs::add_component(e, e);
-			ecs::update_systems();
-		}
+	// Add components to entities [0..9] and [20..29]
+	ecs::add_component_range_init(0 , 2 , [](ecs::entity_id ent) { return ent.id; });
+	ecs::add_component_range_init(6, 9, [](ecs::entity_id ent) { return ent.id; });
+	ecs::commit_changes();
 
-		// Get the component data to verify
-		for (auto e = 0u; e < 100; e++) {
-			size_t const c = ecs::get_component<unsigned>(e);
-			REQUIRE(e == c);
-		}
+	for (int e = 5; e >= 3; e--) {
+		// Force a grow
+		ecs::add_component(e, e);
+		ecs::commit_changes();
 	}
+
+	// Check the components
+	ecs::run_systems();
 }

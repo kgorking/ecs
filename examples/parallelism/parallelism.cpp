@@ -18,7 +18,7 @@ int main()
 
 		// Run the system
 		std::cout << "Running system...";
-		ecs::entity_range ents{ 0, 256 * 1024 - 1 };
+		ecs::entity_range ents{ 1, 1024 };
 		ents.add(int{ 0 });
 		ecs::update_systems();
 		std::cout << '\n';

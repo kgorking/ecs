@@ -1,34 +1,31 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-struct C_SharedTest : ecs::shared {
-	int i = 0;
-};
-
-TEST_CASE("Shared component")
+TEST_CASE("Test shared components")
 {
-	SECTION("Test shared components")
-	{
-		ecs::runtime::reset();
+	struct test_s : ecs::shared {
+		int i = 0;
+	};
 
-		auto pst = ecs::get_shared_component<C_SharedTest>();
-		pst->i = 42;
+	ecs::runtime::reset();
 
-		ecs::add_system([](C_SharedTest const& st) {
-			REQUIRE(42 == st.i);
-		});
+	auto pst = ecs::get_shared_component<test_s>();
+	pst->i = 42;
 
-		ecs::add_component_range(0, 255, C_SharedTest{});
-		ecs::commit_changes();
+	ecs::add_system([](test_s const& st) {
+		CHECK(42 == st.i);
+	});
 
-		// Only 1 C_SharedTest should exist
-		REQUIRE(1 == ecs::get_component_count<C_SharedTest>());
+	ecs::add_component_range(0, 2, test_s{});
+	ecs::commit_changes();
 
-		// Ensure that different entities have the same shared component
-		ptrdiff_t const diff = &ecs::get_component<C_SharedTest>(4) - &ecs::get_component<C_SharedTest>(110);
-		REQUIRE(diff == 0);
+	// Only 1 test_s should exist
+	CHECK(1 == ecs::get_component_count<test_s>());
 
-		// Test the content of the entities
-		ecs::run_systems();
-	}
+	// Ensure that different entities have the same shared component
+	ptrdiff_t const diff = &ecs::get_component<test_s>(0) - &ecs::get_component<test_s>(1);
+	CHECK(diff == 0);
+
+	// Test the content of the entities
+	ecs::run_systems();
 }

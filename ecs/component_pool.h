@@ -43,12 +43,15 @@ namespace ecs::detail
 			add_range(id, id, std::move(component));
 		}
 
+		// Adds a component to a range of entities, initialized by the supplied use function
+		// Pre: entities has not already been added, or is in queue to be added
 		template <typename Fn>
 		void add_range_init(entity_id const first, entity_id const last, Fn init)
 		{
 			static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tagged components can not have any data in them");
-			Expects(!has_entity_range(first, last));		// Entity already has this component
-			Expects(!is_queued_add_range(first, last));		// Component already added this cycle
+			Expects(first <= last);
+			Expects(!has_entity_range(first, last));
+			Expects(!is_queued_add_range(first, last));
 
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
@@ -65,31 +68,50 @@ namespace ecs::detail
 		}
 
 		// Adds a component to a range of entity.
-		// Pre: entity has not already been added, or is in queue to be added
+		// Pre: entities has not already been added, or is in queue to be added
 		void add_range(entity_id const first, entity_id const last, T component)
 		{
 			static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tagged components can not have any data in them");
-			Expects(!has_entity_range(first, last));		// Entity already has this component
-			Expects(!is_queued_add_range(first, last));		// Component already added this cycle
+			Expects(first <= last);
+			Expects(!has_entity_range(first, last));
+			Expects(!is_queued_add_range(first, last));
 
+			entity_range const range{ first, last };
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.size() == 0) {
 					data.emplace_back(std::move(component));
 				}
 
-				deferred_adds->emplace_back(entity_range{ first, last });
+				// Merge the range or add it
+				if (deferred_adds->size() > 0 && deferred_adds->back().can_merge(range)) {
+					deferred_adds->back() = entity_range::merge(deferred_adds->back(), range);
+				}
+				else {
+					deferred_adds->push_back(range);
+				}
 			}
 			else {
-				// Add the id and data to a temp storage
-				//deferred_adds->reserve(deferred_adds->size() + 1);
-				deferred_adds->emplace_back(entity_range{ first, last }, std::move(component));
+				// Try and merge the range instead of adding it
+				if (deferred_adds->size() > 0) {
+					auto &[last_range, val] = deferred_adds->back();
+					if (last_range.can_merge(range)) {
+						bool const equal_vals = 0 == std::memcmp(&std::get<T>(val), &component, sizeof(T));
+						if (equal_vals) {
+							last_range = entity_range::merge(last_range, range);
+							return;
+						}
+					}
+				}
+
+				// Merge wasn't possible, so just add it
+				deferred_adds->emplace_back(range, std::move(component));
 			}
 		}
 
 		// Returns the shared component
 		template <typename = std::enable_if_t<is_shared_v<T>>>
-		T* get_shared_component()
+		T* get_shared_component() const
 		{
 			if (data.size() == 0) {
 				data.emplace_back(T{});
@@ -107,33 +129,23 @@ namespace ecs::detail
 		// Remove an entity from the component pool. This logically removes the component from the entity.
 		void remove_range(entity_id const first, entity_id const last)
 		{
+			Expects(first <= last);
 			Expects(has_entity_range(first, last));
 			Expects(!is_queued_remove_range(first, last));
-			deferred_removes->push_back(entity_range{ first, last });
+			entity_range const range{ first, last };
+			if (deferred_removes->size() > 0 && deferred_removes->back().can_merge(range)) {
+				deferred_removes->back() = entity_range::merge(deferred_removes->back(), range);
+			}
+			else {
+				deferred_removes->push_back(range);
+			}
 		}
 
 		// Returns an entities component
 		// Pre: entity must have an component in this pool
-		T const* find_component_data([[maybe_unused]] entity_id const id) const
+		T* find_component_data([[maybe_unused]] entity_id const id) const
 		{
-			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
-				// All entities point to the same component
-				return get_shared_component<T>();
-			}
-			else {
-				auto const index = find_entity_index(id);
-				Expects(index != -1);
-				return at(index);
-			}
-		}
-		// entity_iterator find_entity_start(entity_id const ent)
-		// entity_iterator find_entity_next(entity_iterator it, entity_id const ent)
-		//using entity_iterator = std::vector<entity_id>::const_iterator;
-
-		// Returns an entities component
-		// Pre: entity must have a component in this pool
-		T* find_component_data([[maybe_unused]] entity_id const id)
-		{
+			// TODO tagged+shared components could just return the address of a static var. 0 mem allocs
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// All entities point to the same component
 				return get_shared_component<T>();
@@ -155,23 +167,14 @@ namespace ecs::detail
 		// and remove components queued for removal
 		void process_changes() override
 		{
-			// Transient components are removed each cycle
-			if constexpr (std::is_base_of_v<ecs::transient, T>) {
-				if (ranges.size() > 0) {
-					ranges.clear();
-					data.clear();
-					set_flag(modified_state::remove);
-				}
-			}
-
-			process_add_components();
 			process_remove_components();
+			process_add_components();
 		}
 
 		// Returns the number of active entities in the pool
 		size_t num_entities() const noexcept
 		{
-			return ranges.size();
+			return std::accumulate(ranges.begin(), ranges.end(), size_t{ 0 }, [](size_t val, entity_range const& range) { return val + range.count(); });
 		}
 
 		// Returns the number of active components in the pool
@@ -204,10 +207,10 @@ namespace ecs::detail
 			state_ |= flag;
 		}
 
-		// Returns a view of the pools entities
-		gsl::span<entity_range const> get_entities() const noexcept override
+		// Returns the pools entities
+		std::vector<entity_range> const& get_entities() const noexcept override
 		{
-			return gsl::make_span(ranges);
+			return ranges;
 		}
 
 		// Returns true if an entity has data in this pool
@@ -217,8 +220,9 @@ namespace ecs::detail
 		}
 
 		// Returns true if an entity range has data in this pool
-		bool has_entity_range(entity_id const first, entity_id const last) const noexcept
+		bool has_entity_range(entity_id const first, entity_id const last) const
 		{
+			Expects(first <= last);
 			if (ranges.empty())
 				return false;
 
@@ -239,6 +243,7 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_add_range(entity_id const first, entity_id const last) const
 		{
+			Expects(first <= last);
 			if (deferred_adds->empty())
 				return false;
 
@@ -267,6 +272,7 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_remove_range(entity_id const first, entity_id const last) const
 		{
+			Expects(first <= last);
 			if (deferred_removes->empty())
 				return false;
 
@@ -291,22 +297,17 @@ namespace ecs::detail
 
 	private:
 
-		// Returns the component at the specific index. Does not check bounds
-		T const* at(gsl::index const index) const
+		// Returns the component at the specific index.
+		// Pre: index is within bounds
+		T* at(gsl::index const index) const
 		{
+			Expects(index >= 0 && index < static_cast<gsl::index>(data.size()));
 			GSL_SUPPRESS(bounds.4)
-			return &data[index];
-		}
-
-		// Returns the component at the specific index. Does not check bounds
-		T* at(gsl::index const index)
-		{
-			GSL_SUPPRESS(bounds.4)
-			return &data[index];
+			return &data.data()[index];
 		}
 
 		// Searches for an entitys offset in to the component pool. Returns -1 if not found
-		gsl::index find_entity_index(entity_id const ent) const noexcept
+		gsl::index find_entity_index(entity_id const ent) const
 		{
 			if (ranges.size() > 0) {
 				// Run through the ranges
@@ -382,7 +383,7 @@ namespace ecs::detail
 						component_it += range.count();
 					};
 					auto const add_init = [this, &component_it, range](detail::function_fix<T(entity_id)> init) {
-						for (entity_id ent = range.first(); ent.id <= range.last().id; ++ent.id) {
+						for (entity_id ent = range.first(); ent <= range.last(); ++ent.id) {
 							component_it = data.insert(component_it, init(ent));
 							component_it += 1;
 						}
@@ -429,87 +430,84 @@ namespace ecs::detail
 		// Removes all marked components from their entities
 		void process_remove_components()
 		{
-			// Combine the vectors
-			std::vector<entity_range> removes = deferred_removes.combine([](auto left, auto right) {
-				left.insert(left.end(), right.begin(), right.end());
-				return left;
-			});
-			if (removes.empty())
-				return;
+			// Transient components are removed each cycle
+			if constexpr (std::is_base_of_v<ecs::transient, T>) {
+				if (ranges.size() > 0) {
+					ranges.clear();
+					data.clear();
+					set_flag(modified_state::remove);
+				}
+			}
+			else {
+				// Combine the vectors
+				std::vector<entity_range> removes = deferred_removes.combine([](auto left, auto right) {
+					left.insert(left.end(), right.begin(), right.end());
+					return left;
+					});
+				if (removes.empty())
+					return;
 
-			// Clear the current removes
-			deferred_removes.clear();
+				// Clear the current removes
+				deferred_removes.clear();
 
-			// Sort it if needed
-			if (!std::is_sorted(removes.begin(), removes.end()))
-				std::sort(removes.begin(), removes.end());
+				// Sort it if needed
+				if (!std::is_sorted(removes.begin(), removes.end()))
+					std::sort(removes.begin(), removes.end());
 
-			// Holds the offsets (with adjustments) in 'data' that needs to be erased
-			using data_range = std::pair<gsl::index, gsl::index>;
-			[[maybe_unused]] std::vector<data_range> data_ranges;
+				// Find the offsets in to the data storage
+				if constexpr (detail::has_unique_component_v<T>) {
+					gsl::index index_adjust = 0;
+					for (auto it = removes.begin(); it != removes.end(); ++it) {
+						gsl::index const first = find_entity_index(it->first()) - index_adjust;
 
-			// Find the offsets in to the data storage
-			if constexpr (detail::has_unique_component_v<T>) {
-				data_ranges.reserve(removes.size());
+						if (it->count() == 1) {
+							data.erase(data.begin() + first);
+						}
+						else {
+							gsl::index const last = first + it->count() - index_adjust;
+							assert(last >= 0);
+							data.erase(data.begin() + first, data.begin() + last);
+						}
 
-				// If more than one range is removed, use this to adjust their indices into the 'data' vector
-				size_t data_adjust = 0;
+						index_adjust = it->count();
+					}
+				}
 
+				// Remove the ranges
+				auto curr_range = ranges.begin();
 				for (auto it = removes.begin(); it != removes.end(); ++it) {
-					data_ranges.emplace_back(
-						find_entity_index(it->first()) - data_adjust,
-						find_entity_index(it->last()) - data_adjust
-					);
+					if (curr_range == ranges.end())
+						break;
 
-					// Adjust the data offset
-					data_adjust += it->count();
+					// Step forward until a candidate range is found
+					while (!curr_range->contains(*it))
+						++curr_range;
+
+					// Erase the current range if it equals the range to be removed
+					if (curr_range->equals(*it)) {
+						curr_range = ranges.erase(curr_range);
+					}
+					else {
+						// Do the removal
+						auto const [range, split] = entity_range::remove(*curr_range, *it);
+
+						// Update the modified range
+						*curr_range = range;
+
+						// If the range was split, add the other part of the range
+						if (split)
+							curr_range = ranges.insert(curr_range + 1, split.value());
+					}
 				}
+
+				// Update the state
+				set_flag(modified_state::remove);
 			}
-
-			// Remove the ranges
-			auto curr_range = ranges.begin();
-			for (auto it = removes.begin(); it != removes.end(); ++it) {
-				if (curr_range == ranges.end())
-					break;
-
-				// Step forward until a candidate range is found
-				while (!curr_range->contains(*it))
-					++curr_range;
-
-				// Erase the current range if it equals the range to be removed
-				if (curr_range->equals(*it)) {
-					curr_range = ranges.erase(curr_range);
-				}
-				else {
-					// Do the removal
-					auto const [range, split] = entity_range::remove(*curr_range, *it);
-
-					// Update the modified range
-					*curr_range = range;
-
-					// If the range was split, add the other part of the range
-					if (split)
-						curr_range = ranges.insert(curr_range + 1, split.value());
-				}
-			}
-
-			// Remove the corresponding ranges of data
-			if constexpr (detail::has_unique_component_v<T>) {
-				for (auto const [first, last] : data_ranges) {
-					if (first == last)
-						data.erase(data.begin() + first);
-					else
-						data.erase(data.begin() + first, data.begin() + last);
-				}
-			}
-
-			// Update the state
-			set_flag(modified_state::remove);
 		}
 
 	private:
 		// The components data
-		std::vector<T> data;
+		mutable std::vector<T> data; // mutable so the constants getters can return components whos contents can be modified
 
 		// The entities that have data in this storage.
 		std::vector<entity_range> ranges;

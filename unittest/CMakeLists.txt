@@ -4,29 +4,13 @@
 include_directories(../)
 include_directories(../GSL/include)
 
-#add_executable (unittest
-#	"unittest.cpp"
-#	"component deletion.cpp"
-#	"component destruction.cpp"
-#	"component initialization.cpp"
-#	"component growth.cpp"
-#	"component mishandling.cpp"
-#	"component ordering.cpp"
-#	"entity sorting.cpp"
-#	"memory model.cpp"
-#	"missing storage.cpp"
-#	"ranged add.cpp"
-#	"shared component.cpp"
-#	"system.cpp"
-#	"transient components.cpp"
-#	"two-component system.cpp")
-
 add_executable (unittest_component_deletion "unittest.cpp" "component deletion.cpp")
 add_executable (unittest_component_destruction "unittest.cpp" "component destruction.cpp")
 add_executable (unittest_component_initializer "unittest.cpp" "component initializer.cpp")
 add_executable (unittest_component_growth "unittest.cpp" "component growth.cpp")
 add_executable (unittest_component_mishandling "unittest.cpp" "component mishandling.cpp")
 add_executable (unittest_component_ordering "unittest.cpp" "component ordering.cpp")
+add_executable (unittest_component_storage_test "unittest.cpp" "component storage tests.cpp")
 add_executable (unittest_entity_sorting "unittest.cpp" "entity sorting.cpp")
 add_executable (unittest_memory_model "unittest.cpp" "memory model.cpp")
 add_executable (unittest_missing_storage "unittest.cpp" "missing storage.cpp")
@@ -35,6 +19,9 @@ add_executable (unittest_shared_component "unittest.cpp" "shared component.cpp")
 add_executable (unittest_system "unittest.cpp" "system.cpp")
 add_executable (unittest_transient_components "unittest.cpp" "transient components.cpp")
 add_executable (unittest_two_component_system "unittest.cpp" "two-component system.cpp")
+add_executable (unittest_negative_ids "unittest.cpp" "negative ids.cpp")
+add_executable (unittest_range_intersect "unittest.cpp" "range intersect.cpp")
+add_executable (unittest_two_systems_and_components "unittest.cpp" "two systems and components.cpp")
 
 add_test(component_deletion unittest_component_deletion)
 add_test(component_destruction unittest_component_destruction)
@@ -50,3 +37,7 @@ add_test(shared_component unittest_shared_component)
 add_test(system unittest_system)
 add_test(transient_components unittest_transient_components)
 add_test(two_component_system unittest_two_component_system)
+add_test(component_storage_test unittest_component_storage_test)
+add_test(negative_ids unittest_negative_ids)
+add_test(range_intersect unittest_range_intersect)
+add_test(two_systems_and_components unittest_two_systems_and_components)

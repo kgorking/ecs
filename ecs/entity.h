@@ -11,14 +11,11 @@ namespace ecs
 
 	public:
 		template <typename ...Components>
-		explicit entity(entity_id ent, Components &&... components)
-			: id(ent.id)
+		entity(entity_id ent, Components &&... components)
+			: id(ent)
 		{
 			add<Components...>(std::forward<Components>(components)...);
 		}
-
-		friend bool operator <  (entity const& a, entity const& b) noexcept { return a.get_id() < b.get_id(); }
-		friend bool operator == (entity const& a, entity const& b) noexcept { return a.get_id() == b.get_id(); }
 
 		entity_id get_id() const noexcept
 		{

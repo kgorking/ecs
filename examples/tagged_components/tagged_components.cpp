@@ -2,9 +2,9 @@
 #include <string>
 #include <ecs/ecs.h>
 
-struct Flameable : ecs::tag {};
-struct Freezeable : ecs::tag {};
-struct Shockable: ecs::tag {};
+struct flameable_t : ecs::tag {};
+struct freezeable_t : ecs::tag {};
+struct shockable_t: ecs::tag {};
 
 struct Name : std::string {};
 
@@ -12,28 +12,39 @@ int main()
 {
 	try {
 		// Add systems for each tag. Will just print the name
-		ecs::add_system([](Name const& name, Freezeable&) { std::cout << "freezeable: " << name << "\n";  });
-		ecs::add_system([](Name const& name, Shockable&)  { std::cout << "shockable:  " << name << "\n";  });
-		ecs::add_system([](Name const& name, Flameable&)  { std::cout << "flammeable: " << name << "\n"; });
+		ecs::add_system([](Name const& name, freezeable_t&) { std::cout << "  freezeable: " << name << "\n";  });
+		ecs::add_system([](Name const& name, shockable_t&)  { std::cout << "  shockable:  " << name << "\n";  });
+		ecs::add_system([](Name const& name, flameable_t&)  { std::cout << "  flammeable: " << name << "\n"; });
 
 		// Set up the entities with a name and tags
 		ecs::entity
-			jon{ 0, Name{ "Jon" }, Freezeable{} },
-			sean{ 1, Name{ "Sean" }, Flameable{} },
-			jimmy{ 2, Name{ "Jimmy" }, Shockable{} },
-			rachel{ 3, Name{ "Rachel" }, Flameable{}, Freezeable{}, Shockable{} },
-			suzy{ 4, Name{ "Suzy" }, Flameable{} };
+			jon{ 0, Name{ "Jon" }, freezeable_t{} },
+			sean{ 1, Name{ "Sean" }, flameable_t{} },
+			jimmy{ 2, Name{ "Jimmy" }, shockable_t{} },
+			rachel{ 3, Name{ "Rachel" }, flameable_t{}, freezeable_t{}, shockable_t{} },
+			suzy{ 4, Name{ "Suzy" }, flameable_t{} };
 
-		// Commit the changes and run the systems
-		ecs::update_systems();
+		// Commit the changes
+		ecs::commit_changes();
+		std::cout <<
+			"Created 'Jon' with freezeable_t\n"
+			"        'Sean' with flameable_t\n"
+			"        'Jimmy' with shockable_t\n"
+			"        'Rachel' with flameable_t, freezeable_t, shockable_t\n"
+			"        'Suzy' with flameable_t\n\n";
 
+		// Run the systems
+		std::cout << "Running systems:\n";
+		ecs::run_systems();
+
+		std::cout << "\nStat dump:\n";
 		std::cout
-			<< "\nNumber of entities with the Flameable tag:  " << ecs::get_entity_count<Flameable>()
-			<< "\nNumber of entities with the Shockable tag:  " << ecs::get_entity_count<Shockable>()
-			<< "\nNumber of entities with the Freezeable tag: " << ecs::get_entity_count<Freezeable>()
-			<< "\nNumber of Flameable components allocated:   " << ecs::get_component_count<Flameable>()
-			<< "\nNumber of Shockable components allocated:   " << ecs::get_component_count<Shockable>()
-			<< "\nNumber of Freezeable components allocated:  " << ecs::get_component_count<Freezeable>() << "\n";
+			<<   "  Number of entities with the flameable_t tag:  " << ecs::get_entity_count<flameable_t>()
+			<< "\n  Number of entities with the shockable_t tag:  " << ecs::get_entity_count<shockable_t>()
+			<< "\n  Number of entities with the freezeable_t tag: " << ecs::get_entity_count<freezeable_t>()
+			<< "\n  Number of flameable_t components allocated:   " << ecs::get_component_count<flameable_t>()
+			<< "\n  Number of shockable_t components allocated:   " << ecs::get_component_count<shockable_t>()
+			<< "\n  Number of freezeable_t components allocated:  " << ecs::get_component_count<freezeable_t>() << "\n";
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << "\n";

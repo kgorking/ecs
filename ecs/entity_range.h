@@ -7,7 +7,7 @@
 
 namespace ecs
 {
-	// A simple helper class for easing the adding and removing of components.
+	// Defines a range of entities.
 	// 'last' is included in the range.
 	class entity_range final
 	{
@@ -15,12 +15,40 @@ namespace ecs
 		entity_id last_{ 0 };
 
 	public:
+		// Iterator support
+		class iterator {
+			entity_id ent_;
+
+		public:
+			// iterator traits
+			using difference_type = long;
+			using value_type = entity_id;
+			using pointer = const entity_id*;
+			using reference = const entity_id &;
+			using iterator_category = std::random_access_iterator_tag;
+
+			iterator() : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
+			iterator(entity_id ent) : ent_(ent) {}
+			iterator& operator++() { ent_.id++; return *this; }
+			iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
+			iterator operator+(difference_type diff) const { return { ent_.id + diff }; }
+			iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
+			difference_type operator-(difference_type diff) const { return { ent_.id - diff }; }
+			difference_type operator-(iterator in_it) const { return { ent_.id - in_it.ent_.id }; }
+			bool operator==(iterator other) const { return ent_ == other.ent_; }
+			bool operator!=(iterator other) const { return !(*this == other); }
+			entity_id operator*() { return ent_; }
+		};
+		iterator begin() { return { first_ }; }
+		iterator end() { return { last_.id + 1 }; }
+
+	public:
 		template <typename ...Components>
-		entity_range(entity_id first, entity_id last, Components&& ... components) noexcept
+		entity_range(entity_id first, entity_id last, Components&& ... components)
 			: first_(first)
 			, last_(last)
 		{
-			Expects(first.id <= last.id);
+			Expects(first <= last);
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
@@ -28,11 +56,14 @@ namespace ecs
 		entity_range(entity_range &&) = default;
 		entity_range& operator = (entity_range const&) = default;
 		entity_range& operator = (entity_range &&) = default;
+		bool operator == (entity_range const& other) const noexcept {
+			return equals(other);
+		}
 
 		// For sort
 		bool operator <(entity_range const& other) const noexcept
 		{
-			return first_.id < other.first().id;
+			return first_ < other.first() && last_ < other.last();
 		}
 
 		// Returns the first entity in the range
@@ -48,33 +79,34 @@ namespace ecs
 		}
 
 		// Returns the number of entities in this range
-		size_t count() const noexcept
+		int count() const noexcept
 		{
-			return (last_.id - first_.id) + 1ull;
+			return (last_.id - first_.id) + 1;
 		}
 
 		// Returns true if the ranges are identical
 		bool equals(entity_range const other) const noexcept
 		{
-			return first_.id == other.first().id && last_.id == other.last().id;
+			return first_ == other.first() && last_ == other.last();
 		}
 
 		// Returns true if the entity is contained in this range
 		bool contains(entity_id const ent) const noexcept
 		{
-			return ent.id >= first_.id && ent.id <= last_.id;
+			return ent >= first_ && ent <= last_;
 		}
 
 		// Returns true if the range is contained in this range
 		bool contains(entity_range const range) const noexcept
 		{
-			return range.first().id >= first_.id && range.last().id <= last_.id;
+			return range.first() >= first_ && range.last() <= last_;
 		}
 
 		// Returns the offset of an entity into this range
-		gsl::index offset(entity_id const ent) const noexcept
+		gsl::index offset(entity_id const ent) const
 		{
-			return ent.id - first_.id;
+			Expects(ent >= first_ && ent <= last_);
+			return static_cast<gsl::index>(ent.id) - first_.id;
 		}
 
 		bool can_merge(entity_range const other) const noexcept
@@ -84,32 +116,32 @@ namespace ecs
 
 		bool overlaps(entity_range const other) const noexcept
 		{
+			// Identical ranges
+			if (first_ == other.first_ && last_ == other.last_)
+				return true;
+
 			// This range completely covers the other range
 			// **************
 			//      ++++
-			//      ----
-			if (other.first().id >= first_.id && other.last().id <= last_.id)
+			if (other.first() >= first_ && other.last() <= last_)
 				return true;
 
 			// Other range completely covers this range
 			//      ****
 			// +++++++++++++++
-			//      ----
-			if (other.first().id < first_.id && other.last().id > last_.id)
+			if (other.first() <= first_ && other.last() >= last_)
 				return true;
 
 			// Partial overlap
 			//   **************
 			// ++++
-			//   --
-			if (other.first().id > first_.id && other.last().id < last_.id)
+			if (other.first() < first_ && other.last() >= first_)
 				return true;
 
 			// Partial overlap
 			// **************
 			//             ++++
-			//             --
-			if (other.first().id < last_.id && other.last().id > last_.id)
+			if (other.first() <= last_ && other.last() > last_)
 				return true;
 
 			return false;
@@ -121,7 +153,7 @@ namespace ecs
 		static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const& range, entity_range const& other)
 		{
 			Expects(range.contains(other));
-			Expects(!(range.first().id == other.first().id && range.last().id == other.last().id));
+			Expects(!(range.first() == other.first() && range.last() == other.last()));
 
 			// Remove from the front
 			if (other.first() == range.first()) {
@@ -148,7 +180,7 @@ namespace ecs
 
 		static entity_range merge(entity_range const r1, entity_range const r2)
 		{
-			Expects(r1.last().id+1 == r2.first().id);
+			Expects(r1.last().id + 1 == r2.first().id);
 			return entity_range{ r1.first(), r2.last() };
 		}
 
@@ -157,10 +189,11 @@ namespace ecs
 		static entity_range intersect(entity_range const& range, entity_range const& other)
 		{
 			Expects(range.overlaps(other));
-			Expects(!(range.first().id == other.first().id && range.last().id == other.last().id));
+			//Expects(!(range.first() == other.first() && range.last() == other.last()));
 
-			entity_id const first{ std::max(range.first().id, other.first().id) };
-			entity_id const last{ std::min(range.last().id, other.last().id) };
+			entity_id const first{ std::max(range.first(), other.first()) };
+			entity_id const last { std::min(range.last(),  other.last()) };
+			Expects(last.id - first.id >= 0);
 
 			return entity_range{ first, last };
 		}
