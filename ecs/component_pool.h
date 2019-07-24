@@ -447,23 +447,28 @@ namespace ecs::detail
 				if (!std::is_sorted(removes.begin(), removes.end()))
 					std::sort(removes.begin(), removes.end());
 
-				// Find the offsets in to the data storage
-				// TODO optimize!
+				// Erase the ranges data
 				if constexpr (detail::has_unique_component_v<T>) {
-					gsl::index index_adjust = 0;
-					for (auto it = removes.begin(); it != removes.end(); ++it) {
-						gsl::index const first = find_entity_index(it->first()) - index_adjust;
+					auto dest_it = data.begin() + find_entity_index(removes[0].first());
+					auto from_it = dest_it + removes[0].count();
 
-						if (it->count() == 1) {
-							data.erase(data.begin() + first);
-						}
-						else {
-							gsl::index const last = first + it->count() - index_adjust;
-							assert(last >= 0);
-							data.erase(data.begin() + first, data.begin() + last);
+					if (dest_it == data.begin() && from_it == data.end()) {
+						data.clear();
+					}
+					else {
+						// Move data between the ranges
+						for (auto it = removes.begin() + 1; it != removes.end(); ++it) {
+							auto const start_it = data.begin() + find_entity_index(it->first());
+							while (from_it != start_it)
+								*dest_it++ = std::move(*from_it++);
 						}
 
-						index_adjust = it->count();
+						// Move rest of data
+						while (from_it != data.end())
+							*dest_it++ = std::move(*from_it++);
+
+						// Erase the unused space
+						data.erase(dest_it, data.end());
 					}
 				}
 
