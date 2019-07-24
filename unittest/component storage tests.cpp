@@ -6,7 +6,7 @@ TEST_CASE("Test the internal storage of components")
 {
 	ecs::runtime::reset();
 
-	// Add a system that verifies an unsigned matches its entity id
+	// Add a system that verifies a component matches its entity id
 	int run_counter = 0;
 	ecs::add_system([&run_counter](ecs::entity_id id, int const& c) {
 		CHECK(id == c);
