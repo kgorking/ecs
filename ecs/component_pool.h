@@ -15,7 +15,7 @@ namespace ecs::detail
 	// True if each entity has their own unique component (ie. not shared across components)
 	template <class T> constexpr bool has_unique_component_v = !(is_shared_v<T> || is_tagged_v<T>);
 
-	// For std::binary_search
+	// For std::visit
 	template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 	template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
@@ -40,18 +40,17 @@ namespace ecs::detail
 		// Pre: entity has not already been added, or is in queue to be added
 		void add(entity_id const id, T component)
 		{
-			add_range(id, id, std::move(component));
+			add_range({ id, id }, std::move(component));
 		}
 
 		// Adds a component to a range of entities, initialized by the supplied use function
 		// Pre: entities has not already been added, or is in queue to be added
 		template <typename Fn>
-		void add_range_init(entity_id const first, entity_id const last, Fn init)
+		void add_range_init(entity_range const range, Fn init)
 		{
 			static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tagged components can not have any data in them");
-			Expects(first <= last);
-			Expects(!has_entity_range(first, last));
-			Expects(!is_queued_add_range(first, last));
+			Expects(!has_entity_range(range));
+			Expects(!is_queued_add_range(range));
 
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
@@ -59,24 +58,22 @@ namespace ecs::detail
 					data.emplace_back(init(0));
 				}
 
-				deferred_adds->emplace_back(entity_range{ first, last });
+				deferred_adds->emplace_back(range);
 			}
 			else {
 				// Add the id and data to a temp storage
-				deferred_adds->emplace_back(entity_range{ first, last }, detail::function_fix<T(ecs::entity_id)>{ init });
+				deferred_adds->emplace_back(range, detail::function_fix<T(ecs::entity_id)>{ init });
 			}
 		}
 
 		// Adds a component to a range of entity.
 		// Pre: entities has not already been added, or is in queue to be added
-		void add_range(entity_id const first, entity_id const last, T component)
+		void add_range(entity_range const range, T component)
 		{
 			static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tagged components can not have any data in them");
-			Expects(first <= last);
-			Expects(!has_entity_range(first, last));
-			Expects(!is_queued_add_range(first, last));
+			Expects(!has_entity_range(range));
+			Expects(!is_queued_add_range(range));
 
-			entity_range const range{ first, last };
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.size() == 0) {
@@ -123,16 +120,15 @@ namespace ecs::detail
 		// Remove an entity from the component pool. This logically removes the component from the entity.
 		void remove(entity_id const id)
 		{
-			remove_range(id, id);
+			remove_range({ id, id });
 		}
 
 		// Remove an entity from the component pool. This logically removes the component from the entity.
-		void remove_range(entity_id const first, entity_id const last)
+		void remove_range(entity_range const range)
 		{
-			Expects(first <= last);
-			Expects(has_entity_range(first, last));
-			Expects(!is_queued_remove_range(first, last));
-			entity_range const range{ first, last };
+			Expects(has_entity_range(range));
+			Expects(!is_queued_remove_range(range));
+
 			if (deferred_removes->size() > 0 && deferred_removes->back().can_merge(range)) {
 				deferred_removes->back() = entity_range::merge(deferred_removes->back(), range);
 			}
@@ -216,18 +212,17 @@ namespace ecs::detail
 		// Returns true if an entity has data in this pool
 		bool has_entity(entity_id const id) const
 		{
-			return has_entity_range(id, id);
+			return has_entity_range({ id, id });
 		}
 
 		// Returns true if an entity range has data in this pool
-		bool has_entity_range(entity_id const first, entity_id const last) const
+		bool has_entity_range(entity_range const range) const
 		{
-			Expects(first <= last);
 			if (ranges.empty())
 				return false;
 
-			for (entity_range const range : ranges) {
-				if (range.contains(entity_range{ first, last }))
+			for (entity_range const r : ranges) {
+				if (r.contains(range))
 					return true;
 			}
 
@@ -237,25 +232,24 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_add(entity_id const id) const
 		{
-			return is_queued_add_range(entity_range{ id, id });
+			return is_queued_add_range({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_add_range(entity_id const first, entity_id const last) const
+		bool is_queued_add_range(entity_range const range) const
 		{
-			Expects(first <= last);
 			if (deferred_adds->empty())
 				return false;
 
 			if constexpr (detail::has_unique_component_v<T>) {
 				for (auto const& ents : *deferred_adds) {
-					if (ents.first.contains(entity_range{ first, last }))
+					if (ents.first.contains(range))
 						return true;
 				}
 			}
 			else {
 				for (auto const& ents : *deferred_adds) {
-					if (ents.contains(entity_range{ first, last }))
+					if (ents.contains(range))
 						return true;
 				}
 			}
@@ -266,18 +260,17 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_remove(entity_id const id) const
 		{
-			return is_queued_remove_range(id, id);
+			return is_queued_remove_range({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_remove_range(entity_id const first, entity_id const last) const
+		bool is_queued_remove_range(entity_range const range) const
 		{
-			Expects(first <= last);
 			if (deferred_removes->empty())
 				return false;
 
 			for (auto const& ents : deferred_removes.get()) {
-				if (ents.contains(entity_range{ first, last }))
+				if (ents.contains(range))
 					return true;
 			}
 
@@ -455,6 +448,7 @@ namespace ecs::detail
 					std::sort(removes.begin(), removes.end());
 
 				// Find the offsets in to the data storage
+				// TODO optimize!
 				if constexpr (detail::has_unique_component_v<T>) {
 					gsl::index index_adjust = 0;
 					for (auto it = removes.begin(); it != removes.end(); ++it) {

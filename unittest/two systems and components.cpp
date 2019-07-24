@@ -12,9 +12,9 @@ TEST_CASE("Test two systems with two components")
 	ecs::add_system([&a, &b](int const&, float const&) { a++; b++; });
 
 	// Create 100 entities and add stuff to them
-	ecs::add_component_range(0, 99, int{ 1 });
-	ecs::add_component_range(0, 99, unsigned{ 2 });
-	ecs::add_component_range(4, 22, float{ 3 });
+	ecs::add_component_range({ 0, 99 }, int{ 1 });
+	ecs::add_component_range({ 0, 99 }, unsigned{ 2 });
+	ecs::add_component_range({ 4, 22 }, float{ 3 });
 	ecs::commit_changes();
 
 	// Run the system

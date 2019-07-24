@@ -101,52 +101,48 @@ namespace ecs
 	// Adds a component to a range of entities. 'last' is included in the range.
 	// The initializer function 'init' is called for each entity, its return type is the component type
 	template <typename Fn>
-	void add_component_range_init(entity_id const first, entity_id const last, Fn init)
+	void add_component_range_init(entity_range const range, Fn init)
 	{
-		Expects(first <= last);
-
 		// Return type of 'init'
 		using T = decltype(init(entity_id{ 0 }));
 		static_assert(!std::is_same_v<T, void>, "Initializer function must have a return value");
 
 		// Add it to the component pool
 		detail::component_pool<T>& pool = runtime::get_component_pool<T>();
-		pool.add_range_init(first, last, init);
+		pool.add_range_init(range, init);
 	}
 
 	// Adds a component to a range of entities. 'last' is included in the range.
 	template <typename T>
-	void add_component_range(entity_id const first, entity_id const last, T val)
+	void add_component_range(entity_range const range, T val)
 	{
 		static_assert(std::is_copy_constructible_v<T>, "A copy-constructor for type T is required for this function to work");
-		Expects(first <= last);
 
 		// Add it to the component pool
 		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
 		if constexpr (std::is_move_constructible_v<T>)
-			pool.add_range(first, last, std::move(val));
+			pool.add_range(range, std::move(val));
 		else
-			pool.add_range(first, last, val);
+			pool.add_range(range, val);
 	}
 
 	// Adds a component to an entity.
 	template <typename T>
 	void add_component(entity_id const id, T val)
 	{
-		add_component_range(id, id, std::move(val));
+		add_component_range({ id, id }, std::move(val));
 	}
 
 	// Removes a component from a range of entities. 'last' is included in the range.
 	// Pre: entity has the component
 	template <typename T>
-	void remove_component_range(entity_id const first, entity_id const last)
+	void remove_component_range(entity_range const range)
 	{
 		static_assert(!detail::is_transient_v<T>, "Don't remove transient components manually; it will be handled by the runtime");
-		Expects(first <= last);
 
 		// Remove the entities from the components pool
 		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
-		pool.remove_range(first, last);
+		pool.remove_range(range);
 	}
 
 	// Removes a component from an entity.
@@ -154,7 +150,7 @@ namespace ecs
 	template <typename T>
 	void remove_component(entity_id const id)
 	{
-		remove_component_range<T>(id, id);
+		remove_component_range<T>({ id, id });
 	}
 
 	// Removes all components from an entity
@@ -213,10 +209,10 @@ namespace ecs
 
 	// Returns true if all entities in a range has a component. 'last' is included in the range.
 	template <typename T>
-	bool has_component_range(entity_id const first, entity_id const last)
+	bool has_component_range(entity_range const range)
 	{
 		detail::component_pool<T> &pool = runtime::get_component_pool<T>();
-		return pool.has_entity_range(first, last);
+		return pool.has_entity_range(range);
 	}
 
 	// Commits the changes to the component pools. Does not run the systems.
@@ -236,7 +232,7 @@ namespace ecs
 	}
 
 	// Calls the 'update' function on all the systems in the order they were added.
-	inline void run_systems() noexcept
+	inline void run_systems()
 	{
 		for (auto const& sys : runtime::internal::systems) {
 			sys->update();

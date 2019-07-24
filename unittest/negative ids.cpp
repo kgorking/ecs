@@ -10,7 +10,7 @@ TEST_CASE("Test the use of negative entity ids")
 		CHECK(id == c);
 	});
 
-	ecs::add_component_range_init(-10, 10, [](ecs::entity_id ent) { return ent.id; });
+	ecs::add_component_range_init({ -10, 10 }, [](ecs::entity_id ent) { return ent.id; });
 	ecs::update_systems();
 
 	CHECK(21 == ecs::get_component_count<int>());

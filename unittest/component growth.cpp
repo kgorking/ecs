@@ -11,8 +11,8 @@ TEST_CASE("Test that components remain valid after memory reallocation")
 	});
 
 	// Add components to entities [0..9] and [20..29]
-	ecs::add_component_range_init(0 , 2 , [](ecs::entity_id ent) { return ent.id; });
-	ecs::add_component_range_init(6, 9, [](ecs::entity_id ent) { return ent.id; });
+	ecs::add_component_range_init({ 0, 2 }, [](ecs::entity_id ent) { return ent.id; });
+	ecs::add_component_range_init({ 6, 9 }, [](ecs::entity_id ent) { return ent.id; });
 	ecs::commit_changes();
 
 	for (int e = 5; e >= 3; e--) {

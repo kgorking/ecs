@@ -16,7 +16,7 @@ TEST_CASE("Test shared components")
 		CHECK(42 == st.i);
 	});
 
-	ecs::add_component_range(0, 2, test_s{});
+	ecs::add_component_range({ 0, 2 }, test_s{});
 	ecs::commit_changes();
 
 	// Only 1 test_s should exist

@@ -14,7 +14,7 @@ TEST_CASE("Test the internal storage of components")
 	});
 
 	// Add components to some entities
-	ecs::add_component_range_init(0, 10, [](auto ent) -> int { return ent.id; });
+	ecs::add_component_range_init({ 0, 10 }, [](auto ent) -> int { return ent.id; });
 
 	// commit and run
 	ecs::update_systems();
@@ -30,7 +30,7 @@ TEST_CASE("Test the internal storage of components")
 
 	SECTION("Remove 2 components from the back")
 	{
-		ecs::remove_component_range<int>(9, 10);
+		ecs::remove_component_range<int>({ 9, 10 });
 		ecs::update_systems();
 
 		CHECK(9ull == ecs::get_component_count<int>());
@@ -39,7 +39,7 @@ TEST_CASE("Test the internal storage of components")
 
 	SECTION("Remove 2 components from the front")
 	{
-		ecs::remove_component_range<int>(0, 1);
+		ecs::remove_component_range<int>({ 0, 1 });
 		ecs::update_systems();
 
 		CHECK(9ull == ecs::get_component_count<int>());
@@ -48,7 +48,7 @@ TEST_CASE("Test the internal storage of components")
 
 	SECTION("Remove 2 components from the middle")
 	{
-		ecs::remove_component_range<int>(4, 5);
+		ecs::remove_component_range<int>({ 4, 5 });
 		ecs::update_systems();
 
 		CHECK(9ull == ecs::get_component_count<int>());

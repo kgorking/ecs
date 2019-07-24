@@ -39,7 +39,7 @@ TEST_CASE("Test that components are constructed/copied/destroyed properly")
 		ecs::add_component(i, global_counter{});
 	ecs::commit_changes();
 
-	ecs::remove_component_range<global_counter>(0, 50);
+	ecs::remove_component_range<global_counter>({ 0, 50 });
 	ecs::commit_changes();
 
 	CHECK(global_counter::copy_count == 51);

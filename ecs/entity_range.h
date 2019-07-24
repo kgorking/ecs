@@ -201,31 +201,31 @@ namespace ecs
 		template <typename ...Fns>
 		void add_init(Fns ... inits)
 		{
-			(add_component_range_init(first_, last_, std::forward<Fns>(inits)), ...);
+			(add_component_range_init(*this, std::forward<Fns>(inits)), ...);
 		}
 
 		template <typename ...Components>
 		void add(Components&& ... components)
 		{
-			(add_component_range<Components>(first_, last_, std::forward<Components>(components)), ...);
+			(add_component_range<Components>(*this, std::forward<Components>(components)), ...);
 		}
 
 		template <typename ...Components>
 		void add()
 		{
-			(add_component_range<Components>(first_, last_, Components{}), ...);
+			(add_component_range<Components>(*this, Components{}), ...);
 		}
 
 		template <typename ...Components>
 		void remove()
 		{
-			(remove_component_range<Components>(first_, last_), ...);
+			(remove_component_range<Components>(*this), ...);
 		}
 
 		template <typename ...Components>
 		bool has() const
 		{
-			return (has_component_range<Components>(first_, last_) && ...);
+			return (has_component_range<Components>(*this) && ...);
 		}
 
 		template <typename Component>

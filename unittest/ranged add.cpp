@@ -8,7 +8,7 @@ TEST_CASE("Ranged add")
 		ecs::runtime::reset();
 		ecs::runtime::init_components<size_t>();
 
-		ecs::add_component_range(0, 5, size_t{ 5 });
+		ecs::add_component_range({ 0, 5 }, size_t{ 5 });
 		ecs::commit_changes();
 
 		for (ecs::entity_id i = 0; i < 5; ++i) {
@@ -24,7 +24,7 @@ TEST_CASE("Ranged add")
 
 		auto const init = [](auto ent) { return ent.id * 2; };
 
-		ecs::add_component_range_init(0, 5, init);
+		ecs::add_component_range_init({ 0, 5 }, init);
 
 		ecs::entity_range rng{ 6,10 };
 		rng.add_init(init);

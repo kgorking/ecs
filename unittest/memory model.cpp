@@ -7,11 +7,11 @@ TEST_CASE("Test to ensure that unused memory is compacted")
 	ecs::runtime::init_components<size_t>();
 
 	// add 100 components
-	ecs::add_component_range(0, 100, size_t{ 0 });
+	ecs::add_component_range({ 0, 100 }, size_t{ 0 });
 	ecs::commit_changes();
 
 	// remove 98 components from the middle
-	ecs::remove_component_range<size_t>(1, 99);
+	ecs::remove_component_range<size_t>({ 1, 99 });
 	ecs::commit_changes();
 
 	// Find the distance between component 0 and 100

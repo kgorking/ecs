@@ -10,7 +10,7 @@ TEST_CASE("Test the use lambdas to initialize components")
 		REQUIRE(ent == c);
 		});
 
-	ecs::add_component_range_init(0, 9, [](ecs::entity_id ent) {
+	ecs::add_component_range_init({ 0, 9 }, [](ecs::entity_id ent) {
 		return ent.id;
 	});
 
