@@ -58,7 +58,8 @@ namespace ecs
 			return *last_pool;
 		}
 
-		// Returns a reference to a components pool. Throws 'invalid_argument' if no pool exists
+		// Returns a reference to a components pool.
+		// Pre: a pool has been initialized for the type
 		template <typename T>
 		detail::component_pool<T>& get_component_pool()
 		{
@@ -207,7 +208,7 @@ namespace ecs
 		return pool.has_entity(id);
 	}
 
-	// Returns true if all entities in a range has a component. 'last' is included in the range.
+	// Returns true if all entities in a range has a component.
 	template <typename T>
 	bool has_component_range(entity_range const range)
 	{
