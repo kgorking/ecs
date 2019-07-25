@@ -36,7 +36,7 @@ namespace ecs::detail
 		tup_pools const pools;
 
 		// The user supplied system
-		UpdatePrototype const update_func;
+		UpdatePrototype update_func;
 
 	public:
 		// Constructor for when the first argument to the system is _not_ an entity
@@ -60,7 +60,7 @@ namespace ecs::detail
 			for (auto &arg : compact_args) {
 				auto range = std::get<entity_range>(arg);
 				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &arg, first_id = range.first().id](auto ent) {
-					ptrdiff_t const offset = ent.id - first_id;
+					int const offset = ent.id - first_id;
 
 					if constexpr (is_first_component_entity) {
 						update_func(ent, *extract_arg(std::get<Components*>(arg), offset)...);
@@ -76,8 +76,7 @@ namespace ecs::detail
 		void process_changes() override
 		{
 			// Leave if nothing has changed
-			bool modified = (get_pool<Components>().was_changed() || ... || false);
-			if (!modified) {
+			if (!(get_pool<Components>().was_changed() || ...)) {
 				if constexpr (!is_first_component_entity) {
 					if (!get_pool<FirstComponent>().was_changed())
 						return;
@@ -156,7 +155,7 @@ namespace ecs::detail
 		}
 
 		template <typename Component>
-		Component* extract_arg(Component* ptr, [[maybe_unused]] ptrdiff_t offset)
+		Component* extract_arg(Component* ptr, [[maybe_unused]] ptrdiff_t offset) noexcept
 		{
 			if constexpr (has_unique_component_v<Component>)
 				return ptr + offset;

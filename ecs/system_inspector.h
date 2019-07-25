@@ -13,12 +13,9 @@ namespace ecs::detail
 
 	// Based on https://stackoverflow.com/questions/7943525/is-it-possible-to-figure-out-the-parameter-type-and-return-type-of-a-lambda
 
-	// A class to strip a lambda to its basic components
-	template <typename T>
-	struct system_inspector : public system_inspector<decltype(&T::operator())> {};
-
+	// A class to verify a system is valid
 	template <typename C, typename R, typename... Args>
-	struct system_inspector<R(C::*)(Args...) const>
+	struct system_inspector_impl
 	{
 	public:
 		static constexpr size_t num_args = sizeof...(Args);
@@ -45,4 +42,19 @@ namespace ecs::detail
 				(std::is_reference_v<arg_at<1 + I>> && ...);
 		}
 	};
+
+	// Splits a lambda into its various type parts (return value, class, function arguments)
+	template <typename T>
+	struct system_inspector : public system_inspector<decltype(&T::operator())>
+	{ };
+
+	// For immutable lambdas
+	template <typename C, typename R, typename... Args>
+	struct system_inspector<R(C::*)(Args...) const> : public system_inspector_impl<C, R, Args...>
+	{ };
+
+	// For mutable lambdas
+	template <typename C, typename R, typename... Args>
+	struct system_inspector<R(C::*)(Args...)      > : public system_inspector_impl<C, R, Args...>
+	{ };
 }

@@ -3,7 +3,6 @@
 #include <gsl/span>
 #include "types.h"
 #include "runtime.h"
-#include "function.h"
 
 namespace ecs
 {
@@ -27,20 +26,20 @@ namespace ecs
 			using reference = const entity_id &;
 			using iterator_category = std::random_access_iterator_tag;
 
-			iterator() : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
-			iterator(entity_id ent) : ent_(ent) {}
-			iterator& operator++() { ent_.id++; return *this; }
-			iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
-			iterator operator+(difference_type diff) const { return { ent_.id + diff }; }
-			iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
-			difference_type operator-(difference_type diff) const { return { ent_.id - diff }; }
-			difference_type operator-(iterator in_it) const { return { ent_.id - in_it.ent_.id }; }
-			bool operator==(iterator other) const { return ent_ == other.ent_; }
-			bool operator!=(iterator other) const { return !(*this == other); }
-			entity_id operator*() { return ent_; }
+			iterator() noexcept : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
+			iterator(entity_id ent) noexcept : ent_(ent) {}
+			iterator& operator++() noexcept { ent_.id++; return *this; }
+			iterator operator++(int) noexcept { iterator retval = *this; ++(*this); return retval; }
+			iterator operator+(difference_type diff) const noexcept { return { ent_.id + diff }; }
+			iterator operator+(iterator in_it) const noexcept { return { ent_.id + in_it.ent_.id }; }
+			difference_type operator-(difference_type diff) const noexcept { return { ent_.id - diff }; }
+			difference_type operator-(iterator in_it) const noexcept { return { ent_.id - in_it.ent_.id }; }
+			bool operator==(iterator other) const noexcept { return ent_ == other.ent_; }
+			bool operator!=(iterator other) const noexcept { return !(*this == other); }
+			entity_id operator*() noexcept { return ent_; }
 		};
-		iterator begin() { return { first_ }; }
-		iterator end() { return { last_.id + 1 }; }
+		iterator begin() const noexcept { return { first_ }; }
+		iterator end() const noexcept { return { last_.id + 1 }; }
 
 	public:
 		template <typename ...Components>
