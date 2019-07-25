@@ -8,7 +8,6 @@
 #include "component_pool_base.h"
 #include "component_specifier.h"
 #include "entity_range.h"
-#include "function.h"
 
 namespace ecs::detail
 {
@@ -30,12 +29,6 @@ namespace ecs::detail
 	class component_pool final : public component_pool_base
 	{
 	public:
-		component_pool() = default;
-		component_pool(component_pool const&) = delete;
-		component_pool(component_pool &&) = default;
-		component_pool& operator =(component_pool const&) = delete;
-		component_pool& operator =(component_pool &&) = default;
-
 		// Adds a component to an entity.
 		// Pre: entity has not already been added, or is in queue to be added
 		void add(entity_id const id, T component)
@@ -62,7 +55,7 @@ namespace ecs::detail
 			}
 			else {
 				// Add the id and data to a temp storage
-				deferred_adds->emplace_back(range, detail::function_fix<T(ecs::entity_id)>{ init });
+				deferred_adds->emplace_back(range, std::function<T(ecs::entity_id)>{ init });
 			}
 		}
 
@@ -216,7 +209,7 @@ namespace ecs::detail
 		}
 
 		// Returns true if an entity range has data in this pool
-		bool has_entity_range(entity_range const range) const
+		bool has_entity_range(entity_range const range) const noexcept
 		{
 			if (ranges.empty())
 				return false;
@@ -296,7 +289,8 @@ namespace ecs::detail
 		{
 			Expects(index >= 0 && index < static_cast<gsl::index>(data.size()));
 			GSL_SUPPRESS(bounds.4)
-			return &data.data()[index];
+			GSL_SUPPRESS(bounds.1)
+			return data.data() + index;
 		}
 
 		// Searches for an entitys offset in to the component pool. Returns -1 if not found
@@ -375,7 +369,7 @@ namespace ecs::detail
 						component_it = data.insert(component_it, range.count(), val);
 						component_it += range.count();
 					};
-					auto const add_init = [this, &component_it, range](detail::function_fix<T(entity_id)> init) {
+					auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
 						for (entity_id ent = range.first(); ent <= range.last(); ++ent.id) {
 							component_it = data.insert(component_it, init(ent));
 							component_it += 1;
@@ -512,7 +506,7 @@ namespace ecs::detail
 		std::vector<entity_range> ranges;
 
 		// The type used to store data.
-		using component_val = std::variant<T, detail::function_fix<T(entity_id)>>;
+		using component_val = std::variant<T, std::function<T(entity_id)>>;
 		using entity_data = std::conditional_t<detail::has_unique_component_v<T>, std::pair<entity_range, component_val>, entity_range>;
 
 		// Keep track of which components to add/remove each cycle
