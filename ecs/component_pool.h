@@ -9,6 +9,7 @@
 #include "component_specifier.h"
 #include "entity_range.h"
 
+
 namespace ecs::detail
 {
 	// True if each entity has their own unique component (ie. not shared across components)
@@ -100,7 +101,7 @@ namespace ecs::detail
 		}
 
 		// Returns the shared component
-		template <typename = std::enable_if_t<is_shared_v<T>>>
+		template <typename XT = T, typename = std::enable_if_t<!has_unique_component_v<XT>>>
 		T* get_shared_component() const
 		{
 			if (data.size() == 0) {
@@ -134,6 +135,8 @@ namespace ecs::detail
 		// Pre: entity must have an component in this pool
 		T* find_component_data([[maybe_unused]] entity_id const id) const
 		{
+			Expects(has_entity(id));
+
 			// TODO tagged+shared components could just return the address of a static var. 0 mem allocs
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// All entities point to the same component
@@ -141,7 +144,7 @@ namespace ecs::detail
 			}
 			else {
 				auto const index = find_entity_index(id);
-				Expects(index != -1);
+				Expects(index >= 0);
 				return at(index);
 			}
 		}
@@ -190,12 +193,6 @@ namespace ecs::detail
 			return (state_ & flag) == flag;
 		}
 
-		// Sets a flag
-		void set_flag(modified_state flag) noexcept
-		{
-			state_ |= flag;
-		}
-
 		// Returns the pools entities
 		std::vector<entity_range> const& get_entities() const noexcept override
 		{
@@ -223,13 +220,13 @@ namespace ecs::detail
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_add(entity_id const id) const
+		bool is_queued_add(entity_id const id)
 		{
 			return is_queued_add_range({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_add_range(entity_range const range) const
+		bool is_queued_add_range(entity_range const range)
 		{
 			if (deferred_adds->empty())
 				return false;
@@ -251,13 +248,13 @@ namespace ecs::detail
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_remove(entity_id const id) const
+		bool is_queued_remove(entity_id const id)
 		{
 			return is_queued_remove_range({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_remove_range(entity_range const range) const
+		bool is_queued_remove_range(entity_range const range)
 		{
 			if (deferred_removes->empty())
 				return false;
@@ -283,6 +280,12 @@ namespace ecs::detail
 
 	private:
 
+		// Sets a flag
+		void set_flag(modified_state flag) noexcept
+		{
+			state_ |= flag;
+		}
+
 		// Returns the component at the specific index.
 		// Pre: index is within bounds
 		T* at(gsl::index const index) const
@@ -293,7 +296,8 @@ namespace ecs::detail
 			return data.data() + index;
 		}
 
-		// Searches for an entitys offset in to the component pool. Returns -1 if not found
+		// Searches for an entitys offset in to the component pool. Returns -1 if not found.
+		// Assumes 'ent' is a valid entity
 		gsl::index find_entity_index(entity_id const ent) const
 		{
 			if (ranges.size() > 0) {
@@ -314,14 +318,26 @@ namespace ecs::detail
 			return -1;
 		}
 
-		// Adds new queued components to the main storage
+		// Adds new queued entities and component data to the main storage
 		void process_add_components()
 		{
-			std::vector<entity_data> adds = deferred_adds.combine_inline([](auto &left, auto right) {
-				std::move(right.begin(), right.begin() + right.size(), std::back_inserter(left));
-			});
+			std::vector<entity_data> adds;
+			for (auto& vec : deferred_adds)
+				std::move(vec.begin(), vec.end(), std::back_inserter(adds));
+			
 			if (adds.empty())
 				return;
+
+			// An entity can not have more than one of the same component
+			auto const has_duplicate_entities = [](auto const& vec) {
+				return vec.end() != std::adjacent_find(vec.begin(), vec.end(), [](auto const& l, auto const& r) {
+					if constexpr (detail::has_unique_component_v<T>)
+						return l.first == r.first;
+					else
+						return l == r;
+					});
+			};
+			Expects(false == has_duplicate_entities(adds));
 
 			// Clear the current adds
 			deferred_adds.clear();
@@ -365,11 +381,11 @@ namespace ecs::detail
 					add_range(new_ranges, range);
 
 					// Add the new components
-					auto const add_val = [this, &component_it, range](T const& val) {
+					auto const add_val = [this, &component_it, range = range](T const& val) {	// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0588r1.html
 						component_it = data.insert(component_it, range.count(), val);
 						component_it += range.count();
 					};
-					auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
+					auto const add_init = [this, &component_it, range = range](std::function<T(entity_id)> init) {
 						for (entity_id ent = range.first(); ent <= range.last(); ++ent.id) {
 							component_it = data.insert(component_it, init(ent));
 							component_it += 1;
@@ -414,7 +430,7 @@ namespace ecs::detail
 			set_flag(modified_state::add);
 		}
 
-		// Removes all marked components from their entities
+		// Removes the entities
 		void process_remove_components()
 		{
 			// Transient components are removed each cycle
@@ -427,15 +443,21 @@ namespace ecs::detail
 			}
 			else {
 				// Combine the vectors
-				std::vector<entity_range> removes = deferred_removes.combine([](auto left, auto right) {
-					left.insert(left.end(), right.begin(), right.end());
-					return left;
-					});
+				std::vector<entity_range> removes;
+				for (auto& vec : deferred_removes)
+					std::move(vec.begin(), vec.end(), std::back_inserter(removes));
+
 				if (removes.empty())
 					return;
 
 				// Clear the current removes
 				deferred_removes.clear();
+
+				// An entity can not have more than one of the same component
+				auto const has_duplicate_entities = [](auto const& vec) {
+					return vec.end() != std::adjacent_find(vec.begin(), vec.end());
+				};
+				Expects(false == has_duplicate_entities(removes));
 
 				// Sort it if needed
 				if (!std::is_sorted(removes.begin(), removes.end()))
@@ -516,4 +538,4 @@ namespace ecs::detail
 		// 
 		unsigned state_ = modified_state::none;
 	};
-}
+};

@@ -1,7 +1,7 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test the intersection of ranges", "[range]")
+TEST_CASE("entity_range intersection tests", "[entity]")
 {
 	// Intersects two ranges of entities
 	// This lambda is used in system_impl

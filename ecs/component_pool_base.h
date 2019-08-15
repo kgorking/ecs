@@ -1,6 +1,5 @@
 #pragma once
 #include <gsl/gsl>
-#include "types.h"
 #include "entity_range.h"
 
 namespace ecs::detail

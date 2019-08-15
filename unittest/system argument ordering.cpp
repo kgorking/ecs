@@ -1,7 +1,7 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test that the components are passed in the correct order to the system")
+TEST_CASE("Components are passed in the correct order to the system", "[system][ordering]")
 {
 	ecs::runtime::reset();
 

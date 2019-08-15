@@ -1,7 +1,7 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test response when trying to use missing storage")
+TEST_CASE("Trying to use missing storage", "[storage]")
 {
 	ecs::runtime::reset();
 

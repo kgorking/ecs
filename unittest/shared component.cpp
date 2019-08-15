@@ -1,7 +1,7 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test shared components")
+TEST_CASE("Shared components", "[component][shared]")
 {
 	struct test_s : ecs::shared {
 		int i = 0;

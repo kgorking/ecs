@@ -1,9 +1,9 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Ranged add")
+TEST_CASE("Ranged add", "[range]")
 {
-	SECTION("Test of ranged add of components")
+	SECTION("Ranged add of components")
 	{
 		ecs::runtime::reset();
 		ecs::runtime::init_components<size_t>();
@@ -17,7 +17,7 @@ TEST_CASE("Ranged add")
 		}
 	}
 
-	SECTION("Test of ranged add of components with initializer")
+	SECTION("Ranged add of components with initializer")
 	{
 		ecs::runtime::reset();
 		ecs::runtime::init_components<int>();

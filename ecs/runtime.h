@@ -5,8 +5,12 @@
 #include <array>
 #include <map>
 #include <tuple>
+#include <typeindex>
 
 #include "types.h"
+#include "entity.h"
+#include "entity_range.h"
+#include "component_pool_base.h"
 #include "component_pool.h"
 #include "component_specifier.h"
 #include "system.h"
@@ -25,7 +29,7 @@ namespace ecs
 			inline std::vector<std::unique_ptr<detail::component_pool_base>> component_pools;
 
 			// Maps a component type to its components pool
-			inline std::map<type_info const*, detail::component_pool_base*> type_pool_lookup;
+			inline std::map<std::type_index, detail::component_pool_base*> type_pool_lookup;
 		}
 
 		// Resets the runtime state. Removes all systems, empties component pools
@@ -42,18 +46,20 @@ namespace ecs
 		inline detail::component_pool_base& get_component_pool(type_info const& type)
 		{
 			// Simple thread-safe caching, ~15% performance boost in benchmarks
-			static thread_local char const* last_type{};
+			struct __internal_dummy {};
+			static thread_local std::type_index last_type{typeid(__internal_dummy)};		// init to an private type
 			static thread_local detail::component_pool_base* last_pool{};
 
-			if (last_type == type.raw_name())
+			auto const type_index = std::type_index(type);
+			if (last_type == type_index)
 				return *last_pool;
 
 			// Look in the pool for the type
-			auto const it = internal::type_pool_lookup.find(&type);
+			auto const it = internal::type_pool_lookup.find(type_index);
 			Expects(it != internal::type_pool_lookup.end());
 			Expects(it->second != nullptr);
 
-			last_type = type.raw_name();
+			last_type = type_index;
 			last_pool = it->second;
 			return *last_pool;
 		}
@@ -70,7 +76,7 @@ namespace ecs
 		// Returns true if a pool for the type exists
 		inline bool has_component_pool(type_info const& type)
 		{
-			auto const it = internal::type_pool_lookup.find(&type);
+			auto const it = internal::type_pool_lookup.find(std::type_index(type));
 			return (it != internal::type_pool_lookup.end());
 		}
 
@@ -85,7 +91,7 @@ namespace ecs
 			if (!has_component_pool(type))
 			{
 				auto pool = std::make_unique<detail::component_pool<Component>>();
-				internal::type_pool_lookup.emplace(&type, pool.get());
+				internal::type_pool_lookup.emplace(std::type_index(type), pool.get());
 				internal::component_pools.push_back(std::move(pool));
 			}
 		}
@@ -261,6 +267,9 @@ namespace ecs
 		template <class T>                struct is_lambda<T, std::void_t<decltype(&T::operator ())>> : std::true_type {};
 		template <class T> static constexpr bool is_lambda_v = is_lambda<T>::value;
 
+		template <class T>
+		using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
 		template <typename System>
 		void verify_system([[maybe_unused]] System update_func) noexcept
 		{
@@ -286,7 +295,7 @@ namespace ecs
 
 			//
 			// Implement the rules for systems
-			static_assert(std::is_same_v<inspector::return_type, void>, "Systems can not return values");
+			static_assert(std::is_same_v<typename inspector::return_type, void>, "Systems can not return values");
 			static_assert(inspector::num_args > (has_entity ? 1 : 0), "No component types specified for the system");
 
 			//
@@ -296,10 +305,80 @@ namespace ecs
 		}
 	}
 
+	namespace runtime
+	{
+		template <typename ExecutionPolicy, typename System, typename R, typename C, typename FirstArg, typename ...Args>
+		auto& create_system_impl(System update_func)
+		{
+			// Set up the implementation
+			using typed_system_impl = detail::system_impl<ExecutionPolicy, System, detail::remove_cvref_t<FirstArg>, detail::remove_cvref_t<Args>...>;
+
+			// Is the first argument an entity of sorts?
+			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
+
+			// Set up everything for the component pool
+			if constexpr (!has_entity)
+				init_components<detail::remove_cvref_t<FirstArg>>();
+			init_components<detail::remove_cvref_t<Args>...>();
+
+			// Create the system instance
+			if constexpr (has_entity)
+			{
+				auto system = std::make_unique<typed_system_impl>(update_func, /* dont add the entity as a component pool */ get_component_pool<detail::remove_cvref_t<Args>>()...);
+				internal::systems.push_back(std::move(system));
+				return *static_cast<typed_system_impl*>(internal::systems.back().get());
+			}
+			else
+			{
+				auto system = std::make_unique<typed_system_impl>(update_func, get_component_pool<std::decay_t<FirstArg>>(), get_component_pool<detail::remove_cvref_t<Args>>()...);
+				internal::systems.push_back(std::move(system));
+				return *static_cast<typed_system_impl*>(internal::systems.back().get());
+			}
+		}
+
+		// Const lambdas
+		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		auto& create_system(System update_func, R(C::*)(Args...) const)
+		{
+			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
+		}
+
+		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		auto& create_system(System update_func, R(C::*)(entity, Args...) const)
+		{
+			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity, Args...>(update_func);
+		}
+
+		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		auto& create_system(System update_func, R(C::*)(entity_id, Args...) const)
+		{
+			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity_id, Args...>(update_func);
+		}
+
+		// Mutable lambdas
+		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		auto& create_system(System update_func, R(C::*)(Args...))
+		{
+			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
+		}
+
+		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		auto& create_system(System update_func, R(C::*)(entity, Args...))
+		{
+			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity, Args...>(update_func);
+		}
+
+		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		auto& create_system(System update_func, R(C::*)(entity_id, Args...))
+		{
+			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity_id, Args...>(update_func);
+		}
+	}
+
 	// Add a new system to the runtime. It will process components in parallel.
 	template <typename System>
 	// requires Callable<System>
-	system& add_system_parallel(System update_func)
+	auto& add_system_parallel(System update_func)
 	{
 		detail::verify_system(update_func);
 		return runtime::create_system<std::execution::parallel_unsequenced_policy, System>(update_func, &System::operator());
@@ -308,79 +387,9 @@ namespace ecs
 	// Add a new system to the runtime
 	template <typename System>
 	// requires Callable<System>
-	system& add_system(System update_func)
+	auto& add_system(System update_func)
 	{
 		detail::verify_system(update_func);
 		return runtime::create_system<std::execution::sequenced_policy, System>(update_func, &System::operator());
-	}
-
-	namespace runtime
-	{
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename FirstArg, typename ...Args>
-		system& create_system_impl(System update_func)
-		{
-			// Set up the implementation
-			using implementation = ecs::detail::system_impl<ExecutionPolicy, System, std::decay_t<FirstArg>, std::decay_t<Args>...>;
-
-			// Is the first argument an entity of sorts?
-			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
-
-			// Set up everything for the component pool
-			if constexpr (!has_entity)
-				init_components<std::decay_t<FirstArg>>();
-			init_components<std::decay_t<Args>...>();
-
-			// Create the system instance
-			if constexpr (has_entity)
-			{
-				auto system = std::make_unique<implementation>(update_func, /* dont add the entity as a component pool */ get_component_pool<std::decay_t<Args>>()...);
-				internal::systems.push_back(std::move(system));
-				return *internal::systems.back().get();
-			}
-			else
-			{
-				auto system = std::make_unique<implementation>(update_func, get_component_pool<std::decay_t<FirstArg>>(), get_component_pool<std::decay_t<Args>>()...);
-				internal::systems.push_back(std::move(system));
-				return *internal::systems.back().get();
-			}
-		}
-
-		// Const lambdas
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		system& create_system(System update_func, R(C::*)(Args...) const)
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
-		}
-
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		system& create_system(System update_func, R(C::*)(ecs::entity, Args...) const)
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity, Args...>(update_func);
-		}
-
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		system& create_system(System update_func, R(C::*)(ecs::entity_id, Args...) const)
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity_id, Args...>(update_func);
-		}
-
-		// Mutable lambdas
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		system& create_system(System update_func, R(C::*)(Args...))
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
-		}
-
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		system& create_system(System update_func, R(C::*)(ecs::entity, Args...))
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity, Args...>(update_func);
-		}
-
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		system& create_system(System update_func, R(C::*)(ecs::entity_id, Args...))
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity_id, Args...>(update_func);
-		}
 	}
 }

@@ -1,7 +1,7 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test a system with two components")
+TEST_CASE("System with two components", "[system][component]")
 {
 	ecs::runtime::reset();
 
@@ -12,9 +12,9 @@ TEST_CASE("Test a system with two components")
 	ecs::add_system([&b](unsigned const&) { b++; });
 	ecs::add_system([&a, &b](int const&, unsigned const&) { a++; b++; });
 
-	// Create 100 entities and add stuff to them
-	ecs::add_component_range({ 0, 99 }, int{ 1 });
-	ecs::add_component_range({ 0, 99 }, unsigned{ 2 });
+	// Add components to 10 entities
+	ecs::add_component_range({ 0, 9 }, int{ 1 });
+	ecs::add_component_range({ 0, 9 }, unsigned{ 2 });
 	ecs::commit_changes();
 
 	// Run the system
@@ -22,6 +22,5 @@ TEST_CASE("Test a system with two components")
 
 	// Check stuff
 	CHECK(a == b);
-	CHECK(a == 100 * 2);
-	//CHECK(b == 100 * 2);
+	CHECK(a == 10 * 2);
 }

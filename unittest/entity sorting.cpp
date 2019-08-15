@@ -1,7 +1,7 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test the internal sorting of entities")
+TEST_CASE("Internal sorting of entities", "[component]")
 {
 	ecs::runtime::reset();
 

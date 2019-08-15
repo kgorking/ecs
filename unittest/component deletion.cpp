@@ -4,7 +4,7 @@
 //
 // Test to make sure components are properly removed from systems.
 // This is based on a bug that was exposed by the 'finite_state_machine' example.
-TEST_CASE("Test the deletion of components")
+TEST_CASE("Component removal", "[component][transient]")
 {
 	ecs::runtime::reset();
 
@@ -15,9 +15,7 @@ TEST_CASE("Test the deletion of components")
 
 	int run_counter_idle = 0;
 	ecs::runtime::init_components<ev_timeout>();
-	ecs::add_system([&](state_idle const&, ev_connect const& /*ev*/) {
-		run_counter_idle++;
-	});
+	ecs::add_system([&](state_idle const&, ev_connect const& /*ev*/) { run_counter_idle++; });
 
 	ecs::entity fsm{ 0, state_idle{} };
 	ecs::commit_changes();

@@ -1,7 +1,7 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test of transient components", "[component][transient]")
+TEST_CASE("Transient components", "[component][transient]")
 {
 	struct foo {};
 	struct test_t : ecs::transient {};

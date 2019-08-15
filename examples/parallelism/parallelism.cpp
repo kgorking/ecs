@@ -1,35 +1,40 @@
 #include <iostream>
+#include <thread>
+#include <chrono>
 #include <ecs/ecs.h>
-#include <ecs/entity_range.h>
-
-// Component addition/removal during a system run is thread-safe
 
 int main()
 {
+	using namespace std::chrono_literals;
+
 	try {
-		// Manually allow floats to be added to entities.
-		ecs::runtime::init_components<float>();
+		// The lambda used by both the serial- and parallel systems
+		auto constexpr sys_sleep = [](short const&) {
+			std::this_thread::sleep_for(10ms);
+		};
 
-		// Add a system that processes components in parallel
-		ecs::add_system_parallel([](ecs::entity e, int const&) {
-			e.add<float>();
-			e.remove<int>();
-		});
+		// Add the systems
+		auto& serial_sys = ecs::add_system(sys_sleep);
+		auto& parallel_sys = ecs::add_system_parallel(sys_sleep);
 
-		// Run the system
-		std::cout << "Running system...";
-		ecs::entity_range ents{ 1, 1024 };
-		ents.add(int{ 0 });
-		ecs::update_systems();
-		std::cout << '\n';
+		// Create a range of entites that would
+		// take 5 seconds to process serially
+		ecs::entity_range const ents{ 0, 500 - 1, short{0} };
 
-		// Commit the float additions from the system
-		std::cout << "Committing changes...";
+		// Commit the components (does not run the systems)
 		ecs::commit_changes();
-		std::cout << '\n';
 
-		// Check how many floats were added
-		std::cout << ecs::get_component_count<float>() << " floats were added, expected " << ents.count() << '\n';
+		// Time the serial system
+		auto start = std::chrono::high_resolution_clock::now();
+		serial_sys.update();
+		std::chrono::duration<double> const serial_time = std::chrono::high_resolution_clock::now() - start;
+		std::cout << "serial system took " << serial_time.count() << " seconds\n";
+
+		// Time the parallel system
+		start = std::chrono::high_resolution_clock::now();
+		parallel_sys.update();
+		std::chrono::duration<double> const parallel_time = std::chrono::high_resolution_clock::now() - start;
+		std::cout << "parallel system took " << parallel_time.count() << " seconds\n";
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << "\n";

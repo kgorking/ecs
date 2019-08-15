@@ -17,7 +17,7 @@ struct shared_s : ecs::shared {
 };
 
 auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, shared_s const& shared) {
-	constexpr size_t max_iterations = 500;
+	constexpr int max_iterations = 500;
 	constexpr double fr_w = 1.5;
 	constexpr double fr_h = 1.5;
 	constexpr double fr_x = -2.2;

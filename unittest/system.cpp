@@ -1,14 +1,14 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
-TEST_CASE("Test simple system")
+TEST_CASE("Simple system", "[system]")
 {
-	// Add a system for the C_Counter component
+	// Add a system for the size_t component
 	ecs::system &sys = ecs::add_system([](size_t &c) {
 		c++;
 	});
 
-	// Create an entity and add a size_t component initialized to zero
+	// Add the component to an entity
 	ecs::add_component(0, size_t{ 0 });
 	ecs::commit_changes();
 

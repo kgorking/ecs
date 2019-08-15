@@ -3,6 +3,7 @@
 #include <gsl/span>
 #include "types.h"
 #include "runtime.h"
+#include "entity.h"
 
 namespace ecs
 {
@@ -32,8 +33,8 @@ namespace ecs
 			iterator operator++(int) noexcept { iterator retval = *this; ++(*this); return retval; }
 			iterator operator+(difference_type diff) const noexcept { return { ent_.id + diff }; }
 			iterator operator+(iterator in_it) const noexcept { return { ent_.id + in_it.ent_.id }; }
-			difference_type operator-(difference_type diff) const noexcept { return { ent_.id - diff }; }
-			difference_type operator-(iterator in_it) const noexcept { return { ent_.id - in_it.ent_.id }; }
+			difference_type operator-(difference_type diff) const noexcept { return difference_type{ ent_.id - diff }; }
+			difference_type operator-(iterator in_it) const noexcept { return difference_type{ ent_.id - in_it.ent_.id }; }
 			bool operator==(iterator other) const noexcept { return ent_ == other.ent_; }
 			bool operator!=(iterator other) const noexcept { return !(*this == other); }
 			entity_id operator*() noexcept { return ent_; }
@@ -42,13 +43,24 @@ namespace ecs
 		iterator end() const noexcept { return { last_.id + 1 }; }
 
 	public:
+		entity_range(entity_id first, entity_id last)
+			: first_(first)
+			, last_(last)
+		{
+			Expects(first <= last);
+		}
+
 		template <typename ...Components>
 		entity_range(entity_id first, entity_id last, Components&& ... components)
 			: first_(first)
 			, last_(last)
 		{
 			Expects(first <= last);
-			add<Components...>(std::forward<Components>(components)...);
+			bool constexpr invokable = (std::is_invocable_v<Components, entity_id> && ...);
+			if constexpr (invokable)
+				add_init<Components...>(std::forward<Components>(components)...);
+			else
+				add<Components...>(std::forward<Components>(components)...);
 		}
 
 		entity_range(entity_range const&) = default;
@@ -115,35 +127,7 @@ namespace ecs
 
 		bool overlaps(entity_range const other) const noexcept
 		{
-			// Identical ranges
-			if (first_ == other.first_ && last_ == other.last_)
-				return true;
-
-			// This range completely covers the other range
-			// **************
-			//      ++++
-			if (other.first() >= first_ && other.last() <= last_)
-				return true;
-
-			// Other range completely covers this range
-			//      ****
-			// +++++++++++++++
-			if (other.first() <= first_ && other.last() >= last_)
-				return true;
-
-			// Partial overlap
-			//   **************
-			// ++++
-			if (other.first() < first_ && other.last() >= first_)
-				return true;
-
-			// Partial overlap
-			// **************
-			//             ++++
-			if (other.first() <= last_ && other.last() > last_)
-				return true;
-
-			return false;
+			return first_ <= other.last_ && other.first_ <= last_;
 		}
 
 		// Removes a range from another range.

@@ -72,6 +72,7 @@ namespace ecs::detail
 			}
 		}
 
+	private:
 		// Handle changes when the component pools change
 		void process_changes() override
 		{

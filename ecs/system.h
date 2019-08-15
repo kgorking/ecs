@@ -2,8 +2,6 @@
 
 namespace ecs
 {
-	//extern void commit_changes();
-
 	class system
 	{
 		friend void commit_changes();

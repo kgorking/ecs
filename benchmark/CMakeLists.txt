@@ -4,6 +4,6 @@
 include_directories(../)
 include_directories(../GSL/include)
 
-add_executable (ecs_bench "main.cpp" "ecs.cpp" "helper.cpp")
+add_executable (ecs_bench "main.cpp" "ecs.cpp")
 
 target_link_libraries(ecs_bench benchmark)
