@@ -18,11 +18,10 @@ int main()
 	    std::cout << i << '\n';
 	});
 	
-	// Set up some entities with their ids and components
-	ecs::entity
-		jon{ 0, 4 },
-		sean{ 1, 8 },
-		jimmy{ 2, 12 };
+	// Set up 3 entities with their components
+	// This uses the entity_range class, which is just a
+	// wrapper for the interface to allow easy usage
+	ecs::entity_range more_ents{ 0, 2, int{1} };
 
 	// Commit the changes and run the systems
 	ecs::update_systems();
@@ -30,72 +29,84 @@ int main()
 ```
 Running this code will print out
 ```
-4
-8
-12
+1
+1
+1
 ```
 
-### 2. Adding a second component
-At the end of the previous main I can add the following code
+### 2. using a lambda to initialize components
+At the end of the previous main I can add the following code to add another 3 components to 3 other entities, and have a lambda produce each component for the entities
 ```cpp
-// Add another system that operates on entities with 'int' and 'std::string' components
+ecs::entity_range ents{ 3, 5, [](ecs::entity_id ent) -> int { return ent.id * 2; } };
+ecs::update_systems();
+```
+Running the code now will also print out
+```
+...
+6
+8
+10
+```
+
+### 3. Adding a second component
+```cpp
+// Add another system that operates on entities that hold an 'int' and 'std::string'
 ecs::add_system([](int const& i, std::string const& s) {
-    std::cout << i << ": " << s << '\n';
+	std::cout << i << ": " << s << '\n';
 });
 
-// Add a second component to the entities
-jon.add(std::string{"jon"});
-sean.add(std::string{"sean"});
-jimmy.add(std::string{"jimmy"});
+// Add a second component to the last 3 entities
+ecs::add_component(3, std::string{ "jon" });
+ecs::add_component(4, std::string{ "sean" });
+ecs::add_component(5, std::string{ "jimmy" });
 
 // Commit the changes and run the systems
 ecs::update_systems();
 ```
 Adding this code and running it will print out the following, because both systems now match the entities
 ```
-4
-8
-12
-4: jon
+...
+6: jon
 8: sean
-12: jimmy
+10: jimmy
 ```
 
-### 3. Removing a component
+### 4. Removing a component
 Now lets remove a component and see what happens
 ```cpp
-// Remove the integer component from the 'sean' entity
-sean.remove<int>();
+// Remove the integer component from the 'sean' entity using the 'ecc::entity' helper class
+ecs::entity sean{ 4 };
+sean.remove<int>();		// same as ecs::remove_component<int>(4);
 
 // Commit the changes and run the systems
 ecs::update_systems();
 ```
 Running the code now will print out the following
 ```
-4
-12
-4: jon
-12: jimmy
+...
+6: jon
+10: jimmy
 ```
 
-### 4. Accessing the entity id
+### 5. Accessing the entity id
 If you need to access the entity id, it's as easy as adding either an
 [ecs::entity_id](https://github.com/monkey-g/ecs/blob/master/ecs/types.h) or an [ecs::entity](https://github.com/monkey-g/ecs/blob/master/ecs/entity.h)
 as the first argument in the lambda.
 ```cpp
 ecs::add_system([](ecs::entity_id ent, std::string const& s) {
 	std::cout << "entity with id " << ent.id << " is named " << s << '\n';
-	});
+});
 ecs::update_systems();
 ```
 Running this will print out
 ```
-entity with id 0 is named jon
-entity with id 1 is named sean
-entity with id 2 is named jimmy
+...
+entity with id 3 is named jon
+entity with id 4 is named sean
+entity with id 5 is named jimmy
 ```
 
-### 5. Parallelism
+### 6. Parallelism
 Systems can process the components of entities in parallel, simply by marking the system as being parallel.
 ```cpp
 #include <iostream>
