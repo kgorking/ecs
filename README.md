@@ -34,7 +34,7 @@ Running this code will print out
 1
 ```
 
-### 2. using a lambda to initialize components
+### 2. Using a lambda to initialize components
 At the end of the previous main I can add the following code to add another 3 components to 3 other entities, and have a lambda produce each component for the entities
 ```cpp
 ecs::entity_range ents{ 3, 5, [](ecs::entity_id ent) -> int { return ent.id * 2; } };
@@ -74,7 +74,7 @@ Adding this code and running it will print out the following, because both syste
 ### 4. Removing a component
 Now lets remove a component and see what happens
 ```cpp
-// Remove the integer component from the 'sean' entity using the 'ecc::entity' helper class
+// Remove the integer component from the 'sean' entity using the 'ecs::entity' helper class
 ecs::entity sean{ 4 };
 sean.remove<int>();		// same as ecs::remove_component<int>(4);
 
