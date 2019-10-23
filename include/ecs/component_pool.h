@@ -265,12 +265,18 @@ namespace ecs::detail
 		// Clear all entities from the pool
 		void clear() override
 		{
+			// Remember is data was removed from the pool
+			bool const is_removed = data.size() > 0;
+
+			// Clear the pool
 			ranges.clear();
 			data.clear();
-
 			deferred_adds.clear();
 			deferred_removes.clear();
 			clear_flags();
+
+			// Save the removal state
+			data_removed = is_removed;
 		}
 
 	private:

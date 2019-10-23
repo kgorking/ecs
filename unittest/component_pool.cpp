@@ -163,7 +163,8 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.clear();
 			REQUIRE(pool.num_entities() == 0);
 			REQUIRE(pool.num_components() == 0);
-			REQUIRE(pool.is_data_modified() == false);
+			REQUIRE(pool.is_data_added() == false);
+			REQUIRE(pool.is_data_removed() == true);
 		}
 		SECTION("remains valid after internal growth") {
 			int const* org_p = pool.find_component_data(0);
