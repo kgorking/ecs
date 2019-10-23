@@ -1,9 +1,14 @@
 #pragma once
-#include "types.h"
-#include "runtime.h"
+#include "entity_id.h"
 
 namespace ecs
 {
+	// Forward declarations
+	template <typename T> void add_component(entity_id const id, T val);
+	template <typename T> void remove_component(entity_id const id);
+	template <typename T> bool has_component(entity_id const id);
+	template <typename T> T& get_component(entity_id const id);
+
 	// A simple helper class for easing the adding and removing of components
 	class entity final
 	{

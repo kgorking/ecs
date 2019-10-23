@@ -3,7 +3,7 @@
 
 TEST_CASE("Components are passed in the correct order to the system", "[system][ordering]")
 {
-	ecs::runtime::reset();
+	ecs::context::reset();
 
 	struct C_Order1 { unsigned i; };
 	struct C_Order2 { unsigned j; };

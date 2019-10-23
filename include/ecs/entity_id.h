@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <numeric>
 
 namespace ecs
 {
@@ -9,9 +10,8 @@ namespace ecs
 	{
 		std::int32_t id;
 
-		entity_id() noexcept
-			: id{ std::numeric_limits<std::int32_t>::max() }
-		{ }
+		// Uninitialized entity ids are not allowed, because it makes no sense
+		entity_id() = delete;
 		entity_id(std::int32_t _id) noexcept
 			: id(_id)
 		{ }

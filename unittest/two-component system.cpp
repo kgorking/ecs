@@ -3,7 +3,7 @@
 
 TEST_CASE("System with two components", "[system][component]")
 {
-	ecs::runtime::reset();
+	ecs::context::reset();
 
 	int a = 0, b = 0;
 
@@ -13,8 +13,8 @@ TEST_CASE("System with two components", "[system][component]")
 	ecs::add_system([&a, &b](int const&, unsigned const&) { a++; b++; });
 
 	// Add components to 10 entities
-	ecs::add_component_range({ 0, 9 }, int{ 1 });
-	ecs::add_component_range({ 0, 9 }, unsigned{ 2 });
+	ecs::add_component({ 0, 9 }, int{ 1 });
+	ecs::add_component({ 0, 9 }, unsigned{ 2 });
 	ecs::commit_changes();
 
 	// Run the system

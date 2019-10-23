@@ -3,7 +3,7 @@
 
 TEST_CASE("Trying to use missing storage", "[storage]")
 {
-	ecs::runtime::reset();
+	ecs::context::reset();
 
 	// Use a local struct to avoid it possibly
 	// already existing from another unittest

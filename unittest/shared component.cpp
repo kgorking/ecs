@@ -7,7 +7,7 @@ TEST_CASE("Shared components", "[component][shared]")
 		int i = 0;
 	};
 
-	ecs::runtime::reset();
+	ecs::context::reset();
 
 	auto pst = ecs::get_shared_component<test_s>();
 	pst->i = 42;
@@ -16,7 +16,7 @@ TEST_CASE("Shared components", "[component][shared]")
 		CHECK(42 == st.i);
 	});
 
-	ecs::add_component_range({ 0, 2 }, test_s{});
+	ecs::add_component({ 0, 2 }, test_s{});
 	ecs::commit_changes();
 
 	// Only 1 test_s should exist

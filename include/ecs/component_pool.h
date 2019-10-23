@@ -20,31 +20,26 @@ namespace ecs::detail
 	template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
 
-	enum modified_state : unsigned {
-		none = 0,			// no change
-		add = 1 << 0,		// entity/data was added
-		remove = 1 << 1,	// entity/data was removed
-	};
-
 	template <typename T>
 	class component_pool final : public component_pool_base
 	{
+		static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tag-components can not have any data in them");
+
 	public:
 		// Adds a component to an entity.
 		// Pre: entity has not already been added, or is in queue to be added
 		void add(entity_id const id, T component)
 		{
-			add_range({ id, id }, std::move(component));
+			add({ id, id }, std::move(component));
 		}
 
 		// Adds a component to a range of entities, initialized by the supplied use function
 		// Pre: entities has not already been added, or is in queue to be added
 		template <typename Fn>
-		void add_range_init(entity_range const range, Fn init)
+		void add_init(entity_range const range, Fn init)
 		{
-			static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tagged components can not have any data in them");
-			Expects(!has_entity_range(range));
-			Expects(!is_queued_add_range(range));
+			Expects(!has_entity(range));
+			Expects(!is_queued_add(range));
 
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
@@ -52,21 +47,20 @@ namespace ecs::detail
 					data.emplace_back(init(0));
 				}
 
-				deferred_adds->emplace_back(range);
+				deferred_adds.get().emplace_back(range);
 			}
 			else {
 				// Add the id and data to a temp storage
-				deferred_adds->emplace_back(range, std::function<T(ecs::entity_id)>{ init });
+				deferred_adds.get().emplace_back(range, std::function<T(ecs::entity_id)>{ init });
 			}
 		}
 
 		// Adds a component to a range of entity.
 		// Pre: entities has not already been added, or is in queue to be added
-		void add_range(entity_range const range, T component)
+		void add(entity_range const range, T component)
 		{
-			static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tagged components can not have any data in them");
-			Expects(!has_entity_range(range));
-			Expects(!is_queued_add_range(range));
+			Expects(!has_entity(range));
+			Expects(!is_queued_add(range));
 
 			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
@@ -120,8 +114,8 @@ namespace ecs::detail
 		// Remove an entity from the component pool. This logically removes the component from the entity.
 		void remove_range(entity_range const range)
 		{
-			Expects(has_entity_range(range));
-			Expects(!is_queued_remove_range(range));
+			Expects(has_entity(range));
+			Expects(!is_queued_remove(range));
 
 			if (deferred_removes->size() > 0 && deferred_removes->back().can_merge(range)) {
 				deferred_removes->back() = entity_range::merge(deferred_removes->back(), range);
@@ -149,12 +143,6 @@ namespace ecs::detail
 			}
 		}
 
-		// Returns true if this pool had components added or removed
-		bool was_changed() const noexcept override
-		{
-			return get_flags() != modified_state::none;
-		}
-
 		// Merge all the components queued for addition to the main storage,
 		// and remove components queued for removal
 		void process_changes() override
@@ -175,26 +163,33 @@ namespace ecs::detail
 			return data.size();
 		}
 
-		// Returns the flag describing the state of the pool
-		modified_state get_flags() const noexcept
-		{
-			return static_cast<modified_state>(state_);
-		}
-
 		// Clears the pools state flags
 		void clear_flags() noexcept override
 		{
-			state_ = modified_state::none;
+			data_added = false;
+			data_removed = false;
 		}
 
-		// Returns true if a certain flag is set
-		bool has_flag(modified_state flag) const noexcept
+		// Returns true if data has been added since last clear_flags() call
+		bool is_data_added() const noexcept
 		{
-			return (state_ & flag) == flag;
+			return data_added;
+		}
+
+		// Returns true if data has been removed since last clear_flags() call
+		bool is_data_removed() const noexcept
+		{
+			return data_removed;
+		}
+
+		// Returns true if data has been added/removed since last clear_flags() call
+		bool is_data_modified() const noexcept
+		{
+			return data_added || data_removed;
 		}
 
 		// Returns the pools entities
-		std::vector<entity_range> const& get_entities() const noexcept override
+		entity_range_view get_entities() const noexcept
 		{
 			return ranges;
 		}
@@ -202,11 +197,11 @@ namespace ecs::detail
 		// Returns true if an entity has data in this pool
 		bool has_entity(entity_id const id) const
 		{
-			return has_entity_range({ id, id });
+			return has_entity({ id, id });
 		}
 
 		// Returns true if an entity range has data in this pool
-		bool has_entity_range(entity_range const range) const noexcept
+		bool has_entity(entity_range const range) const noexcept
 		{
 			if (ranges.empty())
 				return false;
@@ -222,11 +217,11 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_add(entity_id const id)
 		{
-			return is_queued_add_range({ id, id });
+			return is_queued_add({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_add_range(entity_range const range)
+		bool is_queued_add(entity_range const range)
 		{
 			if (deferred_adds->empty())
 				return false;
@@ -250,11 +245,11 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_remove(entity_id const id)
 		{
-			return is_queued_remove_range({ id, id });
+			return is_queued_remove({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_remove_range(entity_range const range)
+		bool is_queued_remove(entity_range const range)
 		{
 			if (deferred_removes->empty())
 				return false;
@@ -279,16 +274,21 @@ namespace ecs::detail
 		}
 
 	private:
-
-		// Sets a flag
-		void set_flag(modified_state flag) noexcept
+		// Flag that data has been added
+		void set_data_added() noexcept
 		{
-			state_ |= flag;
+			data_added = true;
+		}
+
+		// Flag that data has been removed
+		void set_data_removed() noexcept
+		{
+			data_removed = true;
 		}
 
 		// Returns the component at the specific index.
 		// Pre: index is within bounds
-		T* at(gsl::index const index) const
+		T* at(gsl::index const index) const noexcept
 		{
 			Expects(index >= 0 && index < static_cast<gsl::index>(data.size()));
 			GSL_SUPPRESS(bounds.4)
@@ -427,7 +427,7 @@ namespace ecs::detail
 			}
 
 			// Update the state
-			set_flag(modified_state::add);
+			set_data_added();
 		}
 
 		// Removes the entities
@@ -438,7 +438,7 @@ namespace ecs::detail
 				if (ranges.size() > 0) {
 					ranges.clear();
 					data.clear();
-					set_flag(modified_state::remove);
+					set_data_removed();
 				}
 			}
 			else {
@@ -465,8 +465,8 @@ namespace ecs::detail
 
 				// Erase the ranges data
 				if constexpr (detail::has_unique_component_v<T>) {
-					auto dest_it = data.begin() + find_entity_index(removes[0].first());
-					auto from_it = dest_it + removes[0].count();
+					auto dest_it = data.begin() + find_entity_index(removes.at(0).first());
+					auto from_it = dest_it + removes.at(0).count();
 
 					if (dest_it == data.begin() && from_it == data.end()) {
 						data.clear();
@@ -516,7 +516,7 @@ namespace ecs::detail
 				}
 
 				// Update the state
-				set_flag(modified_state::remove);
+				set_data_removed();
 			}
 		}
 
@@ -536,6 +536,7 @@ namespace ecs::detail
 		threaded<std::vector<entity_range>> deferred_removes;
 
 		// 
-		unsigned state_ = modified_state::none;
+		bool data_added{};
+		bool data_removed{};
 	};
 };

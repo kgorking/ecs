@@ -6,7 +6,7 @@
 // This is based on a bug that was exposed by the 'finite_state_machine' example.
 TEST_CASE("Component removal", "[component][transient]")
 {
-	ecs::runtime::reset();
+	ecs::context::reset();
 
 	struct state_idle {};
 	struct state_connecting {};
@@ -14,7 +14,7 @@ TEST_CASE("Component removal", "[component][transient]")
 	struct ev_timeout : ecs::transient {};
 
 	int run_counter_idle = 0;
-	ecs::runtime::init_components<ev_timeout>();
+	ecs::context::init_components<ev_timeout>();
 	ecs::add_system([&](state_idle const&, ev_connect const& /*ev*/) { run_counter_idle++; });
 
 	ecs::entity fsm{ 0, state_idle{} };

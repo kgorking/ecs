@@ -5,7 +5,6 @@
 #include <gsl/gsl>
 #include "system.h"
 #include "component_pool.h"
-#include "runtime.h"
 #include "entity.h"
 
 namespace ecs::detail
@@ -23,16 +22,20 @@ namespace ecs::detail
 		// The first type in the system, entity or component
 		using first_type = std::conditional_t<is_first_component_entity, FirstComponent, FirstComponent*>;
 
-		// Holds the arguments for the systems
-		using compact_arg = std::conditional_t<is_first_component_entity, 
-			std::vector<std::tuple<entity_range,                  Components* ...>>,
-			std::vector<std::tuple<entity_range, FirstComponent*, Components* ...>>>;
-		compact_arg compact_args;
+		// Tuple holding all pools used by this system
+		using tup_pools = std::conditional_t<is_first_component_entity,
+			std::tuple<                                 component_pool<Components> &...>,
+			std::tuple<component_pool<FirstComponent>&, component_pool<Components> &...>>;
+
+		// Holds an entity range and a pointer to the first component from each pool in that range
+		using range_arguments = std::conditional_t<is_first_component_entity,
+			std::tuple<entity_range,                  Components* ...>,
+			std::tuple<entity_range, FirstComponent*, Components* ...>>;
+
+		// Holds the arguments for a range of entities
+		std::vector<range_arguments> arguments;
 
 		// A tuple of the fully typed component pools used by this system
-		using tup_pools = std::conditional_t<is_first_component_entity,
-			std::tuple<                                 component_pool<Components>&...>,
-			std::tuple<component_pool<FirstComponent>&, component_pool<Components>&...>>;
 		tup_pools const pools;
 
 		// The user supplied system
@@ -57,16 +60,16 @@ namespace ecs::detail
 
 		void update() override
 		{
-			for (auto &arg : compact_args) {
-				auto range = std::get<entity_range>(arg);
-				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &arg, first_id = range.first().id](auto ent) {
+			for (auto const& argument : arguments) {
+				auto const range = std::get<entity_range>(argument);
+				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first().id](auto ent) {
 					int const offset = ent.id - first_id;
 
 					if constexpr (is_first_component_entity) {
-						update_func(ent, *extract_arg(std::get<Components*>(arg), offset)...);
+						update_func(ent, *extract_arg(std::get<Components*>(argument), offset)...);
 					}
 					else {
-						update_func(*extract_arg(std::get<FirstComponent*>(arg), offset), *extract_arg(std::get<Components*>(arg), offset)...);
+						update_func(*extract_arg(std::get<FirstComponent*>(argument), offset), *extract_arg(std::get<Components*>(argument), offset)...);
 					}
 				});
 			}
@@ -76,50 +79,40 @@ namespace ecs::detail
 		// Handle changes when the component pools change
 		void process_changes() override
 		{
-			// Leave if nothing has changed
-			if (!(get_pool<Components>().was_changed() || ...)) {
-				if constexpr (!is_first_component_entity) {
-					if (!get_pool<FirstComponent>().was_changed())
-						return;
-				}
-				else
-					return;
-			}
-
-			build_args();
+			auto constexpr is_pools_modified = [](auto const& ...pools) { return (pools.is_data_modified() || ...); };
+			bool const is_modified = std::apply(is_pools_modified, pools);
+	
+			if (is_modified)
+				build_args();
 		}
 
-	protected:
 		void build_args()
 		{
-			std::vector<entity_range> const& entities_set = std::get<0>(pools).get_entities();
+			entity_range_view entities = std::get<0>(pools).get_entities();
 
 			if constexpr (num_components == 1)
 			{
 				// Build the arguments
-				build_args(entities_set);
+				build_args(entities);
 			}
 			else
 			{
 				// When there are more than one component required for a system,
 				// find the intersection of the sets of entities that have those components
-				
-				// Hold the ranges that intersect
-				std::vector<entity_range> intersect(entities_set.begin(), entities_set.end());
 
 				// Intersects two ranges of entities
-				auto const intersector = [](std::vector<ecs::entity_range> const& vec_a, gsl::span<ecs::entity_range const> vec_b) -> std::vector<ecs::entity_range> {
-					std::vector<ecs::entity_range> result;
+				auto constexpr intersector = [](entity_range_view view_a, entity_range_view view_b) {
+					std::vector<entity_range> result;
 
-					if (vec_a.empty() || vec_b.empty())
+					if (view_a.empty() || view_b.empty())
 						return result;
 
-					auto it_a = vec_a.begin();
-					auto it_b = vec_b.begin();
+					auto it_a = view_a.begin();
+					auto it_b = view_b.begin();
 
-					while (it_a != vec_a.end() && it_b != vec_b.end()) {
+					while (it_a != view_a.end() && it_b != view_b.end()) {
 						if (it_a->overlaps(*it_b))
-							result.push_back(ecs::entity_range::intersect(*it_a, *it_b));
+							result.push_back(entity_range::intersect(*it_a, *it_b));
 
 						if (it_a->last() < it_b->last()) // range a is inside range b, move to the next range in a
 							++it_a;
@@ -134,24 +127,28 @@ namespace ecs::detail
 					return result;
 				};
 
-				// Find the intersections of all the pools
-				((intersect = intersector(intersect, get_pool<Components>().get_entities())), ...);
+				auto constexpr do_intersection = [intersector](entity_range_view initial, entity_range_view first, auto ...rest) {
+					std::vector<entity_range> intersect = intersector(initial, first);
+					((intersect = intersector(intersect, rest)), ...);
+					return intersect;
+				};
 
 				// Build the arguments
+				auto const intersect = do_intersection(entities, get_pool<Components>().get_entities()...);
 				build_args(intersect);
 			}
 		}
 
 		// Convert a set of entities into arguments that can be passed to the system
-		void build_args(std::vector<entity_range> const& entities)
+		void build_args(entity_range_view entities)
 		{
-			// Build the compact arguments
-			compact_args.clear();
-			for (auto range : entities) {
+			// Build the arguments for the ranges
+			arguments.clear();
+			for (auto const range : entities) {
 				if constexpr (is_first_component_entity)
-					compact_args.emplace_back(range,                                               get_component<Components>(range.first())...);
+					arguments.emplace_back(range,                                               get_component<Components>(range.first())...);
 				else
-					compact_args.emplace_back(range, get_component<FirstComponent>(range.first()), get_component<Components>(range.first())...);
+					arguments.emplace_back(range, get_component<FirstComponent>(range.first()), get_component<Components>(range.first())...);
 			}
 		}
 

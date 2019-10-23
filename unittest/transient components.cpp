@@ -6,7 +6,7 @@ TEST_CASE("Transient components", "[component][transient]")
 	struct foo {};
 	struct test_t : ecs::transient {};
 
-	ecs::runtime::reset();
+	ecs::context::reset();
 
 	int counter = 0;
 	ecs::add_system([&counter](foo const&, test_t const&) {

@@ -17,7 +17,7 @@ struct velocity {
 
 int main()
 {
-	float const dt = 1.0f/60;
+	float constexpr dt = 1.0f/60;
 
 	auto &zero_vel = ecs::add_system([](velocity &vel) {
 		vel.dx = 0.;

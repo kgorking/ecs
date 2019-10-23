@@ -37,7 +37,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			ecs::detail::component_pool<int> pool;
 			REQUIRE(pool.num_entities() == 0);
 			REQUIRE(pool.num_components() == 0);
-			REQUIRE(pool.get_flags() == ecs::detail::modified_state::none);
+			REQUIRE(pool.is_data_modified() == false);
 		}
 	}
 
@@ -51,19 +51,19 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE_THROWS_AS(pool.find_component_data(0), gsl::fail_fast);
 		}
 		SECTION("grows when data is added to it") {
-			pool.add_range({ 0, 4 }, 7);
+			pool.add({ 0, 4 }, 7);
 			pool.process_changes();
 
 			REQUIRE(pool.num_entities() == 5);
 			REQUIRE(pool.num_components() == 5);
-			REQUIRE(pool.has_flag(ecs::detail::modified_state::add));
+			REQUIRE(pool.is_data_added());
 		}
 	}
 
 	SECTION("Adding components") {
 		SECTION("does not perform unneccesary copies of components") {
 			ecs::detail::component_pool<ctr_counter> pool;
-			pool.add_range({ 0, 2 }, ctr_counter{});
+			pool.add({ 0, 2 }, ctr_counter{});
 			pool.process_changes();
 			pool.remove_range({ 0, 2 });
 			pool.process_changes();
@@ -73,7 +73,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		}
 		SECTION("with a lambda is valid") {
 			ecs::detail::component_pool<int> pool;
-			pool.add_range_init({ 0, 9 }, [](ecs::entity_id ent) { return ent.id; });
+			pool.add_init({ 0, 9 }, [](ecs::entity_id ent) { return ent.id; });
 			pool.process_changes();
 
 			for (int i = 0; i <= 9; i++) {
@@ -82,7 +82,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		}
 		SECTION("with negative entity ids is fine") {
 			ecs::detail::component_pool<int> pool;
-			pool.add_range({ -999, -950 }, 0);
+			pool.add({ -999, -950 }, 0);
 			pool.process_changes();
 
 			REQUIRE(50 == pool.num_components());
@@ -103,7 +103,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("Removing components") {
 		ecs::detail::component_pool<int> pool;
-		pool.add_range_init({ 0, 10 }, [](auto ent) { return ent.id; });
+		pool.add_init({ 0, 10 }, [](auto ent) { return ent.id; });
 		pool.process_changes();
 
 		SECTION("from the back does not invalidate other components") {
@@ -136,12 +136,12 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("A non empty pool") {
 		ecs::detail::component_pool<int> pool;
-		pool.add_range_init({ 0, 9 }, [](auto ent) { return ent.id; });
+		pool.add_init({ 0, 9 }, [](auto ent) { return ent.id; });
 		pool.process_changes();
 
 		SECTION("has the correct entities") {
 			REQUIRE(10 == pool.num_entities());
-			REQUIRE(pool.has_entity_range({ 0, 9 }));
+			REQUIRE(pool.has_entity({ 0, 9 }));
 		}
 		SECTION("has the correct components") {
 			REQUIRE(10 == pool.num_components());
@@ -157,13 +157,13 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(pool.num_entities() == 9);
 			REQUIRE(pool.num_components() == 9);
-			REQUIRE(pool.has_flag(ecs::detail::modified_state::remove));
+			REQUIRE(pool.is_data_removed());
 		}
 		SECTION("becomes empty after clear") {
 			pool.clear();
 			REQUIRE(pool.num_entities() == 0);
 			REQUIRE(pool.num_components() == 0);
-			REQUIRE(pool.get_flags() == ecs::detail::modified_state::none);
+			REQUIRE(pool.is_data_modified() == false);
 		}
 		SECTION("remains valid after internal growth") {
 			int const* org_p = pool.find_component_data(0);
@@ -194,7 +194,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		SECTION("are automatically removed in process_changes()") {
 			struct tr_test : ecs::transient {};
 			ecs::detail::component_pool<tr_test> pool;
-			pool.add_range({ 0, 9 }, tr_test{});
+			pool.add({ 0, 9 }, tr_test{});
 
 			pool.process_changes();
 			CHECK(pool.num_components() == 10);

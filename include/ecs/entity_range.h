@@ -1,12 +1,19 @@
 #pragma once
 #include <optional>
 #include <gsl/span>
-#include "types.h"
-#include "runtime.h"
-#include "entity.h"
+#include "entity_id.h"
 
 namespace ecs
 {
+	// Forward decls
+	class entity_range;
+	template <typename T>  void add_component(entity_range const range, T val);
+	template <typename T>  void remove_component(entity_range const range);
+	template <typename T>  bool has_component(entity_range const range);
+	template <typename T>  T& get_component(entity_id const id);
+
+	using entity_range_view = gsl::span<entity_range const>;
+
 	// Defines a range of entities.
 	// 'last' is included in the range.
 	class entity_range final
@@ -52,15 +59,9 @@ namespace ecs
 
 		template <typename ...Components>
 		entity_range(entity_id first, entity_id last, Components&& ... components)
-			: first_(first)
-			, last_(last)
+			: entity_range(first, last)
 		{
-			Expects(first <= last);
-			bool constexpr invokable = (std::is_invocable_v<Components, entity_id> && ...);
-			if constexpr (invokable)
-				add_init<Components...>(std::forward<Components>(components)...);
-			else
-				add<Components...>(std::forward<Components>(components)...);
+			add<Components...>(std::forward<Components>(components)...);
 		}
 
 		entity_range(entity_range const&) = default;
@@ -90,9 +91,10 @@ namespace ecs
 		}
 
 		// Returns the number of entities in this range
-		int count() const noexcept
+		size_t count() const noexcept
 		{
-			return (last_.id - first_.id) + 1;
+			Expects(last_.id >= first_.id);
+			return static_cast<size_t>(last_.id) - first_.id + 1;
 		}
 
 		// Returns true if the ranges are identical
@@ -116,7 +118,7 @@ namespace ecs
 		// Returns the offset of an entity into this range
 		gsl::index offset(entity_id const ent) const
 		{
-			Expects(ent >= first_ && ent <= last_);
+			Expects(contains(ent));
 			return static_cast<gsl::index>(ent.id) - first_.id;
 		}
 
@@ -133,10 +135,10 @@ namespace ecs
 		// Removes a range from another range.
 		// If the range was split by the remove, it returns two ranges.
 		// Pre: 'other' must be contained in 'range', but must not be equal to it
-		static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const& range, entity_range const& other)
+		static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const range, entity_range const other)
 		{
 			Expects(range.contains(other));
-			Expects(!(range.first() == other.first() && range.last() == other.last()));
+			Expects(!range.equals(other));
 
 			// Remove from the front
 			if (other.first() == range.first()) {
@@ -161,18 +163,19 @@ namespace ecs
 			};
 		}
 
+		// Combines two ranges into one
+		// Pre: r1 and r2 must be adjacent ranges, r1 < r2
 		static entity_range merge(entity_range const r1, entity_range const r2)
 		{
-			Expects(r1.last().id + 1 == r2.first().id);
+			Expects(r1.can_merge(r2));
 			return entity_range{ r1.first(), r2.last() };
 		}
 
 		// Returns the intersection of two ranges
 		// Pre: The ranges must overlap, the resulting ranges can not have zero-length
-		static entity_range intersect(entity_range const& range, entity_range const& other)
+		static entity_range intersect(entity_range const range, entity_range const other)
 		{
 			Expects(range.overlaps(other));
-			//Expects(!(range.first() == other.first() && range.last() == other.last()));
 
 			entity_id const first{ std::max(range.first(), other.first()) };
 			entity_id const last { std::min(range.last(),  other.last()) };
@@ -181,40 +184,34 @@ namespace ecs
 			return entity_range{ first, last };
 		}
 
-		template <typename ...Fns>
-		void add_init(Fns ... inits)
-		{
-			(add_component_range_init(*this, std::forward<Fns>(inits)), ...);
-		}
-
 		template <typename ...Components>
 		void add(Components&& ... components)
 		{
-			(add_component_range<Components>(*this, std::forward<Components>(components)), ...);
+			(add_component<Components>(*this, std::forward<Components>(components)), ...);
 		}
 
 		template <typename ...Components>
 		void add()
 		{
-			(add_component_range<Components>(*this, Components{}), ...);
+			(add_component<Components>(*this, Components{}), ...);
 		}
 
 		template <typename ...Components>
 		void remove()
 		{
-			(remove_component_range<Components>(*this), ...);
+			(remove_component<Components>(*this), ...);
 		}
 
 		template <typename ...Components>
 		bool has() const
 		{
-			return (has_component_range<Components>(*this) && ...);
+			return (has_component<Components>(*this) && ...);
 		}
 
 		template <typename Component>
 		gsl::span<Component> get() const
 		{
-			return gsl::make_span(&ecs::get_component<Component>(first_), count());
+			return gsl::make_span(&get_component<Component>(first_), count());
 		}
 	};
 }

@@ -3,7 +3,7 @@
 
 TEST_CASE("Mutable lambdas are supported", "[system]")
 {
-	ecs::runtime::reset();
+	ecs::context::reset();
 
 	// Add some systems to test
 	ecs::add_system([counter = 0](int &i) mutable
@@ -15,6 +15,6 @@ TEST_CASE("Mutable lambdas are supported", "[system]")
 	});
 
 	// Create 100 entities and add stuff to them
-	ecs::add_component_range({ 0, 3 }, int{ 0 });
+	ecs::add_component({ 0, 3 }, int{ 0 });
 	ecs::update_systems();
 }
