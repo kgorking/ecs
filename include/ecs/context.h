@@ -58,35 +58,33 @@ namespace ecs::detail {
 		}
 
 		// Returns a reference to a components pool.
-		// Pre: a pool has been initialized for the type
-		component_pool_base& get_component_pool(type_info const& type) const
+		// If a pool doesn't exist, one will be created.
+		template <typename T>
+		component_pool<T>& get_component_pool()
 		{
 			// Simple thread-safe caching, ~15% performance boost in benchmarks
 			struct __internal_dummy {};
 			thread_local std::type_index last_type{ typeid(__internal_dummy) };		// init to a function-local type
 			thread_local component_pool_base* last_pool{};
 
+			type_info const& type = typeid(T);
 			auto const type_index = std::type_index(type);
-			if (last_type == type_index)
-				return *last_pool;
+			if (last_type != type_index) {
 
-			// Look in the pool for the type
-			auto const it = type_pool_lookup.find(type_index);
-			Expects(it != type_pool_lookup.end());
-			Expects(it->second != nullptr);
+				// Look in the pool for the type
+				auto it = type_pool_lookup.find(type_index);
+				if (it == type_pool_lookup.end()) {
+					create_component_pool<T>();
+					it = type_pool_lookup.find(type_index);
+					Expects(it != type_pool_lookup.end());
+					Expects(it->second != nullptr);
+				}
 
-			last_type = type_index;
-			last_pool = it->second;
-			return *last_pool;
-		}
+				last_type = type_index;
+				last_pool = it->second;
+			}
 
-		// Returns a reference to a components pool.
-		// Pre: a pool has been initialized for the type
-		template <typename T>
-		component_pool<T>& get_component_pool() const
-		{
-			component_pool_base& pool = get_component_pool(typeid(T));
-			return dynamic_cast<component_pool<T>&>(pool);
+			return dynamic_cast<component_pool<T>&>(*last_pool);
 		}
 
 		// Initialize a component pool for each component, if needed

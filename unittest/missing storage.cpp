@@ -13,10 +13,10 @@ TEST_CASE("Trying to use missing storage", "[storage]")
 	{
 		// Add a system-less component to an entity
 		ecs::add_component(0, S{ 0 });
-		FAIL("No exception caught!");
+		SUCCEED();
 	}
 	catch (std::exception const&)
 	{
-		SUCCEED();
+		FAIL("Exception caught!");
 	}
 }
