@@ -4,7 +4,8 @@
 #include <variant>
 #include <utility>
 
-#include "../threaded/threaded/threaded.h"
+//#include "../threaded/threaded/threaded.h"
+#include "threaded.h"
 #include "component_pool_base.h"
 #include "component_specifier.h"
 #include "entity_range.h"
@@ -12,9 +13,6 @@
 
 namespace ecs::detail
 {
-	// True if each entity has their own unique component (ie. not shared across components)
-	template <class T> constexpr bool has_unique_component_v = !(is_shared_v<T> || is_tagged_v<T>);
-
 	// For std::visit
 	template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 	template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
@@ -47,11 +45,11 @@ namespace ecs::detail
 					data.emplace_back(init(0));
 				}
 
-				deferred_adds.get().emplace_back(range);
+				deferred_adds.local().emplace_back(range);
 			}
 			else {
 				// Add the id and data to a temp storage
-				deferred_adds.get().emplace_back(range, std::function<T(ecs::entity_id)>{ init });
+				deferred_adds.local().emplace_back(range, std::function<T(ecs::entity_id)>{ init });
 			}
 		}
 
@@ -69,17 +67,17 @@ namespace ecs::detail
 				}
 
 				// Merge the range or add it
-				if (deferred_adds->size() > 0 && deferred_adds->back().can_merge(range)) {
-					deferred_adds->back() = entity_range::merge(deferred_adds->back(), range);
+				if (deferred_adds.local().size() > 0 && deferred_adds.local().back().can_merge(range)) {
+					deferred_adds.local().back() = entity_range::merge(deferred_adds.local().back(), range);
 				}
 				else {
-					deferred_adds->push_back(range);
+					deferred_adds.local().push_back(range);
 				}
 			}
 			else {
 				// Try and merge the range instead of adding it
-				if (deferred_adds->size() > 0) {
-					auto &[last_range, val] = deferred_adds->back();
+				if (deferred_adds.local().size() > 0) {
+					auto &[last_range, val] = deferred_adds.local().back();
 					if (last_range.can_merge(range)) {
 						bool const equal_vals = 0 == std::memcmp(&std::get<T>(val), &component, sizeof(T));
 						if (equal_vals) {
@@ -90,13 +88,13 @@ namespace ecs::detail
 				}
 
 				// Merge wasn't possible, so just add it
-				deferred_adds->emplace_back(range, std::move(component));
+				deferred_adds.local().emplace_back(range, std::move(component));
 			}
 		}
 
 		// Returns the shared component
-		template <typename XT = T, typename = std::enable_if_t<!has_unique_component_v<XT>>>
-		T* get_shared_component() const
+		template <typename XT = T, typename = std::enable_if_t<detail::is_shared_v<XT>>>
+		T& get_shared_component() const
 		{
 			if (data.size() == 0) {
 				data.emplace_back(T{});
@@ -117,22 +115,23 @@ namespace ecs::detail
 			Expects(has_entity(range));
 			Expects(!is_queued_remove(range));
 
-			if (deferred_removes->size() > 0 && deferred_removes->back().can_merge(range)) {
-				deferred_removes->back() = entity_range::merge(deferred_removes->back(), range);
+			auto& rem = deferred_removes.local();
+			if (rem.size() > 0 && rem.back().can_merge(range)) {
+				rem.back() = entity_range::merge(rem.back(), range);
 			}
 			else {
-				deferred_removes->push_back(range);
+				rem.push_back(range);
 			}
 		}
 
 		// Returns an entities component
 		// Pre: entity must have an component in this pool
-		T* find_component_data([[maybe_unused]] entity_id const id) const
+		T& find_component_data([[maybe_unused]] entity_id const id) const
 		{
 			Expects(has_entity(id));
 
 			// TODO tagged+shared components could just return the address of a static var. 0 mem allocs
-			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
+			if constexpr (is_shared_v<T>) {
 				// All entities point to the same component
 				return get_shared_component<T>();
 			}
@@ -223,17 +222,17 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_add(entity_range const range)
 		{
-			if (deferred_adds->empty())
+			if (deferred_adds.local().empty())
 				return false;
 
-			if constexpr (detail::has_unique_component_v<T>) {
-				for (auto const& ents : *deferred_adds) {
+			if constexpr (!detail::is_shared_v<T>) {
+				for (auto const& ents : deferred_adds.local()) {
 					if (ents.first.contains(range))
 						return true;
 				}
 			}
 			else {
-				for (auto const& ents : *deferred_adds) {
+				for (auto const& ents : deferred_adds.local()) {
 					if (ents.contains(range))
 						return true;
 				}
@@ -251,10 +250,10 @@ namespace ecs::detail
 		// Checks the current threads queue for the entity
 		bool is_queued_remove(entity_range const range)
 		{
-			if (deferred_removes->empty())
+			if (deferred_removes.local().empty())
 				return false;
 
-			for (auto const& ents : deferred_removes.get()) {
+			for (auto const& ents : deferred_removes.local()) {
 				if (ents.contains(range))
 					return true;
 			}
@@ -263,7 +262,7 @@ namespace ecs::detail
 		}
 
 		// Clear all entities from the pool
-		void clear() override
+		void clear() noexcept override
 		{
 			// Remember is data was removed from the pool
 			bool const is_removed = data.size() > 0;
@@ -294,12 +293,10 @@ namespace ecs::detail
 
 		// Returns the component at the specific index.
 		// Pre: index is within bounds
-		T* at(gsl::index const index) const noexcept
+		T& at(gsl::index const index) const
 		{
 			Expects(index >= 0 && index < static_cast<gsl::index>(data.size()));
-			GSL_SUPPRESS(bounds.4)
-			GSL_SUPPRESS(bounds.1)
-			return data.data() + index;
+			return data.at(index);
 		}
 
 		// Searches for an entitys offset in to the component pool. Returns -1 if not found.
@@ -337,7 +334,7 @@ namespace ecs::detail
 			// An entity can not have more than one of the same component
 			auto const has_duplicate_entities = [](auto const& vec) {
 				return vec.end() != std::adjacent_find(vec.begin(), vec.end(), [](auto const& l, auto const& r) {
-					if constexpr (detail::has_unique_component_v<T>)
+					if constexpr (!detail::is_shared_v<T>)
 						return l.first == r.first;
 					else
 						return l == r;
@@ -350,7 +347,7 @@ namespace ecs::detail
 
 			// Sort the input
 			auto constexpr comparator = [](entity_data const& l, entity_data const& r) {
-				if constexpr (detail::has_unique_component_v<T>)
+				if constexpr (!detail::is_shared_v<T>)
 					return l.first.first() < r.first.first();
 				else
 					return l.first() < r.first();
@@ -370,7 +367,7 @@ namespace ecs::detail
 			};
 
 			// Add the new components
-			if constexpr (detail::has_unique_component_v<T>) {
+			if constexpr (!detail::is_shared_v<T>) {
 				std::vector<entity_range> new_ranges;
 				auto ranges_it = ranges.cbegin();
 				auto component_it = data.begin();
@@ -470,7 +467,7 @@ namespace ecs::detail
 					std::sort(removes.begin(), removes.end());
 
 				// Erase the ranges data
-				if constexpr (detail::has_unique_component_v<T>) {
+				if constexpr (!detail::is_shared_v<T>) {
 					auto dest_it = data.begin() + find_entity_index(removes.at(0).first());
 					auto from_it = dest_it + removes.at(0).count();
 
@@ -510,14 +507,14 @@ namespace ecs::detail
 					}
 					else {
 						// Do the removal
-						auto const [range, split] = entity_range::remove(*curr_range, *it);
+						auto result = entity_range::remove(*curr_range, *it);
 
 						// Update the modified range
-						*curr_range = range;
+						*curr_range = result.first;
 
 						// If the range was split, add the other part of the range
-						if (split)
-							curr_range = ranges.insert(curr_range + 1, split.value());
+						if (result.second.has_value())
+							curr_range = ranges.insert(curr_range + 1, result.second.value());
 					}
 				}
 
@@ -535,7 +532,7 @@ namespace ecs::detail
 
 		// The type used to store data.
 		using component_val = std::variant<T, std::function<T(entity_id)>>;
-		using entity_data = std::conditional_t<detail::has_unique_component_v<T>, std::pair<entity_range, component_val>, entity_range>;
+		using entity_data = std::conditional_t<!detail::is_shared_v<T>, std::pair<entity_range, component_val>, entity_range>;
 
 		// Keep track of which components to add/remove each cycle
 		threaded<std::vector<entity_data>> deferred_adds;

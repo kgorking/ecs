@@ -3,7 +3,7 @@
 
 TEST_CASE("Internal sorting of entities", "[component]")
 {
-	ecs::context::reset();
+	ecs::detail::_context.reset();
 
 	int last = 0;
 	ecs::add_system([&last](int const& c) {

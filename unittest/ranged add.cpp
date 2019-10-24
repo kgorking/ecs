@@ -5,8 +5,8 @@ TEST_CASE("Ranged add", "[range]")
 {
 	SECTION("Ranged add of components")
 	{
-		ecs::context::reset();
-		ecs::context::init_components<size_t>();
+		ecs::detail::_context.reset();
+		ecs::detail::_context.init_component_pools<size_t>();
 
 		ecs::add_component({ 0, 5 }, size_t{ 5 });
 		ecs::commit_changes();
@@ -19,8 +19,8 @@ TEST_CASE("Ranged add", "[range]")
 
 	SECTION("Ranged add of components with initializer")
 	{
-		ecs::context::reset();
-		ecs::context::init_components<int>();
+		ecs::detail::_context.reset();
+		ecs::detail::_context.init_component_pools<int>();
 
 		auto const init = [](auto ent) { return ent.id * 2; };
 

@@ -11,10 +11,10 @@ struct state_s : ecs::shared {
 
 static void print_shared_state()
 {
-	auto shared = ecs::get_shared_component<state_s>();
-	std::cout << " A touches:       " << shared->a << "\n";
-	std::cout << " B touches:       " << shared->b << "\n";
-	std::cout << " state_s touches: " << shared->total << "\n\n";
+	auto const& shared = ecs::get_shared_component<state_s>();
+	std::cout << " A touches:       " << shared.a << "\n";
+	std::cout << " B touches:       " << shared.b << "\n";
+	std::cout << " state_s touches: " << shared.total << "\n\n";
 }
 
 int main()

@@ -3,7 +3,7 @@
 
 TEST_CASE("Mutable lambdas are supported", "[system]")
 {
-	ecs::context::reset();
+	ecs::detail::_context.reset();
 
 	// Add some systems to test
 	ecs::add_system([counter = 0](int &i) mutable

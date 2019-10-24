@@ -1,17 +1,21 @@
 #pragma once
 
+namespace ecs::detail {
+	class context;
+}
+
 namespace ecs
 {
 	class system
 	{
-		friend void commit_changes();
+		friend class detail::context;
 
 		// Process changes to component layouts
 		virtual void process_changes() = 0;
 
 	public:
 		// Run this system on all of its associated components
-		virtual void update() = 0;
+		virtual void update() noexcept = 0;
 
 	public:
 		system() = default;

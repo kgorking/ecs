@@ -3,9 +3,13 @@
 #include <algorithm>
 #include <type_traits>
 #include <gsl/gsl>
+
 #include "system.h"
 #include "component_pool.h"
-#include "entity.h"
+
+namespace ecs {
+	class entity;
+}
 
 namespace ecs::detail
 {
@@ -58,18 +62,34 @@ namespace ecs::detail
 			build_args();
 		}
 
-		void update() override
+		void update() noexcept override
 		{
+			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
 				auto const range = std::get<entity_range>(argument);
 				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first().id](auto ent) {
-					int const offset = ent.id - first_id;
+					// Small helper function
+					auto const extract_arg = [](auto ptr, ptrdiff_t offset) noexcept {
+						using T = std::decay_t<decltype(*ptr)>;
+						if constexpr (!is_shared_v<T>) {
+							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
+							return ptr + offset;
+						}
+						else {
+							return ptr;
+						}
+					};
+
+
+					auto const offset = ent.id - first_id;
 
 					if constexpr (is_first_component_entity) {
-						update_func(ent, *extract_arg(std::get<Components*>(argument), offset)...);
+						update_func(ent,
+									*extract_arg(std::get<Components*>(argument), offset)...);
 					}
 					else {
-						update_func(*extract_arg(std::get<FirstComponent*>(argument), offset), *extract_arg(std::get<Components*>(argument), offset)...);
+						update_func(*extract_arg(std::get<FirstComponent*>(argument), offset),
+									*extract_arg(std::get<Components*>(argument), offset)...);
 					}
 				});
 			}
@@ -88,7 +108,7 @@ namespace ecs::detail
 
 		void build_args()
 		{
-			entity_range_view entities = std::get<0>(pools).get_entities();
+			entity_range_view const entities = std::get<0>(pools).get_entities();
 
 			if constexpr (num_components == 1)
 			{
@@ -153,16 +173,7 @@ namespace ecs::detail
 		}
 
 		template <typename Component>
-		Component* extract_arg(Component* ptr, [[maybe_unused]] ptrdiff_t offset) noexcept
-		{
-			if constexpr (has_unique_component_v<Component>)
-				return ptr + offset;
-			else
-				return ptr;
-		}
-
-		template <typename Component>
-		component_pool<Component>& get_pool() const noexcept
+		component_pool<Component>& get_pool() const
 		{
 			return std::get<component_pool<Component>&>(pools);
 		}
@@ -170,7 +181,7 @@ namespace ecs::detail
 		template <typename Component>
 		Component* get_component(entity_id const entity)
 		{
-			return get_pool<Component>().find_component_data(entity);
+			return &get_pool<Component>().find_component_data(entity);
 		}
 	};
 }

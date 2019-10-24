@@ -8,17 +8,15 @@ struct ctr_counter {
 	inline static size_t move_count = 0;
 	inline static size_t dtr_count = 0;
 
-	ctr_counter() {
+	ctr_counter() noexcept {
 		def_ctr_count++;
 		ctr_count++;
 	}
-	ctr_counter(ctr_counter const&)
-	{
+	ctr_counter(ctr_counter const&) noexcept {
 		copy_count++;
 		ctr_count++;
 	}
-	ctr_counter(ctr_counter&&) noexcept
-	{
+	ctr_counter(ctr_counter&&) noexcept {
 		move_count++;
 		ctr_count++;
 	}
@@ -77,7 +75,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			for (int i = 0; i <= 9; i++) {
-				REQUIRE(i == *pool.find_component_data(i));
+				REQUIRE(i == pool.find_component_data(i));
 			}
 		}
 		SECTION("with negative entity ids is fine") {
@@ -112,7 +110,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(pool.num_components() == 9);
 			for (int i = 0; i <= 8; i++)
-				REQUIRE(i == *pool.find_component_data(i));
+				REQUIRE(i == pool.find_component_data(i));
 		}
 		SECTION("from the front does not invalidate other components") {
 			pool.remove_range({ 0,1 });
@@ -120,7 +118,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(pool.num_components() == 9);
 			for (int i = 2; i <= 10; i++)
-				REQUIRE(i == *pool.find_component_data(i));
+				REQUIRE(i == pool.find_component_data(i));
 		}
 		SECTION("from the middle does not invalidate other components") {
 			pool.remove_range({ 4,5 });
@@ -128,9 +126,9 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(pool.num_components() == 9);
 			for (int i = 0; i <= 3; i++)
-				REQUIRE(i == *pool.find_component_data(i));
+				REQUIRE(i == pool.find_component_data(i));
 			for (int i = 6; i <= 10; i++)
-				REQUIRE(i == *pool.find_component_data(i));
+				REQUIRE(i == pool.find_component_data(i));
 		}
 	}
 
@@ -146,7 +144,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		SECTION("has the correct components") {
 			REQUIRE(10 == pool.num_components());
 			for (int i = 0; i <= 9; i++)
-				REQUIRE(i == *pool.find_component_data({ i }));
+				REQUIRE(i == pool.find_component_data({ i }));
 		}
 		SECTION("throws when accessing invalid entities") {
 			REQUIRE_THROWS_AS(pool.find_component_data(10), gsl::fail_fast);
@@ -167,7 +165,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(pool.is_data_removed() == true);
 		}
 		SECTION("remains valid after internal growth") {
-			int const* org_p = pool.find_component_data(0);
+			int const& org_p = pool.find_component_data(0);
 
 			for (int i = 10; i < 32; i++) {
 				pool.add(i, i);
@@ -175,18 +173,18 @@ TEST_CASE("Component pool specification", "[component]") {
 			}
 
 			for (int i = 0; i < 32; i++) {
-				REQUIRE(i == *pool.find_component_data(i));
+				REQUIRE(i == pool.find_component_data(i));
 			}
 
 			// memory address has changed
-			REQUIRE(org_p != pool.find_component_data(0));
+			REQUIRE(&org_p != &pool.find_component_data(0));
 		}
 		SECTION("compacts memory on remove") {
 			pool.remove_range({ 1,8 });
 			pool.process_changes();
 
-			int const* i0 = pool.find_component_data(0);
-			int const* i9 = pool.find_component_data(9);
+			int const* i0 = &pool.find_component_data(0);
+			int const* i9 = &pool.find_component_data(9);
 			REQUIRE(std::distance(i0, i9) == 1);
 		}
 	}

@@ -47,14 +47,14 @@ void raw_update(benchmark::State& state) {
 
 	std::vector<int> colors(nentities);
 	for (auto const _ : state) {
-		ecs::context::reset();
+		ecs::detail::_context.reset();
 
-		auto shared = ecs::get_shared_component<shared_s>();
-		shared->dimension = nentities;
+		auto & shared = ecs::get_shared_component<shared_s>();
+		shared.dimension = nentities;
 
 		std::fill_n(colors.begin(), nentities, int{});
 		for (ecs::entity_id ent{ 0 }; ent < nentities; ent++)
-			benchmark_system(ent, colors.data()[ent.id], *shared);
+			benchmark_system(ent, colors.data()[ent.id], shared);
 	}
 }
 BENCHMARK(raw_update)->RangeMultiplier(2)->Range(start_range, end_range);
@@ -63,9 +63,9 @@ void system_update(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		ecs::context::reset();
+		ecs::detail::_context.reset();
 
-		ecs::get_shared_component<shared_s>()->dimension = nentities;
+		ecs::get_shared_component<shared_s>().dimension = nentities;
 
 		ecs::add_system(benchmark_system);
 
@@ -81,9 +81,9 @@ void system_update_parallel(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		ecs::context::reset();
+		ecs::detail::_context.reset();
 		ecs::add_system_parallel(benchmark_system);
-		ecs::get_shared_component<shared_s>()->dimension = nentities;
+		ecs::get_shared_component<shared_s>().dimension = nentities;
 
 		ecs::add_component({ 0, nentities }, shared_s{});
 		ecs::add_component({ 0, nentities }, int{});
@@ -98,8 +98,8 @@ void component_add(benchmark::State& state) {
 
 	for (auto const _ : state) {
 		state.PauseTiming();
-		ecs::context::reset();
-		ecs::context::init_components<float>();
+		ecs::detail::_context.reset();
+		ecs::detail::_context.init_component_pools<float>();
 		ecs::add_system([](ecs::entity ent, size_t const&) {
 			ent.add(3.14f);
 		});
@@ -119,8 +119,8 @@ void component_add_parallel(benchmark::State& state) {
 
 	for (auto const _ : state) {
 		state.PauseTiming();
-		ecs::context::reset();
-		ecs::context::init_components<float>();
+		ecs::detail::_context.reset();
+		ecs::detail::_context.init_component_pools<float>();
 		ecs::add_system_parallel([](ecs::entity ent, size_t const&) {
 			ent.add(3.14f);
 		});
@@ -140,9 +140,9 @@ void component_randomized_add(benchmark::State& state) {
 
 	for (auto const _ : state) {
 		state.PauseTiming();
-			ecs::context::reset();
+			ecs::detail::_context.reset();
 			ecs::add_system(benchmark_system);
-			ecs::get_shared_component<shared_s>()->dimension = nentities;
+			ecs::get_shared_component<shared_s>().dimension = nentities;
 
 			std::vector<ecs::entity_id> ids;
 			ids.reserve(nentities);
@@ -166,9 +166,9 @@ void component_remove(benchmark::State& state) {
 
 	for (auto const _ : state) {
 		state.PauseTiming();
-			ecs::context::reset();
+			ecs::detail::_context.reset();
 			ecs::add_system(benchmark_system);
-			ecs::get_shared_component<shared_s>()->dimension = nentities;
+			ecs::get_shared_component<shared_s>().dimension = nentities;
 		state.ResumeTiming();
 
 		ecs::add_component({ 0, nentities }, int{});

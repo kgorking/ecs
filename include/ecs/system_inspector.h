@@ -1,5 +1,10 @@
 #pragma once
 
+namespace ecs {
+	struct entity_id;
+	class entity;
+}
+
 namespace ecs::detail
 {
 	// Check that we are only supplied unique types - https://stackoverflow.com/questions/18986560/check-variadic-templates-parameters-for-uniqueness
@@ -11,9 +16,14 @@ namespace ecs::detail
 	template <>            struct is_unique<> { static constexpr bool value = true; };
 	template<typename F, typename... T> struct is_unique<F, T...> { static constexpr bool value = is_unique<T...>::value && !is_one_of<F, T...>::value; };
 
-	// Based on https://stackoverflow.com/questions/7943525/is-it-possible-to-figure-out-the-parameter-type-and-return-type-of-a-lambda
+	// detection idiom
+	template <class T, class = void>  struct is_lambda : std::false_type {};
+	template <class T>                struct is_lambda<T, std::void_t<decltype(&T::operator ())>> : std::true_type {};
+	template <class T> static constexpr bool is_lambda_v = is_lambda<T>::value;
+
 
 	// A class to verify a system is valid
+	// Based on https://stackoverflow.com/questions/7943525/is-it-possible-to-figure-out-the-parameter-type-and-return-type-of-a-lambda
 	template <typename C, typename R, typename... Args>
 	struct system_inspector_impl
 	{
@@ -57,4 +67,39 @@ namespace ecs::detail
 	template <typename C, typename R, typename... Args>
 	struct system_inspector<R(C::*)(Args...)      > : public system_inspector_impl<C, R, Args...>
 	{ };
+
+
+	template <typename System>
+	constexpr void verify_system() noexcept
+	{
+		static_assert(is_lambda_v<System>, "System must be a valid lambda or function object");
+
+		using inspector = system_inspector<System>;
+
+		using first_type = typename inspector::template arg_at<0>;
+
+		// Make sure any entity types are not passed as references or pointers
+		if constexpr (std::is_reference_v<first_type>) {
+			static_assert(!std::is_same_v<std::decay_t<first_type>, entity_id>, "Entities are only passed by value; remove the &");
+			static_assert(!std::is_same_v<std::decay_t<first_type>, entity>, "Entities are only passed by value; remove the &");
+		}
+		if constexpr (std::is_pointer_v<first_type>) {
+			static_assert(!std::is_same_v<std::remove_pointer_t<first_type>, entity_id>, "Entity ids are only passed by value; remove the *");
+			static_assert(!std::is_same_v<std::remove_pointer_t<first_type>, entity>, "Entity ids are only passed by value; remove the *");
+		}
+
+		bool constexpr has_entity_id = std::is_same_v<first_type, entity_id>;
+		bool constexpr has_entity_struct = std::is_same_v<first_type, entity>;
+		bool constexpr has_entity = has_entity_id || has_entity_struct;
+
+		//
+		// Implement the rules for systems
+		static_assert(std::is_same_v<typename inspector::return_type, void>, "Systems can not return values");
+		static_assert(inspector::num_args > (has_entity ? 1 : 0), "No component types specified for the system");
+
+		//
+		// Implement the rules for components
+		static_assert(inspector::has_unique_components(), "A component type was specifed more than once");
+		static_assert(inspector::components_passed_by_ref(), "Systems can only take references to components");
+	}
 }

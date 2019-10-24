@@ -23,6 +23,7 @@ namespace ecs
 
 	public:
 		// Iterator support
+		// TODO harden
 		class iterator {
 			entity_id ent_;
 
@@ -40,8 +41,8 @@ namespace ecs
 			iterator operator++(int) noexcept { iterator retval = *this; ++(*this); return retval; }
 			iterator operator+(difference_type diff) const noexcept { return { ent_.id + diff }; }
 			iterator operator+(iterator in_it) const noexcept { return { ent_.id + in_it.ent_.id }; }
-			difference_type operator-(difference_type diff) const noexcept { return difference_type{ ent_.id - diff }; }
-			difference_type operator-(iterator in_it) const noexcept { return difference_type{ ent_.id - in_it.ent_.id }; }
+			difference_type operator-(difference_type diff) const noexcept { return { ent_.id - diff }; }
+			difference_type operator-(iterator in_it) const noexcept { return { ent_.id - in_it.ent_.id }; }
 			bool operator==(iterator other) const noexcept { return ent_ == other.ent_; }
 			bool operator!=(iterator other) const noexcept { return !(*this == other); }
 			entity_id operator*() noexcept { return ent_; }
@@ -91,7 +92,7 @@ namespace ecs
 		}
 
 		// Returns the number of entities in this range
-		size_t count() const noexcept
+		size_t count() const
 		{
 			Expects(last_.id >= first_.id);
 			return static_cast<size_t>(last_.id) - first_.id + 1;

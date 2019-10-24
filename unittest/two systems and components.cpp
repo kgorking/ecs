@@ -3,7 +3,7 @@
 
 TEST_CASE("Two systems with two components", "[system][component]")
 {
-	ecs::context::reset();
+	ecs::detail::_context.reset();
 
 	int a = 0, b = 0;
 

@@ -3,17 +3,17 @@
 
 namespace ecs
 {
+	// Inherit to mark a component as shared.
+	// Uses O(1) memory instead of O(n).
+	struct shared {};
+
 	// Inherit to mark a component as an empty tag
 	// Uses O(1) memory instead of O(n).
-	struct tag { unsigned char __max_size_of_a_tag_is_1; };
+	struct tag : shared { unsigned char __max_size_of_a_tag_is_1; };
 
 	// Inherit to mark a component as transient.
 	// The component will only exist on an entity for one cycle.
 	struct transient {};
-
-	// Inherit to mark a component as shared.
-	// Uses O(1) memory instead of O(n).
-	struct shared {};
 
 	namespace detail {
 		// Some helpers

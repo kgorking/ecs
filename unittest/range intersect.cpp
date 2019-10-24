@@ -54,9 +54,9 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(3 == result.size());
-		CHECK(ecs::entity_range{ 1,3 }.equals(result[0]));
-		CHECK(ecs::entity_range{ 6,8 }.equals(result[1]));
-		CHECK(ecs::entity_range{ 11,13 }.equals(result[2]));
+		CHECK(ecs::entity_range{ 1,3 }.equals(result.at(0)));
+		CHECK(ecs::entity_range{ 6,8 }.equals(result.at(1)));
+		CHECK(ecs::entity_range{ 11,13 }.equals(result.at(2)));
 	}
 
 	SECTION("Ranges in A are contained in ranges in B")
@@ -69,9 +69,9 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(3 == result.size());
-		CHECK(ecs::entity_range{ 1,3 }.equals(result[0]));
-		CHECK(ecs::entity_range{ 6,8 }.equals(result[1]));
-		CHECK(ecs::entity_range{ 11,13 }.equals(result[2]));
+		CHECK(ecs::entity_range{ 1,3 }.equals(result.at(0)));
+		CHECK(ecs::entity_range{ 6,8 }.equals(result.at(1)));
+		CHECK(ecs::entity_range{ 11,13 }.equals(result.at(2)));
 	}
 
 	SECTION("Ranges in A overlap ranges in B")
@@ -84,9 +84,9 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(3 == result.size());
-		CHECK(ecs::entity_range{ 4,4 } == result[0]);
-		CHECK(ecs::entity_range{ 11,11 } == result[1]);
-		CHECK(ecs::entity_range{ 18,18 } == result[2]);
+		CHECK(ecs::entity_range{ 4,4 } == result.at(0));
+		CHECK(ecs::entity_range{ 11,11 } == result.at(1));
+		CHECK(ecs::entity_range{ 18,18 } == result.at(2));
 	}
 
 	SECTION("Ranges in B overlap ranges in A")
@@ -99,9 +99,9 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(3 == result.size());
-		CHECK(ecs::entity_range{ 4,4 } == result[0]);
-		CHECK(ecs::entity_range{ 11,11 } == result[1]);
-		CHECK(ecs::entity_range{ 18,18 } == result[2]);
+		CHECK(ecs::entity_range{ 4,4 } == result.at(0));
+		CHECK(ecs::entity_range{ 11,11 } == result.at(1));
+		CHECK(ecs::entity_range{ 18,18 } == result.at(2));
 	}
 
 	SECTION("Ranges in A overlap multiple ranges in B")
@@ -114,10 +114,10 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(4 == result.size());
-		CHECK(ecs::entity_range{ 1,3 } == result[0]);
-		CHECK(ecs::entity_range{ 5,7 } == result[1]);
-		CHECK(ecs::entity_range{ 10,12 } == result[2]);
-		CHECK(ecs::entity_range{ 14,16 } == result[3]);
+		CHECK(ecs::entity_range{ 1,3 } == result.at(0));
+		CHECK(ecs::entity_range{ 5,7 } == result.at(1));
+		CHECK(ecs::entity_range{ 10,12 } == result.at(2));
+		CHECK(ecs::entity_range{ 14,16 } == result.at(3));
 	}
 
 	SECTION("Ranges in B overlap multiple ranges in A")
@@ -130,10 +130,10 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(4 == result.size());
-		CHECK(ecs::entity_range{ 1,3 } == result[0]);
-		CHECK(ecs::entity_range{ 5,7 } == result[1]);
-		CHECK(ecs::entity_range{ 10,12 } == result[2]);
-		CHECK(ecs::entity_range{ 14,16 } == result[3]);
+		CHECK(ecs::entity_range{ 1,3 } == result.at(0));
+		CHECK(ecs::entity_range{ 5,7 } == result.at(1));
+		CHECK(ecs::entity_range{ 10,12 } == result.at(2));
+		CHECK(ecs::entity_range{ 14,16 } == result.at(3));
 	}
 
 	SECTION("One range in B overlaps two ranges in A")
@@ -146,8 +146,8 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(2 == result.size());
-		CHECK(ecs::entity_range{ 2,3 } == result[0]);
-		CHECK(ecs::entity_range{ 5,6 } == result[1]);
+		CHECK(ecs::entity_range{ 2,3 } == result.at(0));
+		CHECK(ecs::entity_range{ 5,6 } == result.at(1));
 	}
 
 	SECTION("One range in A overlaps two ranges in B")
@@ -160,7 +160,7 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto result = intersector(vec_a, vec_b);
 
 		REQUIRE(2 == result.size());
-		CHECK(ecs::entity_range{ 2,3 } == result[0]);
-		CHECK(ecs::entity_range{ 5,6 } == result[1]);
+		CHECK(ecs::entity_range{ 2,3 } == result.at(0));
+		CHECK(ecs::entity_range{ 5,6 } == result.at(1));
 	}
 }
