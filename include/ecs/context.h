@@ -140,19 +140,15 @@ namespace ecs::detail {
 		auto& create_system_impl(System update_func)
 		{
 			// Set up the implementation
-			using typed_system_impl = system_impl<
-				ExecutionPolicy,
-				System,
-				std::decay_t<FirstArg>,
-				std::decay_t<Args>...>;
+			using typed_system_impl = system_impl<ExecutionPolicy, System, std::decay_t<FirstArg>, std::decay_t<Args>...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
 
 			// Set up everything for the component pool
-			init_component_pools<std::decay_t<Args>...>();
 			if constexpr (!has_entity)
 				init_component_pools<std::decay_t<FirstArg>>();
+			init_component_pools<std::decay_t<Args>...>();
 
 			// Create the system instance
 			if constexpr (has_entity) {

@@ -293,32 +293,33 @@ namespace ecs::detail
 
 		// Returns the component at the specific index.
 		// Pre: index is within bounds
-		T& at(gsl::index const index) const
+		T& at(size_t const index) const
 		{
-			Expects(index >= 0 && index < static_cast<gsl::index>(data.size()));
+			Expects(index >= 0 && index < data.size());
 			return data.at(index);
 		}
 
 		// Searches for an entitys offset in to the component pool. Returns -1 if not found.
 		// Assumes 'ent' is a valid entity
-		gsl::index find_entity_index(entity_id const ent) const
+		size_t find_entity_index(entity_id const ent) const
 		{
-			if (ranges.size() > 0) {
-				// Run through the ranges
-				gsl::index index = 0;
-				for (entity_range const range : ranges) {
-					if (!range.contains(ent)) {
-						index += range.count();
-						continue;
-					}
+			Expects(ranges.size() > 0);
+			Expects(has_entity(ent));
 
-					index += range.offset(ent);
-					return index;
+			// Run through the ranges
+			size_t index = 0;
+			for (entity_range const range : ranges) {
+				if (!range.contains(ent)) {
+					index += range.count();
+					continue;
 				}
+
+				index += range.offset(ent);
+				return index;
 			}
 
-			// not found
-			return -1;
+			assert(false);
+			return std::numeric_limits<size_t>::max();
 		}
 
 		// Adds new queued entities and component data to the main storage
