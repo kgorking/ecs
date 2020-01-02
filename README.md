@@ -19,7 +19,7 @@ int main()
 	});
 	
 	// Set up 3 entities with their components
-	// This uses the entity_range class, which is just a
+	// This uses the entity_range class, which is a
 	// wrapper for the interface to allow easy usage
 	ecs::entity_range more_ents{ 0, 2, int{1} };
 
