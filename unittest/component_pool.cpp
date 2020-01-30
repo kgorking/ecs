@@ -191,7 +191,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("Transient components") {
 		SECTION("are automatically removed in process_changes()") {
-			struct tr_test : ecs::transient {};
+			struct tr_test { ecs_flags(ecs::transient); };
 			ecs::detail::component_pool<tr_test> pool;
 			pool.add({ 0, 9 }, tr_test{});
 

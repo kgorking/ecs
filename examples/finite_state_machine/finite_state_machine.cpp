@@ -13,13 +13,14 @@ struct state_connecting {
 };
 
 // Events. Marked as transient so they are automatically removed
-struct ev_connect_t    : ecs::transient {};
-struct ev_timeout_t    : ecs::transient {};
-struct ev_connected_t  : ecs::transient {};
-struct ev_disconnect_t : ecs::transient {};
+struct ev_connect_t    { ecs_flags(ecs::transient); };
+struct ev_timeout_t    { ecs_flags(ecs::transient); };
+struct ev_connected_t  { ecs_flags(ecs::transient); };
+struct ev_disconnect_t { ecs_flags(ecs::transient); };
 
 // Add the systems that handle state/event interactions
 void add_systems() {
+
 	// state_idle + ev_connect_t -> state_connecting (1)
 	ecs::add_system([](ecs::entity fsm, state_idle const&, ev_connect_t const& /*ev*/) {
 		std::cout << "ev_connect_t: state_idle -> state_connecting\n";

@@ -10,8 +10,8 @@ TEST_CASE("Component removal", "[component][transient]")
 
 	struct state_idle {};
 	struct state_connecting {};
-	struct ev_connect : ecs::transient {};
-	struct ev_timeout : ecs::transient {};
+	struct ev_connect { ecs_flags(ecs::transient); };
+	struct ev_timeout { ecs_flags(ecs::transient); };
 
 	int run_counter_idle = 0;
 	ecs::detail::_context.init_component_pools<ev_timeout>();

@@ -12,7 +12,8 @@ size_t constexpr start_range = 32;
 size_t constexpr end_range = 16 * 1024 * 1024;
 //size_t constexpr end_range = 1024 * 1024 * 1024;  // 1 billion entities
 
-struct shared_s : ecs::shared {
+struct shared_s {
+	ecs_flags(ecs::shared);
 	size_t dimension;
 };
 

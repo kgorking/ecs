@@ -3,28 +3,26 @@
 
 struct A {};
 struct B {};
-struct state_s : ecs::shared {
+struct state_s { ecs_flags(ecs::shared);
 	int a = 0;
 	int b = 0;
 	int total = 0;
 };
 
-static void print_shared_state()
-{
+static void print_shared_state() {
 	auto const& shared = ecs::get_shared_component<state_s>();
 	std::cout << " A touches:       " << shared.a << "\n";
 	std::cout << " B touches:       " << shared.b << "\n";
 	std::cout << " state_s touches: " << shared.total << "\n\n";
 }
 
-int main()
-{
+int main() {
 	try {
 		std::cout << "Initial state:\n";
 		print_shared_state();
 
-		auto& sys_a = ecs::add_system([](A const&, state_s &state) { state.a++; state.total++; });
-		auto& sys_b = ecs::add_system([](B const&, state_s &state) { state.b++; state.total++; });
+		auto& sys_a = ecs::add_system([](A const&, state_s& state) { state.a++; state.total++; });
+		auto& sys_b = ecs::add_system([](B const&, state_s& state) { state.b++; state.total++; });
 
 		std::cout << "Adding 10 entities with an A and state_s component:\n";
 		ecs::entity_range{ 0, 9, A{}, state_s{} };

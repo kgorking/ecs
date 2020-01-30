@@ -1,10 +1,14 @@
 #include <ecs/ecs.h>
 #include "catch.hpp"
 
+struct _dummy { ecs_flags(ecs::transient); };
+static_assert(ecs::detail::is_transient_v<_dummy>);
+
 TEST_CASE("Transient components", "[component][transient]")
 {
 	struct foo {};
-	struct test_t : ecs::transient {};
+	struct test_t { ecs_flags(ecs::transient); };
+	static_assert(ecs::detail::is_transient_v<test_t>);
 
 	ecs::detail::_context.reset();
 

@@ -2,9 +2,9 @@
 #include <string>
 #include <ecs/ecs.h>
 
-struct flameable_t : ecs::tag {};
-struct freezeable_t : ecs::tag {};
-struct shockable_t: ecs::tag {};
+struct flameable_t { ecs_flags(ecs::tag); };
+struct freezeable_t { ecs_flags(ecs::tag); };
+struct shockable_t { ecs_flags(ecs::tag); };
 
 struct Name : std::string {};
 

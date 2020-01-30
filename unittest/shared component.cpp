@@ -3,7 +3,8 @@
 
 TEST_CASE("Shared components", "[component][shared]")
 {
-	struct test_s : ecs::shared {
+	struct test_s { 
+		ecs_flags(ecs::shared);
 		int i = 0;
 	};
 
