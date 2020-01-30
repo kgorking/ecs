@@ -17,8 +17,8 @@ namespace ecs {
 		bool constexpr invokable = std::is_invocable_v<T, entity_id>;
 		if constexpr (invokable) {
 			// Return type of 'init'
-			using ComponentType = decltype(val(entity_id{ 0 }));
-			static_assert(!std::is_same_v<ComponentType, void>, "Initializer function must have a return value");
+			using ComponentType = decltype(std::declval<T>()(entity_id{ 0 }));
+			static_assert(!std::is_same_v<ComponentType, void>, "Initializer function must return a component");
 
 			// Add it to the component pool
 			detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
@@ -75,7 +75,7 @@ namespace ecs {
 	template <typename T>
 	T& get_shared_component()
 	{
-		static_assert(detail::is_shared_v<T>, "Component has not been marked as shared. Inherit from ecs::shared to fix this.");
+		static_assert(detail::is_shared_v<T>, "Component has not been marked as shared. Add 'ecs_flags(ecs::shared);' to make it a shared component.");
 
 		// Get the pool
 		if (!detail::_context.has_component_pool(typeid(T)))
