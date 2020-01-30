@@ -19,7 +19,7 @@ int main()
 	});
 	
 	// Set up 3 entities with their components
-	// This uses the entity_range class, which is just a
+	// This uses the entity_range class, which is a
 	// wrapper for the interface to allow easy usage
 	ecs::entity_range more_ents{ 0, 2, int{1} };
 
@@ -89,7 +89,7 @@ Running the code now will print out the following
 ```
 
 ### 5. Accessing the entity id
-If you need to access the entity id, it's as easy as adding either an
+If you need to access the entity id, add either an
 [ecs::entity_id](https://github.com/monkey-g/ecs/blob/master/ecs/types.h) or an [ecs::entity](https://github.com/monkey-g/ecs/blob/master/ecs/entity.h)
 as the first argument in the lambda.
 ```cpp
@@ -107,7 +107,7 @@ entity with id 5 is named jimmy
 ```
 
 ### 6. Parallelism
-Systems can process the components of entities in parallel, simply by marking the system as being parallel.
+Systems can process the components of entities in parallel, by using ```ecs::add_system_parallel```.
 ```cpp
 #include <iostream>
 #include <thread>
