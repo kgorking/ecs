@@ -4,8 +4,7 @@
 #include <variant>
 #include <utility>
 
-//#include "../threaded/threaded/threaded.h"
-#include "threaded.h"
+#include "../threaded/threaded/threaded.h"
 #include "component_pool_base.h"
 #include "component_specifier.h"
 #include "entity_range.h"
@@ -23,6 +22,9 @@ namespace ecs::detail
 	{
 		static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tag-components can not have any data in them");
 
+		static constexpr bool is_static = is_static_v<T>; // all entities point to the same component
+		static constexpr bool not_shared = !is_static;
+
 	public:
 		// Adds a component to an entity.
 		// Pre: entity has not already been added, or is in queue to be added
@@ -39,7 +41,7 @@ namespace ecs::detail
 			Expects(!has_entity(range));
 			Expects(!is_queued_add(range));
 
-			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
+			if constexpr (is_static) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.size() == 0) {
 					data.emplace_back(init(0));
@@ -60,7 +62,7 @@ namespace ecs::detail
 			Expects(!has_entity(range));
 			Expects(!is_queued_add(range));
 
-			if constexpr (is_shared_v<T> || is_tagged_v<T>) {
+			if constexpr (is_static) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.size() == 0) {
 					data.emplace_back(std::move(component));
@@ -93,7 +95,7 @@ namespace ecs::detail
 		}
 
 		// Returns the shared component
-		template <typename XT = T, typename = std::enable_if_t<detail::is_shared_v<XT>>>
+		template <typename XT = T, typename = std::enable_if_t<is_shared_v<XT> || is_tagged_v<XT>>>
 		T& get_shared_component() const
 		{
 			if (data.size() == 0) {
@@ -131,7 +133,7 @@ namespace ecs::detail
 			Expects(has_entity(id));
 
 			// TODO tagged+shared components could just return the address of a static var. 0 mem allocs
-			if constexpr (is_shared_v<T>) {
+			if constexpr (is_static) {
 				// All entities point to the same component
 				return get_shared_component<T>();
 			}
@@ -225,7 +227,7 @@ namespace ecs::detail
 			if (deferred_adds.local().empty())
 				return false;
 
-			if constexpr (!detail::is_shared_v<T>) {
+			if constexpr (not_shared) {
 				for (auto const& ents : deferred_adds.local()) {
 					if (ents.first.contains(range))
 						return true;
@@ -335,7 +337,7 @@ namespace ecs::detail
 			// An entity can not have more than one of the same component
 			auto const has_duplicate_entities = [](auto const& vec) {
 				return vec.end() != std::adjacent_find(vec.begin(), vec.end(), [](auto const& l, auto const& r) {
-					if constexpr (!detail::is_shared_v<T>)
+					if constexpr (not_shared)
 						return l.first == r.first;
 					else
 						return l == r;
@@ -348,7 +350,7 @@ namespace ecs::detail
 
 			// Sort the input
 			auto constexpr comparator = [](entity_data const& l, entity_data const& r) {
-				if constexpr (!detail::is_shared_v<T>)
+				if constexpr (not_shared)
 					return l.first.first() < r.first.first();
 				else
 					return l.first() < r.first();
@@ -368,7 +370,7 @@ namespace ecs::detail
 			};
 
 			// Add the new components
-			if constexpr (!detail::is_shared_v<T>) {
+			if constexpr (not_shared) {
 				std::vector<entity_range> new_ranges;
 				auto ranges_it = ranges.cbegin();
 				auto component_it = data.begin();
@@ -438,7 +440,7 @@ namespace ecs::detail
 		void process_remove_components()
 		{
 			// Transient components are removed each cycle
-			if constexpr (std::is_base_of_v<ecs::transient, T>) {
+			if constexpr (is_transient_v<T>) {
 				if (ranges.size() > 0) {
 					ranges.clear();
 					data.clear();
@@ -468,7 +470,7 @@ namespace ecs::detail
 					std::sort(removes.begin(), removes.end());
 
 				// Erase the ranges data
-				if constexpr (!detail::is_shared_v<T>) {
+				if constexpr (not_shared) {
 					auto dest_it = data.begin() + find_entity_index(removes.at(0).first());
 					auto from_it = dest_it + removes.at(0).count();
 
@@ -531,9 +533,10 @@ namespace ecs::detail
 		// The entities that have data in this storage.
 		std::vector<entity_range> ranges;
 
+
 		// The type used to store data.
 		using component_val = std::variant<T, std::function<T(entity_id)>>;
-		using entity_data = std::conditional_t<!detail::is_shared_v<T>, std::pair<entity_range, component_val>, entity_range>;
+		using entity_data = std::conditional_t<not_shared, std::pair<entity_range, component_val>, entity_range>;
 
 		// Keep track of which components to add/remove each cycle
 		threaded<std::vector<entity_data>> deferred_adds;
