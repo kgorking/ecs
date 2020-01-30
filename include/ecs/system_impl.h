@@ -69,13 +69,14 @@ namespace ecs::detail
 				auto const range = std::get<entity_range>(argument);
 				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first().id](auto ent) {
 					// Small helper function
-					auto const extract_arg = [](auto ptr, ptrdiff_t offset) noexcept {
+					auto const extract_arg = [](auto ptr, /*[[maybe_unused]]*/ ptrdiff_t offset) noexcept {
 						using T = std::decay_t<decltype(*ptr)>;
 						if constexpr (!is_shared_v<T>) {
 							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
 							return ptr + offset;
 						}
 						else {
+							(void)offset; // silence unused parameter warning
 							return ptr;
 						}
 					};
