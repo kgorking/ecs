@@ -2,13 +2,13 @@
 #include <vector>
 #include <map>
 #include <typeindex>
+#include <shared_mutex>
 
 #include "component_pool.h"
 #include "system_impl.h"
 
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
-	// Not thread safe.
 	class context final
 	{
 		// The values that make up the ecs core.
@@ -16,10 +16,18 @@ namespace ecs::detail {
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
 		std::map<std::type_index, component_pool_base*> type_pool_lookup;
 
+		mutable std::shared_mutex mutex;
+
 	public:
 		// Commits the changes to the entities.
 		void commit_changes()
 		{
+			// Prevent other threads from
+			//  adding components
+			//  registering new component types
+			//  adding new systems
+			std::shared_lock lock(mutex);
+
 			// Let the component pools handle pending add/remove requests for components
 			for (auto const& pool : component_pools)
 				pool->process_changes();
@@ -36,6 +44,9 @@ namespace ecs::detail {
 		// Calls the 'update' function on all the systems in the order they were added.
 		void run_systems() noexcept
 		{
+			// Prevent other threads from adding new systems
+			std::shared_lock lock(mutex);
+
 			for (auto const& sys : systems) {
 				sys->update();
 			}
@@ -44,6 +55,9 @@ namespace ecs::detail {
 		// Returns true if a pool for the type exists
 		bool has_component_pool(type_info const& type) const
 		{
+			// Prevent other threads from registering new component types
+			std::shared_lock lock(mutex);
+
 			auto const it = type_pool_lookup.find(std::type_index(type));
 			return (it != type_pool_lookup.end());
 		}
@@ -51,8 +65,10 @@ namespace ecs::detail {
 		// Resets the runtime state. Removes all systems, empties component pools
 		void reset() noexcept
 		{
+			std::unique_lock lock(mutex);
+
 			systems.clear();
-			// context::component_pools.clear(); // this will cause an exception in get_component_pool(type_info) due to the cache
+			// context::component_pools.clear(); // this will cause an exception in get_component_pool() due to the cache
 			for (auto& pool : component_pools)
 				pool->clear();
 		}
@@ -70,16 +86,23 @@ namespace ecs::detail {
 			type_info const& type = typeid(T);
 			auto const type_index = std::type_index(type);
 			if (last_type != type_index) {
-
 				// Look in the pool for the type
+				std::shared_lock lock(mutex);
 				auto it = type_pool_lookup.find(type_index);
+
 				if (it == type_pool_lookup.end()) {
+					// The pool wasn't found so create it.
+					// create_component_pool takes a unique lock, so unlock the
+					// shared lock during its call
+					lock.unlock();
 					create_component_pool<T>();
+					lock.lock();
+
 					it = type_pool_lookup.find(type_index);
-					Expects(it != type_pool_lookup.end());
-					Expects(it->second != nullptr);
+					assert(it != type_pool_lookup.end());
 				}
 
+				assert(it->second != nullptr);
 				last_type = type_index;
 				last_pool = it->second;
 			}
@@ -149,19 +172,22 @@ namespace ecs::detail {
 			init_component_pools<std::decay_t<Args>...>();
 
 			// Create the system instance
+			std::unique_ptr<system> sys;
 			if constexpr (has_entity) {
-				systems.push_back(std::make_unique<typed_system_impl>(
+				sys = std::make_unique<typed_system_impl>(
 					update_func,
 					/* dont add the entity as a component pool */
-					get_component_pool<std::decay_t<Args>>()...));
+					get_component_pool<std::decay_t<Args>>()...);
 			}
 			else {
-				systems.push_back(std::make_unique<typed_system_impl>(
+				sys = std::make_unique<typed_system_impl>(
 					update_func,
 					get_component_pool<std::decay_t<FirstArg>>(),
-					get_component_pool<std::decay_t<Args>>()...));
+					get_component_pool<std::decay_t<Args>>()...);
 			}
 
+			std::unique_lock lock(mutex);
+			systems.push_back(std::move(sys));
 			auto ptr_system = systems.back().get();
 			return *ptr_system;
 		}
@@ -176,6 +202,8 @@ namespace ecs::detail {
 			auto& type = typeid(Component);
 			if (!has_component_pool(type))
 			{
+				std::unique_lock lock(mutex);
+
 				auto pool = std::make_unique<component_pool<Component>>();
 				type_pool_lookup.emplace(std::type_index(type), pool.get());
 				component_pools.push_back(std::move(pool));
