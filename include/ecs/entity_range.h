@@ -41,8 +41,8 @@ namespace ecs
 			iterator operator++(int) noexcept { iterator retval = *this; ++(*this); return retval; }
 			iterator operator+(difference_type diff) const noexcept { return { ent_.id + diff }; }
 			iterator operator+(iterator in_it) const noexcept { return { ent_.id + in_it.ent_.id }; }
-			difference_type operator-(difference_type diff) const noexcept { return { ent_.id - diff }; }
-			difference_type operator-(iterator in_it) const noexcept { return { ent_.id - in_it.ent_.id }; }
+			difference_type operator-(difference_type diff) const noexcept { return ent_.id - diff; }
+			difference_type operator-(iterator in_it) const noexcept { return ent_.id - in_it.ent_.id; }
 			bool operator==(iterator other) const noexcept { return ent_ == other.ent_; }
 			bool operator!=(iterator other) const noexcept { return !(*this == other); }
 			entity_id operator*() noexcept { return ent_; }
