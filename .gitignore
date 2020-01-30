@@ -261,3 +261,5 @@ __pycache__/
 *.pyc
 /out/build/x64-Debug
 /out/build/x64-Release
+/out/build/x64-Debug-clang
+/out/build/x64-Release-clang
