@@ -33,7 +33,7 @@ int main() {
 		std::cout << "Adding 10 more entities with a B and state_s component:\n";
 		ecs::entity_range{ 10, 19, B{}, state_s{} };
 		ecs::commit_changes();
-		sys_b.update(); // run A system
+		sys_b.update(); // run B system
 		print_shared_state();
 
 		// Dump some stats
