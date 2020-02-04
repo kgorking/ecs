@@ -15,7 +15,7 @@ namespace ecs
 
 	public:
 		// Run this system on all of its associated components
-		virtual void update() noexcept = 0;
+		virtual void update() = 0;
 
 	public:
 		system() = default;

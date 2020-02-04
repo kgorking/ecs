@@ -13,7 +13,7 @@ TEST_CASE("Transient components", "[component][transient]")
 	ecs::detail::_context.reset();
 
 	int counter = 0;
-	ecs::add_system([&counter](foo const&, test_t const&) {
+	ecs::add_system([&counter](foo const& /*f*/, test_t const& /*t*/) {
 		counter++;
 	});
 
@@ -36,5 +36,5 @@ TEST_CASE("Transient components", "[component][transient]")
 	ecs::commit_changes();
 
 	// No transient components should be active
-	CHECK(0ull == ecs::get_component_count<test_t>());
+	CHECK(0ULL == ecs::get_component_count<test_t>());
 }

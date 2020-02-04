@@ -84,9 +84,9 @@ namespace ecs {
 	}
 
 	// Returns the component from an entity.
-	// Pre: the entity has the component
+	// Pre: the entity has the component, or nullptr will be returned
 	template <typename T>
-	T& get_component(entity_id const id)
+	T* get_component(entity_id const id)
 	{
 		// Get the component pool
 		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
@@ -146,7 +146,7 @@ namespace ecs {
 	}
 
 	// Calls the 'update' function on all the systems in the order they were added.
-	inline void run_systems() noexcept
+	inline void run_systems()
 	{
 		detail::_context.run_systems();
 	}

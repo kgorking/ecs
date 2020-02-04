@@ -43,12 +43,11 @@ auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, shared_s co
 	color = iter;
 };
 
-void basic_cpp_system_update(benchmark::State& state) {
+void raw_update(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	std::vector<int> colors(nentities);
 	for (auto const _ : state) {
-		(void)_;
 		ecs::detail::_context.reset();
 
 		auto & shared = ecs::get_shared_component<shared_s>();
@@ -59,13 +58,12 @@ void basic_cpp_system_update(benchmark::State& state) {
 			benchmark_system(ent, colors.data()[ent.id], shared);
 	}
 }
-BENCHMARK(basic_cpp_system_update)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(raw_update)->RangeMultiplier(2)->Range(start_range, end_range);
 
-void ecs_system_update(benchmark::State& state) {
+void system_update(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		(void)_;
 		ecs::detail::_context.reset();
 
 		ecs::get_shared_component<shared_s>().dimension = nentities;
@@ -78,13 +76,12 @@ void ecs_system_update(benchmark::State& state) {
 		ecs::run_systems();
 	}
 }
-BENCHMARK(ecs_system_update)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(system_update)->RangeMultiplier(2)->Range(start_range, end_range);
 
-void ecs_system_update_parallel(benchmark::State& state) {
+void system_update_parallel(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		(void)_;
 		ecs::detail::_context.reset();
 		ecs::add_system_parallel(benchmark_system);
 		ecs::get_shared_component<shared_s>().dimension = nentities;
@@ -95,13 +92,12 @@ void ecs_system_update_parallel(benchmark::State& state) {
 		ecs::run_systems();
 	}
 }
-BENCHMARK(ecs_system_update_parallel)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(system_update_parallel)->RangeMultiplier(2)->Range(start_range, end_range);
 
 void component_add(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		(void)_;
 		state.PauseTiming();
 		ecs::detail::_context.reset();
 		ecs::detail::_context.init_component_pools<float>();
@@ -123,7 +119,6 @@ void component_add_parallel(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		(void)_;
 		state.PauseTiming();
 		ecs::detail::_context.reset();
 		ecs::detail::_context.init_component_pools<float>();
@@ -145,7 +140,6 @@ void component_randomized_add(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		(void)_;
 		state.PauseTiming();
 			ecs::detail::_context.reset();
 			ecs::add_system(benchmark_system);
@@ -172,7 +166,6 @@ void component_remove(benchmark::State& state) {
 	int32_t const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for (auto const _ : state) {
-		(void)_;
 		state.PauseTiming();
 			ecs::detail::_context.reset();
 			ecs::add_system(benchmark_system);

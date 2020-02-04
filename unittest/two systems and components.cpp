@@ -5,11 +5,12 @@ TEST_CASE("Two systems with two components", "[system][component]")
 {
 	ecs::detail::_context.reset();
 
-	int a = 0, b = 0;
+	int a = 0;
+	int b = 0;
 
 	// Add some systems to test
-	ecs::add_system([&a, &b](int const&, unsigned const&) { a++; b++; });
-	ecs::add_system([&a, &b](int const&, float const&) { a++; b++; });
+	ecs::add_system([&a, &b](int const& /*i*/, unsigned const& /*u*/) { a++; b++; });
+	ecs::add_system([&a, &b](int const& /*i*/, float const& /*f*/) { a++; b++; });
 
 	// Create 100 entities and add stuff to them
 	ecs::add_component({ 0, 9 }, int{ 1 });

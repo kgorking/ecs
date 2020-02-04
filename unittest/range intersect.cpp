@@ -6,8 +6,9 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 	// Intersects two ranges of entities
 	// This lambda is used in system_impl
 	auto const intersector = [](std::vector<ecs::entity_range> const& vec_a, std::vector<ecs::entity_range> const& vec_b) -> std::vector<ecs::entity_range> {
-		if (vec_a.empty() || vec_b.empty())
+		if (vec_a.empty() || vec_b.empty()) {
 			return {};
+		}
 
 		std::vector<ecs::entity_range> result;
 
@@ -16,13 +17,16 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 		auto it_b = vec_b.begin();
 
 		while (it_a != vec_a.end() && it_b != vec_b.end()) {
-			if (it_a->overlaps(*it_b))
+			if (it_a->overlaps(*it_b)) {
 				result.push_back(ecs::entity_range::intersect(*it_a, *it_b));
+			}
 
-			if (it_a->last() < it_b->last())
+			if (it_a->last() < it_b->last()) {
 				++it_a;
-			else if (it_b->last() < it_a->last())
+			}
+			else if (it_b->last() < it_a->last()) {
 				++it_b;
+			}
 			else {
 				++it_a;
 				++it_b;
@@ -41,7 +45,7 @@ TEST_CASE("entity_range intersection tests", "[entity]")
 
 		auto result = intersector(vec_a, vec_b);
 
-		REQUIRE(0 == result.size());
+		REQUIRE(result.empty());
 	}
 
 	SECTION("Ranges in B are contained in ranges in A")

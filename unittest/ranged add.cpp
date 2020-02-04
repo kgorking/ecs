@@ -12,7 +12,7 @@ TEST_CASE("Ranged add", "[range]")
 		ecs::commit_changes();
 
 		for (ecs::entity_id i = 0; i < 5; ++i) {
-			size_t const& loc = ecs::get_component<size_t>(i);
+			size_t const& loc = *ecs::get_component<size_t>(i);
 			CHECK(loc == 5);
 		}
 	}
@@ -25,12 +25,12 @@ TEST_CASE("Ranged add", "[range]")
 		auto const init = [](auto ent) { return ent.id * 2; };
 
 		ecs::add_component({ 0, 5 }, init);
-		ecs::entity_range{ 6, 10, init };
+		ecs::entity_range const ents{ 6, 10, init };
 
 		ecs::commit_changes();
 
 		for (ecs::entity_id i = 0; i <= 10; ++i) {
-			int const& loc = ecs::get_component<int>(i);
+			int const& loc = *ecs::get_component<int>(i);
 			CHECK(loc == i.id * 2);
 		}
 	}

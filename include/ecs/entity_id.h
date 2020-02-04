@@ -12,21 +12,21 @@ namespace ecs
 
 		// Uninitialized entity ids are not allowed, because it makes no sense
 		entity_id() = delete;
-		entity_id(std::int32_t _id) noexcept
+		entity_id(std::int32_t _id)
 			: id(_id)
 		{ }
 
 		//auto operator <=> (entity_id const&) = default;
-		bool operator < (entity_id const& other) const noexcept { return id < other.id; }
-		bool operator <=(entity_id const& other) const noexcept { return id <= other.id; }
-		bool operator ==(entity_id const& other) const noexcept { return id == other.id; }
-		bool operator !=(entity_id const& other) const noexcept { return id != other.id; }
-		bool operator >=(entity_id const& other) const noexcept { return id >= other.id; }
-		bool operator > (entity_id const& other) const noexcept { return id > other.id; }
+		bool operator < (entity_id const& other) const { return id < other.id; }
+		bool operator <=(entity_id const& other) const { return id <= other.id; }
+		bool operator ==(entity_id const& other) const { return id == other.id; }
+		bool operator !=(entity_id const& other) const { return id != other.id; }
+		bool operator >=(entity_id const& other) const { return id >= other.id; }
+		bool operator > (entity_id const& other) const { return id > other.id; }
 
-		entity_id& operator ++() noexcept { ++id; return *this; }
-		entity_id& operator --() noexcept { --id; return *this; }
-		entity_id operator ++(int) noexcept { auto copy = *this; id++; return copy; }
-		entity_id operator --(int) noexcept { auto copy = *this; id--; return copy; }
+		entity_id& operator ++() { ++id; return *this; }
+		entity_id& operator --() { --id; return *this; }
+		entity_id operator ++(int) { auto copy = *this; id++; return copy; }
+		entity_id operator --(int) { auto copy = *this; id--; return copy; }
 	};
 }

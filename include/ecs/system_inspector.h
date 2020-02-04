@@ -1,4 +1,5 @@
 #pragma once
+#include <utility>
 
 namespace ecs {
 	struct entity_id;
@@ -47,7 +48,7 @@ namespace ecs::detail
 	private:
 		// Check that all components are references
 		template<size_t ...I>
-		constexpr static bool is_reference(std::index_sequence<I...>) {
+		constexpr static bool is_reference(std::index_sequence<I...> /*is*/) {
 			return
 				(std::is_reference_v<arg_at<1 + I>> && ...);
 		}
@@ -70,7 +71,7 @@ namespace ecs::detail
 
 
 	template <typename System>
-	constexpr void verify_system() noexcept
+	constexpr void verify_system()
 	{
 		static_assert(is_lambda_v<System>, "System must be a valid lambda or function object");
 

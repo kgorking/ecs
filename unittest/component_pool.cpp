@@ -8,15 +8,15 @@ struct ctr_counter {
 	inline static size_t move_count = 0;
 	inline static size_t dtr_count = 0;
 
-	ctr_counter() noexcept {
+	ctr_counter() {
 		def_ctr_count++;
 		ctr_count++;
 	}
-	ctr_counter(ctr_counter const&) noexcept {
+	ctr_counter(ctr_counter const& /*other*/) {
 		copy_count++;
 		ctr_count++;
 	}
-	ctr_counter(ctr_counter&&) noexcept {
+	ctr_counter(ctr_counter&& /*other*/) noexcept {
 		move_count++;
 		ctr_count++;
 	}
@@ -42,14 +42,16 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("An empty pool") {
 		ecs::detail::component_pool<int> pool;
 
-		SECTION("throws on remove") {
-			REQUIRE_THROWS_AS(pool.remove(0), gsl::fail_fast);
+		SECTION("does not throw on bad remove") {
+			pool.remove(0);
+			pool.process_changes();
+			SUCCEED();
 		}
-		SECTION("throws on component access") {
-			REQUIRE_THROWS_AS(pool.find_component_data(0), gsl::fail_fast);
+		SECTION("does not throw on bad component access") {
+			REQUIRE(nullptr == pool.find_component_data(0));
 		}
 		SECTION("grows when data is added to it") {
-			pool.add({ 0, 4 }, 7);
+			pool.add({ 0, 4 }, 0);
 			pool.process_changes();
 
 			REQUIRE(pool.num_entities() == 5);
@@ -75,7 +77,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			for (int i = 0; i <= 9; i++) {
-				REQUIRE(i == pool.find_component_data(i));
+				REQUIRE(i == *pool.find_component_data(i));
 			}
 		}
 		SECTION("with negative entity ids is fine") {
@@ -85,17 +87,6 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(50 == pool.num_components());
 			REQUIRE(50 == pool.num_entities());
-		}
-		SECTION("throws when duplicate entities are queued") {
-			ecs::detail::component_pool<int> pool;
-			pool.add(10, 0);
-			REQUIRE_THROWS_AS(pool.add(10, 0), gsl::fail_fast);
-		}
-		SECTION("throws when duplicate entities are added") {
-			ecs::detail::component_pool<int> pool;
-			pool.add(10, 0);
-			pool.process_changes();
-			REQUIRE_THROWS_AS(pool.add(10, 0), gsl::fail_fast);
 		}
 	}
 
@@ -109,26 +100,30 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 9);
-			for (int i = 0; i <= 8; i++)
-				REQUIRE(i == pool.find_component_data(i));
+			for (int i = 0; i <= 8; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
 		}
 		SECTION("from the front does not invalidate other components") {
 			pool.remove_range({ 0,1 });
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 9);
-			for (int i = 2; i <= 10; i++)
-				REQUIRE(i == pool.find_component_data(i));
+			for (int i = 2; i <= 10; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
 		}
 		SECTION("from the middle does not invalidate other components") {
 			pool.remove_range({ 4,5 });
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 9);
-			for (int i = 0; i <= 3; i++)
-				REQUIRE(i == pool.find_component_data(i));
-			for (int i = 6; i <= 10; i++)
-				REQUIRE(i == pool.find_component_data(i));
+			for (int i = 0; i <= 3; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
+			for (int i = 6; i <= 10; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
 		}
 	}
 
@@ -143,11 +138,12 @@ TEST_CASE("Component pool specification", "[component]") {
 		}
 		SECTION("has the correct components") {
 			REQUIRE(10 == pool.num_components());
-			for (int i = 0; i <= 9; i++)
-				REQUIRE(i == pool.find_component_data({ i }));
+			for (int i = 0; i <= 9; i++) {
+				REQUIRE(i == *pool.find_component_data({ i }));
+			}
 		}
-		SECTION("throws when accessing invalid entities") {
-			REQUIRE_THROWS_AS(pool.find_component_data(10), gsl::fail_fast);
+		SECTION("does not throw when accessing invalid entities") {
+			REQUIRE(nullptr == pool.find_component_data(10));
 		}
 		SECTION("shrinks when entities are removed") {
 			pool.remove(4);
@@ -165,7 +161,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(pool.is_data_removed() == true);
 		}
 		SECTION("remains valid after internal growth") {
-			int const& org_p = pool.find_component_data(0);
+			int const* org_p = pool.find_component_data(0);
 
 			for (int i = 10; i < 32; i++) {
 				pool.add(i, i);
@@ -173,18 +169,18 @@ TEST_CASE("Component pool specification", "[component]") {
 			}
 
 			for (int i = 0; i < 32; i++) {
-				REQUIRE(i == pool.find_component_data(i));
+				REQUIRE(i == *pool.find_component_data(i));
 			}
 
 			// memory address has changed
-			REQUIRE(&org_p != &pool.find_component_data(0));
+			REQUIRE(org_p != pool.find_component_data(0));
 		}
 		SECTION("compacts memory on remove") {
 			pool.remove_range({ 1,8 });
 			pool.process_changes();
 
-			int const* i0 = &pool.find_component_data(0);
-			int const* i9 = &pool.find_component_data(9);
+			int const* i0 = pool.find_component_data(0);
+			int const* i9 = pool.find_component_data(9);
 			REQUIRE(std::distance(i0, i9) == 1);
 		}
 	}

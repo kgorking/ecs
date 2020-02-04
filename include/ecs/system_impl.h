@@ -18,21 +18,21 @@ namespace ecs::detail
 	class system_impl final : public system
 	{
 		// Determines if the first component is an entity
-		static constexpr bool is_first_component_entity = std::is_same_v<FirstComponent, entity_id> || std::is_same_v<FirstComponent, entity>;
+		static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id> || std::is_same_v<FirstComponent, entity>;
 
 		// Calculate the number of components
-		static constexpr size_t num_components = sizeof...(Components) + (is_first_component_entity ? 0 : 1);
+		static constexpr size_t num_components = sizeof...(Components) + (is_first_arg_entity ? 0 : 1);
 
 		// The first type in the system, entity or component
-		using first_type = std::conditional_t<is_first_component_entity, FirstComponent, FirstComponent*>;
+		using first_type = std::conditional_t<is_first_arg_entity, FirstComponent, FirstComponent*>;
 
 		// Tuple holding all pools used by this system
-		using tup_pools = std::conditional_t<is_first_component_entity,
+		using tup_pools = std::conditional_t<is_first_arg_entity,
 			std::tuple<                                 component_pool<Components> &...>,
 			std::tuple<component_pool<FirstComponent>&, component_pool<Components> &...>>;
 
 		// Holds an entity range and a pointer to the first component from each pool in that range
-		using range_arguments = std::conditional_t<is_first_component_entity,
+		using range_arguments = std::conditional_t<is_first_arg_entity,
 			std::tuple<entity_range,                  Components* ...>,
 			std::tuple<entity_range, FirstComponent*, Components* ...>>;
 
@@ -62,21 +62,21 @@ namespace ecs::detail
 			build_args();
 		}
 
-		void update() noexcept override
+		void update() override
 		{
 			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
-				auto const range = std::get<entity_range>(argument);
+				auto const& range = std::get<entity_range>(argument);
 				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first().id](auto ent) {
 					// Small helper function
-					auto const extract_arg = [](auto ptr, /*[[maybe_unused]]*/ ptrdiff_t offset) noexcept {
+					auto const extract_arg = [](auto ptr, /*[[maybe_unused]]*/ ptrdiff_t offset) {
 						using T = std::decay_t<decltype(*ptr)>;
 						if constexpr (!is_shared_v<T>) {
 							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
 							return ptr + offset;
 						}
 						else {
-							(void)offset; // silence unused parameter warning
+							static_cast<void>(offset); // silence unused parameter warning
 							return ptr;
 						}
 					};
@@ -84,7 +84,7 @@ namespace ecs::detail
 
 					auto const offset = ent.id - first_id;
 
-					if constexpr (is_first_component_entity) {
+					if constexpr (is_first_arg_entity) {
 						update_func(ent,
 									*extract_arg(std::get<Components*>(argument), offset)...);
 					}
@@ -165,8 +165,8 @@ namespace ecs::detail
 		{
 			// Build the arguments for the ranges
 			arguments.clear();
-			for (auto const range : entities) {
-				if constexpr (is_first_component_entity)
+			for (auto const& range : entities) {
+				if constexpr (is_first_arg_entity)
 					arguments.emplace_back(range,                                               get_component<Components>(range.first())...);
 				else
 					arguments.emplace_back(range, get_component<FirstComponent>(range.first()), get_component<Components>(range.first())...);
@@ -182,7 +182,7 @@ namespace ecs::detail
 		template <typename Component>
 		Component* get_component(entity_id const entity)
 		{
-			return &get_pool<Component>().find_component_data(entity);
+			return get_pool<Component>().find_component_data(entity);
 		}
 	};
 }

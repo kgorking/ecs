@@ -35,25 +35,20 @@ auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color) {
 
 int main()
 {
-	try {
-		// Add the system
-		ecs::add_system(mandelbrot_system);
+	// Add the system
+	ecs::add_system(mandelbrot_system);
 
-		// Add the size_t component to the pixels/entities
-		ecs::entity_range ents{ 0, dimension*dimension, size_t{ 0 } };
+	// Add the size_t component to the pixels/entities
+	ecs::entity_range ents{ 0, dimension*dimension, size_t{ 0 } };
 
-		// Commit all component changes and run the system
-		ecs::update_systems();
+	// Commit all component changes and run the system
+	ecs::update_systems();
 
-		// Count the pixels equal to one
-		size_t counter = 0;
-		for (size_t const& color : ents.get<size_t>())
-			if (color == 1)
-				counter++;
+	// Count the pixels equal to one
+	size_t counter = 0;
+	for (size_t const& color : ents.get<size_t>())
+		if (color == 1)
+			counter++;
 
-		std::cout << counter << " pixels with a value of 1\n";
-	}
-	catch (std::exception const& e) {
-		std::cout << e.what() << "\n";
-	}
+	std::cout << counter << " pixels with a value of 1\n";
 }

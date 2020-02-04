@@ -15,10 +15,11 @@ TEST_CASE("Simple system", "[system]")
 	CHECK(1 == ecs::get_component_count<size_t>());
 
 	// Run the system 5 times
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 5; i++) {
 		sys.update();
+	}
 
 	// Get the component data to verify that the system was run the correct number of times
-	auto const c = ecs::get_component<size_t>(0);
-	CHECK(5u == c);
+	auto const c = *ecs::get_component<size_t>(0);
+	CHECK(5U == c);
 }

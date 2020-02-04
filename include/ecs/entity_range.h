@@ -7,10 +7,10 @@ namespace ecs
 {
 	// Forward decls
 	class entity_range;
-	template <typename T>  void add_component(entity_range const range, T val);
-	template <typename T>  void remove_component(entity_range const range);
-	template <typename T>  bool has_component(entity_range const range);
-	template <typename T>  T& get_component(entity_id const id);
+	template <typename T>  void add_component(entity_range range, T val);
+	template <typename T>  void remove_component(entity_range range);
+	template <typename T>  bool has_component(entity_range range);
+	template <typename T>  T* get_component(entity_id id);
 
 	using entity_range_view = gsl::span<entity_range const>;
 
@@ -35,20 +35,20 @@ namespace ecs
 			using reference = const entity_id &;
 			using iterator_category = std::random_access_iterator_tag;
 
-			iterator() noexcept : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
-			iterator(entity_id ent) noexcept : ent_(ent) {}
-			iterator& operator++() noexcept { ent_.id++; return *this; }
-			iterator operator++(int) noexcept { iterator retval = *this; ++(*this); return retval; }
-			iterator operator+(difference_type diff) const noexcept { return { ent_.id + diff }; }
-			iterator operator+(iterator in_it) const noexcept { return { ent_.id + in_it.ent_.id }; }
-			difference_type operator-(difference_type diff) const noexcept { return ent_.id - diff; }
-			difference_type operator-(iterator in_it) const noexcept { return ent_.id - in_it.ent_.id; }
-			bool operator==(iterator other) const noexcept { return ent_ == other.ent_; }
-			bool operator!=(iterator other) const noexcept { return !(*this == other); }
-			entity_id operator*() noexcept { return ent_; }
+			iterator() : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
+			iterator(entity_id ent) : ent_(ent) {}
+			iterator& operator++() { ent_.id++; return *this; }
+			iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
+			iterator operator+(difference_type diff) const { return { ent_.id + diff }; }
+			iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
+			difference_type operator-(difference_type diff) const { return ent_.id - diff; }
+			difference_type operator-(iterator in_it) const { return ent_.id - in_it.ent_.id; }
+			bool operator==(iterator other) const { return ent_ == other.ent_; }
+			bool operator!=(iterator other) const { return !(*this == other); }
+			entity_id operator*() { return ent_; }
 		};
-		iterator begin() const noexcept { return { first_ }; }
-		iterator end() const noexcept { return { last_.id + 1 }; }
+		iterator begin() const { return { first_ }; }
+		iterator end() const { return { last_.id + 1 }; }
 
 	public:
 		entity_range(entity_id first, entity_id last)
@@ -65,28 +65,29 @@ namespace ecs
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
+		~entity_range() {};
 		entity_range(entity_range const&) = default;
 		entity_range(entity_range &&) = default;
 		entity_range& operator = (entity_range const&) = default;
 		entity_range& operator = (entity_range &&) = default;
-		bool operator == (entity_range const& other) const noexcept {
+		bool operator == (entity_range const& other) const {
 			return equals(other);
 		}
 
 		// For sort
-		bool operator <(entity_range const& other) const noexcept
+		bool operator <(entity_range const& other) const
 		{
 			return first_ < other.first() && last_ < other.last();
 		}
 
 		// Returns the first entity in the range
-		entity_id first() const noexcept
+		entity_id first() const
 		{
 			return first_;
 		}
 
 		// Returns the last entity in the range
-		entity_id last() const noexcept
+		entity_id last() const
 		{
 			return last_;
 		}
@@ -99,19 +100,19 @@ namespace ecs
 		}
 
 		// Returns true if the ranges are identical
-		bool equals(entity_range const other) const noexcept
+		bool equals(entity_range const& other) const
 		{
 			return first_ == other.first() && last_ == other.last();
 		}
 
 		// Returns true if the entity is contained in this range
-		bool contains(entity_id const ent) const noexcept
+		bool contains(entity_id const& ent) const
 		{
 			return ent >= first_ && ent <= last_;
 		}
 
 		// Returns true if the range is contained in this range
-		bool contains(entity_range const range) const noexcept
+		bool contains(entity_range const& range) const
 		{
 			return range.first() >= first_ && range.last() <= last_;
 		}
@@ -123,12 +124,12 @@ namespace ecs
 			return static_cast<gsl::index>(ent.id) - first_.id;
 		}
 
-		bool can_merge(entity_range const other) const noexcept
+		bool can_merge(entity_range const& other) const
 		{
 			return last_.id + 1 == other.first().id;
 		}
 
-		bool overlaps(entity_range const other) const noexcept
+		bool overlaps(entity_range const& other) const
 		{
 			return first_ <= other.last_ && other.first_ <= last_;
 		}
@@ -136,7 +137,7 @@ namespace ecs
 		// Removes a range from another range.
 		// If the range was split by the remove, it returns two ranges.
 		// Pre: 'other' must be contained in 'range', but must not be equal to it
-		static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const range, entity_range const other)
+		static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const& range, entity_range const& other)
 		{
 			Expects(range.contains(other));
 			Expects(!range.equals(other));
@@ -166,7 +167,7 @@ namespace ecs
 
 		// Combines two ranges into one
 		// Pre: r1 and r2 must be adjacent ranges, r1 < r2
-		static entity_range merge(entity_range const r1, entity_range const r2)
+		static entity_range merge(entity_range const& r1, entity_range const& r2)
 		{
 			Expects(r1.can_merge(r2));
 			return entity_range{ r1.first(), r2.last() };
@@ -174,7 +175,7 @@ namespace ecs
 
 		// Returns the intersection of two ranges
 		// Pre: The ranges must overlap, the resulting ranges can not have zero-length
-		static entity_range intersect(entity_range const range, entity_range const other)
+		static entity_range intersect(entity_range const& range, entity_range const& other)
 		{
 			Expects(range.overlaps(other));
 
@@ -212,7 +213,7 @@ namespace ecs
 		template <typename Component>
 		gsl::span<Component> get() const
 		{
-			return gsl::make_span(&get_component<Component>(first_), count());
+			return gsl::make_span(get_component<Component>(first_), count());
 		}
 	};
 }

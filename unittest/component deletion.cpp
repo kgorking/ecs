@@ -15,7 +15,7 @@ TEST_CASE("Component removal", "[component][transient]")
 
 	int run_counter_idle = 0;
 	ecs::detail::_context.init_component_pools<ev_timeout>();
-	ecs::add_system([&](state_idle const&, ev_connect const& /*ev*/) { run_counter_idle++; });
+	ecs::add_system([&](state_idle const& /*idle*/, ev_connect const& /*ev*/) { run_counter_idle++; });
 
 	ecs::entity fsm{ 0, state_idle{} };
 	ecs::commit_changes();

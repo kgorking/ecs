@@ -3,7 +3,7 @@
 
 namespace ecs
 {
-	// Add this in 'ecs_flags()' to mark it as a tag component.
+	// Add this in 'ecs_flags()' to mark a component as a tag.
 	// Uses O(1) memory instead of O(n).
 	struct tag {};
 

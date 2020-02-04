@@ -29,20 +29,23 @@ namespace ecs::detail {
 			std::shared_lock lock(mutex);
 
 			// Let the component pools handle pending add/remove requests for components
-			for (auto const& pool : component_pools)
+			for (auto const& pool : component_pools) {
 				pool->process_changes();
+			}
 
 			// Let the systems respond to any changes in the component pools
-			for (auto const& sys : systems)
+			for (auto const& sys : systems) {
 				sys->process_changes();
+			}
 
 			// Reset any dirty flags on pools
-			for (auto const& pool : component_pools)
+			for (auto const& pool : component_pools) {
 				pool->clear_flags();
+			}
 		}
 
 		// Calls the 'update' function on all the systems in the order they were added.
-		void run_systems() noexcept
+		void run_systems()
 		{
 			// Prevent other threads from adding new systems
 			std::shared_lock lock(mutex);
@@ -63,14 +66,15 @@ namespace ecs::detail {
 		}
 
 		// Resets the runtime state. Removes all systems, empties component pools
-		void reset() noexcept
+		void reset()
 		{
 			std::unique_lock lock(mutex);
 
 			systems.clear();
 			// context::component_pools.clear(); // this will cause an exception in get_component_pool() due to the cache
-			for (auto& pool : component_pools)
+			for (auto& pool : component_pools) {
 				pool->clear();
+			}
 		}
 
 		// Returns a reference to a components pool.
@@ -83,9 +87,8 @@ namespace ecs::detail {
 			thread_local std::type_index last_type{ typeid(__internal_dummy) };		// init to a function-local type
 			thread_local component_pool_base* last_pool{};
 
-			type_info const& type = typeid(T);
-			auto const type_index = std::type_index(type);
-			if (last_type != type_index) {
+			auto const type_index = std::type_index(typeid(T));
+			if (type_index != last_type) {
 				// Look in the pool for the type
 				std::shared_lock lock(mutex);
 				auto it = type_pool_lookup.find(type_index);
@@ -98,15 +101,15 @@ namespace ecs::detail {
 					create_component_pool<T>();
 					lock.lock();
 
-					it = type_pool_lookup.find(type_index);
+					it = type_pool_lookup.find(type_index); 
 					assert(it != type_pool_lookup.end());
 				}
 
-				assert(it->second != nullptr);
 				last_type = type_index;
 				last_pool = it->second;
 			}
 
+			assert(last_pool != nullptr);
 			return dynamic_cast<component_pool<T>&>(*last_pool);
 		}
 
@@ -167,8 +170,9 @@ namespace ecs::detail {
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
 
 			// Set up everything for the component pool
-			if constexpr (!has_entity)
+			if constexpr (!has_entity) {
 				init_component_pools<std::decay_t<FirstArg>>();
+			}
 			init_component_pools<std::decay_t<Args>...>();
 
 			// Create the system instance
@@ -188,7 +192,8 @@ namespace ecs::detail {
 
 			std::unique_lock lock(mutex);
 			systems.push_back(std::move(sys));
-			auto ptr_system = systems.back().get();
+			system * ptr_system = systems.back().get();
+			Ensures(ptr_system != nullptr);
 			return *ptr_system;
 		}
 
@@ -199,7 +204,7 @@ namespace ecs::detail {
 			static_assert(!std::is_pointer_v<Component>, "Will not store pointers in component pools. Use raw types");
 
 			// Create a new pool if one does not already exist
-			auto& type = typeid(Component);
+			auto const& type = typeid(Component);
 			if (!has_component_pool(type))
 			{
 				std::unique_lock lock(mutex);
@@ -211,7 +216,7 @@ namespace ecs::detail {
 		}
 	};
 
-	inline context& get_context() noexcept {
+	inline context& get_context() {
 		static context ctx;
 		return ctx;
 	}

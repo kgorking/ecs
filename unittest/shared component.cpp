@@ -24,7 +24,7 @@ TEST_CASE("Shared components", "[component][shared]")
 	CHECK(1 == ecs::get_component_count<test_s>());
 
 	// Ensure that different entities have the same shared component
-	ptrdiff_t const diff = &ecs::get_component<test_s>(0) - &ecs::get_component<test_s>(1);
+	ptrdiff_t const diff = ecs::get_component<test_s>(0) - ecs::get_component<test_s>(1);
 	CHECK(diff == 0);
 
 	// Test the content of the entities
