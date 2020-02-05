@@ -101,8 +101,13 @@ namespace ecs::detail
 
 	private:
 		// Handle changes when the component pools change
-		void process_changes() override
+		void process_changes(bool force_rebuild) override
 		{
+			if (force_rebuild) {
+				build_args();
+				return;
+			}
+
 			if (!is_enabled())
 				return;
 

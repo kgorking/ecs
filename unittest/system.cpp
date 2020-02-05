@@ -55,4 +55,20 @@ TEST_CASE("System specification", "[system]") {
 		sys.update();
 		REQUIRE(2 == *ecs::get_component<int>(0));
 	}
+
+	SECTION("Re-enabling systems forces a rebuild") {
+		ecs::system& sys = ecs::add_system([](short& c) {
+			c++;
+		});
+		sys.disable();
+
+		ecs::add_component(0, short{ 0 });
+		ecs::commit_changes();
+		sys.update();
+		REQUIRE(0 == *ecs::get_component<short>(0));
+
+		sys.enable();
+		sys.update();
+		REQUIRE(1 == *ecs::get_component<short>(0));
+	}
 }

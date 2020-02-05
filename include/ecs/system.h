@@ -20,13 +20,18 @@ namespace ecs
 		virtual void update() = 0;
 
 		// Enables this system for updates and runs
-		void enable() { enabled = true; }
+		void enable() { set_enable(true); }
 
 		// Prevent this system from being updated or run
-		void disable() { enabled = false; }
+		void disable() { set_enable(false); }
 
 		// Sets wheter the system is enabled or disabled
-		void set_enable(bool enabled) { this->enabled = enabled; }
+		void set_enable(bool enabled) {
+			this->enabled = enabled;
+			if (enabled) {
+				process_changes(true);
+			}
+		}
 
 		// Returns true if this system is enabled
 		bool is_enabled() const { return enabled; }
@@ -35,7 +40,7 @@ namespace ecs
 		friend class detail::context;
 
 		// Process changes to component layouts
-		virtual void process_changes() = 0;
+		virtual void process_changes(bool force_rebuild = false) = 0;
 
 
 		// Whether this system is enabled or disabled. Disabled systems are neither updated nor run.
