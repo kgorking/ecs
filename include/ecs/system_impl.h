@@ -64,6 +64,9 @@ namespace ecs::detail
 
 		void update() override
 		{
+			if (!is_enabled())
+				return;
+
 			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
 				auto const& range = std::get<entity_range>(argument);
@@ -100,6 +103,9 @@ namespace ecs::detail
 		// Handle changes when the component pools change
 		void process_changes() override
 		{
+			if (!is_enabled())
+				return;
+
 			auto constexpr is_pools_modified = [](auto const& ...pools) { return (pools.is_data_modified() || ...); };
 			bool const is_modified = std::apply(is_pools_modified, pools);
 	
