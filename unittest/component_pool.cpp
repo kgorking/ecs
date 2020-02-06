@@ -201,6 +201,19 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("Shared components") {
 		// TODO
+		SECTION("maintains sorting of entities") { // test case is response to a found bug
+			struct test {
+				ecs_flags(ecs::shared);
+			};
+			ecs::detail::component_pool<test> pool;
+			pool.add(0, {});
+			pool.process_changes();
+			pool.add(-2, {});
+			pool.process_changes();
+
+			auto ev = pool.get_entities();
+			REQUIRE(ev[0].first().id == -2);
+		}
 	}
 
 	SECTION("Tagged components") {

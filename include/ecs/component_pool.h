@@ -352,11 +352,11 @@ namespace ecs::detail {
 				else {
 					// Do the inserts
 					std::vector<entity_range> new_ranges;
-					auto ent = ranges.cbegin();
+					auto ranges_it = ranges.cbegin();
 					for (entity_range const& range : adds) {
 						// Copy the current ranges while looking for an insertion point
-						while (ent != ranges.cend() && !(*ent).contains(range)) {
-							new_ranges.push_back(*ent++);
+						while (ranges_it != ranges.cend() && (*ranges_it < range)) {
+							new_ranges.push_back(*ranges_it++);
 						}
 
 						// Add the new range
@@ -364,7 +364,7 @@ namespace ecs::detail {
 					}
 
 					// Move the remaining ranges
-					std::move(ent, ranges.cend(), std::back_inserter(new_ranges));
+					std::move(ranges_it, ranges.cend(), std::back_inserter(new_ranges));
 
 					// Store the new ranges
 					ranges = std::move(new_ranges);
