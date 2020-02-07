@@ -92,6 +92,18 @@ namespace ecs {
 		return pool.find_component_data(id);
 	}
 
+	// Returns the component from an entity, or an empty span if the entities are not found
+	// or does not containg the component
+	template <typename T>
+	gsl::span<T> get_components(entity_range const range) {
+		if (!has_component<T>(range))
+			return {};
+
+		// Get the component pool
+		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
+		return gsl::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
+	}
+
 	// Returns the number of active components
 	template <typename T>
 	size_t get_component_count()
