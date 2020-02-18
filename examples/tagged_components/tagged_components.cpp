@@ -10,10 +10,11 @@ struct Name : std::string {};
 
 int main()
 {
-	// Add systems for each tag. Will just print the name
-	ecs::add_system([](Name const& name, freezeable_t&) { std::cout << "  freezeable: " << name << "\n";  });
-	ecs::add_system([](Name const& name, shockable_t&)  { std::cout << "  shockable:  " << name << "\n";  });
-	ecs::add_system([](Name const& name, flameable_t&)  { std::cout << "  flammeable: " << name << "\n"; });
+	// Add systems for each tag. Will just print the name.
+	// Since tags never hold any data, they are always passed by value
+	ecs::add_system([](Name const& name, freezeable_t) { std::cout << "  freezeable: " << name << "\n";  });
+	ecs::add_system([](Name const& name, shockable_t)  { std::cout << "  shockable:  " << name << "\n";  });
+	ecs::add_system([](Name const& name, flameable_t)  { std::cout << "  flammeable: " << name << "\n"; });
 
 	// Set up the entities with a name and tags
 	ecs::entity

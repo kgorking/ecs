@@ -27,55 +27,80 @@ namespace ecs::detail
 
 	// A class to verify a system is valid
 	// Based on https://stackoverflow.com/questions/7943525/is-it-possible-to-figure-out-the-parameter-type-and-return-type-of-a-lambda
-	template <typename C, typename R, typename... Args>
+	template <typename C, typename R, typename FirstArg, typename... Args>
 	struct system_inspector_impl
 	{
 	public:
-		static constexpr size_t num_args = sizeof...(Args);
-		using argument_types = std::tuple<Args...>;
+		constexpr static void verify() {
+			verify_system_api();
+			verify_first_arg_entity();
+			verify_components_are_unique();
+			verify_unmutable_components();
+			verify_component_qualifiers();
+		}
+
+	private:
+		// Verify that the system isn't trying to return anything, and that it has a component signature.
+		constexpr static void verify_system_api() {
+			static_assert(std::is_same_v<return_type, void>, "systems can not return values");
+			static_assert(num_args > (has_entity ? 1 : 0), "no component specified for the system");
+		}
+
+		// Verify that the entity is correctly qualified, if the first argument is an entity
+		constexpr static void verify_first_arg_entity() {
+			// Make sure entity types are not passed as references or pointers
+			if constexpr (has_entity) {
+				static_assert(!std::is_pointer_v<FirstArg>, "entities are only passed by value; remove the '*'");
+				static_assert(!std::is_reference_v<FirstArg>, "entities are only passed by value; remove the '&'");
+			}
+		}
+
+		// Verify that all of the components are only used once
+		constexpr static void verify_components_are_unique() {
+			static_assert(detail::is_unique<FirstArg, Args...>::value, "a component type was specifed more than once");
+		}
+
+		// Verify that components flagged as 'unmutable' are also marked as const in the system
+		constexpr static void verify_unmutable_components() {
+			if constexpr (!has_entity)
+				violates_immutable<FirstArg>();
+			(violates_immutable<Args>(), ...);
+		}
+
+		// Verify that components have the correct qualifiers.
+		// All but 'tag' components are required to be references
+		constexpr static void verify_component_qualifiers() {
+			if constexpr (!has_entity)
+				verify_qualifiers<FirstArg>();
+			(verify_qualifiers<Args>(), ...);
+		}
+
+
+		// Returns true if a component flagged as unmutable is not const
+		template <typename T>
+		constexpr static void violates_immutable() {
+			constexpr bool check = detail::is_immutable_v<naked_type<T>> ? !std::is_const_v<T> : false;
+			static_assert(check == false, "a non-const component is flagged as 'immutable'");
+		}
+
+		// Verify that a component has correct qualifiers.
+		template <class T>
+		constexpr static void verify_qualifiers() {
+			if constexpr (is_tagged_v<naked_type<T>>)
+				static_assert(!std::is_reference_v<T>, "components flagged as 'tag' can not be references, as they hold no data");
+			else
+				static_assert(std::is_reference_v<T>, "components must be references");
+		}
+
+	private:
 		using return_type = R;
-
-		// Get the type of a specific argument
-		template <size_t I>
-		using arg_at = typename std::tuple_element<I, argument_types>::type;
-
-		using first_type = arg_at<0>;
-		using naked_first_type = std::remove_pointer_t<std::remove_reference_t<std::remove_cv_t<first_type>>>;
+		using naked_first_type = naked_type<FirstArg>;
 
 		static bool constexpr has_entity_id = std::is_same_v<naked_first_type, entity_id>;
 		static bool constexpr has_entity_struct = std::is_same_v<naked_first_type, entity>;
 		static bool constexpr has_entity = has_entity_id || has_entity_struct;
 
-		// False if the same component has been specified more than once
-		static bool constexpr has_unique_components = detail::is_unique<Args...>::value;
-
-		// Returns true if all the components are passed by reference (const or not)
-		constexpr static bool components_passed_by_ref() {
-			// If the systems first argument is an entity, then there is one less component to check
-			constexpr int sizeof_adjust = has_entity ? 1 : 0;
-			return is_reference(std::make_index_sequence<sizeof...(Args) - sizeof_adjust> {});
-		}
-
-		// Returns true if none of the components voilate the 'unmutable' flag
-		constexpr static bool components_honors_mutability() {
-			return (!violates_unmutable<Args>() && ...);
-		}
-
-	private:
-		// Check that all components are references
-		template<size_t ...I>
-		constexpr static bool is_reference(std::index_sequence<I...> /*is*/) {
-			if constexpr (!has_entity)
-				return (std::is_reference_v<arg_at<I>> && ...);
-			else
-				return (std::is_reference_v<arg_at<1 + I>> && ...);
-		}
-
-		// Returns true if a component flagged as unmutable is not const
-		template <typename T>
-		constexpr static bool violates_unmutable() {
-			return detail::is_unmutable_v<naked_type<T>> && !std::is_const_v<T>;
-		}
+		static constexpr size_t num_args = 1 + sizeof...(Args); // +1 for FirstArg
 	};
 
 	// Splits a lambda into its various type parts (return value, class, function arguments)
@@ -83,40 +108,16 @@ namespace ecs::detail
 	struct system_inspector : public system_inspector<decltype(&T::operator())>
 	{ };
 
-	// For immutable lambdas
-	template <typename C, typename R, typename... Args>
-	struct system_inspector<R(C::*)(Args...) const> : public system_inspector_impl<C, R, Args...>
-	{ };
-
-	// For mutable lambdas
-	template <typename C, typename R, typename... Args>
-	struct system_inspector<R(C::*)(Args...) /* */> : public system_inspector_impl<C, R, Args...>
-	{ };
-
+	// The different types of lambdas
+	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...)>                : public system_inspector_impl<C, R, Args...> {};
+	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) noexcept>       : public system_inspector_impl<C, R, Args...> {};
+	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) const>          : public system_inspector_impl<C, R, Args...> { };
+	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) const noexcept> : public system_inspector_impl<C, R, Args...> { };
 
 	template <typename System>
 	constexpr void verify_system()
 	{
-		static_assert(is_lambda_v<System>, "system must be a valid lambda or function object");
-
 		using inspector = system_inspector<System>;
-
-		//
-		// Make sure any entity types are not passed as references or pointers
-		if constexpr (inspector::has_entity) {
-			static_assert(!std::is_pointer_v<typename inspector::first_type>, "entities are only passed by value; remove the '*'");
-			static_assert(!std::is_reference_v<typename inspector::first_type>, "entities are only passed by value; remove the '&'");
-		}
-
-		//
-		// Implement the rules for systems
-		static_assert(std::is_same_v<typename inspector::return_type, void>, "systems can not return values");
-		static_assert(inspector::num_args > (inspector::has_entity ? 1 : 0), "no component types specified for the system");
-
-		//
-		// Implement the rules for components
-		static_assert(inspector::has_unique_components, "a component type was specifed more than once");
-		static_assert(inspector::components_passed_by_ref(), "systems can only take references to components");
-		static_assert(inspector::components_honors_mutability(), "a component flagged as 'unmutable' is not const");
+		inspector::verify();
 	}
 }
