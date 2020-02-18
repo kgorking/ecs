@@ -18,7 +18,7 @@ namespace ecs
 	// and then be automatically removed.
 	struct transient {};
 
-	// Add this in 'ecs_flags()' to mark a component as unmutable.
+	// Add this in 'ecs_flags()' to mark a component as constant.
 	// A compile-time error will be raised if a system tries to
 	// access the component through a non-const reference.
 	struct immutable {};
