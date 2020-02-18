@@ -5,9 +5,6 @@ cmake_minimum_required (VERSION 3.8)
 
 project (ecs CXX)
 
-# GSL throws an exception instead of calling std::terminate
-add_compile_definitions(GSL_THROW_ON_CONTRACT_VIOLATION)
-
 # Require c++17
 set(CMAKE_CXX_STANDARD 17)
 set(CXX_STANDARD_REQUIRED on)
