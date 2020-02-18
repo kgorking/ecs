@@ -125,18 +125,18 @@ namespace ecs::detail {
 		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
 		auto& create_system(System update_func, R(C::*)(Args...) const)
 		{
-			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
+			return create_system_impl<ExecutionPolicy, System, R, Args...>(update_func);
 		}
 
 		// Mutable lambdas
 		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
 		auto& create_system(System update_func, R(C::*)(Args...))
 		{
-			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
+			return create_system_impl<ExecutionPolicy, System, R, Args...>(update_func);
 		}
 
 	private:
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename FirstArg, typename ...Args>
+		template <typename ExecutionPolicy, typename System, typename R, typename FirstArg, typename ...Args>
 		auto& create_system_impl(System update_func)
 		{
 			// Set up the implementation
