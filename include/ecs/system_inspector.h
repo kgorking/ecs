@@ -22,6 +22,8 @@ namespace ecs::detail
 	template <class T>                struct is_lambda<T, std::void_t<decltype(&T::operator ())>> : std::true_type {};
 	template <class T> static constexpr bool is_lambda_v = is_lambda<T>::value;
 
+	template <class T>
+	using naked_type = std::remove_pointer_t<std::remove_reference_t<std::remove_cv_t<T>>>;
 
 	// A class to verify a system is valid
 	// Based on https://stackoverflow.com/questions/7943525/is-it-possible-to-figure-out-the-parameter-type-and-return-type-of-a-lambda
@@ -44,7 +46,7 @@ namespace ecs::detail
 		static bool constexpr has_entity_struct = std::is_same_v<naked_first_type, entity>;
 		static bool constexpr has_entity = has_entity_id || has_entity_struct;
 
-		// Returns true if the same component has been specified more than once
+		// False if the same component has been specified more than once
 		static bool constexpr has_unique_components = detail::is_unique<Args...>::value;
 
 		// Returns true if all the components are passed by reference (const or not)
@@ -52,6 +54,11 @@ namespace ecs::detail
 			// If the systems first argument is an entity, then there is one less component to check
 			constexpr int sizeof_adjust = has_entity ? 1 : 0;
 			return is_reference(std::make_index_sequence<sizeof...(Args) - sizeof_adjust> {});
+		}
+
+		// Returns true if none of the components voilate the 'unmutable' flag
+		constexpr static bool components_honors_mutability() {
+			return (!violates_unmutable<Args>() && ...);
 		}
 
 	private:
@@ -62,6 +69,12 @@ namespace ecs::detail
 				return (std::is_reference_v<arg_at<I>> && ...);
 			else
 				return (std::is_reference_v<arg_at<1 + I>> && ...);
+		}
+
+		// Returns true if a component flagged as unmutable is not const
+		template <typename T>
+		constexpr static bool violates_unmutable() {
+			return detail::is_unmutable_v<naked_type<T>> && !std::is_const_v<T>;
 		}
 	};
 
@@ -104,5 +117,6 @@ namespace ecs::detail
 		// Implement the rules for components
 		static_assert(inspector::has_unique_components, "a component type was specifed more than once");
 		static_assert(inspector::components_passed_by_ref(), "systems can only take references to components");
+		static_assert(inspector::components_honors_mutability(), "a component flagged as 'unmutable' is not const");
 	}
 }
