@@ -49,8 +49,9 @@ namespace ecs::detail
 
 		// Returns true if all the components are passed by reference (const or not)
 		constexpr static bool components_passed_by_ref() {
-			constexpr int length_adjust = has_entity ? 1 : 0;
-			return is_reference(std::make_index_sequence<sizeof...(Args) - length_adjust> {});
+			// If the systems first argument is an entity, then there is one less component to check
+			constexpr int sizeof_adjust = has_entity ? 1 : 0;
+			return is_reference(std::make_index_sequence<sizeof...(Args) - sizeof_adjust> {});
 		}
 
 	private:
