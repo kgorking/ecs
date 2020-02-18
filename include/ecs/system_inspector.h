@@ -45,12 +45,13 @@ namespace ecs::detail
 		static bool constexpr has_entity = has_entity_id || has_entity_struct;
 
 		// Returns true if the same component has been specified more than once
-		constexpr static bool has_unique_components() {
-			return detail::is_unique<Args...>::value;
-		}
+		static bool constexpr has_unique_components = detail::is_unique<Args...>::value;
 
 		// Returns true if all the components are passed by reference (const or not)
-		constexpr static bool components_passed_by_ref() { return is_reference(std::make_index_sequence<sizeof...(Args) - 1> {}); }
+		constexpr static bool components_passed_by_ref() {
+			constexpr int length_adjust = has_entity ? 1 : 0;
+			return is_reference(std::make_index_sequence<sizeof...(Args) - length_adjust> {});
+		}
 
 	private:
 		// Check that all components are references
@@ -100,7 +101,7 @@ namespace ecs::detail
 
 		//
 		// Implement the rules for components
-		static_assert(inspector::has_unique_components(), "a component type was specifed more than once");
+		static_assert(inspector::has_unique_components, "a component type was specifed more than once");
 		static_assert(inspector::components_passed_by_ref(), "systems can only take references to components");
 	}
 }
