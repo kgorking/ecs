@@ -128,35 +128,11 @@ namespace ecs::detail {
 			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
 		}
 
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(entity, Args...) const)
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity, Args...>(update_func);
-		}
-
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(entity_id, Args...) const)
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity_id, Args...>(update_func);
-		}
-
 		// Mutable lambdas
 		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
 		auto& create_system(System update_func, R(C::*)(Args...))
 		{
 			return create_system_impl<ExecutionPolicy, System, R, C, Args...>(update_func);
-		}
-
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(entity, Args...))
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity, Args...>(update_func);
-		}
-
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(entity_id, Args...))
-		{
-			return create_system_impl<ExecutionPolicy, System, R, C, ecs::entity_id, Args...>(update_func);
 		}
 
 	private:
