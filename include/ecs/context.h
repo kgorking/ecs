@@ -201,8 +201,6 @@ namespace ecs::detail {
 		template <typename Component>
 		void create_component_pool()
 		{
-			static_assert(!std::is_pointer_v<Component>, "Will not store pointers in component pools. Use raw types");
-
 			// Create a new pool if one does not already exist
 			auto const& type = typeid(Component);
 			if (!has_component_pool(type))
