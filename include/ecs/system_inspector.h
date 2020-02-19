@@ -1,5 +1,6 @@
 #pragma once
 #include <utility>
+#include "component_specifier.h"
 
 namespace ecs {
 	struct entity_id;
