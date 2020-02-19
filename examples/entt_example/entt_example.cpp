@@ -19,12 +19,12 @@ struct frame {
 	float dt;
 };
 
-auto& zero_vel = ecs::add_system([](velocity& vel) {
+auto& zero_vel = ecs::make_system([](velocity& vel) {
 	vel.dx = 0.;
 	vel.dy = 0.;
 });
 
-auto& update_pos = ecs::add_system([](position& pos, velocity const& vel, frame const& frame) {
+auto& update_pos = ecs::make_system([](position& pos, velocity const& vel, frame const& frame) {
 	pos.x += vel.dx * frame.dt;
 	pos.y += vel.dy * frame.dt;
 });

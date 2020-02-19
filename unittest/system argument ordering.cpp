@@ -9,7 +9,7 @@ TEST_CASE("Components are passed in the correct order to the system", "[system][
 	struct C_Order2 { unsigned j; };
 
 	// Add a system to check the order
-	ecs::add_system([](C_Order1 &o1, C_Order2 &o2) {
+	ecs::make_system([](C_Order1 &o1, C_Order2 &o2) {
 		CHECK(o1.i < o2.j);
 	});
 

@@ -9,8 +9,8 @@ TEST_CASE("Two systems with two components", "[system][component]")
 	int b = 0;
 
 	// Add some systems to test
-	ecs::add_system([&a, &b](int const& /*i*/, unsigned const& /*u*/) { a++; b++; });
-	ecs::add_system([&a, &b](int const& /*i*/, float const& /*f*/) { a++; b++; });
+	ecs::make_system([&a, &b](int const& /*i*/, unsigned const& /*u*/) { a++; b++; });
+	ecs::make_system([&a, &b](int const& /*i*/, float const& /*f*/) { a++; b++; });
 
 	// Create 100 entities and add stuff to them
 	ecs::add_component({ 0, 9 }, int{ 1 });

@@ -6,11 +6,11 @@ TEST_CASE("Mutable lambdas are supported", "[system]")
 	ecs::detail::_context.reset();
 
 	// Add some systems to test
-	ecs::add_system([counter = 0](int &i) mutable
+	ecs::make_system([counter = 0](int &i) mutable
 	{
 		i = counter++;
 	});
-	ecs::add_system([](ecs::entity_id ent, int const& i) {
+	ecs::make_system([](ecs::entity_id ent, int const& i) {
 		CHECK(ent.id == i);
 	});
 

@@ -68,7 +68,7 @@ void system_update(benchmark::State& state) {
 
 		ecs::get_shared_component<shared_s>().dimension = nentities;
 
-		ecs::add_system(benchmark_system);
+		ecs::make_system(benchmark_system);
 
 		ecs::add_component({0, nentities}, shared_s{});
 		ecs::add_component({0, nentities}, int{});
@@ -83,7 +83,7 @@ void system_update_parallel(benchmark::State& state) {
 
 	for (auto const _ : state) {
 		ecs::detail::_context.reset();
-		ecs::add_system_parallel(benchmark_system);
+		ecs::make_parallel_system(benchmark_system);
 		ecs::get_shared_component<shared_s>().dimension = nentities;
 
 		ecs::add_component({ 0, nentities }, shared_s{});
@@ -101,7 +101,7 @@ void component_add(benchmark::State& state) {
 		state.PauseTiming();
 		ecs::detail::_context.reset();
 		ecs::detail::_context.init_component_pools<float>();
-		ecs::add_system([](ecs::entity ent, size_t const&) {
+		ecs::make_system([](ecs::entity ent, size_t const&) {
 			ent.add(3.14f);
 		});
 		state.ResumeTiming();
@@ -122,7 +122,7 @@ void component_add_parallel(benchmark::State& state) {
 		state.PauseTiming();
 		ecs::detail::_context.reset();
 		ecs::detail::_context.init_component_pools<float>();
-		ecs::add_system_parallel([](ecs::entity ent, size_t const&) {
+		ecs::make_parallel_system([](ecs::entity ent, size_t const&) {
 			ent.add(3.14f);
 		});
 		state.ResumeTiming();
@@ -142,7 +142,7 @@ void component_randomized_add(benchmark::State& state) {
 	for (auto const _ : state) {
 		state.PauseTiming();
 			ecs::detail::_context.reset();
-			ecs::add_system(benchmark_system);
+			ecs::make_system(benchmark_system);
 			ecs::get_shared_component<shared_s>().dimension = nentities;
 
 			std::vector<ecs::entity_id> ids;
@@ -168,7 +168,7 @@ void component_remove(benchmark::State& state) {
 	for (auto const _ : state) {
 		state.PauseTiming();
 			ecs::detail::_context.reset();
-			ecs::add_system(benchmark_system);
+			ecs::make_system(benchmark_system);
 			ecs::get_shared_component<shared_s>().dimension = nentities;
 		state.ResumeTiming();
 

@@ -7,7 +7,7 @@ int main()
 {
 	std::cout << "# 1. A simple example\n";
 	// A system that operates on entities that hold an 'int'
-	ecs::add_system([](int const& i) {
+	ecs::make_system([](int const& i) {
 		std::cout << i << '\n';
 	});
 
@@ -29,7 +29,7 @@ int main()
 
 	std::cout << "\n# 3. Adding a second component\n";
 	// Add another system that operates on entities that hold an 'int' and 'std::string'
-	ecs::add_system([](int const& i, std::string const& s) {
+	ecs::make_system([](int const& i, std::string const& s) {
 		std::cout << i << ": " << s << '\n';
 	});
 
@@ -53,7 +53,7 @@ int main()
 
 
 	std::cout << "\n# 5. Accessing the entity id\n";
-	ecs::add_system([](ecs::entity_id ent, std::string const& s) {
+	ecs::make_system([](ecs::entity_id ent, std::string const& s) {
 		std::cout << "entity with id " << ent.id << " is named " << s << '\n';
 		});
 	ecs::update_systems();

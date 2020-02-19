@@ -13,7 +13,7 @@ TEST_CASE("Shared components", "[component][shared]")
 	auto& pst = ecs::get_shared_component<test_s>();
 	pst.i = 42;
 
-	ecs::add_system([](test_s const& st) {
+	ecs::make_system([](test_s const& st) {
 		CHECK(42 == st.i);
 	});
 

@@ -4,7 +4,7 @@
 TEST_CASE("System specification", "[system]") {
 	SECTION("Running a system works") {
 		// Add a system for the size_t component
-		ecs::system& sys = ecs::add_system([](size_t& c) {
+		ecs::system& sys = ecs::make_system([](size_t& c) {
 			c++;
 		});
 
@@ -23,7 +23,7 @@ TEST_CASE("System specification", "[system]") {
 	}
 
 	SECTION("Verify enable/disable functions") {
-		ecs::system& sys = ecs::add_system([](float& c) {});
+		ecs::system& sys = ecs::make_system([](float& c) {});
 		REQUIRE(true == sys.is_enabled());
 		sys.disable();
 		REQUIRE(false == sys.is_enabled());
@@ -34,7 +34,7 @@ TEST_CASE("System specification", "[system]") {
 	}
 
 	SECTION("Disabling systems prevents them from running") {
-		ecs::system& sys = ecs::add_system([](int& c) {
+		ecs::system& sys = ecs::make_system([](int& c) {
 			c++;
 		});
 
@@ -57,7 +57,7 @@ TEST_CASE("System specification", "[system]") {
 	}
 
 	SECTION("Re-enabling systems forces a rebuild") {
-		ecs::system& sys = ecs::add_system([](short& c) {
+		ecs::system& sys = ecs::make_system([](short& c) {
 			c++;
 		});
 		sys.disable();

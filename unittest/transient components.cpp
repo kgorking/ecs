@@ -13,7 +13,7 @@ TEST_CASE("Transient components", "[component][transient]")
 	ecs::detail::_context.reset();
 
 	int counter = 0;
-	ecs::add_system([&counter](foo const& /*f*/, test_t const& /*t*/) {
+	ecs::make_system([&counter](foo const& /*f*/, test_t const& /*t*/) {
 		counter++;
 	});
 

@@ -22,14 +22,14 @@ struct ev_disconnect_t { ecs_flags(ecs::transient); };
 void add_systems() {
 
 	// state_idle + ev_connect_t -> state_connecting (1)
-	ecs::add_system([](ecs::entity fsm, state_idle const&, ev_connect_t const& /*ev*/) {
+	ecs::make_system([](ecs::entity fsm, state_idle const&, ev_connect_t const& /*ev*/) {
 		std::cout << "ev_connect_t: state_idle -> state_connecting\n";
 		fsm.remove<state_idle>();
 		fsm.add<state_connecting>();
 	});
 
 	// state_connecting + ev_timeout_t [-> state_idle] (2)
-	ecs::add_system([](ecs::entity fsm, state_connecting& state, ev_timeout_t const& /*ev*/) {
+	ecs::make_system([](ecs::entity fsm, state_connecting& state, ev_timeout_t const& /*ev*/) {
 		std::cout << "ev_timeout_t: ";
 		if (++state.n >= state_connecting::max_n) {
 			std::cout << "state_connecting -> state_idle\n";
@@ -42,14 +42,14 @@ void add_systems() {
 	});
 
 	// state_connecting + ev_connected_t -> state_connected (3)
-	ecs::add_system([](ecs::entity fsm, state_connecting const&, ev_connected_t const& /*ev*/) {
+	ecs::make_system([](ecs::entity fsm, state_connecting const&, ev_connected_t const& /*ev*/) {
 		std::cout << "ev_connected_t: state_connecting -> state_connected\n";
 		fsm.remove<state_connecting>();
 		fsm.add<state_connected>();
 	});
 
 	// state_connected + ev_disconnect_t -> state_idle (4)
-	ecs::add_system([](ecs::entity fsm, state_connected&, ev_disconnect_t const& /*ev*/) {
+	ecs::make_system([](ecs::entity fsm, state_connected&, ev_disconnect_t const& /*ev*/) {
 		std::cout << "ev_disconnect_t: state_connected -> state_idle\n";
 		fsm.remove<state_connected>();
 		fsm.add<state_idle>();
@@ -88,7 +88,7 @@ int main() {
 	struct ev_hello {
 		const char* msg = "hello!";
 	};
-	ecs::add_system([](ecs::entity /*fsm*/, state_idle const&, ev_hello const& ev) {
+	ecs::make_system([](ecs::entity /*fsm*/, state_idle const&, ev_hello const& ev) {
 		std::cout << "ev_hello: state_idle says '" << ev.msg << "'\n";
 	});
 

@@ -20,8 +20,8 @@ int main() {
 	std::cout << "Initial state:\n";
 	print_shared_state();
 
-	auto& sys_a = ecs::add_system([](A const&, state_s& state) { state.a++; state.total++; });
-	auto& sys_b = ecs::add_system([](B const&, state_s& state) { state.b++; state.total++; });
+	auto& sys_a = ecs::make_system([](A const&, state_s& state) { state.a++; state.total++; });
+	auto& sys_b = ecs::make_system([](B const&, state_s& state) { state.b++; state.total++; });
 
 	std::cout << "Adding 10 entities with an A and state_s component:\n";
 	ecs::entity_range{ 0, 9, A{}, state_s{} };
