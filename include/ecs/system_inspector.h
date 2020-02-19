@@ -36,7 +36,7 @@ namespace ecs::detail
 			verify_system_api();
 			verify_first_arg_entity();
 			verify_components_are_unique();
-			verify_unmutable_components();
+			verify_immutable_components();
 			verify_component_qualifiers();
 		}
 
@@ -62,10 +62,10 @@ namespace ecs::detail
 		}
 
 		// Verify that components flagged as 'unmutable' are also marked as const in the system
-		constexpr static void verify_unmutable_components() {
+		constexpr static void verify_immutable_components() {
 			if constexpr (!has_entity)
-				violates_immutable<FirstArg>();
-			(violates_immutable<Args>(), ...);
+				verify_immutable<FirstArg>();
+			(verify_immutable<Args>(), ...);
 		}
 
 		// Verify that components have the correct qualifiers.
@@ -77,11 +77,12 @@ namespace ecs::detail
 		}
 
 
-		// Returns true if a component flagged as unmutable is not const
+		// Verify that a component flagged as unmutable is also const
 		template <typename T>
-		constexpr static void violates_immutable() {
-			constexpr bool check = detail::is_immutable_v<naked_type<T>> ? !std::is_const_v<T> : false;
-			static_assert(check == false, "a non-const component is flagged as 'immutable'");
+		constexpr static void verify_immutable() {
+			if constexpr (detail::is_immutable_v<naked_type<T>>) {
+				static_assert(std::is_const_v<std::remove_reference_t<T>>, "a non-const component is flagged as 'immutable'");
+			}
 		}
 
 		// Verify that a component has correct qualifiers.
