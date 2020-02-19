@@ -1,4 +1,3 @@
-#include <cstdint>
 #include <ecs/ecs.h>
 
 // An example structured like the EnTT example from
@@ -15,24 +14,31 @@ struct velocity {
 	float dy;
 };
 
-int main()
-{
-	float constexpr dt = 1.0f/60;
+struct frame {
+	ecs_flags(ecs::shared, ecs::immutable); // kind of like a 'static const' member function
+	float dt;
+};
 
-	auto &zero_vel = ecs::add_system([](velocity &vel) {
-		vel.dx = 0.;
-		vel.dy = 0.;
-	});
+auto& zero_vel = ecs::add_system([](velocity& vel) {
+	vel.dx = 0.;
+	vel.dy = 0.;
+});
 
-	auto &update_pos = ecs::add_system([&dt](position &pos, velocity const& vel) {
-		pos.x += vel.dx * dt;
-		pos.y += vel.dy * dt;
-	});
+auto& update_pos = ecs::add_system([](position& pos, velocity const& vel, frame const& frame) {
+	pos.x += vel.dx * frame.dt;
+	pos.y += vel.dy * frame.dt;
+});
 
-	ecs::entity_range{ 0, 9, [](ecs::entity_id ent) { return position{ ent.id * 1.f, ent.id * 1.f }; } };
+int main() {
+	// Set up the components
+	ecs::entity_range{ 0, 9, [](ecs::entity_id ent) { return position{ ent.id * 1.f, ent.id * 1.f }; }, frame{} };
 	ecs::entity_range{ 0, 4, [](ecs::entity_id ent) { return velocity{ ent.id * 1.f, ent.id * 1.f }; } };
 	ecs::commit_changes();
 
+	// Set the 'frame' delta time
+	ecs::get_shared_component<frame>().dt = 1.0f / 60.f;
+
+	// Run the systems
 	update_pos.update();
 	zero_vel.update();
 }
