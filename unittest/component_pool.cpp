@@ -203,7 +203,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		// TODO
 		SECTION("maintains sorting of entities") { // test case is response to a found bug
 			struct test {
-				ecs_flags(ecs::shared);
+				ecs_flags(ecs::share);
 			};
 			ecs::detail::component_pool<test> pool;
 			pool.add(0, {});

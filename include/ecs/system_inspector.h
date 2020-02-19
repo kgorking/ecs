@@ -18,13 +18,8 @@ namespace ecs::detail
 	template <>            struct is_unique<> { static constexpr bool value = true; };
 	template<typename F, typename... T> struct is_unique<F, T...> { static constexpr bool value = is_unique<T...>::value && !is_one_of<F, T...>::value; };
 
-	// detection idiom
-	template <class T, class = void>  struct is_lambda : std::false_type {};
-	template <class T>                struct is_lambda<T, std::void_t<decltype(&T::operator ())>> : std::true_type {};
-	template <class T> static constexpr bool is_lambda_v = is_lambda<T>::value;
-
 	template <class T>
-	using naked_type = std::remove_pointer_t<std::remove_reference_t<std::remove_cv_t<T>>>;
+	using naked_type = std::remove_pointer_t<std::remove_cvref_t<T>>;
 
 	// A class to verify a system is valid
 	// Based on https://stackoverflow.com/questions/7943525/is-it-possible-to-figure-out-the-parameter-type-and-return-type-of-a-lambda
@@ -68,6 +63,15 @@ namespace ecs::detail
 			(verify_immutable<Args>(), ...);
 		}
 
+		// Verify that a component flagged as unmutable is also const
+		template <typename T>
+		constexpr static void verify_immutable() {
+			if constexpr (detail::immutable<naked_type<T>>) {
+				static_assert(std::is_const_v<std::remove_reference_t<T>>, "a non-const component is flagged as 'immutable'");
+			}
+		}
+
+
 		// Verify that components have the correct qualifiers.
 		// All but 'tag' components are required to be references
 		constexpr static void verify_component_qualifiers() {
@@ -76,20 +80,13 @@ namespace ecs::detail
 			(verify_qualifiers<Args>(), ...);
 		}
 
-
-		// Verify that a component flagged as unmutable is also const
-		template <typename T>
-		constexpr static void verify_immutable() {
-			if constexpr (detail::is_immutable_v<naked_type<T>>) {
-				static_assert(std::is_const_v<std::remove_reference_t<T>>, "a non-const component is flagged as 'immutable'");
-			}
-		}
-
 		// Verify that a component has correct qualifiers.
 		template <class T>
 		constexpr static void verify_qualifiers() {
-			if constexpr (is_tagged_v<naked_type<T>>)
+			if constexpr (tagged<naked_type<T>>) {
+				static_assert(sizeof(T) <= 1, "tag-components should not have any data in them");
 				static_assert(!std::is_reference_v<T>, "components flagged as 'tag' can not be references, as they hold no data");
+			}
 			else
 				static_assert(std::is_reference_v<T>, "components must be references");
 		}
@@ -113,8 +110,8 @@ namespace ecs::detail
 	// The different types of lambdas
 	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...)>                : public system_inspector_impl<C, R, Args...> {};
 	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) noexcept>       : public system_inspector_impl<C, R, Args...> {};
-	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) const>          : public system_inspector_impl<C, R, Args...> { };
-	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) const noexcept> : public system_inspector_impl<C, R, Args...> { };
+	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) const>          : public system_inspector_impl<C, R, Args...> {};
+	template <typename C, typename R, typename... Args> struct system_inspector<R(C::*)(Args...) const noexcept> : public system_inspector_impl<C, R, Args...> {};
 
 	template <typename System>
 	constexpr void verify_system()

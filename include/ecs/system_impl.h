@@ -74,7 +74,7 @@ namespace ecs::detail
 					// Small helper function
 					auto const extract_arg = [](auto ptr, /*[[maybe_unused]]*/ ptrdiff_t offset) {
 						using T = std::decay_t<decltype(*ptr)>;
-						if constexpr (!is_shared_v<T>) {
+						if constexpr (!shared<T>) {
 							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
 							return ptr + offset;
 						}

@@ -15,7 +15,7 @@ struct velocity {
 };
 
 struct frame {
-	ecs_flags(ecs::shared, ecs::immutable); // kind of like a 'static const' member function
+	ecs_flags(ecs::share, ecs::immutable); // kind of like a 'static const' member function
 	float dt;
 };
 

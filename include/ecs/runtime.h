@@ -49,7 +49,7 @@ namespace ecs {
 	template <typename T>
 	void remove_component(entity_range const range)
 	{
-		static_assert(!detail::is_transient_v<T>, "Don't remove transient components manually; it will be handled by the context");
+		static_assert(!detail::transient<T>, "Don't remove transient components manually; it will be handled by the context");
 
 		// Remove the entities from the components pool
 		detail::component_pool<T> &pool = detail::_context.get_component_pool<T>();
@@ -72,11 +72,9 @@ namespace ecs {
 	}*/
 
 	// Returns a shared component. Can be called before a system for it has been added
-	template <typename T>
+	template <detail::shared T>
 	T& get_shared_component()
 	{
-		static_assert(detail::is_shared_v<T>, "Component has not been marked as shared. Add 'ecs_flags(ecs::shared);' to make it a shared component.");
-
 		// Get the pool
 		if (!detail::_context.has_component_pool(typeid(T)))
 			detail::_context.init_component_pools<T>();
@@ -170,9 +168,13 @@ namespace ecs {
 		run_systems();
 	}
 
+	namespace detail {
+		template <typename T>
+		concept lambda = requires { T::operator ();  };
+	}
+
 	// Make a new system. It will process components in parallel.
-	template <typename System>
-	// requires detail::is_lambda_v<System>
+	template <detail::lambda System>
 	auto& make_parallel_system(System update_func)
 	{
 		detail::verify_system<System>();
@@ -180,8 +182,7 @@ namespace ecs {
 	}
 
 	// Make a new system
-	template <typename System>
-	// requires detail::is_lambda_v<System>
+	template <detail::lambda System>
 	auto& make_system(System update_func)
 	{
 		detail::verify_system<System>();
