@@ -132,34 +132,34 @@ namespace ecs::detail
 				// When there are more than one component required for a system,
 				// find the intersection of the sets of entities that have those components
 
-				// Intersects two ranges of entities
-				auto constexpr intersector = [](entity_range_view view_a, entity_range_view view_b) {
-					std::vector<entity_range> result;
+				auto constexpr do_intersection = [](entity_range_view initial, entity_range_view first, auto ...rest) {
+					// Intersects two ranges of entities
+					auto constexpr intersector = [](entity_range_view view_a, entity_range_view view_b) {
+						std::vector<entity_range> result;
 
-					if (view_a.empty() || view_b.empty())
-						return result;
+						if (view_a.empty() || view_b.empty())
+							return result;
 
-					auto it_a = view_a.cbegin();
-					auto it_b = view_b.cbegin();
+						auto it_a = view_a.cbegin();
+						auto it_b = view_b.cbegin();
 
-					while (it_a != view_a.cend() && it_b != view_b.cend()) {
-						if (it_a->overlaps(*it_b))
-							result.push_back(entity_range::intersect(*it_a, *it_b));
+						while (it_a != view_a.cend() && it_b != view_b.cend()) {
+							if (it_a->overlaps(*it_b))
+								result.push_back(entity_range::intersect(*it_a, *it_b));
 
-						if (it_a->last() < it_b->last()) // range a is inside range b, move to the next range in a
-							++it_a;
-						else if (it_b->last() < it_a->last()) // range b is inside range a, move to the next range in b
-							++it_b;
-						else { // ranges are equal, move to next ones
-							++it_a;
-							++it_b;
+							if (it_a->last() < it_b->last()) // range a is inside range b, move to the next range in a
+								++it_a;
+							else if (it_b->last() < it_a->last()) // range b is inside range a, move to the next range in b
+								++it_b;
+							else { // ranges are equal, move to next ones
+								++it_a;
+								++it_b;
+							}
 						}
-					}
 
-					return result;
-				};
+						return result;
+					};
 
-				auto constexpr do_intersection = [intersector](entity_range_view initial, entity_range_view first, auto ...rest) {
 					std::vector<entity_range> intersect = intersector(initial, first);
 					((intersect = intersector(intersect, rest)), ...);
 					return intersect;
