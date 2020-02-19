@@ -139,10 +139,10 @@ namespace ecs::detail
 					if (view_a.empty() || view_b.empty())
 						return result;
 
-					auto it_a = view_a.begin();
-					auto it_b = view_b.begin();
+					auto it_a = view_a.cbegin();
+					auto it_b = view_b.cbegin();
 
-					while (it_a != view_a.end() && it_b != view_b.end()) {
+					while (it_a != view_a.cend() && it_b != view_b.cend()) {
 						if (it_a->overlaps(*it_b))
 							result.push_back(entity_range::intersect(*it_a, *it_b));
 
