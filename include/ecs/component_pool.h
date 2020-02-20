@@ -66,28 +66,9 @@ namespace ecs::detail {
 					data.emplace_back(std::move(component));
 				}
 
-				// Merge the range or add it
-				if (deferred_adds.local().size() > 0 && deferred_adds.local().back().can_merge(range)) {
-					deferred_adds.local().back() = entity_range::merge(deferred_adds.local().back(), range);
-				}
-				else {
-					deferred_adds.local().push_back(range);
-				}
+				deferred_adds.local().push_back(range);
 			}
 			else {
-				// Try and merge the range instead of adding it
-				if (deferred_adds.local().size() > 0) {
-					auto& [last_range, val] = deferred_adds.local().back();
-					if (last_range.can_merge(range)) {
-						bool const equal_vals = 0 == std::memcmp(&std::get<T>(val), &component, sizeof(T));
-						if (equal_vals) {
-							last_range = entity_range::merge(last_range, range);
-							return;
-						}
-					}
-				}
-
-				// Merge wasn't possible, so just add it
 				deferred_adds.local().emplace_back(range, std::move(component));
 			}
 		}
