@@ -355,7 +355,7 @@ namespace ecs::detail {
 					for (entity_range const& range : adds) {
 						// Copy the current ranges while looking for an insertion point
 						while (ranges_it != ranges.cend() && (*ranges_it < range)) {
-							new_ranges.push_back(*ranges_it++);
+							add_range(new_ranges, *ranges_it++);
 						}
 
 						// Add the new range
