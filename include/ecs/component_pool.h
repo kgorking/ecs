@@ -33,7 +33,6 @@ namespace ecs::detail {
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
 		template <typename Fn>
-			requires std::is_invocable_r_v<T, Fn, entity_id>
 		void add_init(entity_range const range, Fn init) {
 			Expects(!has_entity(range));
 			Expects(!is_queued_add(range));

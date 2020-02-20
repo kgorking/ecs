@@ -14,8 +14,7 @@ namespace ecs {
 	template <typename T>
 	void add_component(entity_range const range, T val)
 	{
-		bool constexpr invokable = std::is_invocable_v<T, entity_id>;
-		if constexpr (invokable) {
+		if constexpr (std::is_invocable_v<T, entity_id>) {
 			// Return type of 'init'
 			using ComponentType = decltype(std::declval<T>()(entity_id{ 0 }));
 			static_assert(!std::is_same_v<ComponentType, void>, "Initializer function must return a component");
@@ -88,8 +87,9 @@ namespace ecs {
 		return pool.find_component_data(id);
 	}
 
-	// Returns the component from an entity, or an empty span if the entities are not found
-	// or does not containg the component
+	// Returns the components from an entity range, or an empty span if the entities are not found
+	// or does not containg the component.
+	// The span might be invalidated after a call to 'ecs::commit_changes()'.
 	template <typename T>
 	gsl::span<T> get_components(entity_range const range) {
 		if (!has_component<T>(range))
