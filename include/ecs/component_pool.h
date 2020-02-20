@@ -19,7 +19,7 @@ namespace ecs::detail {
 	template <typename T>
 	class component_pool final : public component_pool_base {
 
-		static constexpr bool is_static_component = shared<T> || tagged<T>; // all entities point to the same component
+		static constexpr bool is_static_component = detail::Shared<T> || detail::Tagged<T>; // all entities point to the same component
 
 	public:
 		// Adds a component to an entity.
@@ -92,9 +92,7 @@ namespace ecs::detail {
 		}
 
 		// Returns the shared component
-		template <typename XT = T>
-			requires shared<XT>
-		T& get_shared_component() const {
+		T& get_shared_component() const requires detail::Shared<T> {
 			if (data.size() == 0) {
 				data.emplace_back(T{});
 			}
@@ -123,20 +121,18 @@ namespace ecs::detail {
 
 		// Returns an entities component
 		// Returns nullptr if the entity is not found in this pool
+		T* find_component_data(entity_id const id) const requires detail::Tagged<T> {
+			static T t;
+			return &t;
+		}
+		T* find_component_data(entity_id const id) const requires detail::Shared<T>{
+			// All entities point to the same component
+			(void)id;
+			return &get_shared_component();
+		}
 		T* find_component_data(entity_id const id) const {
-			if constexpr (tagged<T>) {
-				static T t;
-				return &t;
-			}
-			else if constexpr (shared<T>) {
-				// All entities point to the same component
-				(void)id;
-				return &get_shared_component<T>();
-			}
-			else {
-				auto const index = find_entity_index(id);
-				return index ? &data[index.value()] : nullptr;
-			}
+			auto const index = find_entity_index(id);
+			return index ? &data[index.value()] : nullptr;
 		}
 
 		// Merge all the components queued for addition to the main storage,
@@ -417,7 +413,7 @@ namespace ecs::detail {
 		// Removes the entities
 		void process_remove_components() {
 			// Transient components are removed each cycle
-			if constexpr (transient<T>) {
+			if constexpr (detail::Transient<T>) {
 				if (ranges.size() > 0) {
 					ranges.clear();
 					data.clear();

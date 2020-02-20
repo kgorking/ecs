@@ -5,6 +5,7 @@
 #include <shared_mutex>
 
 #include "component_pool.h"
+#include "component_specifier.h"
 #include "system_impl.h"
 
 namespace ecs::detail {
@@ -122,25 +123,25 @@ namespace ecs::detail {
 		}
 
 		// Const lambdas
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(Args...) const)
+		template <typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
+		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const)
 		{
-			return create_system_impl<ExecutionPolicy, System, R, Args...>(update_func);
+			return create_system_impl<ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
 		}
 
 		// Mutable lambdas
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(Args...))
+		template <typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
+		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...))
 		{
-			return create_system_impl<ExecutionPolicy, System, R, Args...>(update_func);
+			return create_system_impl<ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
 		}
 
 	private:
-		template <typename ExecutionPolicy, typename System, typename R, typename FirstArg, typename ...Args>
-		auto& create_system_impl(System update_func)
+		template <typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename FirstArg, typename ...Args>
+		auto& create_system_impl(UserUpdateFunc update_func)
 		{
 			// Set up the implementation
-			using typed_system_impl = system_impl<ExecutionPolicy, System, std::decay_t<FirstArg>, std::decay_t<Args>...>;
+			using typed_system_impl = system_impl<ExecutionPolicy, UserUpdateFunc, std::decay_t<FirstArg>, std::decay_t<Args>...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
@@ -195,6 +196,6 @@ namespace ecs::detail {
 		return ctx;
 	}
 
-	// The global context
+	// The global reference to the context
 	static inline context & _context = get_context();
 }

@@ -1,6 +1,6 @@
 #pragma once
 #include <execution>
-#include "system_inspector.h"
+#include "system_verification.h"
 #include "entity_range.h"
 #include "component_pool.h"
 #include "component_specifier.h"
@@ -46,11 +46,9 @@ namespace ecs {
 
 	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is called.
 	// Pre: entity has the component
-	template <typename T>
+	template <typename T> requires !detail::Transient<T>
 	void remove_component(entity_range const range)
 	{
-		static_assert(!detail::transient<T>, "Don't remove transient components manually; it will be handled by the context");
-
 		// Remove the entities from the components pool
 		detail::component_pool<T> &pool = detail::_context.get_component_pool<T>();
 		pool.remove_range(range);
@@ -72,7 +70,7 @@ namespace ecs {
 	}*/
 
 	// Returns a shared component. Can be called before a system for it has been added
-	template <detail::shared T>
+	template <detail::Shared T>
 	T& get_shared_component()
 	{
 		// Get the pool
@@ -168,24 +166,17 @@ namespace ecs {
 		run_systems();
 	}
 
-	namespace detail {
-		template <typename T>
-		concept lambda = requires { T::operator ();  };
-	}
-
 	// Make a new system. It will process components in parallel.
-	template <detail::lambda System>
-	auto& make_parallel_system(System update_func)
+	template <detail::Lambda UserUpdateFunc>
+	auto& make_parallel_system(UserUpdateFunc update_func)
 	{
-		detail::verify_system<System>();
-		return detail::_context.create_system<std::execution::parallel_unsequenced_policy, System>(update_func, &System::operator());
+		return detail::_context.create_system<std::execution::parallel_unsequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 
 	// Make a new system
-	template <detail::lambda System>
-	auto& make_system(System update_func)
+	template <detail::Lambda UserUpdateFunc>
+	auto& make_system(UserUpdateFunc update_func)
 	{
-		detail::verify_system<System>();
-		return detail::_context.create_system<std::execution::sequenced_policy, System>(update_func, &System::operator());
+		return detail::_context.create_system<std::execution::sequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 }

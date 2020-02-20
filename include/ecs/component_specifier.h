@@ -31,11 +31,14 @@ namespace ecs
 	// };
 	#define ecs_flags(...) struct _ecs_flags : __VA_ARGS__ {};
 
+	// Some helpers
 	namespace detail {
-		// Some helpers
-		template<typename T> concept tagged = std::is_base_of_v<ecs::tag, typename T::_ecs_flags>;
-		template<typename T> concept shared = std::is_base_of_v<ecs::share, typename T::_ecs_flags>;
-		template<typename T> concept transient = std::is_base_of_v<ecs::transient, typename T::_ecs_flags>;
-		template<typename T> concept immutable = std::is_base_of_v<ecs::immutable, typename T::_ecs_flags>;
+		template <typename T>
+		using flags = typename std::remove_cvref_t<T>::_ecs_flags;
+
+		template<typename T> concept Tagged = std::is_base_of_v<ecs::tag, flags<T>>;
+		template<typename T> concept Shared = std::is_base_of_v<ecs::share, flags<T>>;
+		template<typename T> concept Transient = std::is_base_of_v<ecs::transient, flags<T>>;
+		template<typename T> concept Immutable = std::is_base_of_v<ecs::immutable, flags<T>>;
 	}
 }
