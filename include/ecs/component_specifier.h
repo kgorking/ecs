@@ -5,12 +5,14 @@ namespace ecs
 {
 	// Add this in 'ecs_flags()' to mark a component as a tag.
 	// Uses O(1) memory instead of O(n).
+	// Mutually exclusive with 'share'
 	struct tag {};
 
 	// Add this in 'ecs_flags()' to mark a component as shared between components,
 	// meaning that any entity with a shared component will all point to the same component.
 	// Think of it as a static member variable in a regular class.
 	// Uses O(1) memory instead of O(n).
+	// Mutually exclusive with 'tag'
 	struct share {};
 
 	// Add this in 'ecs_flags()' to mark a component as transient.
