@@ -4,6 +4,7 @@
 #include <variant>
 #include <utility>
 #include <cassert>
+#include <concepts>
 
 #include "../threaded/threaded/threaded.h"
 #include "component_pool_base.h"
@@ -16,7 +17,7 @@ namespace ecs::detail {
 	template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 	template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
-	template <typename T>
+	template <std::movable T>
 	class component_pool final : public component_pool_base {
 
 		static constexpr bool is_static_component = detail::Shared<T> || detail::Tagged<T>; // all entities point to the same component
@@ -101,13 +102,12 @@ namespace ecs::detail {
 
 		// Returns an entities component
 		// Returns nullptr if the entity is not found in this pool
-		T* find_component_data(entity_id const id) const requires detail::Tagged<T> {
+		T* find_component_data(entity_id const /*id*/) const requires detail::Tagged<T> {
 			static T t;
 			return &t;
 		}
-		T* find_component_data(entity_id const id) const requires detail::Shared<T>{
+		T* find_component_data(entity_id const /*id*/) const requires detail::Shared<T>{
 			// All entities point to the same component
-			(void)id;
 			return &get_shared_component();
 		}
 		T* find_component_data(entity_id const id) const {
