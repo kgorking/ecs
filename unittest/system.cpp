@@ -23,7 +23,7 @@ TEST_CASE("System specification", "[system]") {
 	}
 
 	SECTION("Verify enable/disable functions") {
-		ecs::system& sys = ecs::make_system([](float& c) {});
+		ecs::system& sys = ecs::make_system([](float& /*c*/) {});
 		REQUIRE(true == sys.is_enabled());
 		sys.disable();
 		REQUIRE(false == sys.is_enabled());
