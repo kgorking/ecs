@@ -1,31 +1,64 @@
-﻿# CMakeList.txt : Top-level CMake project file, do global configuration
-# and include sub-projects here.
-#
-cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required (VERSION 3.8)
 
 project (ecs CXX)
+
+# creates a library 'ecs' which is an interface (header files only)
+add_library(ecs INTERFACE)
+
+install(
+    DIRECTORY include/ecs
+    DESTINATION include
+)
 
 # Require c++17
 set(CMAKE_CXX_STANDARD 17)
 set(CXX_STANDARD_REQUIRED on)
 
-# Include google benchmark
-set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
-add_subdirectory ("benchmark/gbench")
+
+# determine whether this is a standalone project or included by other projects
+set(ECS_STANDALONE_PROJECT OFF)
+if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(ECS_STANDALONE_PROJECT ON)
+endif ()
+
+# Project headers
+# add include folders to the library and targets that consume it
+# the SYSTEM keyword suppresses warnings for users of the library
+if(ECS_STANDALONE_PROJECT)
+    target_include_directories(ecs INTERFACE
+        $<BUILD_INTERFACE:
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/GSL/include
+        >
+    )
+else()
+    target_include_directories(ecs SYSTEM INTERFACE
+        $<BUILD_INTERFACE:
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/GSL/include
+        >
+    )
+endif()
 
 # Include GSL
 add_subdirectory ("GSL")
 
-# Include sub-projects.
-add_subdirectory ("include")
-add_subdirectory ("benchmark")
-add_subdirectory ("examples/example")
-add_subdirectory ("examples/entt_example")
-add_subdirectory ("examples/parallelism")
-add_subdirectory ("examples/finite_state_machine")
-add_subdirectory ("examples/mandelbrot")
-add_subdirectory ("examples/shared_components")
-add_subdirectory ("examples/tagged_components")
+if (ECS_STANDALONE_PROJECT)
+    # Benchmark
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
+    add_subdirectory ("benchmark/gbench")
+    add_subdirectory ("benchmark")
 
-enable_testing()
-add_subdirectory ("unittest")
+    # Examples
+    add_subdirectory ("examples/example")
+    add_subdirectory ("examples/entt_example")
+    add_subdirectory ("examples/parallelism")
+    add_subdirectory ("examples/finite_state_machine")
+    add_subdirectory ("examples/mandelbrot")
+    add_subdirectory ("examples/shared_components")
+    add_subdirectory ("examples/tagged_components")
+
+    # Unittests
+    enable_testing()
+    add_subdirectory ("unittest")
+endif ()
