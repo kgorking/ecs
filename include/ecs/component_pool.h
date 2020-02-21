@@ -188,17 +188,9 @@ namespace ecs::detail {
 			if (deferred_adds.local().empty())
 				return false;
 
-			if constexpr (is_static) {
-				for (auto const& ents : deferred_adds.local()) {
-					if (ents.contains(range))
-						return true;
-				}
-			}
-			else {
-				for (auto const& ents : deferred_adds.local()) {
-					if (ents.first.contains(range))
-						return true;
-				}
+			for (auto const& ents : deferred_adds.local()) {
+				if (std::get<0>(ents).contains(range))
+					return true;
 			}
 
 			return false;
@@ -293,10 +285,7 @@ namespace ecs::detail {
 			// An entity can not have more than one of the same component
 			auto const has_duplicate_entities = [](auto const& vec) {
 				return vec.end() != std::adjacent_find(vec.begin(), vec.end(), [](auto const& l, auto const& r) {
-					if constexpr (is_static)
-						return l == r;
-					else
-						return l.first == r.first;
+					return std::get<0>(l) == std::get<0>(r);
 				});
 			};
 			Expects(false == has_duplicate_entities(adds));
@@ -306,10 +295,7 @@ namespace ecs::detail {
 
 			// Sort the input
 			auto constexpr comparator = [](entity_data const& l, entity_data const& r) {
-				if constexpr (is_static)
-					return l.first() < r.first();
-				else
-					return l.first.first() < r.first.first();
+				return std::get<0>(l).first() < std::get<0>(r).first();
 			};
 			if (!std::is_sorted(adds.begin(), adds.end(), comparator))
 				std::sort(adds.begin(), adds.end(), comparator);
@@ -325,68 +311,49 @@ namespace ecs::detail {
 				}
 			};
 
-			// Add the new components
-			if constexpr (is_static) {
-				if (ranges.empty()) {
-					ranges = std::move(adds);
-				}
-				else {
-					// Do the inserts
-					std::vector<entity_range> new_ranges;
-					auto ranges_it = ranges.cbegin();
-					for (entity_range const& range : adds) {
-						// Copy the current ranges while looking for an insertion point
-						while (ranges_it != ranges.cend() && (*ranges_it < range)) {
-							add_range(new_ranges, *ranges_it++);
-						}
+			// Add the new entities/components
+			std::vector<entity_range> new_ranges;
+			auto ranges_it = ranges.cbegin();
+			[[maybe_unused]] auto component_it = data.cbegin();
+			for (auto const& add : adds) {
+				entity_range const range = std::get<0>(add);
 
-						// Add the new range
-						add_range(new_ranges, range);
-					}
-
-					// Move the remaining ranges
-					std::move(ranges_it, ranges.cend(), std::back_inserter(new_ranges));
-
-					// Store the new ranges
-					ranges = std::move(new_ranges);
-				}
-			}
-			else {
-				std::vector<entity_range> new_ranges;
-				auto ranges_it = ranges.cbegin();
-				auto component_it = data.cbegin();
-				for (auto const& [range, component_val] : adds) {
-					// Copy the current ranges while looking for an insertion point
-					while (ranges_it != ranges.cend() && (*ranges_it < range)) {
+				// Copy the current ranges while looking for an insertion point
+				while (ranges_it != ranges.cend() && (*ranges_it < range)) {
+					if constexpr (!is_static) {
 						// Advance the component iterator so it will point to the correct data when i start inserting it
 						component_it += ranges_it->count();
-
-						add_range(new_ranges, *ranges_it++);
 					}
 
-					// Add the new range
-					add_range(new_ranges, range);
+					add_range(new_ranges, *ranges_it++);
+				}
 
+				// Add the new range
+				add_range(new_ranges, range);
+
+				if constexpr (!is_static) {
 					// Add the new components
-					auto const add_val = [this, &component_it, range = range](T const& val) {	// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0588r1.html
+					auto const add_val = [this, &component_it, range](T const& val) {
 						component_it = data.insert(component_it, range.count(), val);
 						component_it = std::next(component_it, range.count());
 					};
-					auto const add_init = [this, &component_it, range = range](std::function<T(entity_id)> init) {
+					auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
 						for (entity_id ent = range.first(); ent <= range.last(); ++ent.id) {
 							component_it = data.insert(component_it, init(ent));
-							component_it = std::next(component_it, 1);
+							component_it = std::next(component_it);
 						}
 					};
-					std::visit(detail::overloaded{ add_val, add_init }, component_val);
+
+					component_val const& component = std::get<1>(add);
+					std::visit(detail::overloaded{ add_val, add_init }, component);
 				}
-
-				// Move the remaining ranges
-				std::move(ranges_it, ranges.cend(), std::back_inserter(new_ranges));
-
-				// Store the new ranges
-				ranges = std::move(new_ranges);
 			}
+
+			// Move the remaining ranges
+			std::move(ranges_it, ranges.cend(), std::back_inserter(new_ranges));
+
+			// Store the new ranges
+			ranges = std::move(new_ranges);
 
 			// Update the state
 			set_data_added();
@@ -499,7 +466,7 @@ namespace ecs::detail {
 
 		// The type used to store data.
 		using component_val = std::variant<T, std::function<T(entity_id)>>;
-		using entity_data = std::conditional_t<is_static, entity_range, std::pair<entity_range, component_val>>;
+		using entity_data = std::conditional_t<is_static, std::tuple<entity_range>, std::tuple<entity_range, component_val>>;
 
 		// Keep track of which components to add/remove each cycle
 		threaded<std::vector<entity_data>> deferred_adds;
