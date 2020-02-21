@@ -26,9 +26,9 @@ namespace ecs
 		void disable() { set_enable(false); }
 
 		// Sets wheter the system is enabled or disabled
-		void set_enable(bool enabled) {
-			this->enabled = enabled;
-			if (enabled) {
+		void set_enable(bool is_enabled) {
+			enabled = is_enabled;
+			if (is_enabled) {
 				process_changes(true);
 			}
 		}
