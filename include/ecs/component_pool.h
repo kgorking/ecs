@@ -314,9 +314,9 @@ namespace ecs::detail {
 			// Add the new entities/components
 			std::vector<entity_range> new_ranges;
 			auto ranges_it = ranges.cbegin();
-			auto component_it = data.cbegin();
+			[[maybe_unused]] auto component_it = data.cbegin();
 			for (auto const& add : adds) {
-				entity_range range = std::get<0>(add);
+				entity_range const range = std::get<0>(add);
 
 				// Copy the current ranges while looking for an insertion point
 				while (ranges_it != ranges.cend() && (*ranges_it < range)) {
@@ -333,11 +333,11 @@ namespace ecs::detail {
 
 				if constexpr (!is_static) {
 					// Add the new components
-					auto const add_val = [this, &component_it, range = range](T const& val) {	// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0588r1.html
+					auto const add_val = [this, &component_it, range](T const& val) {
 						component_it = data.insert(component_it, range.count(), val);
 						component_it = std::next(component_it, range.count());
 					};
-					auto const add_init = [this, &component_it, range = range](std::function<T(entity_id)> init) {
+					auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
 						for (entity_id ent = range.first(); ent <= range.last(); ++ent.id) {
 							component_it = data.insert(component_it, init(ent));
 							component_it = std::next(component_it);
