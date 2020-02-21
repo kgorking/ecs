@@ -11,7 +11,23 @@
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
       "intelliSenseMode": "windows-msvc-x64",
-      "variables": []
+      "variables": [
+        {
+          "name": "BENCHMARK_ENABLE_INSTALL",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "GSL_CXX_STANDARD",
+          "value": "17",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "x64-Release",
