@@ -19,7 +19,7 @@ namespace ecs::detail
 	template<typename F, typename... T>	struct is_unique<F, T...> { static constexpr bool value = !is_one_of<F, T...>::value && is_unique<T...>::value;  };
 
 	template <class T>
-	concept is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
+	concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
 
 	template <class R, class FirstArg, class ...Args>
 	concept System = requires {
@@ -30,21 +30,33 @@ namespace ecs::detail
 		requires !std::is_pointer_v<FirstArg> && (!std::is_pointer_v<Args>&& ...);
 
 		// systems must take at least one component argument
-		requires (is_entity<FirstArg> ? sizeof...(Args) >= 1 : true);
+		requires (entity_type<FirstArg> ? sizeof...(Args) >= 1 : true);
 
 		// Make sure the first entity is not passed as a reference
-		requires (is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true);
+		requires (entity_type<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
 		// Component types can only be specified once
 		requires is_unique<FirstArg, Args...>::value;
 
 		// Components flagged as 'immutable' must also be const
-		requires  (detail::Immutable<FirstArg> ? std::is_const_v<std::remove_reference_t<FirstArg>> : true);
-		requires ((detail::Immutable<Args> ? std::is_const_v<std::remove_reference_t<Args>> : true) && ...);
+		requires
+			(detail::Immutable<FirstArg> ? std::is_const_v<std::remove_reference_t<FirstArg>> : true) &&
+			((detail::Immutable<Args> ? std::is_const_v<std::remove_reference_t<Args>> : true) && ...);
 
 		// Components flagged as 'tag' must not be references
-		requires  (detail::Tagged<FirstArg> ? !std::is_reference_v<FirstArg> : true);
-		requires ((detail::Tagged<Args> ? !std::is_reference_v<Args> : true) && ...);
+		requires
+			(detail::Tagged<FirstArg> ? !std::is_reference_v<FirstArg> : true) &&
+			((detail::Tagged<Args> ? !std::is_reference_v<Args> : true) && ...);
+
+		// Components flagged as 'tag' must not hold data
+		requires
+			(detail::Tagged<FirstArg> ? sizeof(FirstArg) == 1 : true) &&
+			((detail::Tagged<Args> ? sizeof(Args) == 1 : true) && ...);
+
+		// Components flagged as 'share' must not be 'tag'ged
+		requires
+			(detail::Shared<FirstArg> ? !detail::Tagged<FirstArg> : true) && 
+			((detail::Shared<Args> ? !detail::Tagged<Args> : true) && ...);
 	};
 
 	// A small bridge to allow the Lambda concept to activate the System concept
