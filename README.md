@@ -14,7 +14,7 @@ See 'examples/example' for the code.
 int main()
 {
 	// A system that operates on entities with 'int' components
-	ecs::add_system([](int const& i) {
+	ecs::make_system([](int const& i) {
 	    std::cout << i << '\n';
 	});
 	
@@ -51,7 +51,7 @@ Running the code now will also print out
 ### 3. Adding a second component
 ```cpp
 // Add another system that operates on entities that hold an 'int' and 'std::string'
-ecs::add_system([](int const& i, std::string const& s) {
+ecs::make_system([](int const& i, std::string const& s) {
 	std::cout << i << ": " << s << '\n';
 });
 
@@ -93,7 +93,7 @@ If you need to access the entity id, add either an
 [ecs::entity_id](https://github.com/monkey-g/ecs/blob/master/ecs/types.h) or an [ecs::entity](https://github.com/monkey-g/ecs/blob/master/ecs/entity.h)
 as the first argument in the lambda.
 ```cpp
-ecs::add_system([](ecs::entity_id ent, std::string const& s) {
+ecs::make_system([](ecs::entity_id ent, std::string const& s) {
 	std::cout << "entity with id " << ent.id << " is named " << s << '\n';
 });
 ecs::update_systems();
@@ -124,8 +124,8 @@ int main()
 	};
 
 	// Add the systems
-	auto& serial_sys   = ecs::add_system(sys_sleep);
-	auto& parallel_sys = ecs::add_system_parallel(sys_sleep);
+	auto& serial_sys   = ecs::make_system(sys_sleep);
+	auto& parallel_sys = ecs::make_parallel_system(sys_sleep);
 
 	// Create a range of 500 entites that would
 	// take 5 seconds to process serially
