@@ -10,10 +10,9 @@ install(
     DESTINATION include
 )
 
-# Require c++17
+# Require c++20 and concepts
 set(CMAKE_CXX_STANDARD 20)
 set(CXX_STANDARD_REQUIRED on)
-
 
 # determine whether this is a standalone project or included by other projects
 set(ECS_STANDALONE_PROJECT OFF)
@@ -22,10 +21,10 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif ()
 
 if (MSVC)
-    # warning level 4 and all warnings as errors
+    # warning level 4, modules
     target_compile_options(ecs INTERFACE /W4)
 else()
-    # lots of warnings and all warnings as errors
+    # lots of warnings
     target_compile_options(ecs INTERFACE -Wall -Wextra -pedantic -fconcepts)
 endif()
 
@@ -47,9 +46,6 @@ else()
         >
     )
 endif()
-
-# Include GSL
-add_subdirectory ("GSL")
 
 if (ECS_STANDALONE_PROJECT)
     # Benchmark
