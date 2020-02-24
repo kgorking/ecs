@@ -26,10 +26,14 @@ namespace ecs::detail
 		// The first type in the system, entity or component
 		using first_type = std::conditional_t<is_first_arg_entity, FirstComponent, FirstComponent*>;
 
+		// Alias for stored pools
+		template <class T>
+		using pool = gsl::not_null<component_pool<T>*> const;
+
 		// Tuple holding all pools used by this system
 		using tup_pools = std::conditional_t<is_first_arg_entity,
-			std::tuple<                                 component_pool<Components> &...>,
-			std::tuple<component_pool<FirstComponent>&, component_pool<Components> &...>>;
+			std::tuple<                      pool<Components>...>,
+			std::tuple<pool<FirstComponent>, pool<Components>...>>;
 
 		// Holds an entity range and a pointer to the first component from each pool in that range
 		using range_arguments = std::conditional_t<is_first_arg_entity,
@@ -47,7 +51,7 @@ namespace ecs::detail
 
 	public:
 		// Constructor for when the first argument to the system is _not_ an entity
-		system_impl(UpdatePrototype update_func, component_pool<FirstComponent> & first_pool, component_pool<Components> &... pools)
+		system_impl(UpdatePrototype update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
 			: pools{ first_pool, pools... }
 			, update_func{ update_func }
 		{
@@ -55,7 +59,7 @@ namespace ecs::detail
 		}
 
 		// Constructor for when the first argument to the system _is_ an entity
-		system_impl(UpdatePrototype update_func, component_pool<Components> &... pools)
+		system_impl(UpdatePrototype update_func, pool<Components> ... pools)
 			: pools{ pools... }
 			, update_func{ update_func }
 		{
@@ -111,7 +115,7 @@ namespace ecs::detail
 			if (!is_enabled())
 				return;
 
-			auto constexpr is_pools_modified = [](auto const& ...pools) { return (pools.is_data_modified() || ...); };
+			auto constexpr is_pools_modified = [](auto ...pools) { return (pools->is_data_modified() || ...); };
 			bool const is_modified = std::apply(is_pools_modified, pools);
 	
 			if (is_modified)
@@ -120,7 +124,7 @@ namespace ecs::detail
 
 		void build_args()
 		{
-			entity_range_view const entities = std::get<0>(pools).get_entities();
+			entity_range_view const entities = std::get<0>(pools)->get_entities();
 
 			if constexpr (num_components == 1)
 			{
@@ -187,7 +191,7 @@ namespace ecs::detail
 		template <typename Component>
 		component_pool<Component>& get_pool() const
 		{
-			return std::get<component_pool<Component>&>(pools);
+			return *std::get<pool<Component>>(pools);
 		}
 
 		template <typename Component>

@@ -157,13 +157,13 @@ namespace ecs::detail {
 				sys = std::make_unique<typed_system_impl>(
 					update_func,
 					/* dont add the entity as a component pool */
-					get_component_pool<std::decay_t<Args>>()...);
+					&get_component_pool<std::decay_t<Args>>()...);
 			}
 			else {
 				sys = std::make_unique<typed_system_impl>(
 					update_func,
-					get_component_pool<std::decay_t<FirstArg>>(),
-					get_component_pool<std::decay_t<Args>>()...);
+					&get_component_pool<std::decay_t<FirstArg>>(),
+					&get_component_pool<std::decay_t<Args>>()...);
 			}
 
 			std::unique_lock lock(mutex);
