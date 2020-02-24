@@ -140,16 +140,16 @@ namespace ecs::detail {
 		auto& create_system_impl(System update_func)
 		{
 			// Set up the implementation
-			using typed_system_impl = system_impl<ExecutionPolicy, System, std::decay_t<FirstArg>, std::decay_t<Args>...>;
+			using typed_system_impl = system_impl<ExecutionPolicy, System, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
 
 			// Set up everything for the component pool
 			if constexpr (!has_entity) {
-				init_component_pools<std::decay_t<FirstArg>>();
+				init_component_pools< std::remove_cv_t<std::remove_reference_t<FirstArg>>>();
 			}
-			init_component_pools<std::decay_t<Args>...>();
+			init_component_pools< std::remove_cv_t<std::remove_reference_t<Args>>...>();
 
 			// Create the system instance
 			std::unique_ptr<system> sys;
@@ -157,13 +157,13 @@ namespace ecs::detail {
 				sys = std::make_unique<typed_system_impl>(
 					update_func,
 					/* dont add the entity as a component pool */
-					&get_component_pool<std::decay_t<Args>>()...);
+					&get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
 			}
 			else {
 				sys = std::make_unique<typed_system_impl>(
 					update_func,
-					&get_component_pool<std::decay_t<FirstArg>>(),
-					&get_component_pool<std::decay_t<Args>>()...);
+					&get_component_pool<std::remove_cv_t<std::remove_reference_t<FirstArg>>>(),
+					&get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
 			}
 
 			std::unique_lock lock(mutex);
