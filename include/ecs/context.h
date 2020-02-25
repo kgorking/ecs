@@ -177,7 +177,7 @@ namespace ecs::detail {
 		}
 
 		// Sorts the systems based on their group number.
-		// The sort maintians ordering in the individual groups.
+		// The sort maintains ordering in the individual groups.
 		void sort_systems_by_group() {
 			std::stable_sort(systems.begin(), systems.end(), [](auto const& l, auto const& r) {
 				return l.get()->get_group() < r.get()->get_group();
