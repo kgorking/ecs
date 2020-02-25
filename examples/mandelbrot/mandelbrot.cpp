@@ -7,7 +7,7 @@
 
 constexpr size_t dimension = 500;
 
-auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color) noexcept {
+auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color) {
 	size_t constexpr max_iterations = 500;
 	double constexpr fr_w = 1.5;
 	double constexpr fr_h = 1.5;
