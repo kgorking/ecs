@@ -14,7 +14,7 @@ namespace ecs {
 namespace ecs::detail
 {
 	// The implementation of a system specialized on its components
-	template <class ExecutionPolicy, typename UpdatePrototype, class FirstComponent, class ...Components>
+	template <int Group, class ExecutionPolicy, typename UpdatePrototype, class FirstComponent, class ...Components>
 	class system_impl final : public system
 	{
 		// Determines if the first component is an entity
@@ -101,6 +101,10 @@ namespace ecs::detail
 					}
 				});
 			}
+		}
+
+		int get_group() const noexcept {
+			return Group;
 		}
 
 	private:

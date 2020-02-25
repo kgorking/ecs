@@ -36,6 +36,9 @@ namespace ecs
 		// Returns true if this system is enabled
 		bool is_enabled() const { return enabled; }
 
+		// Returns the group this system belongs to
+		virtual int get_group() const noexcept = 0;
+
 	private:
 		friend class detail::context;
 

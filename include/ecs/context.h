@@ -122,25 +122,25 @@ namespace ecs::detail {
 		}
 
 		// Const lambdas
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		template <int Group, typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
 		auto& create_system(System update_func, R(C::*)(Args...) const)
 		{
-			return create_system_impl<ExecutionPolicy, System, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, System, R, Args...>(update_func);
 		}
 
 		// Mutable lambdas
-		template <typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
+		template <int Group, typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
 		auto& create_system(System update_func, R(C::*)(Args...))
 		{
-			return create_system_impl<ExecutionPolicy, System, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, System, R, Args...>(update_func);
 		}
 
 	private:
-		template <typename ExecutionPolicy, typename System, typename R, typename FirstArg, typename ...Args>
+		template <int Group, typename ExecutionPolicy, typename System, typename R, typename FirstArg, typename ...Args>
 		auto& create_system_impl(System update_func)
 		{
 			// Set up the implementation
-			using typed_system_impl = system_impl<ExecutionPolicy, System, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
+			using typed_system_impl = system_impl<Group, ExecutionPolicy, System, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
@@ -170,7 +170,18 @@ namespace ecs::detail {
 			systems.push_back(std::move(sys));
 			system * ptr_system = systems.back().get();
 			Ensures(ptr_system != nullptr);
+
+			sort_systems_by_group();
+
 			return *ptr_system;
+		}
+
+		// Sorts the systems based on their group number.
+		// The sort maintains ordering in the individual groups.
+		void sort_systems_by_group() {
+			std::stable_sort(systems.begin(), systems.end(), [](auto const& l, auto const& r) {
+				return l.get()->get_group() < r.get()->get_group();
+			});
 		}
 
 		// Create a component pool for a new type
