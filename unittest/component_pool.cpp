@@ -8,7 +8,7 @@ struct ctr_counter {
 	inline static size_t move_count = 0;
 	inline static size_t dtr_count = 0;
 
-	ctr_counter() {
+	ctr_counter() noexcept {
 		def_ctr_count++;
 		ctr_count++;
 	}

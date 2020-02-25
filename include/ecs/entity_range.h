@@ -35,8 +35,8 @@ namespace ecs
 			using reference = const entity_id &;
 			using iterator_category = std::random_access_iterator_tag;
 
-			iterator() : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
-			iterator(entity_id ent) : ent_(ent) {}
+			iterator() noexcept : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
+			iterator(entity_id ent) noexcept : ent_(ent) {}
 			iterator& operator++() { ent_.id++; return *this; }
 			iterator operator++(int) { iterator retval = *this; ++(*this); return retval; }
 			iterator operator+(difference_type diff) const { return { ent_.id + diff }; }
