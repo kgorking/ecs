@@ -113,7 +113,8 @@ namespace ecs::detail {
 			}
 			else {
 				auto const index = find_entity_index(id);
-				return index ? &data[index.value()] : nullptr;
+				//return index ? &data[index.value()] : nullptr;
+				return index ? &data.at(index.value()) : nullptr;
 			}
 		}
 
