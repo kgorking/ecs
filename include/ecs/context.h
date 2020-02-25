@@ -122,25 +122,25 @@ namespace ecs::detail {
 		}
 
 		// Const lambdas
-		template <int Group, typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(Args...) const)
+		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
+		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const)
 		{
-			return create_system_impl<Group, ExecutionPolicy, System, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
 		}
 
 		// Mutable lambdas
-		template <int Group, typename ExecutionPolicy, typename System, typename R, typename C, typename ...Args>
-		auto& create_system(System update_func, R(C::*)(Args...))
+		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
+		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...))
 		{
-			return create_system_impl<Group, ExecutionPolicy, System, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
 		}
 
 	private:
-		template <int Group, typename ExecutionPolicy, typename System, typename R, typename FirstArg, typename ...Args>
-		auto& create_system_impl(System update_func)
+		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename FirstArg, typename ...Args>
+		auto& create_system_impl(UserUpdateFunc update_func)
 		{
 			// Set up the implementation
-			using typed_system_impl = system_impl<Group, ExecutionPolicy, System, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
+			using typed_system_impl = system_impl<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;

@@ -14,7 +14,7 @@ namespace ecs {
 namespace ecs::detail
 {
 	// The implementation of a system specialized on its components
-	template <int Group, class ExecutionPolicy, typename UpdatePrototype, class FirstComponent, class ...Components>
+	template <int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class ...Components>
 	class system_impl final : public system
 	{
 		// Determines if the first component is an entity
@@ -47,11 +47,11 @@ namespace ecs::detail
 		tup_pools const pools;
 
 		// The user supplied system
-		UpdatePrototype update_func;
+		UserUpdateFunc update_func;
 
 	public:
 		// Constructor for when the first argument to the system is _not_ an entity
-		system_impl(UpdatePrototype update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
+		system_impl(UserUpdateFunc update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
 			: pools{ first_pool, pools... }
 			, update_func{ update_func }
 		{
@@ -59,7 +59,7 @@ namespace ecs::detail
 		}
 
 		// Constructor for when the first argument to the system _is_ an entity
-		system_impl(UpdatePrototype update_func, pool<Components> ... pools)
+		system_impl(UserUpdateFunc update_func, pool<Components> ... pools)
 			: pools{ pools... }
 			, update_func{ update_func }
 		{
