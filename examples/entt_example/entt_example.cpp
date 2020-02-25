@@ -30,15 +30,16 @@ auto& update_pos = ecs::make_system([](position& pos, velocity const& vel, frame
 });
 
 int main() {
-	// Set up the components
-	ecs::entity_range{ 0, 9, [](ecs::entity_id ent) { return position{ ent.id * 1.f, ent.id * 1.f }; }, frame{} };
-	ecs::entity_range{ 0, 4, [](ecs::entity_id ent) { return velocity{ ent.id * 1.f, ent.id * 1.f }; } };
-	ecs::commit_changes();
+	// Set up the entities in range [0, 9]
+	ecs::entity_range const ents{ 0, 9,
+		[](ecs::entity_id ent) { return position{ ent.id * 1.f, ent.id * 1.f }; },
+		[](ecs::entity_id ent) { return velocity{ ent.id * 1.f, ent.id * 1.f }; },
+		frame{}
+	};
 
 	// Set the 'frame' delta time
 	ecs::get_shared_component<frame>().dt = 1.0f / 60.f;
 
 	// Run the systems
-	update_pos.update();
-	zero_vel.update();
+	ecs::update_systems();
 }

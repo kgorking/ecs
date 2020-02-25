@@ -12,9 +12,9 @@ int main()
 	});
 
 	// Set up 3 entities with their components
-	// This uses the entity_range class, which is just a
+	// This uses the entity_range class, which is a
 	// wrapper for the interface to allow easy usage
-	ecs::entity_range ents{ 0, 2, int{1} };
+	ecs::entity_range const ents{ 0, 2, int{1} };
 
 	// Commit the changes and run the systems
 	ecs::update_systems();
@@ -22,7 +22,7 @@ int main()
 
 
 	std::cout << "\n# 2. using a lambda to initialize components\n";
-	ecs::entity_range{ 3, 5, [](ecs::entity_id ent) -> int { return ent.id * 2; } };
+	ecs::entity_range const more_ents{ 3, 5, [](ecs::entity_id ent) -> int { return ent.id * 2; } };
 	ecs::update_systems();
 
 
