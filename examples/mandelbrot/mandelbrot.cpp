@@ -14,8 +14,8 @@ auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color) {
 	double constexpr fr_x = -2.2;
 	double constexpr fr_y = 1.2;
 
-	size_t x = ent.id % dimension;
-	size_t y = ent.id / dimension;
+	size_t const x = ent.id % dimension;
+	size_t const y = ent.id / dimension;
 
 	std::complex<double> c(static_cast<double>(x), static_cast<double>(y));
 

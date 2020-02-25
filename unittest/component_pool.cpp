@@ -211,7 +211,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add(-2, {});
 			pool.process_changes();
 
-			auto ev = pool.get_entities();
+			auto const ev = pool.get_entities();
 			REQUIRE(ev.front().first().id == -2);
 		}
 	}
