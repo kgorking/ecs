@@ -166,17 +166,16 @@ namespace ecs {
 		run_systems();
 	}
 
-	// Make a new system. It will process components in parallel.
-	template <detail::Lambda UserUpdateFunc>
-	auto& make_parallel_system(UserUpdateFunc update_func)
-	{
-		return detail::_context.create_system<std::execution::parallel_unsequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
+	// Make a new system
+	template <int Group = 0, detail::Lambda UserUpdateFunc>
+	auto& make_system(UserUpdateFunc update_func) {
+		return detail::_context.create_system<Group, std::execution::sequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 
-	// Make a new system
-	template <detail::Lambda UserUpdateFunc>
-	auto& make_system(UserUpdateFunc update_func)
+	// Make a new system. It will process components in parallel.
+	template <int Group = 0, detail::Lambda UserUpdateFunc>
+	auto& make_parallel_system(UserUpdateFunc update_func)
 	{
-		return detail::_context.create_system<std::execution::sequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
+		return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 }
