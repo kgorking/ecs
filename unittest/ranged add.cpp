@@ -22,7 +22,9 @@ TEST_CASE("Ranged add", "[range]")
 		ecs::detail::_context.reset();
 		ecs::detail::_context.init_component_pools<int>();
 
-		auto const init = [](auto ent) { return int{ ent * 2 }; };
+		auto const init = [](auto ent) -> int {
+			return ent * 2;
+		};
 
 		ecs::add_component({ 0, 5 }, init);
 		ecs::entity_range const ents{ 6, 10, init };

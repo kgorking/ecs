@@ -10,12 +10,12 @@ namespace ecs
 	{
 		// Uninitialized entity ids are not allowed, because they make no sense
 		entity_id() = delete;
-		entity_id(std::int32_t _id)
+		entity_id(std::int32_t _id) noexcept
 			: id(_id)
 		{ }
 
-		operator std::int32_t& () { return id; }
-		operator std::int32_t () const { return id; }
+		operator std::int32_t& () noexcept { return id; }
+		operator std::int32_t () const noexcept { return id; }
 
 	private:
 		std::int32_t id;
