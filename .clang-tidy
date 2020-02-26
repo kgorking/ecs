@@ -1,5 +1,5 @@
 ---
-Checks:          '*,-fuchsia-*,-google-*,-zircon-*,-abseil-*,-modernize-use-trailing-return-type,-llvm-*,-hicpp-braces-around-statements,-readability-magic-numbers,-cert-err58-cpp'
+Checks:          '*,-fuchsia-*,-google-*,-zircon-*,-abseil-*,-modernize-use-trailing-return-type,-llvm-*,-hicpp-braces-around-statements,-readability-magic-numbers,-cert-err58-cpp,-cppcoreguidelines-owning-memory'
 WarningsAsErrors: '1'
 HeaderFilterRegex: 'ecs\\include'
 FormatStyle:     none
