@@ -22,7 +22,7 @@ int main()
 
 
 	std::cout << "\n# 2. using a lambda to initialize components\n";
-	ecs::entity_range const more_ents{ 3, 5, [](ecs::entity_id ent) -> int { return ent.id * 2; } };
+	ecs::entity_range const more_ents{ 3, 5, [](ecs::entity_id ent) -> int { return ent * 2; } };
 	ecs::update_systems();
 
 
@@ -54,7 +54,7 @@ int main()
 
 	std::cout << "\n# 5. Accessing the entity id\n";
 	ecs::make_system([](ecs::entity_id ent, std::string const& s) {
-		std::cout << "entity with id " << ent.id << " is named " << s << '\n';
+		std::cout << "entity with id " << ent << " is named " << s << '\n';
 		});
 	ecs::update_systems();
 }

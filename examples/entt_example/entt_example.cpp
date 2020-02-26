@@ -32,8 +32,8 @@ auto& update_pos = ecs::make_system([](position& pos, velocity const& vel, frame
 int main() {
 	// Set up the entities in range [0, 9]
 	ecs::entity_range const ents{ 0, 9,
-		[](ecs::entity_id ent) { return position{ ent.id * 1.f, ent.id * 1.f }; },
-		[](ecs::entity_id ent) { return velocity{ ent.id * 1.f, ent.id * 1.f }; },
+		[](ecs::entity_id ent) { return position{ ent * 1.f, ent * 1.f }; },
+		[](ecs::entity_id ent) { return velocity{ ent * 1.f, ent * 1.f }; },
 		frame{}
 	};
 

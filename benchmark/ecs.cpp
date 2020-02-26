@@ -24,8 +24,8 @@ auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, shared_s co
 	constexpr double fr_x = -2.2;
 	constexpr double fr_y = 1.2;
 
-	size_t const x = ent.id % shared.dimension;
-	size_t const y = ent.id / shared.dimension;
+	size_t const x = ent % shared.dimension;
+	size_t const y = ent / shared.dimension;
 
 	std::complex<double> c(static_cast<double>(x), static_cast<double>(y));
 
@@ -55,7 +55,7 @@ void raw_update(benchmark::State& state) {
 
 		std::fill_n(colors.begin(), nentities, int{});
 		for (ecs::entity_id ent{ 0 }; ent < nentities; ent++) {
-			benchmark_system(ent, colors[ent.id], shared);
+			benchmark_system(ent, colors[ent], shared);
 		}
 	}
 }

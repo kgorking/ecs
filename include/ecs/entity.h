@@ -12,49 +12,49 @@ namespace ecs
 	// A simple helper class for easing the adding and removing of components
 	class entity final
 	{
-		entity_id id;
+		entity_id ent;
 
 	public:
 		template <typename ...Components>
 		entity(entity_id ent, Components &&... components)
-			: id(ent)
+			: ent(ent)
 		{
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
 		[[nodiscard]] entity_id get_id() const
 		{
-			return id;
+			return ent;
 		}
 
 		template <typename ...Components>
 		void add(Components &&... components)
 		{
-			(add_component<Components>(id, std::forward<Components>(components)), ...);
+			(add_component<Components>(ent, std::forward<Components>(components)), ...);
 		}
 
 		template <typename ...Component>
 		void add()
 		{
-			(add_component<Component>(id, Component{}), ...);
+			(add_component<Component>(ent, Component{}), ...);
 		}
 
 		template <typename ...Components>
 		void remove()
 		{
-			(remove_component<Components>(id), ...);
+			(remove_component<Components>(ent), ...);
 		}
 
 		template <typename ...Component>
 		[[nodiscard]] bool has() const
 		{
-			return (has_component<Component>(id) && ...);
+			return (has_component<Component>(ent) && ...);
 		}
 
 		template <typename Component>
 		[[nodiscard]] Component& get() const
 		{
-			return get_component<Component>(id);
+			return get_component<Component>(ent);
 		}
 	};
 }

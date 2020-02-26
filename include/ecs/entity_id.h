@@ -8,25 +8,16 @@ namespace ecs
 	// between entity ids and regular integers in system arguments
 	struct entity_id final
 	{
-		std::int32_t id;
-
-		// Uninitialized entity ids are not allowed, because it makes no sense
+		// Uninitialized entity ids are not allowed, because they make no sense
 		entity_id() = delete;
 		entity_id(std::int32_t _id)
 			: id(_id)
 		{ }
 
-		//auto operator <=> (entity_id const&) = default;
-		bool operator < (entity_id const& other) const { return id < other.id; }
-		bool operator <=(entity_id const& other) const { return id <= other.id; }
-		bool operator ==(entity_id const& other) const { return id == other.id; }
-		bool operator !=(entity_id const& other) const { return id != other.id; }
-		bool operator >=(entity_id const& other) const { return id >= other.id; }
-		bool operator > (entity_id const& other) const { return id > other.id; }
+		operator std::int32_t& () { return id; }
+		operator std::int32_t () const { return id; }
 
-		entity_id& operator ++() { ++id; return *this; }
-		entity_id& operator --() { --id; return *this; }
-		entity_id operator ++(int) { auto const copy = *this; id++; return copy; }
-		entity_id operator --(int) { auto const copy = *this; id--; return copy; }
+	private:
+		std::int32_t id;
 	};
 }

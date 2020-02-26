@@ -11,7 +11,7 @@ TEST_CASE("Mutable lambdas are supported", "[system]")
 		i = counter++;
 	});
 	ecs::make_system([](ecs::entity_id ent, int const& i) {
-		CHECK(ent.id == i);
+		CHECK(ent == i);
 	});
 
 	// Create 100 entities and add stuff to them

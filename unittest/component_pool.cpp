@@ -73,7 +73,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		}
 		SECTION("with a lambda is valid") {
 			ecs::detail::component_pool<int> pool;
-			pool.add_init({ 0, 9 }, [](ecs::entity_id ent) { return ent.id; });
+			pool.add_init({ 0, 9 }, [](ecs::entity_id ent) { return int{ ent }; });
 			pool.process_changes();
 
 			for (int i = 0; i <= 9; i++) {
@@ -92,7 +92,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("Removing components") {
 		ecs::detail::component_pool<int> pool;
-		pool.add_init({ 0, 10 }, [](auto ent) { return ent.id; });
+		pool.add_init({ 0, 10 }, [](auto ent) { return int{ ent }; });
 		pool.process_changes();
 
 		SECTION("from the back does not invalidate other components") {
@@ -129,7 +129,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("A non empty pool") {
 		ecs::detail::component_pool<int> pool;
-		pool.add_init({ 0, 9 }, [](auto ent) { return ent.id; });
+		pool.add_init({ 0, 9 }, [](auto ent) { return int{ ent }; });
 		pool.process_changes();
 
 		SECTION("has the correct entities") {
@@ -212,7 +212,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			auto const ev = pool.get_entities();
-			REQUIRE(ev.front().first().id == -2);
+			REQUIRE(ev.front().first() == -2);
 		}
 	}
 

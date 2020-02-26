@@ -29,26 +29,26 @@ namespace ecs
 
 		public:
 			// iterator traits
-			using difference_type = long;
+			using difference_type = std::int32_t;
 			using value_type = entity_id;
 			using pointer = const entity_id*;
 			using reference = const entity_id &;
 			using iterator_category = std::random_access_iterator_tag;
 
-			iterator() noexcept : ent_(std::numeric_limits<decltype(entity_id::id)>::max()) {}
+			iterator() noexcept : ent_(0) {}
 			iterator(entity_id ent) noexcept : ent_(ent) {}
-			iterator& operator++() { ent_.id++; return *this; }
+			iterator& operator++() { ent_++; return *this; }
 			iterator operator++(int) { iterator const retval = *this; ++(*this); return retval; }
-			iterator operator+(difference_type diff) const { return { ent_.id + diff }; }
-			iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
-			difference_type operator-(difference_type diff) const { return ent_.id - diff; }
-			difference_type operator-(iterator in_it) const { return ent_.id - in_it.ent_.id; }
+			iterator operator+(difference_type diff) const { return { ent_ + diff }; }
+			difference_type operator-(difference_type diff) const { return ent_ - diff; }
+			//iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
+			difference_type operator-(iterator in_it) const { return ent_ - in_it.ent_; }
 			bool operator==(iterator other) const { return ent_ == other.ent_; }
 			bool operator!=(iterator other) const { return !(*this == other); }
 			entity_id operator*() { return ent_; }
 		};
 		[[nodiscard]] iterator begin() const { return { first_ }; }
-		[[nodiscard]] iterator end() const { return { last_.id + 1 }; }
+		[[nodiscard]] iterator end() const { return { last_ + 1 }; }
 
 	public:
 		entity_range(entity_id first, entity_id last)
@@ -95,8 +95,8 @@ namespace ecs
 		// Returns the number of entities in this range
 		[[nodiscard]] size_t count() const
 		{
-			Expects(last_.id >= first_.id);
-			return static_cast<size_t>(last_.id) - first_.id + 1;
+			Expects(last_ >= first_);
+			return static_cast<size_t>(last_) - first_ + 1;
 		}
 
 		// Returns true if the ranges are identical
@@ -121,12 +121,12 @@ namespace ecs
 		[[nodiscard]] gsl::index offset(entity_id const ent) const
 		{
 			Expects(contains(ent));
-			return static_cast<gsl::index>(ent.id) - first_.id;
+			return static_cast<gsl::index>(ent) - first_;
 		}
 
 		[[nodiscard]] bool can_merge(entity_range const& other) const
 		{
-			return last_.id + 1 == other.first().id;
+			return last_ + 1 == other.first();
 		}
 
 		[[nodiscard]] bool overlaps(entity_range const& other) const
@@ -145,7 +145,7 @@ namespace ecs
 			// Remove from the front
 			if (other.first() == range.first()) {
 				return {
-					entity_range{ other.last().id + 1, range.last() },
+					entity_range{ other.last() + 1, range.last() },
 					std::nullopt
 				};
 			}
@@ -153,15 +153,15 @@ namespace ecs
 			// Remove from the back
 			if (other.last() == range.last()) {
 				return {
-					entity_range{ range.first(), other.first().id - 1 },
+					entity_range{ range.first(), other.first() - 1 },
 					std::nullopt
 				};
 			}
 
 			// Remove from the middle
 			return {
-				entity_range{ range.first(), other.first().id - 1 },
-				entity_range{ other.last().id + 1, range.last() }
+				entity_range{ range.first(), other.first() - 1 },
+				entity_range{ other.last() + 1, range.last() }
 			};
 		}
 
@@ -181,7 +181,7 @@ namespace ecs
 
 			entity_id const first{ std::max(range.first(), other.first()) };
 			entity_id const last { std::min(range.last(),  other.last()) };
-			Expects(last.id - first.id >= 0);
+			Expects(last - first >= 0);
 
 			return entity_range{ first, last };
 		}

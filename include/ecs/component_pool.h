@@ -348,7 +348,7 @@ namespace ecs::detail {
 						component_it = std::next(component_it, range.count());
 					};
 					auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
-						for (entity_id ent = range.first(); ent <= range.last(); ++ent.id) {
+						for (entity_id ent = range.first(); ent <= range.last(); ++ent) {
 							component_it = data.insert(component_it, init(ent));
 							component_it = std::next(component_it);
 						}
@@ -373,7 +373,7 @@ namespace ecs::detail {
 		void process_remove_components() {
 			// Transient components are removed each cycle
 			if constexpr (is_transient_v<T>) {
-				if (ranges.size() > 0) {
+				if (!ranges.empty()) {
 					ranges.clear();
 					data.clear();
 					set_data_removed();
