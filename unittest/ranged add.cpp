@@ -13,9 +13,10 @@ TEST_CASE("Ranged add", "[range]")
 		ecs::detail::_context.init_component_pools<range_add>();
 
 		ecs::add_component({ 0, 5 }, range_add{ 5 });
+		ecs::entity_range const ents{ 6, 10, range_add{ 5 } };
 		ecs::commit_changes();
 
-		for (ecs::entity_id i = 0; i < 5; ++i) {
+		for (ecs::entity_id i = 0; i <= 10; ++i) {
 			auto const& ra = *ecs::get_component<range_add>(i);
 			CHECK(ra.i == 5);
 		}

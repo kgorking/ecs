@@ -25,17 +25,22 @@ namespace ecs {
 			pool.add_init(range, val);
 		}
 		else {
-			static_assert(std::is_copy_constructible_v<T>, "A copy-constructor for type T is required for this function to work");
-
 			// Add it to the component pool
 			detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 			if constexpr (std::is_move_constructible_v<T>) {
 				pool.add(range, std::move(val));
 			}
 			else {
+				static_assert(std::is_copy_constructible_v<T>, "A copy-constructor for type T is required for this function to work");
 				pool.add(range, val);
 			}
 		}
+	}
+
+	// Adds several components to a range of entities. Calls 'add_component' for each component
+	template <typename ...T>
+	void add_components(entity_range const range, T... vals) {
+		(add_component(range, std::move(vals)), ...);
 	}
 
 	// Adds a component to an entity. Will not be added until 'commit_changes()' is called.
@@ -44,6 +49,12 @@ namespace ecs {
 	void add_component(entity_id const id, T val)
 	{
 		add_component({ id, id }, std::move(val));
+	}
+
+	// Adds several components to an entity. Calls 'add_component' for each component
+	template <typename ...T>
+	void add_components(entity_id const id, T... vals) {
+		(add_component(id, std::move(vals)), ...);
 	}
 
 	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is called.

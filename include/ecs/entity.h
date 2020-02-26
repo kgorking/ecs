@@ -30,13 +30,15 @@ namespace ecs
 		template <typename ...Components>
 		void add(Components &&... components)
 		{
-			(add_component<Components>(ent, std::forward<Components>(components)), ...);
+			//(add_component<Components>(ent, std::forward<Components>(components)), ...);
+			add_components(ent, std::forward<Components>(components)...);
 		}
 
-		template <typename ...Component>
+		template <typename ...Components>
 		void add()
 		{
-			(add_component<Component>(ent, Component{}), ...);
+			//(add_component<Components>(ent, Components{}), ...);
+			add_components(ent, Components{}...);
 		}
 
 		template <typename ...Components>
