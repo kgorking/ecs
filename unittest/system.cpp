@@ -85,7 +85,7 @@ TEST_CASE("System specification", "[system]") {
 		ecs::make_system<                              1>([&counter](S1&) { REQUIRE(counter == 1); counter++; });
 		ecs::make_system<std::numeric_limits<int>::min()>([&counter](Sx&) { REQUIRE(counter == 0); counter++; });
 
-		ecs::entity e{ 0, S1{}, S3{}, Sx{}, S2{} };
+		ecs::entity const e{ 0, S1{}, S3{}, Sx{}, S2{} };
 		ecs::update_systems();
 	}
 }

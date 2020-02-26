@@ -68,13 +68,14 @@ namespace ecs::detail
 
 		void update() override
 		{
-			if (!is_enabled())
+			if (!is_enabled()) {
 				return;
+			}
 
 			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
 				auto const& range = std::get<entity_range>(argument);
-				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first().id](auto ent) {
+				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first()](ecs::entity_id ent) {
 					// Small helper function
 					auto const extract_arg = [](auto ptr, /*[[maybe_unused]]*/ ptrdiff_t offset) {
 						using T = std::remove_cv_t<std::remove_reference_t<decltype(*ptr)>>;
@@ -89,7 +90,7 @@ namespace ecs::detail
 					};
 
 
-					auto const offset = ent.id - first_id;
+					auto const offset = ent - first_id;
 
 					if constexpr (is_first_arg_entity) {
 						update_func(ent,
@@ -103,7 +104,7 @@ namespace ecs::detail
 			}
 		}
 
-		int get_group() const noexcept override {
+		[[nodiscard]] int get_group() const noexcept override {
 			return Group;
 		}
 
@@ -116,14 +117,16 @@ namespace ecs::detail
 				return;
 			}
 
-			if (!is_enabled())
+			if (!is_enabled()) {
 				return;
+			}
 
 			auto constexpr is_pools_modified = [](auto ...pools) { return (pools->is_data_modified() || ...); };
 			bool const is_modified = std::apply(is_pools_modified, pools);
 	
-			if (is_modified)
+			if (is_modified) {
 				build_args();
+			}
 		}
 
 		void build_args()
@@ -145,20 +148,24 @@ namespace ecs::detail
 					auto constexpr intersector = [](entity_range_view view_a, entity_range_view view_b) {
 						std::vector<entity_range> result;
 
-						if (view_a.empty() || view_b.empty())
+						if (view_a.empty() || view_b.empty()) {
 							return result;
+						}
 
 						auto it_a = view_a.cbegin();
 						auto it_b = view_b.cbegin();
 
 						while (it_a != view_a.cend() && it_b != view_b.cend()) {
-							if (it_a->overlaps(*it_b))
+							if (it_a->overlaps(*it_b)) {
 								result.push_back(entity_range::intersect(*it_a, *it_b));
+							}
 
-							if (it_a->last() < it_b->last()) // range a is inside range b, move to the next range in a
+							if (it_a->last() < it_b->last()) { // range a is inside range b, move to the next range in a
 								++it_a;
-							else if (it_b->last() < it_a->last()) // range b is inside range a, move to the next range in b
+							}
+							else if (it_b->last() < it_a->last()) { // range b is inside range a, move to the next range in b
 								++it_b;
+							}
 							else { // ranges are equal, move to next ones
 								++it_a;
 								++it_b;
@@ -185,21 +192,23 @@ namespace ecs::detail
 			// Build the arguments for the ranges
 			arguments.clear();
 			for (auto const& range : entities) {
-				if constexpr (is_first_arg_entity)
-					arguments.emplace_back(range,                                               get_component<Components>(range.first())...);
-				else
+				if constexpr (is_first_arg_entity) {
+					arguments.emplace_back(range, get_component<Components>(range.first())...);
+				}
+				else {
 					arguments.emplace_back(range, get_component<FirstComponent>(range.first()), get_component<Components>(range.first())...);
+				}
 			}
 		}
 
 		template <typename Component>
-		component_pool<Component>& get_pool() const
+		[[nodiscard]] component_pool<Component>& get_pool() const
 		{
 			return *std::get<pool<Component>>(pools);
 		}
 
 		template <typename Component>
-		Component* get_component(entity_id const entity)
+		[[nodiscard]] Component* get_component(entity_id const entity)
 		{
 			return get_pool<Component>().find_component_data(entity);
 		}
