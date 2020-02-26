@@ -10,6 +10,7 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
+      "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "intelliSenseMode": "windows-clang-x64",
       "variables": [
         {
@@ -38,6 +39,7 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
+      "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
@@ -116,35 +118,5 @@
       ],
       "intelliSenseMode": "windows-clang-x64"
     },
-    {
-      "name": "x64-Static-Analysis",
-      "generator": "Ninja",
-      "configurationType": "Release",
-      "buildRoot": "${projectDir}\\out\\build\\${name}",
-      "installRoot": "${projectDir}\\out\\install\\${name}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "",
-      "ctestCommandArgs": "",
-      "enableClangTidyCodeAnalysis": true,
-      "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": [
-        {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "GSL_CXX_STANDARD",
-          "value": "17",
-          "type": "STRING"
-        }
-      ],
-      "intelliSenseMode": "windows-msvc-x64"
-    }
   ]
 }
