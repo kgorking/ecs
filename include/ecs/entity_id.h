@@ -4,6 +4,7 @@
 
 namespace ecs
 {
+	// A simple struct that is an entity identifier.
 	// Use a struct so the typesystem can differentiate
 	// between entity ids and regular integers in system arguments
 	struct entity_id final
