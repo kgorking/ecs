@@ -26,7 +26,7 @@ namespace ecs
 
 		entity_id& operator ++() { ++id; return *this; }
 		entity_id& operator --() { --id; return *this; }
-		entity_id operator ++(int) { auto copy = *this; id++; return copy; }
-		entity_id operator --(int) { auto copy = *this; id--; return copy; }
+		entity_id operator ++(int) { auto const copy = *this; id++; return copy; }
+		entity_id operator --(int) { auto const copy = *this; id--; return copy; }
 	};
 }

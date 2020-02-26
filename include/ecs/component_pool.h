@@ -62,7 +62,7 @@ namespace ecs::detail {
 
 			if constexpr (is_static) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
-				if (data.size() == 0) {
+				if (data.empty()) {
 					data.emplace_back(std::move(component));
 				}
 
@@ -76,7 +76,7 @@ namespace ecs::detail {
 		// Returns the shared component
 		template <typename XT = T, typename = std::enable_if_t<is_shared_v<XT> || is_tagged_v<XT>>>
 		T& get_shared_component() const {
-			if (data.size() == 0) {
+			if (data.empty()) {
 				data.emplace_back(T{});
 			}
 
@@ -90,11 +90,12 @@ namespace ecs::detail {
 
 		// Remove an entity from the component pool. This logically removes the component from the entity.
 		void remove_range(entity_range const range) {
-			if (!has_entity(range))
+			if (!has_entity(range)) {
 				return;
+			}
 
 			auto& rem = deferred_removes.local();
-			if (rem.size() > 0 && rem.back().can_merge(range)) {
+			if (!rem.empty() && rem.back().can_merge(range)) {
 				rem.back() = entity_range::merge(rem.back(), range);
 			}
 			else {
@@ -168,12 +169,14 @@ namespace ecs::detail {
 
 		// Returns true if an entity range has data in this pool
 		bool has_entity(entity_range const& range) const {
-			if (ranges.empty())
+			if (ranges.empty()) {
 				return false;
+			}
 
 			for (entity_range const& r : ranges) {
-				if (r.contains(range))
+				if (r.contains(range)) {
 					return true;
+				}
 			}
 
 			return false;
@@ -186,12 +189,14 @@ namespace ecs::detail {
 
 		// Checks the current threads queue for the entity
 		bool is_queued_add(entity_range const& range) {
-			if (deferred_adds.local().empty())
+			if (deferred_adds.local().empty()) {
 				return false;
+			}
 
 			for (auto const& ents : deferred_adds.local()) {
-				if (std::get<0>(ents).contains(range))
+				if (std::get<0>(ents).contains(range)) {
 					return true;
+				}
 			}
 
 			return false;
@@ -218,7 +223,7 @@ namespace ecs::detail {
 		// Clear all entities from the pool
 		void clear() override {
 			// Remember is data was removed from the pool
-			bool const is_removed = data.size() > 0;
+			bool const is_removed = !data.empty();
 
 			// Clear the pool
 			ranges.clear();
@@ -254,8 +259,9 @@ namespace ecs::detail {
 		// Searches for an entitys offset in to the component pool.
 		// Returns nothing if 'ent' is not a valid entity
 		std::optional<size_t> find_entity_index(entity_id const ent) const {
-			if (ranges.size() == 0 || !has_entity(ent))
+			if (ranges.empty() || !has_entity(ent)) {
 				return {};
+			}
 
 			// Run through the ranges
 			size_t index = 0;
@@ -276,11 +282,13 @@ namespace ecs::detail {
 		void process_add_components() {
 			// Combine the data in to a single vector
 			std::vector<entity_data> adds;
-			for (auto& vec : deferred_adds)
+			for (auto& vec : deferred_adds) {
 				std::move(vec.begin(), vec.end(), std::back_inserter(adds));
+			}
 
-			if (adds.empty())
+			if (adds.empty()) {
 				return;
+			}
 
 			// Check the 'add*' functions precondition.
 			// An entity can not have more than one of the same component
@@ -298,13 +306,14 @@ namespace ecs::detail {
 			auto constexpr comparator = [](entity_data const& l, entity_data const& r) {
 				return std::get<0>(l).first() < std::get<0>(r).first();
 			};
-			if (!std::is_sorted(adds.begin(), adds.end(), comparator))
+			if (!std::is_sorted(adds.begin(), adds.end(), comparator)) {
 				std::sort(adds.begin(), adds.end(), comparator);
+			}
 
 			// Small helper function for combining ranges
 			auto const add_range = [](std::vector<entity_range>& dest, entity_range const& range) {
 				// Merge the range or add it
-				if (dest.size() > 0 && dest.back().can_merge(range)) {
+				if (!dest.empty() && dest.back().can_merge(range)) {
 					dest.back() = entity_range::merge(dest.back(), range);
 				}
 				else {
@@ -317,7 +326,7 @@ namespace ecs::detail {
 			auto ranges_it = ranges.cbegin();
 			[[maybe_unused]] auto component_it = data.cbegin();
 			for (auto const& add : adds) {
-				entity_range const range = std::get<0>(add);
+				entity_range const& range = std::get<0>(add);
 
 				// Copy the current ranges while looking for an insertion point
 				while (ranges_it != ranges.cend() && (*ranges_it < range)) {
@@ -373,11 +382,13 @@ namespace ecs::detail {
 			else {
 				// Combine the vectors
 				std::vector<entity_range> removes;
-				for (auto& vec : deferred_removes)
+				for (auto& vec : deferred_removes) {
 					std::move(vec.begin(), vec.end(), std::back_inserter(removes));
+				}
 
-				if (removes.empty())
+				if (removes.empty()) {
 					return;
+				}
 
 				// Clear the current removes
 				deferred_removes.clear();
@@ -389,8 +400,9 @@ namespace ecs::detail {
 				Expects(false == has_duplicate_entities(removes));
 
 				// Sort it if needed
-				if (!std::is_sorted(removes.begin(), removes.end()))
+				if (!std::is_sorted(removes.begin(), removes.end())) {
 					std::sort(removes.begin(), removes.end());
+				}
 
 				// Erase the ranges data
 				if constexpr (!is_static) {
@@ -427,28 +439,31 @@ namespace ecs::detail {
 
 				// Remove the ranges
 				auto curr_range = ranges.begin();
-				for (auto it = removes.begin(); it != removes.end(); ++it) {
+				for (auto const& remove : removes) {
 					// Step forward until a candidate range is found
-					while (!curr_range->contains(*it) && curr_range != ranges.end())
+					while (!curr_range->contains(remove) && curr_range != ranges.end()) {
 						++curr_range;
+					}
 
-					if (curr_range == ranges.end())
+					if (curr_range == ranges.end()) {
 						break;
+					}
 
 					// Erase the current range if it equals the range to be removed
-					if (curr_range->equals(*it)) {
+					if (curr_range->equals(remove)) {
 						curr_range = ranges.erase(curr_range);
 					}
 					else {
 						// Do the removal
-						auto result = entity_range::remove(*curr_range, *it);
+						auto result = entity_range::remove(*curr_range, remove);
 
 						// Update the modified range
 						*curr_range = result.first;
 
 						// If the range was split, add the other part of the range
-						if (result.second.has_value())
+						if (result.second.has_value()) {
 							curr_range = ranges.insert(curr_range + 1, result.second.value());
+						}
 					}
 				}
 

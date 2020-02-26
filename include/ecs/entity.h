@@ -4,10 +4,10 @@
 namespace ecs
 {
 	// Forward declarations
-	template <typename T> void add_component(entity_id const id, T val);
-	template <typename T> void remove_component(entity_id const id);
-	template <typename T> bool has_component(entity_id const id);
-	template <typename T> T* get_component(entity_id const id);
+	template <typename T> void add_component(entity_id id, T val);
+	template <typename T> void remove_component(entity_id id);
+	template <typename T> bool has_component(entity_id id);
+	template <typename T> T* get_component(entity_id id);
 
 	// A simple helper class for easing the adding and removing of components
 	class entity final
@@ -22,7 +22,7 @@ namespace ecs
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
-		entity_id get_id() const
+		[[nodiscard]] entity_id get_id() const
 		{
 			return id;
 		}
@@ -46,13 +46,13 @@ namespace ecs
 		}
 
 		template <typename ...Component>
-		bool has() const
+		[[nodiscard]] bool has() const
 		{
 			return (has_component<Component>(id) && ...);
 		}
 
 		template <typename Component>
-		Component& get() const
+		[[nodiscard]] Component& get() const
 		{
 			return get_component<Component>(id);
 		}

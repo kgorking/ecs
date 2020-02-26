@@ -125,8 +125,7 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "enableMicrosoftCodeAnalysis": true,
-      "codeAnalysisRuleset": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Preview\\Team Tools\\Static Analysis Tools\\Rule Sets\\AllRules.ruleset",
+      "enableClangTidyCodeAnalysis": true,
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {

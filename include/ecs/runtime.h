@@ -29,10 +29,12 @@ namespace ecs {
 
 			// Add it to the component pool
 			detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-			if constexpr (std::is_move_constructible_v<T>)
+			if constexpr (std::is_move_constructible_v<T>) {
 				pool.add(range, std::move(val));
-			else
+			}
+			else {
 				pool.add(range, val);
+			}
 		}
 	}
 
@@ -78,8 +80,9 @@ namespace ecs {
 		static_assert(detail::is_shared_v<T>, "Component has not been marked as shared. Add 'ecs_flags(ecs::shared);' to make it a shared component.");
 
 		// Get the pool
-		if (!detail::_context.has_component_pool(typeid(T)))
+		if (!detail::_context.has_component_pool(typeid(T))) {
 			detail::_context.init_component_pools<T>();
+		}
 		return detail::_context.get_component_pool<T>().get_shared_component();
 	}
 
