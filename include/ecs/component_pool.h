@@ -428,12 +428,12 @@ namespace ecs::detail {
 				// Remove the ranges
 				auto curr_range = ranges.begin();
 				for (auto it = removes.begin(); it != removes.end(); ++it) {
+					// Step forward until a candidate range is found
+					while (!curr_range->contains(*it) && curr_range != ranges.end())
+						++curr_range;
+
 					if (curr_range == ranges.end())
 						break;
-
-					// Step forward until a candidate range is found
-					while (!curr_range->contains(*it))
-						++curr_range;
 
 					// Erase the current range if it equals the range to be removed
 					if (curr_range->equals(*it)) {
