@@ -212,7 +212,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			auto ev = pool.get_entities();
-			REQUIRE(ev[0].first().id == -2);
+			REQUIRE(ev.front().first().id == -2);
 		}
 	}
 

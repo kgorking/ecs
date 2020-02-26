@@ -103,7 +103,7 @@ namespace ecs::detail
 			}
 		}
 
-		int get_group() const noexcept {
+		int get_group() const noexcept override {
 			return Group;
 		}
 
