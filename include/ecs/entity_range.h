@@ -7,7 +7,7 @@ namespace ecs
 {
 	// Forward decls
 	class entity_range;
-	template <typename T>  void add_component(entity_range range, T val);
+	template <typename T>  void add_component(entity_range range, T&& val);
 	template <typename T>  void remove_component(entity_range range);
 	template <typename T>  bool has_component(entity_range range);
 	template <typename T>  T* get_component(entity_id id);
@@ -215,7 +215,7 @@ namespace ecs
 		template <typename Component>
 		[[nodiscard]] gsl::span<Component> get() const
 		{
-			return gsl::make_span(get_component<Component>(first_), count());
+			return gsl::span(get_component<Component>(first_), count());
 		}
 	};
 }

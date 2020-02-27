@@ -43,7 +43,7 @@ int main()
 	ecs::make_system(mandelbrot_system);
 
 	// Add the size_t component to the pixels/entities
-	ecs::entity_range ents{ 0, dimension*dimension,
+	ecs::entity_range const ents{ 0, dimension*dimension,
 		size_t{ 0 },
 		[](ecs::entity_id ent) -> pos {
 			int const x = ent % dimension;

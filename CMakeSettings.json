@@ -11,7 +11,7 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
-      "intelliSenseMode": "windows-clang-x64",
+      "intelliSenseMode": "windows-msvc-x64",
       "variables": [
         {
           "name": "BENCHMARK_ENABLE_INSTALL",
@@ -58,7 +58,7 @@
           "type": "STRING"
         }
       ],
-      "intelliSenseMode": "windows-clang-x64"
+      "intelliSenseMode": "windows-msvc-x64"
     },
     {
       "name": "x64-Debug-clang",
@@ -87,7 +87,7 @@
           "type": "STRING"
         }
       ],
-      "intelliSenseMode": "windows-clang-x64"
+      "intelliSenseMode": "windows-msvc-x64"
     },
     {
       "name": "x64-Release-clang",
@@ -116,7 +116,7 @@
           "type": "STRING"
         }
       ],
-      "intelliSenseMode": "windows-clang-x64"
-    },
+      "intelliSenseMode": "windows-msvc-x64"
+    }
   ]
 }
