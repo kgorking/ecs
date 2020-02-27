@@ -4,7 +4,7 @@
 namespace ecs
 {
 	// Forward declarations
-	template <typename T> void add_component(entity_id id, T val);
+	template <typename T> void add_component(entity_id id, T&& val);
 	template <typename T> void remove_component(entity_id id);
 	template <typename T> bool has_component(entity_id id);
 	template <typename T> T* get_component(entity_id id);

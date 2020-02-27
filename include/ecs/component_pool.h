@@ -4,12 +4,14 @@
 #include <variant>
 #include <utility>
 #include <cassert>
+#include <execution>
 
 #include "../threaded/threaded/threaded.h"
 #include "component_pool_base.h"
 #include "component_specifier.h"
 #include "entity_range.h"
 
+#define CP_CHECK_PRECOND 1
 
 namespace ecs::detail {
 	// For std::visit
@@ -27,21 +29,18 @@ namespace ecs::detail {
 		// Adds a component to an entity.
 		// Pre: entity has not already been added, or is in queue to be added.
 		//      This condition will not be checked until 'process_changes' is called.
-		void add(entity_id const id, T component) {
-			add({ id, id }, std::move(component));
+		void add(entity_id const id, T&& component) {
+			add({ id, id }, std::forward<T>(component));
 		}
 
 		// Adds a component to a range of entities, initialized by the supplied user function
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
 		template <typename Fn>
-		void add_init(entity_range const range, Fn init) {
-			Expects(!has_entity(range));
-			Expects(!is_queued_add(range));
-
+		void add_init(entity_range const range, Fn&& init) {
 			if constexpr (is_static) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
-				if (data.size() == 0) {
+				if (data.empty()) {
 					data.emplace_back(init(0));
 				}
 
@@ -49,27 +48,24 @@ namespace ecs::detail {
 			}
 			else {
 				// Add the id and data to a temp storage
-				deferred_adds.local().emplace_back(range, std::function<T(ecs::entity_id)>{ init });
+				deferred_adds.local().emplace_back(range, std::function<T(ecs::entity_id)>{ std::forward<Fn>(init) });
 			}
 		}
 
 		// Adds a component to a range of entity.
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
-		void add(entity_range const range, T component) {
-			Expects(!has_entity(range));
-			Expects(!is_queued_add(range));
-
+		void add(entity_range const range, T&& component) {
 			if constexpr (is_static) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.empty()) {
-					data.emplace_back(std::move(component));
+					data.emplace_back(std::forward<T>(component));
 				}
 
 				deferred_adds.local().push_back(range);
 			}
 			else {
-				deferred_adds.local().emplace_back(range, std::move(component));
+				deferred_adds.local().emplace_back(range, std::forward<T>(component));
 			}
 		}
 
@@ -290,15 +286,6 @@ namespace ecs::detail {
 				return;
 			}
 
-			// Check the 'add*' functions precondition.
-			// An entity can not have more than one of the same component
-			auto const has_duplicate_entities = [](auto const& vec) {
-				return vec.end() != std::adjacent_find(vec.begin(), vec.end(), [](auto const& l, auto const& r) {
-					return std::get<0>(l) == std::get<0>(r);
-				});
-			};
-			Expects(false == has_duplicate_entities(adds));
-
 			// Clear the current adds
 			deferred_adds.clear();
 
@@ -309,6 +296,15 @@ namespace ecs::detail {
 			if (!std::is_sorted(adds.begin(), adds.end(), comparator)) {
 				std::sort(adds.begin(), adds.end(), comparator);
 			}
+
+			// Check the 'add*' functions precondition.
+			// An entity can not have more than one of the same component
+			auto const has_duplicate_entities = [](auto const& vec) {
+				return vec.end() != std::adjacent_find(vec.begin(), vec.end(), [](auto const& l, auto const& r) {
+					return std::get<0>(l) == std::get<0>(r);
+				});
+			};
+			Expects(false == has_duplicate_entities(adds));
 
 			// Small helper function for combining ranges
 			auto const add_range = [](std::vector<entity_range>& dest, entity_range const& range) {
@@ -325,7 +321,7 @@ namespace ecs::detail {
 			std::vector<entity_range> new_ranges;
 			auto ranges_it = ranges.cbegin();
 			[[maybe_unused]] auto component_it = data.cbegin();
-			for (auto const& add : adds) {
+			for (auto& add : adds) {
 				entity_range const& range = std::get<0>(add);
 
 				// Copy the current ranges while looking for an insertion point
@@ -338,24 +334,28 @@ namespace ecs::detail {
 					add_range(new_ranges, *ranges_it++);
 				}
 
+				// New range must not already exist in the pool
+				if (ranges_it != ranges.cend())
+					Expects(false == ranges_it->overlaps(range));
+
 				// Add the new range
 				add_range(new_ranges, range);
 
 				if constexpr (!is_static) {
 					// Add the new components
-					auto const add_val = [this, &component_it, range](T const& val) {
-						component_it = data.insert(component_it, range.count(), val);
+					auto const add_val = [this, &component_it, range](T&& val) {
+						component_it = data.insert(component_it, range.count(), std::forward<T>(val));
 						component_it = std::next(component_it, range.count());
 					};
 					auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
 						for (entity_id ent = range.first(); ent <= range.last(); ++ent) {
-							component_it = data.insert(component_it, init(ent));
+							component_it = data.emplace(component_it, init(ent));
 							component_it = std::next(component_it);
 						}
 					};
 
-					component_val const& component = std::get<1>(add);
-					std::visit(detail::overloaded{ add_val, add_init }, component);
+					component_val& component = std::get<1>(add);
+					std::visit(detail::overloaded{ add_val, add_init }, std::move(component));
 				}
 			}
 

@@ -4,13 +4,20 @@
 #include <ecs/ecs.h>
 #include "gbench/include/benchmark/benchmark.h"
 
-//size_t constexpr start_range = 4096;
-//size_t constexpr end_range = 1024 * 1024;
-size_t constexpr start_range = 32;
-//size_t constexpr end_range = 256 * 1024;
-//size_t constexpr start_range = 256 * 1024;
-size_t constexpr end_range = 16 * 1024 * 1024;
-//size_t constexpr end_range = 1024 * 1024 * 1024;  // 1 billion entities
+//size_t constexpr num_components = 32;
+//size_t constexpr num_components = 4 * 1024;
+//size_t constexpr num_components = 32 * 1024;
+size_t constexpr num_components = 256 * 1024;
+//size_t constexpr num_components = 1024 * 1024;
+//size_t constexpr num_components = 16 * 1024 * 1024;
+//size_t constexpr num_components = 1024 * 1024 * 1024;  // 1 billion entities
+
+// 514868000 ns
+// 459405950 ns
+// 463761700 ns
+// 602081200 ns
+// 522946700 ns
+// 498973400 ns
 
 struct shared_s {
 	ecs_flags(ecs::shared);
@@ -18,7 +25,7 @@ struct shared_s {
 };
 
 auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, shared_s const& shared) {
-	constexpr int max_iterations = 500;
+	constexpr int max_iterations = 50;
 	constexpr double fr_w = 1.5;
 	constexpr double fr_h = 1.5;
 	constexpr double fr_x = -2.2;
@@ -59,7 +66,7 @@ void raw_update(benchmark::State& state) {
 		}
 	}
 }
-BENCHMARK(raw_update)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(raw_update)->Range(num_components, num_components);
 
 void system_update(benchmark::State& state) {
 	auto const nentities = gsl::narrow_cast<int32_t>(state.range(0));
@@ -71,13 +78,11 @@ void system_update(benchmark::State& state) {
 
 		ecs::make_system(benchmark_system);
 
-		ecs::add_component({0, nentities}, shared_s{});
-		ecs::add_component({0, nentities}, int{});
-		ecs::commit_changes();
-		ecs::run_systems();
+		ecs::add_components({0, nentities}, int{}, shared_s{});
+		ecs::update_systems();
 	}
 }
-BENCHMARK(system_update)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(system_update)->Range(num_components, num_components);
 
 void system_update_parallel(benchmark::State& state) {
 	auto const nentities = gsl::narrow_cast<int32_t>(state.range(0));
@@ -93,66 +98,38 @@ void system_update_parallel(benchmark::State& state) {
 		ecs::run_systems();
 	}
 }
-BENCHMARK(system_update_parallel)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(system_update_parallel)->Range(num_components, num_components);
 
 void component_add(benchmark::State& state) {
 	auto const nentities = gsl::narrow_cast<int32_t>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		state.PauseTiming();
-		ecs::detail::_context.reset();
-		ecs::detail::_context.init_component_pools<float>();
-		ecs::make_system([](ecs::entity ent, size_t const& /*unused*/) {
-			ent.add(0.0f);
-		});
+			ecs::detail::_context.reset();
+			ecs::make_system([](ecs::entity ent, size_t const& /*unused*/) { });
 		state.ResumeTiming();
 
 		ecs::add_component({ 0, nentities }, size_t{});
 		ecs::commit_changes();
-
-		ecs::run_systems();		// adds the floats
-		ecs::commit_changes();	// commits them to the runtime
 	}
 }
-BENCHMARK(component_add)->RangeMultiplier(2)->Range(start_range, end_range);
-
-void component_add_parallel(benchmark::State& state) {
-	auto const nentities = gsl::narrow_cast<int32_t>(state.range(0));
-
-	for ([[maybe_unused]] auto const _ : state) {
-		state.PauseTiming();
-		ecs::detail::_context.reset();
-		ecs::detail::_context.init_component_pools<float>();
-		ecs::make_parallel_system([](ecs::entity ent, size_t const& /*unused*/) {
-			ent.add(0.0f);
-		});
-		state.ResumeTiming();
-
-		ecs::add_component({ 0, nentities }, size_t{});
-		ecs::commit_changes();
-
-		ecs::run_systems();		// adds the floats
-		ecs::commit_changes();	// commits them to the runtime
-	}
-}
-BENCHMARK(component_add_parallel)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(component_add)->Range(num_components, num_components);
 
 void component_randomized_add(benchmark::State& state) {
 	auto const nentities = gsl::narrow_cast<int32_t>(state.range(0));
+
+	std::vector<ecs::entity_id> ids;
+	ids.reserve(nentities);
+	std::generate_n(std::back_inserter(ids), nentities, [i = std::int32_t{ 0 }]() mutable { return i++; });
+	std::random_device rd;
+	std::mt19937 g(rd());
+	std::shuffle(ids.begin(), ids.end(), g);
 
 	for ([[maybe_unused]] auto const _ : state) {
 		state.PauseTiming();
 			ecs::detail::_context.reset();
 			ecs::make_system(benchmark_system);
 			ecs::get_shared_component<shared_s>().dimension = nentities;
-
-			std::vector<ecs::entity_id> ids;
-			ids.reserve(nentities);
-			std::generate_n(std::back_inserter(ids), nentities, [i = std::int32_t{ 0 }]() mutable { return i++; });
-
-			std::random_device rd;
-			std::mt19937 g(rd());
-			std::shuffle(ids.begin(), ids.end(), g);
 		state.ResumeTiming();
 
 		for (auto id : ids) {
@@ -161,7 +138,7 @@ void component_randomized_add(benchmark::State& state) {
 		ecs::commit_changes();
 	}
 }
-BENCHMARK(component_randomized_add)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(component_randomized_add)->Range(num_components, num_components);
 
 void component_remove(benchmark::State& state) {
 	auto const nentities = gsl::narrow_cast<int32_t>(state.range(0));
@@ -180,4 +157,4 @@ void component_remove(benchmark::State& state) {
 		ecs::commit_changes();
 	}
 }
-BENCHMARK(component_remove)->RangeMultiplier(2)->Range(start_range, end_range);
+BENCHMARK(component_remove)->Range(num_components, num_components);

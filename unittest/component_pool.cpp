@@ -164,7 +164,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			int const* org_p = pool.find_component_data(0);
 
 			for (int i = 10; i < 32; i++) {
-				pool.add(i, i);
+				pool.add(i, std::move(i));
 				pool.process_changes();
 			}
 
