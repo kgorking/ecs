@@ -126,18 +126,18 @@ namespace ecs::detail {
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const)
 		{
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 		// Mutable lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...))
 		{
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 	private:
-		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename FirstArg, typename ...Args>
+		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg, typename ...Args>
 		auto& create_system_impl(UserUpdateFunc update_func)
 		{
 			// Set up the implementation
