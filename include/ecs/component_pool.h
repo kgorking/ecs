@@ -5,7 +5,7 @@
 #include <utility>
 #include <cassert>
 #include <concepts>
-#include <execution>
+//#include <execution>
 
 #include "../threaded/threaded/threaded.h"
 #include "component_pool_base.h"
@@ -36,7 +36,7 @@ namespace ecs::detail {
 		//      This condition will not be checked until 'process_changes' is called.
 		template <typename Fn>
 		void add_init(entity_range const range, Fn&& init) {
-			if constexpr (is_static) {
+			if constexpr (is_static_component) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.empty()) {
 					data.emplace_back(init(0));
@@ -54,7 +54,7 @@ namespace ecs::detail {
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
 		void add(entity_range const range, T&& component) {
-			if constexpr (is_static) {
+			if constexpr (is_static_component) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.empty()) {
 					data.emplace_back(std::forward<T>(component));
@@ -369,7 +369,7 @@ namespace ecs::detail {
 		void process_remove_components() {
 			// Transient components are removed each cycle
 			if constexpr (detail::Transient<T>) {
-				if (ranges.size() > 0) {
+				if (!ranges.empty()) {
 					ranges.clear();
 					data.clear();
 					set_data_removed();
