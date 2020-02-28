@@ -17,7 +17,7 @@ int main()
 	ecs::make_system([](Name const& name, flameable_t)  { std::cout << "  flammeable: " << name << "\n"; });
 
 	// Set up the entities with a name and tags
-	ecs::entity
+	ecs::entity const
 		jon{ 0, Name{ "Jon" }, freezeable_t{} },
 		sean{ 1, Name{ "Sean" }, flameable_t{} },
 		jimmy{ 2, Name{ "Jimmy" }, shockable_t{} },

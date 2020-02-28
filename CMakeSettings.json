@@ -10,7 +10,8 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "intelliSenseMode": "windows-clang-x64",
+      "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
+      "intelliSenseMode": "windows-msvc-x64",
       "variables": [
         {
           "name": "BENCHMARK_ENABLE_INSTALL",
@@ -38,6 +39,7 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
+      "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
@@ -56,7 +58,7 @@
           "type": "STRING"
         }
       ],
-      "intelliSenseMode": "windows-clang-x64"
+      "intelliSenseMode": "windows-msvc-x64"
     },
     {
       "name": "x64-Debug-clang",
@@ -85,7 +87,7 @@
           "type": "STRING"
         }
       ],
-      "intelliSenseMode": "windows-clang-x64"
+      "intelliSenseMode": "windows-msvc-x64"
     },
     {
       "name": "x64-Release-clang",
@@ -97,37 +99,6 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "clang_cl_x64" ],
-      "variables": [
-        {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "GSL_CXX_STANDARD",
-          "value": "17",
-          "type": "STRING"
-        }
-      ],
-      "intelliSenseMode": "windows-clang-x64"
-    },
-    {
-      "name": "x64-Static-Analysis",
-      "generator": "Ninja",
-      "configurationType": "Release",
-      "buildRoot": "${projectDir}\\out\\build\\${name}",
-      "installRoot": "${projectDir}\\out\\install\\${name}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "",
-      "ctestCommandArgs": "",
-      "enableMicrosoftCodeAnalysis": true,
-      "codeAnalysisRuleset": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Preview\\Team Tools\\Static Analysis Tools\\Rule Sets\\AllRules.ruleset",
-      "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
           "name": "BENCHMARK_ENABLE_INSTALL",

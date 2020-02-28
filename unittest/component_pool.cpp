@@ -8,7 +8,7 @@ struct ctr_counter {
 	inline static size_t move_count = 0;
 	inline static size_t dtr_count = 0;
 
-	ctr_counter() {
+	ctr_counter() noexcept {
 		def_ctr_count++;
 		ctr_count++;
 	}
@@ -73,7 +73,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		}
 		SECTION("with a lambda is valid") {
 			ecs::detail::component_pool<int> pool;
-			pool.add_init({ 0, 9 }, [](ecs::entity_id ent) { return ent.id; });
+			pool.add_init({ 0, 9 }, [](ecs::entity_id ent) { return int{ ent }; });
 			pool.process_changes();
 
 			for (int i = 0; i <= 9; i++) {
@@ -92,7 +92,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("Removing components") {
 		ecs::detail::component_pool<int> pool;
-		pool.add_init({ 0, 10 }, [](auto ent) { return ent.id; });
+		pool.add_init({ 0, 10 }, [](auto ent) { return int{ ent }; });
 		pool.process_changes();
 
 		SECTION("from the back does not invalidate other components") {
@@ -129,7 +129,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 	SECTION("A non empty pool") {
 		ecs::detail::component_pool<int> pool;
-		pool.add_init({ 0, 9 }, [](auto ent) { return ent.id; });
+		pool.add_init({ 0, 9 }, [](auto ent) { return int{ ent }; });
 		pool.process_changes();
 
 		SECTION("has the correct entities") {
@@ -164,7 +164,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			int const* org_p = pool.find_component_data(0);
 
 			for (int i = 10; i < 32; i++) {
-				pool.add(i, i);
+				pool.add(i, std::move(i));
 				pool.process_changes();
 			}
 
@@ -211,8 +211,8 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add(-2, {});
 			pool.process_changes();
 
-			auto ev = pool.get_entities();
-			REQUIRE(ev.front().first().id == -2);
+			auto const ev = pool.get_entities();
+			REQUIRE(ev.front().first() == -2);
 		}
 	}
 

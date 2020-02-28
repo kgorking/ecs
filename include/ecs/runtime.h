@@ -12,7 +12,7 @@ namespace ecs {
 	// and its return type defines the component type
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	void add_component(entity_range const range, T val)
+	void add_component(entity_range const range, T&& val)
 	{
 		if constexpr (std::is_invocable_v<T, entity_id>) {
 			// Return type of 'init'
@@ -21,26 +21,33 @@ namespace ecs {
 
 			// Add it to the component pool
 			detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
-			pool.add_init(range, val);
+			pool.add_init(range, std::forward<T>(val));
 		}
 		else {
-			static_assert(std::is_copy_constructible_v<T>, "A copy-constructor for type T is required for this function to work");
-
 			// Add it to the component pool
 			detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-			if constexpr (std::is_move_constructible_v<T>)
-				pool.add(range, std::move(val));
-			else
-				pool.add(range, val);
+			pool.add(range, std::forward<T>(val));
 		}
+	}
+
+	// Adds several components to a range of entities. Calls 'add_component' for each component
+	template <typename ...T>
+	void add_components(entity_range const range, T &&... vals) {
+		(add_component(range, std::forward<T>(vals)), ...);
 	}
 
 	// Adds a component to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	void add_component(entity_id const id, T val)
+	void add_component(entity_id const id, T&& val)
 	{
-		add_component({ id, id }, std::move(val));
+		add_component({ id, id }, std::forward<T>(val));
+	}
+
+	// Adds several components to an entity. Calls 'add_component' for each component
+	template <typename ...T>
+	void add_components(entity_id const id, T &&... vals) {
+		(add_component(id, std::forward<T>(vals)), ...);
 	}
 
 	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is called.
@@ -73,8 +80,9 @@ namespace ecs {
 	T& get_shared_component()
 	{
 		// Get the pool
-		if (!detail::_context.has_component_pool(typeid(T)))
+		if (!detail::_context.has_component_pool(typeid(T))) {
 			detail::_context.init_component_pools<T>();
+		}
 		return detail::_context.get_component_pool<T>().get_shared_component();
 	}
 
