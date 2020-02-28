@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <gsl/gsl>
 
+#include "entity_id.h"
 #include "system.h"
 #include "component_pool.h"
 
@@ -75,9 +76,9 @@ namespace ecs::detail
 			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
 				auto const& range = std::get<entity_range>(argument);
-				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first()](ecs::entity_id ent) {
+				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 					// Small helper function
-					auto const extract_arg = [](auto ptr, /*[[maybe_unused]]*/ ptrdiff_t offset) {
+					auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
 						using T = std::remove_cv_t<std::remove_reference_t<decltype(*ptr)>>;
 						if constexpr (!detail::Shared<T>) {
 							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
