@@ -21,7 +21,7 @@ namespace ecs::detail {
 	template <std::movable T>
 	class component_pool final : public component_pool_base {
 
-		static constexpr bool is_static_component = detail::Shared<T> || detail::Tagged<T>; // all entities point to the same component
+		static constexpr bool is_static_component = detail::shared<T> || detail::tagged<T>; // all entities point to the same component
 
 	public:
 		// Adds a component to an entity.
@@ -68,7 +68,7 @@ namespace ecs::detail {
 		}
 
 		// Returns the shared component
-		T& get_shared_component() const requires detail::Shared<T> {
+		T& get_shared_component() const requires detail::shared<T> {
 			if (data.size() == 0) {
 				data.emplace_back(T{});
 			}
@@ -98,11 +98,11 @@ namespace ecs::detail {
 
 		// Returns an entities component
 		// Returns nullptr if the entity is not found in this pool
-		T* find_component_data(entity_id const /*id*/) const requires detail::Tagged<T> {
+		T* find_component_data(entity_id const /*id*/) const requires detail::tagged<T> {
 			static T t;
 			return &t;
 		}
-		T* find_component_data(entity_id const /*id*/) const requires detail::Shared<T>{
+		T* find_component_data(entity_id const /*id*/) const requires detail::shared<T>{
 			// All entities point to the same component
 			return &get_shared_component();
 		}
@@ -368,7 +368,7 @@ namespace ecs::detail {
 		// Removes the entities
 		void process_remove_components() {
 			// Transient components are removed each cycle
-			if constexpr (detail::Transient<T>) {
+			if constexpr (detail::transient<T>) {
 				if (!ranges.empty()) {
 					ranges.clear();
 					data.clear();

@@ -80,7 +80,7 @@ namespace ecs::detail
 					// Small helper function
 					auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
 						using T = std::remove_cv_t<std::remove_reference_t<decltype(*ptr)>>;
-						if constexpr (!detail::Shared<T>) {
+						if constexpr (!detail::shared<T>) {
 							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
 							return ptr + offset;
 						}

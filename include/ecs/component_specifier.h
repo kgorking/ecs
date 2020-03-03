@@ -38,11 +38,11 @@ namespace ecs
 		template <typename T>
 		using flags = typename std::remove_cvref_t<T>::_ecs_flags;
 
-		template<typename T> concept Tagged = std::is_base_of_v<ecs::tag, flags<T>>;
-		template<typename T> concept Shared = std::is_base_of_v<ecs::share, flags<T>>;
-		template<typename T> concept Transient = std::is_base_of_v<ecs::transient, flags<T>>;
-		template<typename T> concept Immutable = std::is_base_of_v<ecs::immutable, flags<T>>;
+		template<typename T> concept tagged = std::is_base_of_v<ecs::tag, flags<T>>;
+		template<typename T> concept shared = std::is_base_of_v<ecs::share, flags<T>>;
+		template<typename T> concept transient = std::is_base_of_v<ecs::transient, flags<T>>;
+		template<typename T> concept immutable = std::is_base_of_v<ecs::immutable, flags<T>>;
 
-		template<typename T> concept Persistent = !Transient<T>;
+		template<typename T> concept persistent = !transient<T>;
 	}
 }

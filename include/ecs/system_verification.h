@@ -40,23 +40,23 @@ namespace ecs::detail
 
 		// Components flagged as 'immutable' must also be const
 		requires
-			(detail::Immutable<FirstArg> ? std::is_const_v<std::remove_reference_t<FirstArg>> : true) &&
-			((detail::Immutable<Args> ? std::is_const_v<std::remove_reference_t<Args>> : true) && ...);
+			(detail::immutable<FirstArg> ? std::is_const_v<std::remove_reference_t<FirstArg>> : true) &&
+			((detail::immutable<Args> ? std::is_const_v<std::remove_reference_t<Args>> : true) && ...);
 
 		// Components flagged as 'tag' must not be references
 		requires
-			(detail::Tagged<FirstArg> ? !std::is_reference_v<FirstArg> : true) &&
-			((detail::Tagged<Args> ? !std::is_reference_v<Args> : true) && ...);
+			(detail::tagged<FirstArg> ? !std::is_reference_v<FirstArg> : true) &&
+			((detail::tagged<Args> ? !std::is_reference_v<Args> : true) && ...);
 
 		// Components flagged as 'tag' must not hold data
 		requires
-			(detail::Tagged<FirstArg> ? sizeof(FirstArg) == 1 : true) &&
-			((detail::Tagged<Args> ? sizeof(Args) == 1 : true) && ...);
+			(detail::tagged<FirstArg> ? sizeof(FirstArg) == 1 : true) &&
+			((detail::tagged<Args> ? sizeof(Args) == 1 : true) && ...);
 
 		// Components flagged as 'share' must not be 'tag'ged
 		requires
-			(detail::Shared<FirstArg> ? !detail::Tagged<FirstArg> : true) && 
-			((detail::Shared<Args> ? !detail::Tagged<Args> : true) && ...);
+			(detail::shared<FirstArg> ? !detail::tagged<FirstArg> : true) && 
+			((detail::shared<Args> ? !detail::tagged<Args> : true) && ...);
 	};
 
 	// A small bridge to allow the Lambda concept to activate the System concept

@@ -7,7 +7,7 @@ TEST_CASE("Transient components", "[component][transient]")
 {
 	struct foo {};
 	struct test_t { ecs_flags(ecs::transient); };
-	static_assert(ecs::detail::Transient<test_t>);
+	static_assert(ecs::detail::transient<test_t>);
 
 	ecs::detail::_context.reset();
 

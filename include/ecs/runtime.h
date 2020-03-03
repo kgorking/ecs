@@ -52,7 +52,7 @@ namespace ecs {
 
 	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is called.
 	// Pre: entity has the component
-	template <detail::Persistent T>
+	template <detail::persistent T>
 	void remove_component(entity_range const range)
 	{
 		// Remove the entities from the components pool
@@ -76,7 +76,7 @@ namespace ecs {
 	}*/
 
 	// Returns a shared component. Can be called before a system for it has been added
-	template <detail::Shared T>
+	template <detail::shared T>
 	T& get_shared_component()
 	{
 		// Get the pool
