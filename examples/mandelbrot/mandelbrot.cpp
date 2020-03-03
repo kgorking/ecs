@@ -11,15 +11,12 @@ struct pos {
 	int x, y;
 };
 
-auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color, pos const& p) {
+auto constexpr mandelbrot_system = [](size_t& color, pos const& p) {
 	int constexpr max_iterations = 500;
 	double constexpr fr_w = 1.5;
 	double constexpr fr_h = 1.5;
 	double constexpr fr_x = -2.2;
 	double constexpr fr_y = 1.2;
-
-	//size_t const x = ent.id % dimension;
-	//size_t const y = ent.id / dimension;
 
 	std::complex<double> c(static_cast<double>(p.x), static_cast<double>(p.y));
 
@@ -33,17 +30,16 @@ auto constexpr mandelbrot_system = [](ecs::entity_id ent, size_t &color, pos con
 		z = z * z + c;
 		iter++;
 	}
-	
+
 	color += iter;
 };
 
-int main()
-{
+int main() {
 	// Add the system
 	ecs::make_system(mandelbrot_system);
 
 	// Add the size_t component to the pixels/entities
-	ecs::entity_range const ents{ 0, dimension*dimension,
+	ecs::entity_range const ents{ 0, dimension * dimension,
 		size_t{ 0 },
 		[](ecs::entity_id ent) -> pos {
 			int const x = ent % dimension;
