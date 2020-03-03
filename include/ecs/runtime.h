@@ -52,7 +52,7 @@ namespace ecs {
 
 	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is called.
 	// Pre: entity has the component
-	template <typename T> requires !detail::Transient<T>
+	template <detail::Persistent T>
 	void remove_component(entity_range const range)
 	{
 		// Remove the entities from the components pool

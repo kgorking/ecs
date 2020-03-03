@@ -42,5 +42,7 @@ namespace ecs
 		template<typename T> concept Shared = std::is_base_of_v<ecs::share, flags<T>>;
 		template<typename T> concept Transient = std::is_base_of_v<ecs::transient, flags<T>>;
 		template<typename T> concept Immutable = std::is_base_of_v<ecs::immutable, flags<T>>;
+
+		template<typename T> concept Persistent = !Transient<T>;
 	}
 }
