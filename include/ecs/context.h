@@ -111,7 +111,7 @@ namespace ecs::detail {
 			}
 
 			assert(last_pool != nullptr);
-			return dynamic_cast<component_pool<T>&>(*last_pool);
+			return *static_cast<component_pool<T>*>(last_pool);
 		}
 
 		// Initialize a component pool for each component, if needed
