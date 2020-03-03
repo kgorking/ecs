@@ -22,7 +22,7 @@ namespace ecs::detail
 	concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
 
 	template <class R, class FirstArg, class ...Args>
-	concept System = requires {
+	concept checked_system = requires {
 		// systems can not return values
 		requires std::is_same_v<R, void>;
 
@@ -59,8 +59,8 @@ namespace ecs::detail
 			((detail::shared<Args> ? !detail::tagged<Args> : true) && ...);
 	};
 
-	// A small bridge to allow the Lambda concept to activate the System concept
-	template <class R, class C, class ...Args> 	requires (sizeof...(Args) > 0 && System<R, Args...>)
+	// A small bridge to allow the Lambda concept to activate the system concept
+	template <class R, class C, class ...Args> 	requires (sizeof...(Args) > 0 && checked_system<R, Args...>)
 	struct lambda_to_system_bridge {
 		lambda_to_system_bridge(R(C::*)(Args...)) {};
 		lambda_to_system_bridge(R(C::*)(Args...) const) {};
@@ -69,7 +69,7 @@ namespace ecs::detail
 	};
 
 	template <typename T>
-	concept Lambda = requires {
+	concept lambda = requires {
 		// Must have the call operator
 		T::operator ();
 
