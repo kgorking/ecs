@@ -9,14 +9,12 @@ namespace ecs {
 
 namespace ecs::detail
 {
-	// Check that we are only supplied unique types - https://stackoverflow.com/questions/18986560/check-variadic-templates-parameters-for-uniqueness
-	template <typename...>								struct is_one_of;
-	template <typename F>								struct is_one_of<F> { static constexpr bool value = false; };
-	template <typename F, typename S, typename... T>	struct is_one_of<F, S, T...> { static constexpr bool value = std::is_same<F, S>::value || is_one_of<F, T...>::value; };
+	template<typename F, typename... T>
+	constexpr int count_types = (std::is_same_v<F, T> +... + 0);
 
-	template <typename...>				struct is_unique;
-	template <typename F>				struct is_unique<F> { static constexpr bool value = true; };
-	template<typename F, typename... T>	struct is_unique<F, T...> { static constexpr bool value = !is_one_of<F, T...>::value && is_unique<T...>::value;  };
+	template<typename... T>
+	concept unique = ((count_types<T, T...> == 1) && ...);
+
 
 	template <class T>
 	concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
@@ -36,7 +34,7 @@ namespace ecs::detail
 		requires (entity_type<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
 		// Component types can only be specified once
-		requires is_unique<FirstArg, Args...>::value;
+		requires unique<FirstArg, Args...>;
 
 		// Components flagged as 'immutable' must also be const
 		requires
@@ -60,7 +58,9 @@ namespace ecs::detail
 	};
 
 	// A small bridge to allow the Lambda concept to activate the system concept
-	template <class R, class C, class ...Args> 	requires (sizeof...(Args) > 0 && checked_system<R, Args...>)
+	template <class R, class C, class ...Args>
+		requires	(sizeof...(Args) > 0 &&
+					checked_system<R, Args...>)
 	struct lambda_to_system_bridge {
 		lambda_to_system_bridge(R(C::*)(Args...)) {};
 		lambda_to_system_bridge(R(C::*)(Args...) const) {};
