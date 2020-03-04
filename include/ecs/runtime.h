@@ -12,8 +12,7 @@ namespace ecs {
 	// and its return type defines the component type
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	void add_component(entity_range const range, T&& val)
-	{
+	void add_component(entity_range const range, T&& val) {
 		if constexpr (std::is_invocable_v<T, entity_id>) {
 			// Return type of 'init'
 			using ComponentType = decltype(std::declval<T>()(entity_id{ 0 }));
@@ -33,28 +32,28 @@ namespace ecs {
 	// Adds several components to a range of entities. Calls 'add_component' for each component
 	template <typename ...T>
 	void add_components(entity_range const range, T &&... vals) {
+		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(range, std::forward<T>(vals)), ...);
 	}
 
 	// Adds a component to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	void add_component(entity_id const id, T&& val)
-	{
+	void add_component(entity_id const id, T&& val)	{
 		add_component({ id, id }, std::forward<T>(val));
 	}
 
 	// Adds several components to an entity. Calls 'add_component' for each component
 	template <typename ...T>
 	void add_components(entity_id const id, T &&... vals) {
+		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(id, std::forward<T>(vals)), ...);
 	}
 
 	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is called.
 	// Pre: entity has the component
 	template <detail::persistent T>
-	void remove_component(entity_range const range)
-	{
+	void remove_component(entity_range const range) {
 		// Remove the entities from the components pool
 		detail::component_pool<T> &pool = detail::_context.get_component_pool<T>();
 		pool.remove_range(range);
@@ -63,8 +62,7 @@ namespace ecs {
 	// Removes a component from an entity. Will not be removed until 'commit_changes()' is called.
 	// Pre: entity has the component
 	template <typename T>
-	void remove_component(entity_id const id)
-	{
+	void remove_component(entity_id const id) {
 		remove_component<T>({ id, id });
 	}
 
@@ -77,8 +75,7 @@ namespace ecs {
 
 	// Returns a shared component. Can be called before a system for it has been added
 	template <detail::shared T>
-	T& get_shared_component()
-	{
+	T& get_shared_component() {
 		// Get the pool
 		if (!detail::_context.has_component_pool(typeid(T))) {
 			detail::_context.init_component_pools<T>();
