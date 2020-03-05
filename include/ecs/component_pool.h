@@ -68,7 +68,7 @@ namespace ecs::detail {
 		}
 
 		// Returns the shared component
-		T& get_shared_component() const requires detail::shared<T> {
+		T& get_shared_component() requires detail::shared<T> {
 			if (data.size() == 0) {
 				data.emplace_back(T{});
 			}
@@ -98,15 +98,15 @@ namespace ecs::detail {
 
 		// Returns an entities component
 		// Returns nullptr if the entity is not found in this pool
-		T* find_component_data(entity_id const /*id*/) const requires detail::tagged<T> {
+		T* find_component_data(entity_id const /*id*/) requires detail::tagged<T> {
 			static T t;
 			return &t;
 		}
-		T* find_component_data(entity_id const /*id*/) const requires detail::shared<T>{
+		T* find_component_data(entity_id const /*id*/) requires detail::shared<T>{
 			// All entities point to the same component
 			return &get_shared_component();
 		}
-		T* find_component_data(entity_id const id) const {
+		T* find_component_data(entity_id const id) {
 			auto const index = find_entity_index(id);
 			return index ? &data[index.value()] : nullptr;
 		}
@@ -470,7 +470,7 @@ namespace ecs::detail {
 
 	private:
 		// The components data
-		mutable std::vector<T> data; // mutable so the constants getters can return components whos contents can be modified
+		std::vector<T> data; // mutable so the constants getters can return components whos contents can be modified
 
 		// The entities that have data in this storage.
 		std::vector<entity_range> ranges;

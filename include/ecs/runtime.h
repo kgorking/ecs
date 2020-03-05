@@ -88,7 +88,7 @@ namespace ecs {
 	T* get_component(entity_id const id)
 	{
 		// Get the component pool
-		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
+		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 		return pool.find_component_data(id);
 	}
 
