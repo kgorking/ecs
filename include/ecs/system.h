@@ -40,6 +40,7 @@ namespace ecs
 		[[nodiscard]] virtual int get_group() const noexcept = 0;
 
 	private:
+		// Only allow the context class to call 'process_changes'
 		friend class detail::context;
 
 		// Process changes to component layouts

@@ -5,6 +5,7 @@
 #include <shared_mutex>
 
 #include "component_pool.h"
+#include "component_specifier.h"
 #include "system_impl.h"
 
 namespace ecs::detail {
@@ -110,7 +111,7 @@ namespace ecs::detail {
 			}
 
 			assert(last_pool != nullptr);
-			return dynamic_cast<component_pool<T>&>(*last_pool);
+			return *static_cast<component_pool<T>*>(last_pool);
 		}
 
 		// Initialize a component pool for each component, if needed
@@ -125,18 +126,18 @@ namespace ecs::detail {
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const)
 		{
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 		// Mutable lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...))
 		{
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, R, Args...>(update_func);
+			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 	private:
-		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename FirstArg, typename ...Args>
+		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg, typename ...Args>
 		auto& create_system_impl(UserUpdateFunc update_func)
 		{
 			// Set up the implementation
@@ -206,6 +207,6 @@ namespace ecs::detail {
 		return ctx;
 	}
 
-	// The global context
+	// The global reference to the context
 	static inline context & _context = get_context();
 }

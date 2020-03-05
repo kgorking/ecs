@@ -4,26 +4,24 @@
 #include <variant>
 #include <utility>
 #include <cassert>
-#include <execution>
+#include <concepts>
+//#include <execution>
 
 #include "../threaded/threaded/threaded.h"
 #include "component_pool_base.h"
 #include "component_specifier.h"
 #include "entity_range.h"
 
-#define CP_CHECK_PRECOND 1
 
 namespace ecs::detail {
 	// For std::visit
 	template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 	template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
-
-	template <typename T>
+	template <std::movable T>
 	class component_pool final : public component_pool_base {
-		static_assert(!(is_tagged_v<T> && sizeof(T) > 1), "Tag-components can not have any data in them");
 
-		static constexpr bool is_static = is_static_v<T>; // all entities point to the same component
+		static constexpr bool is_static_component = detail::shared<T> || detail::tagged<T>; // all entities point to the same component
 
 	public:
 		// Adds a component to an entity.
@@ -38,7 +36,7 @@ namespace ecs::detail {
 		//      This condition will not be checked until 'process_changes' is called.
 		template <typename Fn>
 		void add_init(entity_range const range, Fn&& init) {
-			if constexpr (is_static) {
+			if constexpr (is_static_component) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.empty()) {
 					data.emplace_back(init(0));
@@ -56,7 +54,7 @@ namespace ecs::detail {
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
 		void add(entity_range const range, T&& component) {
-			if constexpr (is_static) {
+			if constexpr (is_static_component) {
 				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
 				if (data.empty()) {
 					data.emplace_back(std::forward<T>(component));
@@ -70,9 +68,8 @@ namespace ecs::detail {
 		}
 
 		// Returns the shared component
-		template <typename XT = T, typename = std::enable_if_t<is_shared_v<XT> || is_tagged_v<XT>>>
-		T& get_shared_component() const {
-			if (data.empty()) {
+		T& get_shared_component() requires detail::shared<T> {
+			if (data.size() == 0) {
 				data.emplace_back(T{});
 			}
 
@@ -101,18 +98,17 @@ namespace ecs::detail {
 
 		// Returns an entities component
 		// Returns nullptr if the entity is not found in this pool
-		T* find_component_data(entity_id const id) const {
-			// TODO tagged+shared components could just return the address of a static var. 0 mem allocs
-			if constexpr (is_static) {
-				// All entities point to the same component
-				(void)id;
-				return &get_shared_component<T>();
-			}
-			else {
-				auto const index = find_entity_index(id);
-				//return index ? &data[index.value()] : nullptr;
-				return index ? &data.at(index.value()) : nullptr;
-			}
+		T* find_component_data(entity_id const /*id*/) requires detail::tagged<T> {
+			static T t;
+			return &t;
+		}
+		T* find_component_data(entity_id const /*id*/) requires detail::shared<T>{
+			// All entities point to the same component
+			return &get_shared_component();
+		}
+		T* find_component_data(entity_id const id) {
+			auto const index = find_entity_index(id);
+			return index ? &data[index.value()] : nullptr;
 		}
 
 		// Merge all the components queued for addition to the main storage,
@@ -326,7 +322,7 @@ namespace ecs::detail {
 
 				// Copy the current ranges while looking for an insertion point
 				while (ranges_it != ranges.cend() && (*ranges_it < range)) {
-					if constexpr (!is_static) {
+					if constexpr (!is_static_component) {
 						// Advance the component iterator so it will point to the correct data when i start inserting it
 						component_it += ranges_it->count();
 					}
@@ -341,7 +337,7 @@ namespace ecs::detail {
 				// Add the new range
 				add_range(new_ranges, range);
 
-				if constexpr (!is_static) {
+				if constexpr (!is_static_component) {
 					// Add the new components
 					auto const add_val = [this, &component_it, range](T&& val) {
 						component_it = data.insert(component_it, range.count(), std::forward<T>(val));
@@ -372,7 +368,7 @@ namespace ecs::detail {
 		// Removes the entities
 		void process_remove_components() {
 			// Transient components are removed each cycle
-			if constexpr (is_transient_v<T>) {
+			if constexpr (detail::transient<T>) {
 				if (!ranges.empty()) {
 					ranges.clear();
 					data.clear();
@@ -405,7 +401,7 @@ namespace ecs::detail {
 				}
 
 				// Erase the ranges data
-				if constexpr (!is_static) {
+				if constexpr (!is_static_component) {
 					// Find the first valid index
 					auto index = find_entity_index(removes.front().first());
 					Expects(index.has_value());
@@ -474,7 +470,7 @@ namespace ecs::detail {
 
 	private:
 		// The components data
-		mutable std::vector<T> data; // mutable so the constants getters can return components whos contents can be modified
+		std::vector<T> data; // mutable so the constants getters can return components whos contents can be modified
 
 		// The entities that have data in this storage.
 		std::vector<entity_range> ranges;
@@ -482,7 +478,7 @@ namespace ecs::detail {
 
 		// The type used to store data.
 		using component_val = std::variant<T, std::function<T(entity_id)>>;
-		using entity_data = std::conditional_t<is_static, std::tuple<entity_range>, std::tuple<entity_range, component_val>>;
+		using entity_data = std::conditional_t<is_static_component, std::tuple<entity_range>, std::tuple<entity_range, component_val>>;
 
 		// Keep track of which components to add/remove each cycle
 		threaded<std::vector<entity_data>> deferred_adds;

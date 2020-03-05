@@ -3,7 +3,7 @@
 
 struct A {};
 struct B {};
-struct state_s { ecs_flags(ecs::shared);
+struct state_s { ecs_flags(ecs::share);
 	int a = 0;
 	int b = 0;
 	int total = 0;

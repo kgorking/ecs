@@ -1,6 +1,6 @@
 #pragma once
 #include <execution>
-#include "system_inspector.h"
+#include "system_verification.h"
 #include "entity_range.h"
 #include "component_pool.h"
 #include "component_specifier.h"
@@ -12,10 +12,8 @@ namespace ecs {
 	// and its return type defines the component type
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	void add_component(entity_range const range, T&& val)
-	{
-		bool constexpr invokable = std::is_invocable_v<T, entity_id>;
-		if constexpr (invokable) {
+	void add_component(entity_range const range, T&& val) {
+		if constexpr (std::is_invocable_v<T, entity_id>) {
 			// Return type of 'init'
 			using ComponentType = decltype(std::declval<T>()(entity_id{ 0 }));
 			static_assert(!std::is_same_v<ComponentType, void>, "Initializer function must return a component");
@@ -34,30 +32,28 @@ namespace ecs {
 	// Adds several components to a range of entities. Calls 'add_component' for each component
 	template <typename ...T>
 	void add_components(entity_range const range, T &&... vals) {
+		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(range, std::forward<T>(vals)), ...);
 	}
 
 	// Adds a component to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	void add_component(entity_id const id, T&& val)
-	{
+	void add_component(entity_id const id, T&& val)	{
 		add_component({ id, id }, std::forward<T>(val));
 	}
 
 	// Adds several components to an entity. Calls 'add_component' for each component
 	template <typename ...T>
 	void add_components(entity_id const id, T &&... vals) {
+		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(id, std::forward<T>(vals)), ...);
 	}
 
 	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is called.
 	// Pre: entity has the component
-	template <typename T>
-	void remove_component(entity_range const range)
-	{
-		static_assert(!detail::is_transient_v<T>, "Don't remove transient components manually; it will be handled by the context");
-
+	template <detail::persistent T>
+	void remove_component(entity_range const range) {
 		// Remove the entities from the components pool
 		detail::component_pool<T> &pool = detail::_context.get_component_pool<T>();
 		pool.remove_range(range);
@@ -66,8 +62,7 @@ namespace ecs {
 	// Removes a component from an entity. Will not be removed until 'commit_changes()' is called.
 	// Pre: entity has the component
 	template <typename T>
-	void remove_component(entity_id const id)
-	{
+	void remove_component(entity_id const id) {
 		remove_component<T>({ id, id });
 	}
 
@@ -79,11 +74,8 @@ namespace ecs {
 	}*/
 
 	// Returns a shared component. Can be called before a system for it has been added
-	template <typename T>
-	T& get_shared_component()
-	{
-		static_assert(detail::is_shared_v<T>, "Component has not been marked as shared. Add 'ecs_flags(ecs::shared);' to make it a shared component.");
-
+	template <detail::shared T>
+	T& get_shared_component() {
 		// Get the pool
 		if (!detail::_context.has_component_pool(typeid(T))) {
 			detail::_context.init_component_pools<T>();
@@ -96,12 +88,13 @@ namespace ecs {
 	T* get_component(entity_id const id)
 	{
 		// Get the component pool
-		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
+		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 		return pool.find_component_data(id);
 	}
 
-	// Returns the component from an entity, or an empty span if the entities are not found
-	// or does not containg the component
+	// Returns the components from an entity range, or an empty span if the entities are not found
+	// or does not containg the component.
+	// The span might be invalidated after a call to 'ecs::commit_changes()'.
 	template <typename T>
 	gsl::span<T> get_components(entity_range const range) {
 		if (!has_component<T>(range))
@@ -178,19 +171,16 @@ namespace ecs {
 		run_systems();
 	}
 
-	// Make a new system.
-	template <int Group = 0, typename System >
-	auto& make_system(System update_func)
-	{
-		detail::verify_system<System>();
-		return detail::_context.create_system<Group, std::execution::sequenced_policy, System>(update_func, &System::operator());
+	// Make a new system
+	template <int Group = 0, detail::lambda UserUpdateFunc>
+	auto& make_system(UserUpdateFunc update_func) {
+		return detail::_context.create_system<Group, std::execution::sequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 
 	// Make a new system. It will process components in parallel.
-	template <int Group = 0, typename System>
-	auto& make_parallel_system(System update_func)
+	template <int Group = 0, detail::lambda UserUpdateFunc>
+	auto& make_parallel_system(UserUpdateFunc update_func)
 	{
-		detail::verify_system<System>();
-		return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, System>(update_func, &System::operator());
+		return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 }

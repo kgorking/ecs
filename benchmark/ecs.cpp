@@ -20,7 +20,7 @@ size_t constexpr num_components = 256 * 1024;
 // 498973400 ns
 
 struct shared_s {
-	ecs_flags(ecs::shared);
+	ecs_flags(ecs::share);
 	size_t dimension;
 };
 
