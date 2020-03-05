@@ -1,5 +1,6 @@
 #pragma once
 #include <utility>
+#include <type_traits>
 #include "component_specifier.h"
 
 namespace ecs {
@@ -7,14 +8,29 @@ namespace ecs {
 	class entity;
 }
 
-namespace ecs::detail
-{
-	template<typename F, typename... T>
-	constexpr int count_types = (std::is_same_v<F, T> +... + 0);
+namespace ecs::detail {
+	// Given a type T, if it is callable with an entity argument,
+	// resolve to the return type of the callable. Otherwise assume the type T.
+	template<typename T>
+	struct get_type {
+		using type = T;
+	};
 
+	template<typename T> requires std::invocable<T, int>
+		struct get_type<T> {
+			using type = std::invoke_result_t<T, int>;
+		};
+
+	template<typename T>
+	using get_type_t = typename get_type<T>::type;
+
+	// Count the number of times the type F appears in the parameter pack T
+	template<typename F, typename... T>
+	constexpr int count_types = (std::is_same_v<get_type_t<F>, get_type_t<T>> +... + 0);
+
+	// Ensure that any type in the parameter pack T is only present once.
 	template<typename... T>
 	concept unique = ((count_types<T, T...> == 1) && ...);
-
 
 	template <class T>
 	concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
