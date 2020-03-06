@@ -28,7 +28,7 @@ struct runtime_ctr_counter {
 	runtime_ctr_counter& operator=(runtime_ctr_counter const&) = default;
 };
 
-TEST_CASE("Test the runtime interface", "[runtime]") {
+TEST_CASE("Test the runtime interface") {
 	SECTION("Perfect forwarding") {
 
 		ecs::add_component({ 0,9 }, runtime_ctr_counter{});
@@ -37,5 +37,13 @@ TEST_CASE("Test the runtime interface", "[runtime]") {
 		// 1 2 0 1 1
 
 		ecs::commit_changes();
+	}
+
+	SECTION("Can add referenced components") {
+		// compile-time check
+		struct temp {};
+		temp t;
+		temp& tr = t;
+		ecs::add_component(0, tr);
 	}
 }
