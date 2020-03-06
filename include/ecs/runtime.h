@@ -16,7 +16,8 @@ namespace ecs {
 		if constexpr (std::is_invocable_v<T, entity_id>) {
 			// Return type of 'init'
 			using ComponentType = decltype(std::declval<T>()(entity_id{ 0 }));
-			static_assert(!std::is_same_v<ComponentType, void>, "Initializer function must return a component");
+			static_assert(!std::is_same_v<ComponentType, void>, "initializer function must return a component");
+			static_assert(!std::is_reference_v<ComponentType> && !std::is_pointer_v<ComponentType>, "return type can not be a reference or pointer");
 
 			// Add it to the component pool
 			detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
@@ -24,8 +25,15 @@ namespace ecs {
 		}
 		else {
 			// Add it to the component pool
-			detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-			pool.add(range, std::forward<T>(val));
+			if constexpr (std::is_reference_v<T>) {
+				auto& pool = detail::_context.get_component_pool<std::remove_reference_t<T>>();
+				T copy{ val };
+				pool.add(range, std::move(copy));
+			}
+			else {
+				auto& pool = detail::_context.get_component_pool<T>();
+				pool.add(range, std::forward<T>(val));
+			}
 		}
 	}
 
