@@ -24,6 +24,23 @@ namespace ecs::detail {
 		static constexpr bool is_static_component = detail::shared<T> || detail::tagged<T>; // all entities point to the same component
 
 	public:
+		// Adds a component to a range of entity.
+		// Pre: entities has not already been added, or is in queue to be added
+		//      This condition will not be checked until 'process_changes' is called.
+		void add(entity_range const range, T&& component) {
+			if constexpr (is_static_component) {
+				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
+				if (data.empty()) {
+					data.emplace_back(std::forward<T>(component));
+				}
+
+				deferred_adds.local().push_back(range);
+			}
+			else {
+				deferred_adds.local().emplace_back(range, std::forward<T>(component));
+			}
+		}
+
 		// Adds a component to an entity.
 		// Pre: entity has not already been added, or is in queue to be added.
 		//      This condition will not be checked until 'process_changes' is called.
@@ -47,23 +64,6 @@ namespace ecs::detail {
 			else {
 				// Add the id and data to a temp storage
 				deferred_adds.local().emplace_back(range, std::function<T(ecs::entity_id)>{ std::forward<Fn>(init) });
-			}
-		}
-
-		// Adds a component to a range of entity.
-		// Pre: entities has not already been added, or is in queue to be added
-		//      This condition will not be checked until 'process_changes' is called.
-		void add(entity_range const range, T&& component) {
-			if constexpr (is_static_component) {
-				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
-				if (data.empty()) {
-					data.emplace_back(std::forward<T>(component));
-				}
-
-				deferred_adds.local().push_back(range);
-			}
-			else {
-				deferred_adds.local().emplace_back(range, std::forward<T>(component));
 			}
 		}
 
