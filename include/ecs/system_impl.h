@@ -79,20 +79,17 @@ namespace ecs::detail
 				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 					// Small helper function
 					auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
-						using T = std::remove_cv_t<std::remove_reference_t<decltype(*ptr)>>;
-						if constexpr (!detail::shared<T>) {
+						using T = std::remove_cvref_t<decltype(*ptr)>;
+						if constexpr (detail::unbound<T>) {
+							return ptr;
+						}
+						else {
 							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
 							return ptr + offset;
 						}
-						else {
-							static_cast<void>(offset); // silence unused parameter warning
-							return ptr;
-						}
 					};
 
-
 					auto const offset = ent - first_id;
-
 					if constexpr (is_first_arg_entity) {
 						update_func(ent,
 									*extract_arg(std::get<Components*>(argument), offset)...);
