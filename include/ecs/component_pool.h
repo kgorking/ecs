@@ -19,60 +19,59 @@ namespace ecs::detail {
 
 	template <std::copyable T>
 	class component_pool final : public component_pool_base {
+	private:
+		// The components
+		std::vector<T> components;
 
-		static constexpr bool is_static_component = detail::shared<T> || detail::tagged<T>; // all entities point to the same component
+		// The entities that have components in this storage.
+		std::vector<entity_range> ranges;
+
+		// Keep track of which components to add/remove each cycle
+		using component_val = std::variant<T, std::function<T(entity_id)>>;
+		using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, component_val>>;
+		threaded<std::vector<entity_data>> deferred_adds;
+		threaded<std::vector<entity_range>> deferred_removes;
+
+		// Status flags
+		bool data_added = false;
+		bool data_removed = false;
 
 	public:
-		// Adds a component to a range of entities, initialized by the supplied user function
+		// Add a component to a range of entities, initialized by the supplied user function
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
 		template <typename Fn>
+		  requires (!unbound<T>)
 		void add_init(entity_range const range, Fn&& init) {
-			if constexpr (is_static_component) {
-				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
-				if (data.empty()) {
-					data.emplace_back(init(0));
-				}
-
-				deferred_adds.local().emplace_back(range);
-			}
-			else {
-				// Add the id and data to a temp storage
-				deferred_adds.local().emplace_back(range, std::forward<Fn>(init));
-			}
+			// Add the range and function to a temp storage
+			deferred_adds.local().emplace_back(range, std::forward<Fn>(init));
 		}
 
-		// Adds a component to a range of entity.
+		// Add a shared/tagged component to a range of entity.
+		// Pre: entities has not already been added, or is in queue to be added
+		//      This condition will not be checked until 'process_changes' is called.
+		void add(entity_range const range, T&& /* unused */) requires unbound<T> {
+			deferred_adds.local().push_back(range);
+		}
+
+		// Add a component to a range of entity.
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
 		void add(entity_range const range, T&& component) {
-			if constexpr (is_static_component) {
-				// Shared/tagged components will all point to the same instance, so only allocate room for 1 component
-				if (data.empty()) {
-					data.emplace_back(std::forward<T>(component));
-				}
-
-				deferred_adds.local().push_back(range);
-			}
-			else {
-				deferred_adds.local().emplace_back(range, std::forward<T>(component));
-			}
+			deferred_adds.local().emplace_back(range, std::forward<T>(component));
 		}
 
-		// Adds a component to an entity.
+		// Add a component to an entity.
 		// Pre: entity has not already been added, or is in queue to be added.
 		//      This condition will not be checked until 'process_changes' is called.
 		void add(entity_id const id, T&& component) {
 			add({ id, id }, std::forward<T>(component));
 		}
 
-		// Returns the shared component
-		T& get_shared_component() requires detail::shared<T> {
-			if (data.size() == 0) {
-				data.emplace_back(T{});
-			}
-
-			return *data.data();
+		// Return the shared component
+		T& get_shared_component() requires unbound<T> {
+			static T t;
+			return t;
 		}
 
 		// Remove an entity from the component pool. This logically removes the component from the entity.
@@ -95,19 +94,16 @@ namespace ecs::detail {
 			}
 		}
 
-		// Returns an entities component
-		// Returns nullptr if the entity is not found in this pool
-		T* find_component_data(entity_id const /*id*/) requires detail::tagged<T> {
-			static T t;
-			return &t;
-		}
-		T* find_component_data(entity_id const /*id*/) requires detail::shared<T>{
-			// All entities point to the same component
+		// Returns the shared component
+		T* find_component_data(entity_id const /*id*/) requires unbound<T> {
 			return &get_shared_component();
 		}
+
+		// Returns an entities component.
+		// Returns nullptr if the entity is not found in this pool
 		T* find_component_data(entity_id const id) {
 			auto const index = find_entity_index(id);
-			return index ? &data[index.value()] : nullptr;
+			return index ? &components[index.value()] : nullptr;
 		}
 
 		// Merge all the components queued for addition to the main storage,
@@ -124,7 +120,10 @@ namespace ecs::detail {
 
 		// Returns the number of active components in the pool
 		size_t num_components() const {
-			return data.size();
+			if constexpr (unbound<T>)
+				return 1;
+			else
+				return components.size();
 		}
 
 		// Clears the pools state flags
@@ -133,17 +132,17 @@ namespace ecs::detail {
 			data_removed = false;
 		}
 
-		// Returns true if data has been added since last clear_flags() call
+		// Returns true if components has been added since last clear_flags() call
 		bool is_data_added() const {
 			return data_added;
 		}
 
-		// Returns true if data has been removed since last clear_flags() call
+		// Returns true if components has been removed since last clear_flags() call
 		bool is_data_removed() const {
 			return data_removed;
 		}
 
-		// Returns true if data has been added/removed since last clear_flags() call
+		// Returns true if components has been added/removed since last clear_flags() call
 		bool is_data_modified() const {
 			return data_added || data_removed;
 		}
@@ -153,12 +152,12 @@ namespace ecs::detail {
 			return ranges;
 		}
 
-		// Returns true if an entity has data in this pool
+		// Returns true if an entity has a component in this pool
 		bool has_entity(entity_id const id) const {
 			return has_entity({ id, id });
 		}
 
-		// Returns true if an entity range has data in this pool
+		// Returns true if an entity range has components in this pool
 		bool has_entity(entity_range const& range) const {
 			if (ranges.empty()) {
 				return false;
@@ -213,12 +212,12 @@ namespace ecs::detail {
 
 		// Clear all entities from the pool
 		void clear() override {
-			// Remember is data was removed from the pool
-			bool const is_removed = !data.empty();
+			// Remember if components was removed from the pool
+			bool const is_removed = !components.empty();
 
 			// Clear the pool
 			ranges.clear();
-			data.clear();
+			components.clear();
 			deferred_adds.clear();
 			deferred_removes.clear();
 			clear_flags();
@@ -228,12 +227,12 @@ namespace ecs::detail {
 		}
 
 	private:
-		// Flag that data has been added
+		// Flag that components has been added
 		void set_data_added() {
 			data_added = true;
 		}
 
-		// Flag that data has been removed
+		// Flag that components has been removed
 		void set_data_removed() {
 			data_removed = true;
 		}
@@ -241,8 +240,8 @@ namespace ecs::detail {
 		// Returns the component at the specific index.
 		// Pre: index is within bounds
 		T* at(size_t const index) const {
-			if (/*index >= 0 &&*/ index < data.size())
-				return &data[index];
+			if (index < components.size())
+				return &components[index];
 			else
 				return nullptr;
 		}
@@ -269,9 +268,9 @@ namespace ecs::detail {
 			return {};
 		}
 
-		// Add new queued entities and component data to the main storage
+		// Add new queued entities and components to the main storage
 		void process_add_components() {
-			// Combine the data in to a single vector
+			// Combine the components in to a single vector
 			std::vector<entity_data> adds;
 			for (auto& vec : deferred_adds) {
 				std::move(vec.begin(), vec.end(), std::back_inserter(adds));
@@ -315,14 +314,14 @@ namespace ecs::detail {
 			// Add the new entities/components
 			std::vector<entity_range> new_ranges;
 			auto ranges_it = ranges.cbegin();
-			[[maybe_unused]] auto component_it = data.cbegin();
+			[[maybe_unused]] auto component_it = components.cbegin();
 			for (auto& add : adds) {
 				entity_range const& range = std::get<0>(add);
 
 				// Copy the current ranges while looking for an insertion point
 				while (ranges_it != ranges.cend() && (*ranges_it < range)) {
-					if constexpr (!is_static_component) {
-						// Advance the component iterator so it will point to the correct data when i start inserting it
+					if constexpr (!unbound<T>) {
+						// Advance the component iterator so it will point to the correct components when i start inserting it
 						component_it += ranges_it->count();
 					}
 
@@ -336,15 +335,15 @@ namespace ecs::detail {
 				// Add the new range
 				add_range(new_ranges, range);
 
-				if constexpr (!is_static_component) {
+				if constexpr (!unbound<T>) {
 					// Add the new components
 					auto const add_val = [this, &component_it, range](T&& val) {
-						component_it = data.insert(component_it, range.count(), std::forward<T>(val));
+						component_it = components.insert(component_it, range.count(), std::forward<T>(val));
 						component_it = std::next(component_it, range.count());
 					};
 					auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
 						for (entity_id ent = range.first(); ent <= range.last(); ++ent) {
-							component_it = data.emplace(component_it, init(ent));
+							component_it = components.emplace(component_it, init(ent));
 							component_it = std::next(component_it);
 						}
 					};
@@ -364,13 +363,13 @@ namespace ecs::detail {
 			set_data_added();
 		}
 
-		// Removes the entities
+		// Removes the entities and components
 		void process_remove_components() {
 			// Transient components are removed each cycle
 			if constexpr (detail::transient<T>) {
 				if (!ranges.empty()) {
 					ranges.clear();
-					data.clear();
+					components.clear();
 					set_data_removed();
 				}
 			}
@@ -388,47 +387,47 @@ namespace ecs::detail {
 				// Clear the current removes
 				deferred_removes.clear();
 
+				// Sort it if needed
+				if (!std::is_sorted(removes.begin(), removes.end())) {
+					std::sort(removes.begin(), removes.end());
+				}
+
 				// An entity can not have more than one of the same component
 				auto const has_duplicate_entities = [](auto const& vec) {
 					return vec.end() != std::adjacent_find(vec.begin(), vec.end());
 				};
 				Expects(false == has_duplicate_entities(removes));
 
-				// Sort it if needed
-				if (!std::is_sorted(removes.begin(), removes.end())) {
-					std::sort(removes.begin(), removes.end());
-				}
-
-				// Erase the ranges data
-				if constexpr (!is_static_component) {
+				// Remove the components
+				if constexpr (!unbound<T>) {
 					// Find the first valid index
 					auto index = find_entity_index(removes.front().first());
 					Expects(index.has_value());
-					auto dest_it = data.begin() + index.value();
+					auto dest_it = components.begin() + index.value();
 					auto from_it = dest_it + removes.front().count();
 
-					if (dest_it == data.begin() && from_it == data.end()) {
-						data.clear();
+					if (dest_it == components.begin() && from_it == components.end()) {
+						components.clear();
 					}
 					else {
-						// Move data between the ranges
+						// Move components between the ranges
 						for (auto it = removes.cbegin() + 1; it != removes.cend(); ++it) {
 							index = find_entity_index(it->first());
 							assert(index.has_value());
 
-							auto const last_it = data.begin() + index.value();
+							auto const last_it = components.begin() + index.value();
 							auto const dist = std::distance(from_it, last_it);
 							from_it = std::move(from_it, last_it, dest_it);
 							dest_it += dist;
 						}
 
-						// Move rest of data
-						auto const dist = std::distance(from_it, data.end());
-						std::move(from_it, data.end(), dest_it);
+						// Move rest of components
+						auto const dist = std::distance(from_it, components.end());
+						std::move(from_it, components.end(), dest_it);
 						dest_it += dist;
 
 						// Erase the unused space
-						data.erase(dest_it, data.end());
+						components.erase(dest_it, components.end());
 					}
 				}
 
@@ -466,25 +465,5 @@ namespace ecs::detail {
 				set_data_removed();
 			}
 		}
-
-	private:
-		// The components data
-		std::vector<T> data; // mutable so the constants getters can return components whos contents can be modified
-
-		// The entities that have data in this storage.
-		std::vector<entity_range> ranges;
-
-
-		// The type used to store data.
-		using component_val = std::variant<T, std::function<T(entity_id)>>;
-		using entity_data = std::conditional_t<is_static_component, std::tuple<entity_range>, std::tuple<entity_range, component_val>>;
-
-		// Keep track of which components to add/remove each cycle
-		threaded<std::vector<entity_data>> deferred_adds;
-		threaded<std::vector<entity_range>> deferred_removes;
-
-		// 
-		bool data_added{};
-		bool data_removed{};
 	};
 };
