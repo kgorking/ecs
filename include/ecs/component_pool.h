@@ -27,8 +27,8 @@ namespace ecs::detail {
 		std::vector<entity_range> ranges;
 
 		// Keep track of which components to add/remove each cycle
-		using component_val = std::variant<T, std::function<T(entity_id)>>;
-		using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, component_val>>;
+		using variant = std::variant<T, std::function<T(entity_id)>>;
+		using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, variant>>;
 		threaded<std::vector<entity_data>> deferred_adds;
 		threaded<std::vector<entity_range>> deferred_removes;
 
@@ -336,7 +336,6 @@ namespace ecs::detail {
 				add_range(new_ranges, range);
 
 				if constexpr (!unbound<T>) {
-					// Add the new components
 					auto const add_val = [this, &component_it, range](T&& val) {
 						component_it = components.insert(component_it, range.count(), std::forward<T>(val));
 						component_it = std::next(component_it, range.count());
@@ -348,8 +347,8 @@ namespace ecs::detail {
 						}
 					};
 
-					component_val& component = std::get<1>(add);
-					std::visit(detail::overloaded{ add_val, add_init }, std::move(component));
+					// Add the new components
+					std::visit(overloaded{ add_val, add_init }, std::move(std::get<1>(add)));
 				}
 			}
 
