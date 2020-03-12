@@ -106,7 +106,7 @@ void component_add(benchmark::State& state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		state.PauseTiming();
 			ecs::detail::_context.reset();
-			ecs::make_system([](ecs::entity ent, size_t const& /*unused*/) { });
+			ecs::make_system([](ecs::entity /*ent*/, size_t const& /*unused*/) { });
 		state.ResumeTiming();
 
 		ecs::add_component({ 0, nentities }, size_t{});
