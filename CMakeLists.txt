@@ -55,6 +55,7 @@ if (ECS_STANDALONE_PROJECT)
 
     # Examples
     add_subdirectory ("examples/example")
+    add_subdirectory ("examples/plague_spell")
     add_subdirectory ("examples/entt_example")
     add_subdirectory ("examples/parallelism")
     add_subdirectory ("examples/finite_state_machine")
