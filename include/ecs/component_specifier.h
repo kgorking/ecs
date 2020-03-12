@@ -44,5 +44,6 @@ namespace ecs
 		template<typename T> concept immutable = std::is_base_of_v<ecs::immutable, flags<T>>;
 
 		template<typename T> concept persistent = !transient<T>;
+		template<typename T> concept unbound = (shared<T> || tagged<T>); // component is not bound to a specific entity (ie static)
 	}
 }
