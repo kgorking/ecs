@@ -1,4 +1,5 @@
 #pragma once
+#include <concepts>
 #include "entity_id.h"
 
 namespace ecs
@@ -15,26 +16,21 @@ namespace ecs
 		entity_id ent;
 
 	public:
-		template <typename ...Components>
+		template <std::copyable ...Components>
 		entity(entity_id ent, Components &&... components)
 			: ent(ent)
 		{
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
-		[[nodiscard]] entity_id get_id() const
-		{
-			return ent;
-		}
-
-		template <typename ...Components>
+		template <std::copyable ...Components>
 		void add(Components &&... components)
 		{
 			//(add_component<Components>(ent, std::forward<Components>(components)), ...);
 			add_components(ent, std::forward<Components>(components)...);
 		}
 
-		template <typename ...Components>
+		template <std::copyable ...Components>
 		void add()
 		{
 			//(add_component<Components>(ent, Components{}), ...);
@@ -57,6 +53,11 @@ namespace ecs
 		[[nodiscard]] Component& get() const
 		{
 			return get_component<Component>(ent);
+		}
+
+		[[nodiscard]] entity_id get_id() const
+		{
+			return ent;
 		}
 	};
 }

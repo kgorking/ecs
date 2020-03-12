@@ -18,8 +18,7 @@ namespace ecs::detail {
 	template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 	template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
 
-	template <typename T>
-	  requires (std::copyable<T>)  // https://en.cppreference.com/w/cpp/concepts/copyable
+	template <std::copyable T>
 	class component_pool final : public component_pool_base {
 
 		static constexpr bool is_static_component = detail::shared<T> || detail::tagged<T>; // all entities point to the same component

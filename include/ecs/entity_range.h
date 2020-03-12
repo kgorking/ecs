@@ -200,19 +200,19 @@ namespace ecs
 			add_components(*this, Components{}...);
 		}
 
-		template <typename ...Components>
+		template <std::copyable ...Components>
 		void remove()
 		{
 			(remove_component<Components>(*this), ...);
 		}
 
-		template <typename ...Components>
+		template <std::copyable ...Components>
 		[[nodiscard]] bool has() const
 		{
 			return (has_component<Components>(*this) && ...);
 		}
 
-		template <typename Component>
+		template <std::copyable Component>
 		[[nodiscard]] gsl::span<Component> get() const
 		{
 			return gsl::span(get_component<Component>(first_), count());
