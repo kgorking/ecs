@@ -94,7 +94,7 @@ namespace ecs::detail {
 				std::shared_lock lock(mutex);
 				auto it = type_pool_lookup.find(type_index);
 
-				if (it == type_pool_lookup.end()) {
+				[[unlikely]] if (it == type_pool_lookup.end()) {
 					// The pool wasn't found so create it.
 					// create_component_pool takes a unique lock, so unlock the
 					// shared lock during its call
