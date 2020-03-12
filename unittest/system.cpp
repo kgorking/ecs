@@ -27,7 +27,7 @@ TEST_CASE("System specification", "[system]") {
 
 	SECTION("Verify enable/disable functions") {
 		struct local {};
-		ecs::system& sys = ecs::make_system([](local const& c) {});
+		ecs::system& sys = ecs::make_system([](local const& /*c*/) {});
 
 		REQUIRE(true == sys.is_enabled());
 		sys.disable();
