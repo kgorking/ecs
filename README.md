@@ -88,7 +88,8 @@ ecs::add_components({ 0, dimension * dimension},
 
 ## Flags
 The behaviour of components can be changed using component flags, which changes how they are managed
-internally and can offer performance and memory benefits. There are four supported flags currently supported:
+internally and can offer performance and memory benefits. There are four supported flags currently supported
+that can be added to components using the `ecs_flags()` macro:
 
 ### `tag`
 Marking a component as a tag is used for components that signal some kind of state, without needing to
