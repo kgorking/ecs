@@ -12,8 +12,7 @@ namespace ecs {
 	//   T(ecs::entity_id)
 	// where T is the component type returned by the function.
 	// Pre: entity does not already have the component, or have it in queue to be added
-	template <typename Callable>
-	  requires std::invocable<Callable, entity_id>
+	template <typename Callable> requires std::invocable<Callable, entity_id>
 	void add_component(entity_range const range, Callable&& func) {
 		// Return type of 'func'
 		using ComponentType = decltype(std::declval<Callable>()(entity_id{ 0 }));
@@ -28,7 +27,9 @@ namespace ecs {
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
 	void add_component(entity_range const range, T&& val) {
-		static_assert(std::copyable<T>);
+		static_assert(!std::is_reference_v<T>, "can not store references; pass a copy instead");
+		static_assert(std::copyable<T>, "T must be copyable");
+
 		// Add it to the component pool
 		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 		pool.add(range, std::forward<T>(val));
