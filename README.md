@@ -139,11 +139,10 @@ struct damage { ecs_flags(ecs::transient);
     double value;
 };
 // ...
-ecs::make_system([](health& h, damage const& dmg) {
-    h.hp -= dmg.value;
-});
+ecs::add_components({0,99}, damage{9001});
+ecs::commit_changes(); // adds the damage components
+ecs::commit_changes(); // removes all added damage components
 ```
-After the next call to `ecs::commit_changes()` all `damage` components on all entities will have been removed.
 
 ### `immutable`
 Marking a component as immutable (a.k.a. const) is used for components that are not to be changed by systems.
