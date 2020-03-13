@@ -78,11 +78,11 @@ struct pos {
 // ...
 
 ecs::add_components({ 0, dimension * dimension},
-	[](ecs::entity_id ent) -> pos {
-		int const x = ent % dimension;
-		int const y = ent / dimension;
-		return { x, y };
-	}
+    [](ecs::entity_id ent) -> pos {
+        int const x = ent % dimension;
+        int const y = ent / dimension;
+        return { x, y };
+    }
 );
 ```
 
