@@ -152,6 +152,7 @@ from the `share` example.
 If a component is marked as `immutable` and is used in a system without being marked `const`,
 you will get a compile-time error reminding you to make it constant.
 
+# todo 
 # Systems
 ## Requirements and rules
 ## Multi-component systems
@@ -160,4 +161,3 @@ you will get a compile-time error reminding you to make it constant.
 
 # Entities
 ## ranges
-## component generators
