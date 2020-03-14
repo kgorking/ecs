@@ -237,15 +237,6 @@ namespace ecs::detail {
 			data_removed = true;
 		}
 
-		// Returns the component at the specific index.
-		// Pre: index is within bounds
-		T* at(size_t const index) const {
-			if (index < components.size())
-				return &components[index];
-			else
-				return nullptr;
-		}
-
 		// Searches for an entitys offset in to the component pool.
 		// Returns nothing if 'ent' is not a valid entity
 		std::optional<size_t> find_entity_index(entity_id const ent) const {
