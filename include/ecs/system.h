@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __SYSTEM
+#define __SYSTEM
 
 namespace ecs::detail {
 	class context;
@@ -51,3 +52,5 @@ namespace ecs
 		bool enabled = true;
 	};
 }
+
+#endif // !__SYSTEM

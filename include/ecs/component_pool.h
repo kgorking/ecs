@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __COMPONENT_POOL
+#define __COMPONENT_POOL
+
 #include <gsl/gsl>
 #include <gsl/span>
 #include <variant>
@@ -457,3 +459,5 @@ namespace ecs::detail {
 		}
 	};
 };
+
+#endif // !__COMPONENT_POOL

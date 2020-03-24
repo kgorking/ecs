@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __SYSTEM_VERIFICATION
+#define __SYSTEM_VERIFICATION
+
 #include <utility>
 #include <type_traits>
 #include "component_specifier.h"
@@ -93,3 +95,5 @@ namespace ecs::detail {
 		lambda_to_system_bridge(&T::operator ());
 	};
 }
+
+#endif // !__SYSTEM_VERIFICATION

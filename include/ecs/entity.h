@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __ENTITY
+#define __ENTITY
+
 #include <concepts>
 #include "entity_id.h"
 
@@ -53,3 +55,5 @@ namespace ecs
 		}
 	};
 }
+
+#endif // !__ENTITY

@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __CONTEXT
+#define __CONTEXT
+
 #include <vector>
 #include <map>
 #include <typeindex>
@@ -210,3 +212,5 @@ namespace ecs::detail {
 	// The global reference to the context
 	static inline context & _context = get_context();
 }
+
+#endif // !__CONTEXT
