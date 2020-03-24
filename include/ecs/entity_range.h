@@ -7,15 +7,6 @@
 
 namespace ecs
 {
-	// Forward decls
-	class entity_range;
-	template <typename T>  void add_component(entity_range range, T&& val);
-	template <typename T>  void remove_component(entity_range range);
-	template <typename T>  bool has_component(entity_range range);
-	template <typename T>  T* get_component(entity_id id);
-
-	using entity_range_view = gsl::span<entity_range const>;
-
 	// Defines a range of entities.
 	// 'last' is included in the range.
 	class entity_range final
@@ -220,6 +211,8 @@ namespace ecs
 			return gsl::span(get_component<Component>(first_), count());
 		}
 	};
+
+	using entity_range_view = gsl::span<entity_range const>;
 }
 
 #endif // !__ENTITTY_RANGE
