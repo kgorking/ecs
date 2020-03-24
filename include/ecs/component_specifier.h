@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __COMPONENT_SPECIFIER
+#define __COMPONENT_SPECIFIER
+
 #include <type_traits>
 
 namespace ecs
@@ -47,3 +49,5 @@ namespace ecs
 		template<typename T> concept unbound = (shared<T> || tagged<T>); // component is not bound to a specific entity (ie static)
 	}
 }
+
+#endif // !__COMPONENT_SPECIFIER

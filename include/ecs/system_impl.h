@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __SYSTEM_IMPL
+#define __SYSTEN_IMPL
+
 #include <utility>
 #include <algorithm>
 #include <type_traits>
@@ -212,3 +214,5 @@ namespace ecs::detail
 		}
 	};
 }
+
+#endif // !__SYSTEN_IMPL

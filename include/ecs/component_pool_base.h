@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __COMPONENT_POOL_BASE
+#define __COMPONENT_POOL_BASE
 
 namespace ecs::detail
 {
@@ -19,3 +20,5 @@ namespace ecs::detail
 		virtual void clear() = 0;
 	};
 }
+
+#endif // !__COMPONENT_POOL_BASE

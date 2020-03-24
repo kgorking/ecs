@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __ENTITY_RANGE
+#define __ENTITY_RANGE
+
 #include <optional>
 #include <gsl/span>
 #include "entity_id.h"
@@ -219,3 +221,5 @@ namespace ecs
 		}
 	};
 }
+
+#endif // !__ENTITTY_RANGE

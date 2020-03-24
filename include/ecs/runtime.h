@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __RUNTIME
+#define __RUNTIME
+
 #include <execution>
 #include "system_verification.h"
 #include "entity_range.h"
@@ -192,3 +194,5 @@ namespace ecs {
 		return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 }
+
+#endif // !__RUNTIME

@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __ENTITY_ID
+#define __ENTITY_ID
+
 #include <cstdint>
 #include <numeric>
 
@@ -22,3 +24,5 @@ namespace ecs
 		std::int32_t id;
 	};
 }
+
+#endif // !__ENTITY_ID

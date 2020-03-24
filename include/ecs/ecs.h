@@ -1,5 +1,3 @@
-#pragma once
-
 #include "system.h"
 #include "runtime.h"
 #include "entity.h"
