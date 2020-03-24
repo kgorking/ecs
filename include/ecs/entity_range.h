@@ -2,6 +2,7 @@
 #define __ENTITY_RANGE
 
 #include <optional>
+#include <concepts>
 #include <gsl/span>
 #include "entity_id.h"
 
