@@ -3,6 +3,7 @@
 
 #include <utility>
 #include <type_traits>
+#include <concepts>
 #include "component_specifier.h"
 
 namespace ecs {
@@ -19,9 +20,9 @@ namespace ecs::detail {
 	};
 
 	template<typename T> requires std::invocable<T, int>
-		struct get_type<T> {
+	struct get_type<T> {
 			using type = std::invoke_result_t<T, int>;
-		};
+	};
 
 	template<typename T>
 	using get_type_t = typename get_type<T>::type;
