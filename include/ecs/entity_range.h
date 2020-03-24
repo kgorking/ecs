@@ -11,8 +11,8 @@ namespace ecs
 	// 'last' is included in the range.
 	class entity_range final
 	{
-		entity_id first_{ 0 };
-		entity_id last_{ 0 };
+		entity_id first_;
+		entity_id last_;
 
 	public:
 		// Iterator support
@@ -44,17 +44,15 @@ namespace ecs
 		[[nodiscard]] iterator end() const { return { last_ + 1 }; }
 
 	public:
-		entity_range(entity_id first, entity_id last)
-			: first_(first)
-			, last_(last)
-		{
-			Expects(first <= last);
-		}
+		entity_range() = delete; // what is a default range?
 
+		// Construct an entity range, and optionally add components to them.
+		// Can be constructed as 'entity_range{3, 33}'
 		template <typename ...Components>
 		entity_range(entity_id first, entity_id last, Components&& ... components)
-			: entity_range(first, last)
-		{
+			: first_(first)
+			, last_(last) {
+			Expects(first <= last);
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
