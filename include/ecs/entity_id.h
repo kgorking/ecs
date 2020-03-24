@@ -6,6 +6,8 @@
 
 namespace ecs
 {
+	using entity_type = std::int32_t;
+
 	// A simple struct that is an entity identifier.
 	// Use a struct so the typesystem can differentiate
 	// between entity ids and regular integers in system arguments
@@ -13,15 +15,16 @@ namespace ecs
 	{
 		// Uninitialized entity ids are not allowed, because they make no sense
 		entity_id() = delete;
-		entity_id(std::int32_t _id) noexcept
+
+		entity_id(entity_type _id) noexcept
 			: id(_id)
 		{ }
 
-		operator std::int32_t& () noexcept { return id; }
-		operator std::int32_t () const noexcept { return id; }
+		operator entity_type& () noexcept { return id; }
+		operator entity_type () const noexcept { return id; }
 
 	private:
-		std::int32_t id;
+		entity_type id;
 	};
 }
 
