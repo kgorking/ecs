@@ -12,7 +12,7 @@ int main()
 		std::this_thread::sleep_for(10ms);
 	};
 
-	// Add the systems
+	// Make the systems
 	auto& serial_sys = ecs::make_system(sys_sleep);
 	auto& parallel_sys = ecs::make_parallel_system(sys_sleep);
 
