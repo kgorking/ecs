@@ -104,7 +104,7 @@ namespace ecs::detail
 			}
 		}
 
-		[[nodiscard]] int get_group() const noexcept override {
+		[[nodiscard]] constexpr int get_group() const noexcept override {
 			return Group;
 		}
 
@@ -202,13 +202,13 @@ namespace ecs::detail
 		}
 
 		template <typename Component>
-		[[nodiscard]] component_pool<Component>& get_pool() const
+		[[nodiscard]] constexpr component_pool<Component>& get_pool() const
 		{
 			return *std::get<pool<Component>>(pools);
 		}
 
 		template <typename Component>
-		[[nodiscard]] Component* get_component(entity_id const entity)
+		[[nodiscard]] constexpr Component* get_component(entity_id const entity)
 		{
 			return get_pool<Component>().find_component_data(entity);
 		}

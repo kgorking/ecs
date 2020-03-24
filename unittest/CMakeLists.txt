@@ -2,6 +2,7 @@
 
 add_executable (unittests
 	"unittest.cpp"
+	"constexpr.cpp"
 	"runtime.cpp"
 	"component deletion.cpp"
 	"component_pool.cpp"

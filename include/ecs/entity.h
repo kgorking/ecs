@@ -13,20 +13,20 @@ namespace ecs
 
 	public:
 		template <std::copyable ...Components>
-		entity(entity_id ent, Components &&... components)
+		constexpr entity(entity_id ent, Components &&... components)
 			: ent(ent)
 		{
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
 		template <std::copyable ...Components>
-		void add(Components &&... components)
+		constexpr void add(Components &&... components)
 		{
 			add_components(ent, std::forward<Components>(components)...);
 		}
 
 		template <std::copyable ...Components>
-		void add()
+		constexpr void add()
 		{
 			add_components(ent, Components{}...);
 		}
