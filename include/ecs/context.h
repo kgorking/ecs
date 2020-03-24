@@ -64,8 +64,7 @@ namespace ecs::detail {
 			// Prevent other threads from registering new component types
 			std::shared_lock lock(mutex);
 
-			auto const it = type_pool_lookup.find(std::type_index(type));
-			return (it != type_pool_lookup.end());
+			return type_pool_lookup.contains(std::type_index(type));
 		}
 
 		// Resets the runtime state. Removes all systems, empties component pools
