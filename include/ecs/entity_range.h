@@ -18,17 +18,18 @@ namespace ecs
 		// Iterator support
 		// TODO harden
 		class iterator {
-			entity_id ent_;
+			entity_id ent_ = std::numeric_limits<entity_type>::min();  // has to be default initialized due to msvc parallel implementation of for_each, which is annoying
 
 		public:
 			// iterator traits
-			using difference_type = std::int32_t;
+			using difference_type = entity_type;
 			using value_type = entity_id;
 			using pointer = const entity_id*;
 			using reference = const entity_id &;
 			using iterator_category = std::random_access_iterator_tag;
 
-			iterator() noexcept : ent_(0) {}
+			//iterator() = delete; // no such thing as a 'default' entity
+			iterator() noexcept = default;
 			iterator(entity_id ent) noexcept : ent_(ent) {}
 			iterator& operator++() { ent_++; return *this; }
 			iterator operator++(int) { iterator const retval = *this; ++(*this); return retval; }
