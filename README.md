@@ -131,6 +131,14 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 **Note!** Beware of using mutable shared components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
 to disallow systems modifying the shared component. `ecs_flags(ecs::share|ecs::immutable);`
 
+### `immutable`
+Marking a component as immutable (a.k.a. const) is used for components that are not to be changed by systems.
+This is used for passing read-only data to systems. A great candiate for this would be the `frame_data` component
+from the `share` example.
+
+If a component is marked as `immutable` and is used in a system without being marked `const`,
+you will get a compile-time error reminding you to make it constant.
+
 ### `transient`
 Marking a component as transient is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
@@ -140,20 +148,13 @@ struct damage { ecs_flags(ecs::transient);
 };
 // ...
 ecs::add_components({0,99}, damage{9001});
-ecs::commit_changes(); // adds the damage components
-ecs::commit_changes(); // removes all added damage components
+ecs::commit_changes(); // adds the 100 damage components
+ecs::commit_changes(); // removes the 100 damage components
 ```
 
-### `immutable`
-Marking a component as immutable (a.k.a. const) is used for components that are not to be changed by systems.
-This is used for passing read-only data to systems. A great candiate for this would be the `frame_data` component
-from the `share` example.
-
-If a component is marked as `immutable` and is used in a system without being marked `const`,
-you will get a compile-time error reminding you to make it constant.
-
-# todo 
 # Systems
+5
+
 ## Requirements and rules
 ## Multi-component systems
 ## Current entity
