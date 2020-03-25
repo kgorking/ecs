@@ -48,43 +48,48 @@ namespace ecs
 	public:
 		entity_range() = delete; // what is a default range?
 
-		// Construct an entity range, and optionally add components to them.
-		// Can be constructed as 'entity_range{3, 33}'
+		constexpr entity_range(entity_id first, entity_id last)
+			: first_(first)
+			, last_(last) {
+			Expects(first <= last);
+		}
+
+		// Construct an entity range and add components to them.
 		template <typename ...Components>
-		constexpr entity_range(entity_id first, entity_id last, Components&& ... components)
+		entity_range(entity_id first, entity_id last, Components&& ... components)
 			: first_(first)
 			, last_(last) {
 			Expects(first <= last);
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
-		constexpr bool operator == (entity_range const& other) const {
-			return equals(other);
-		}
-
 		template <typename ...Components>
-		constexpr void add(Components&& ... components) const {
+		void add(Components&& ... components) const {
 			add_components(*this, std::forward<Components>(components)...);
 		}
 
 		template <typename ...Components>
-		constexpr void add() const {
+		void add() const {
 			add_components(*this, Components{}...);
 		}
 
 		template <std::copyable ...Components>
-		constexpr void remove() const {
+		void remove() const {
 			(remove_component<Components>(*this), ...);
 		}
 
 		template <std::copyable ...Components>
-		[[nodiscard]] constexpr bool has() const {
+		[[nodiscard]] bool has() const {
 			return (has_component<Components>(*this) && ...);
 		}
 
 		template <std::copyable Component>
-		[[nodiscard]] constexpr gsl::span<Component> get() const {
+		[[nodiscard]] gsl::span<Component> get() const {
 			return gsl::span(get_component<Component>(first_), count());
+		}
+
+		constexpr bool operator == (entity_range const& other) const {
+			return equals(other);
 		}
 
 		// For sort

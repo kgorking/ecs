@@ -12,39 +12,43 @@ namespace ecs
 		entity_id ent;
 
 	public:
+		constexpr entity(entity_id ent)
+			: ent(ent)
+		{ }
+
 		template <std::copyable ...Components>
-		constexpr entity(entity_id ent, Components &&... components)
+		entity(entity_id ent, Components &&... components)
 			: ent(ent)
 		{
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
 		template <std::copyable ...Components>
-		constexpr void add(Components &&... components) const
+		void add(Components &&... components) const
 		{
 			add_components(ent, std::forward<Components>(components)...);
 		}
 
 		template <std::copyable ...Components>
-		constexpr void add() const
+		void add() const
 		{
 			add_components(ent, Components{}...);
 		}
 
 		template <typename ...Components>
-		constexpr void remove() const
+		void remove() const
 		{
 			(remove_component<Components>(ent), ...);
 		}
 
 		template <typename ...Component>
-		[[nodiscard]] constexpr bool has() const
+		[[nodiscard]] bool has() const
 		{
 			return (has_component<Component>(ent) && ...);
 		}
 
 		template <typename Component>
-		[[nodiscard]] constexpr Component& get() const
+		[[nodiscard]] Component& get() const
 		{
 			return get_component<Component>(ent);
 		}

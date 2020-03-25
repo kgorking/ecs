@@ -27,7 +27,7 @@ namespace ecs
 		constexpr void disable() { set_enable(false); }
 
 		// Sets wheter the system is enabled or disabled
-		constexpr void set_enable(bool is_enabled) {
+		void set_enable(bool is_enabled) {
 			enabled = is_enabled;
 			if (is_enabled) {
 				process_changes(true);
@@ -35,10 +35,10 @@ namespace ecs
 		}
 
 		// Returns true if this system is enabled
-		[[nodiscard]] constexpr bool is_enabled() const { return enabled; }
+		[[nodiscard]] bool is_enabled() const { return enabled; }
 
 		// Returns the group this system belongs to
-		[[nodiscard]] constexpr virtual int get_group() const noexcept = 0;
+		[[nodiscard]] virtual int get_group() const noexcept = 0;
 
 	private:
 		// Only allow the context class to call 'process_changes'
