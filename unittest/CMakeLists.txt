@@ -9,7 +9,7 @@ add_executable (unittests
 	"entity sorting.cpp"
 	"missing storage.cpp"
 	"mutable lambdas.cpp"
-	"range intersect.cpp"
+	"entity_range.cpp"
 	"ranged add.cpp"
 	"shared component.cpp"
 	"system argument ordering.cpp"
