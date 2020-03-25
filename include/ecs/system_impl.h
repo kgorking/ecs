@@ -1,5 +1,5 @@
 #ifndef __SYSTEM_IMPL
-#define __SYSTEN_IMPL
+#define __SYSTEM_IMPL
 
 #include <utility>
 #include <algorithm>
@@ -215,4 +215,4 @@ namespace ecs::detail
 	};
 }
 
-#endif // !__SYSTEN_IMPL
+#endif // !__SYSTEM_IMPL
