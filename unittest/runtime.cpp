@@ -42,9 +42,7 @@ TEST_CASE("The runtime interface") {
 		REQUIRE(runtime_ctr_counter::dtr_count == 1 + 2 + 10);
 	}
 
-	SECTION("allocates storage as needed") {
-		ecs::detail::_context.reset();
-
+	SECTION("Allocates storage as needed") {
 		// Use a local struct to avoid it possibly
 		// already existing from another unittest
 		struct S { size_t c; };
@@ -53,5 +51,24 @@ TEST_CASE("The runtime interface") {
 		ecs::add_component(0, S{ 0 });
 		ecs::commit_changes();
 		REQUIRE(ecs::get_component_count<S>() == 1);
+	}
+
+	SECTION("Supportsd mutable lambdas") {
+		struct  mut_lambda {
+			int i;
+		};
+
+		// Add some systems to test
+		ecs::make_system([counter = 0](mut_lambda& ml) mutable
+		{
+			ml.i = counter++;
+		});
+		ecs::make_system([](ecs::entity_id ent, mut_lambda const& ml) {
+			CHECK(ent == ml.i);
+		});
+
+		// Create 100 entities and add stuff to them
+		ecs::add_component({ 0, 3 }, mut_lambda{ 0 });
+		ecs::update_systems();
 	}
 }
