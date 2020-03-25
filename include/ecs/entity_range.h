@@ -58,13 +58,34 @@ namespace ecs
 			add<Components...>(std::forward<Components>(components)...);
 		}
 
-		~entity_range() = default;
-		entity_range(entity_range const&) = default;
-		entity_range(entity_range &&) = default;
-		entity_range& operator = (entity_range const&) = default;
-		entity_range& operator = (entity_range &&) = default;
+		// needed for std algorithms
 		bool operator == (entity_range const& other) const {
 			return equals(other);
+		}
+
+		template <typename ...Components>
+		void add(Components&& ... components) const {
+			add_components(*this, std::forward<Components>(components)...);
+		}
+
+		template <typename ...Components>
+		void add() const {
+			add_components(*this, Components{}...);
+		}
+
+		template <std::copyable ...Components>
+		void remove() const {
+			(remove_component<Components>(*this), ...);
+		}
+
+		template <std::copyable ...Components>
+		[[nodiscard]] bool has() const {
+			return (has_component<Components>(*this) && ...);
+		}
+
+		template <std::copyable Component>
+		[[nodiscard]] gsl::span<Component> get() const {
+			return gsl::span(get_component<Component>(first_), count());
 		}
 
 		// For sort
@@ -177,38 +198,6 @@ namespace ecs
 			Expects(last - first >= 0);
 
 			return entity_range{ first, last };
-		}
-
-		template <typename ...Components>
-		void add(Components&& ... components)
-		{
-			//(add_component<Components>(*this, std::forward<Components>(components)), ...);
-			add_components(*this, std::forward<Components>(components)...);
-		}
-
-		template <typename ...Components>
-		void add()
-		{
-			//(add_component<Components>(*this, Components{}), ...);
-			add_components(*this, Components{}...);
-		}
-
-		template <std::copyable ...Components>
-		void remove()
-		{
-			(remove_component<Components>(*this), ...);
-		}
-
-		template <std::copyable ...Components>
-		[[nodiscard]] bool has() const
-		{
-			return (has_component<Components>(*this) && ...);
-		}
-
-		template <std::copyable Component>
-		[[nodiscard]] gsl::span<Component> get() const
-		{
-			return gsl::span(get_component<Component>(first_), count());
 		}
 	};
 
