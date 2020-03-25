@@ -202,13 +202,13 @@ namespace ecs::detail
 		}
 
 		template <typename Component>
-		[[nodiscard]] constexpr component_pool<Component>& get_pool() const
+		[[nodiscard]] component_pool<Component>& get_pool() const
 		{
 			return *std::get<pool<Component>>(pools);
 		}
 
 		template <typename Component>
-		[[nodiscard]] constexpr Component* get_component(entity_id const entity)
+		[[nodiscard]] Component* get_component(entity_id const entity)
 		{
 			return get_pool<Component>().find_component_data(entity);
 		}

@@ -15,7 +15,7 @@ namespace ecs {
 	// where T is the component type returned by the function.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename Callable> requires std::invocable<Callable, entity_id>
-	constexpr void add_component(entity_range const range, Callable&& func) {
+	void add_component(entity_range const range, Callable&& func) {
 		// Return type of 'func'
 		using ComponentType = decltype(std::declval<Callable>()(entity_id{ 0 }));
 		static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
@@ -28,7 +28,7 @@ namespace ecs {
 	// Add a component to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	constexpr void add_component(entity_range const range, T&& val) {
+	void add_component(entity_range const range, T&& val) {
 		static_assert(!std::is_reference_v<T>, "can not store references; pass a copy instead");
 		static_assert(std::copyable<T>, "T must be copyable");
 
@@ -40,14 +40,14 @@ namespace ecs {
 	// Add a component to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	constexpr void add_component(entity_id const id, T&& val)	{
+	void add_component(entity_id const id, T&& val)	{
 		add_component({ id, id }, std::forward<T>(val));
 	}
 
 	// Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename ...T>
-	constexpr void add_components(entity_range const range, T &&... vals) {
+	void add_components(entity_range const range, T &&... vals) {
 		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(range, std::forward<T>(vals)), ...);
 	}
@@ -55,7 +55,7 @@ namespace ecs {
 	// Add several components to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename ...T>
-	constexpr void add_components(entity_id const id, T &&... vals) {
+	void add_components(entity_id const id, T &&... vals) {
 		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(id, std::forward<T>(vals)), ...);
 	}
