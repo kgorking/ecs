@@ -88,6 +88,26 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(50 == pool.num_components());
 			REQUIRE(50 == pool.num_entities());
 		}
+		SECTION("keeps them sorted by entity id") {
+			ecs::detail::component_pool<int> pool;
+			pool.add(4,4);
+			pool.add(1,1);
+			pool.add(2,2);
+			pool.process_changes();
+			REQUIRE(pool.find_component_data(1) < pool.find_component_data(2));
+			REQUIRE(pool.find_component_data(2) < pool.find_component_data(4));
+
+			pool.add(9,9);
+			pool.add(3,3);
+			pool.add(7,7);
+			pool.process_changes();
+
+			REQUIRE(pool.find_component_data(1) < pool.find_component_data(2));
+			REQUIRE(pool.find_component_data(2) < pool.find_component_data(3));
+			REQUIRE(pool.find_component_data(3) < pool.find_component_data(4));
+			REQUIRE(pool.find_component_data(4) < pool.find_component_data(7));
+			REQUIRE(pool.find_component_data(7) < pool.find_component_data(9));
+		}
 	}
 
 	SECTION("Removing components") {
