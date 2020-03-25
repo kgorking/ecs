@@ -14,8 +14,8 @@ add_executable (unittests
 	
 	"system.cpp"
 	"transient components.cpp"
-	"two systems and components.cpp"
-	"two-component system.cpp")
+	
+	)
 target_link_libraries(unittests ecs)
 
 
