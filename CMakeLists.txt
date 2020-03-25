@@ -25,7 +25,7 @@ if (MSVC)
     target_compile_options(ecs INTERFACE /W4)
 else()
     # lots of warnings
-    target_compile_options(ecs INTERFACE -Wall -Wextra -pedantic -fconcepts)
+    target_compile_options(ecs INTERFACE -Wall -Wextra -pedantic)
 endif()
 
 # Project headers
