@@ -20,19 +20,19 @@ namespace ecs
 		}
 
 		template <std::copyable ...Components>
-		constexpr void add(Components &&... components)
+		void add(Components &&... components) const
 		{
 			add_components(ent, std::forward<Components>(components)...);
 		}
 
 		template <std::copyable ...Components>
-		constexpr void add()
+		void add() const
 		{
 			add_components(ent, Components{}...);
 		}
 
 		template <typename ...Components>
-		void remove()
+		void remove() const
 		{
 			(remove_component<Components>(ent), ...);
 		}
