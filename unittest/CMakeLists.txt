@@ -4,7 +4,7 @@ add_executable (unittests
 	"unittest.cpp"
 	"constexpr.cpp"
 	"runtime.cpp"
-	"component deletion.cpp"
+	"component removal.cpp"
 	"component_pool.cpp"
 	"missing storage.cpp"
 	"mutable lambdas.cpp"
