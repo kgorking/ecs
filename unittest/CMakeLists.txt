@@ -9,7 +9,7 @@ add_executable (unittests
 	
 	
 	"entity_range.cpp"
-	"ranged add.cpp"
+	
 	"shared component.cpp"
 	"system argument ordering.cpp"
 	"system.cpp"

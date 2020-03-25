@@ -71,4 +71,37 @@ TEST_CASE("The runtime interface") {
 		ecs::add_component({ 0, 3 }, mut_lambda{ 0 });
 		ecs::update_systems();
 	}
+
+	SECTION("Ranged add") {
+		struct range_add {
+			int i;
+		};
+
+		SECTION("of components works") {
+			ecs::add_component({ 0, 5 }, range_add{ 5 });
+			ecs::entity_range const ents{ 6, 9, range_add{ 5 } };
+			ecs::commit_changes();
+
+			for (ecs::entity_id i = 0; i <= 9; ++i) {
+				auto const& ra = *ecs::get_component<range_add>(i);
+				CHECK(ra.i == 5);
+			}
+		}
+
+		SECTION("of components with initializer works") {
+			auto const init = [](auto ent) -> range_add {
+				return { ent * 2 };
+			};
+
+			ecs::add_component({ 10, 15 }, init);
+			ecs::entity_range const ents{ 16, 20, init };
+
+			ecs::commit_changes();
+
+			for (ecs::entity_id i = 10; i <= 20; ++i) {
+				auto const& ra = *ecs::get_component<range_add>(i);
+				CHECK(ra.i == i * 2);
+			}
+		}
+	}
 }
