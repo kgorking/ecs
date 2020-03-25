@@ -6,7 +6,7 @@ add_executable (unittests
 	"runtime.cpp"
 	"component removal.cpp"
 	"component_pool.cpp"
-	"missing storage.cpp"
+	
 	"mutable lambdas.cpp"
 	"entity_range.cpp"
 	"ranged add.cpp"
