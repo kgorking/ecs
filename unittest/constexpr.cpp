@@ -32,6 +32,7 @@ TEST_CASE("constexpr", "[constexpr]") {
 
 	SECTION("entity_range") {
 		constexpr ecs::entity_range rng{ 0, 5 };
+		constexpr ecs::entity_range::iterator it{ 5 };
 		//constexpr ecs::entity_range rng{ 0, 5, 3.14f };
 	}
 }

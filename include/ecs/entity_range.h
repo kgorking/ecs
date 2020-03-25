@@ -31,16 +31,16 @@ namespace ecs
 
 			//iterator() = delete; // no such thing as a 'default' entity
 			iterator() noexcept = default;
-			iterator(entity_id ent) noexcept : ent_(ent) {}
-			iterator& operator++() { ent_++; return *this; }
-			iterator operator++(int) { iterator const retval = *this; ++(*this); return retval; }
-			iterator operator+(difference_type diff) const { return { ent_ + diff }; }
-			difference_type operator-(difference_type diff) const { return ent_ - diff; }
-			//iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
-			difference_type operator-(iterator in_it) const { return ent_ - in_it.ent_; }
-			bool operator==(iterator other) const { return ent_ == other.ent_; }
-			bool operator!=(iterator other) const { return !(*this == other); }
-			entity_id operator*() { return ent_; }
+			constexpr iterator(entity_id ent) noexcept : ent_(ent) {}
+			constexpr iterator& operator++() { ent_++; return *this; }
+			constexpr iterator operator++(int) { iterator const retval = *this; ++(*this); return retval; }
+			constexpr iterator operator+(difference_type diff) const { return { ent_ + diff }; }
+			constexpr difference_type operator-(difference_type diff) const { return ent_ - diff; }
+			//constexpr iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
+			constexpr difference_type operator-(iterator in_it) const { return ent_ - in_it.ent_; }
+			constexpr bool operator==(iterator other) const { return ent_ == other.ent_; }
+			constexpr bool operator!=(iterator other) const { return !(*this == other); }
+			constexpr entity_id operator*() { return ent_; }
 		};
 		[[nodiscard]] iterator begin() const { return { first_ }; }
 		[[nodiscard]] iterator end() const { return { last_ + 1 }; }
@@ -63,27 +63,27 @@ namespace ecs
 		}
 
 		template <typename ...Components>
-		void add(Components&& ... components) const {
+		constexpr void add(Components&& ... components) const {
 			add_components(*this, std::forward<Components>(components)...);
 		}
 
 		template <typename ...Components>
-		void add() const {
+		constexpr void add() const {
 			add_components(*this, Components{}...);
 		}
 
 		template <std::copyable ...Components>
-		void remove() const {
+		constexpr void remove() const {
 			(remove_component<Components>(*this), ...);
 		}
 
 		template <std::copyable ...Components>
-		[[nodiscard]] bool has() const {
+		[[nodiscard]] constexpr bool has() const {
 			return (has_component<Components>(*this) && ...);
 		}
 
 		template <std::copyable Component>
-		[[nodiscard]] gsl::span<Component> get() const {
+		[[nodiscard]] constexpr gsl::span<Component> get() const {
 			return gsl::span(get_component<Component>(first_), count());
 		}
 
