@@ -104,7 +104,7 @@ namespace ecs::detail
 			}
 		}
 
-		[[nodiscard]] int get_group() const noexcept override {
+		[[nodiscard]] constexpr int get_group() const noexcept override {
 			return Group;
 		}
 

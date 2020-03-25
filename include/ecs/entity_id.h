@@ -16,12 +16,12 @@ namespace ecs
 		// Uninitialized entity ids are not allowed, because they make no sense
 		entity_id() = delete;
 
-		entity_id(entity_type _id) noexcept
+		constexpr entity_id(entity_type _id) noexcept
 			: id(_id)
 		{ }
 
-		operator entity_type& () noexcept { return id; }
-		operator entity_type () const noexcept { return id; }
+		constexpr operator entity_type& () noexcept { return id; }
+		constexpr operator entity_type () const noexcept { return id; }
 
 	private:
 		entity_type id;

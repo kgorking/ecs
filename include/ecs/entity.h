@@ -12,6 +12,10 @@ namespace ecs
 		entity_id ent;
 
 	public:
+		constexpr entity(entity_id ent)
+			: ent(ent)
+		{ }
+
 		template <std::copyable ...Components>
 		entity(entity_id ent, Components &&... components)
 			: ent(ent)
@@ -49,7 +53,7 @@ namespace ecs
 			return get_component<Component>(ent);
 		}
 
-		[[nodiscard]] entity_id get_id() const
+		[[nodiscard]] constexpr entity_id get_id() const
 		{
 			return ent;
 		}
