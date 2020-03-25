@@ -42,8 +42,8 @@ namespace ecs
 			constexpr bool operator!=(iterator other) const { return !(*this == other); }
 			constexpr entity_id operator*() { return ent_; }
 		};
-		[[nodiscard]] iterator begin() const { return { first_ }; }
-		[[nodiscard]] iterator end() const { return { last_ + 1 }; }
+		[[nodiscard]] constexpr iterator begin() const { return { first_ }; }
+		[[nodiscard]] constexpr iterator end() const { return { last_ + 1 }; }
 
 	public:
 		entity_range() = delete; // what is a default range?
