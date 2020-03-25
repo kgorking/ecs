@@ -98,7 +98,24 @@ TEST_CASE("System specification", "[system]") {
 		ecs::make_system<                              1>([&counter](S1&) { REQUIRE(counter == 1); counter++; });
 		ecs::make_system<std::numeric_limits<int>::min()>([&counter](Sx&) { REQUIRE(counter == 0); counter++; });
 
-		ecs::entity const e{ 0, S1{}, S3{}, Sx{}, S2{} };
+		ecs::add_components(0, S1{}, S3{}, Sx{}, S2{});
+		ecs::update_systems();
+	}
+
+	SECTION("Components are passed in the correct order to the system") {
+		ecs::detail::_context.reset();
+
+		struct C_Order1 { unsigned i; };
+		struct C_Order2 { unsigned j; };
+
+		// Add a system to check the order
+		ecs::make_system([](C_Order1& o1, C_Order2& o2) {
+			CHECK(o1.i < o2.j);
+		});
+
+		// Add the test components
+		ecs::add_components(0, C_Order1{ 1 }, C_Order2{ 2 });
+
 		ecs::update_systems();
 	}
 }

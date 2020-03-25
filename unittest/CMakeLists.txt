@@ -11,7 +11,7 @@ add_executable (unittests
 	"entity_range.cpp"
 	
 	"shared component.cpp"
-	"system argument ordering.cpp"
+	
 	"system.cpp"
 	"transient components.cpp"
 	"two systems and components.cpp"
