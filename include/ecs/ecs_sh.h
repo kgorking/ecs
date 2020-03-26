@@ -1551,7 +1551,7 @@ namespace ecs {
 
 		// Get the component pool
 		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-		return std::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
+		return { pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()) };
 	}
 
 	// Returns the number of active components
