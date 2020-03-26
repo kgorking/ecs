@@ -37,6 +37,9 @@ namespace ecs::detail {
 		// The user supplied system
 		UserUpdateFunc update_func;
 
+		// Execution policy
+		ExecutionPolicy exe_pol{};
+
 	public:
 		// Constructor for when the first argument to the system is _not_ an entity
 		system_impl(UserUpdateFunc update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
@@ -62,7 +65,7 @@ namespace ecs::detail {
 			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
 				auto const& range = std::get<entity_range>(argument);
-				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
+				std::for_each(exe_pol, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 					// Small helper function
 					auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
 						using T = std::remove_cvref_t<decltype(*ptr)>;
