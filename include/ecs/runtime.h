@@ -1,13 +1,6 @@
 #ifndef __RUNTIME
 #define __RUNTIME
 
-#include <execution>
-#include "system_verification.h"
-#include "entity_range.h"
-#include "component_pool.h"
-#include "component_specifier.h"
-#include "context.h"
-
 namespace ecs {
 	// Add components generated from an initializer function to a range of entities. Will not be added until 'commit_changes()' is called.
 	// The initializer function signature must be

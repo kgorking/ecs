@@ -1,19 +1,6 @@
 #ifndef __SYSTEM_IMPL
 #define __SYSTEM_IMPL
 
-#include <utility>
-#include <algorithm>
-#include <type_traits>
-#include <gsl/gsl>
-
-#include "entity_id.h"
-#include "system.h"
-#include "component_pool.h"
-
-namespace ecs {
-	class entity;
-}
-
 namespace ecs::detail {
 	// The implementation of a system specialized on its components
 	template <int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class ...Components>

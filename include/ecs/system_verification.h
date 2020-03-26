@@ -1,16 +1,6 @@
 #ifndef __SYSTEM_VERIFICATION
 #define __SYSTEM_VERIFICATION
 
-#include <utility>
-#include <type_traits>
-#include <concepts>
-#include "component_specifier.h"
-
-namespace ecs {
-	struct entity_id;
-	class entity;
-}
-
 namespace ecs::detail {
 	// Given a type T, if it is callable with an entity argument,
 	// resolve to the return type of the callable. Otherwise assume the type T.

@@ -1,10 +1,7 @@
 #ifndef __ENTITY_RANGE
 #define __ENTITY_RANGE
 
-#include <optional>
-#include <concepts>
-#include <gsl/span>
-#include "entity_id.h"
+//#include "entity_id.h"
 
 namespace ecs {
 	// Defines a range of entities.
