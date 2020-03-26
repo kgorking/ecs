@@ -444,6 +444,6 @@ namespace ecs::detail {
 			}
 		}
 	};
-};
+}
 
 #endif // !__COMPONENT_POOL
