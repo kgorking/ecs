@@ -5,7 +5,9 @@
 #include <gsl/span>
 #include <variant>
 #include <utility>
-#include <cassert>
+#include <vector>
+#include <functional>
+#include <tuple>
 #include <concepts>
 
 #include "../threaded/threaded/threaded.h"
@@ -405,7 +407,7 @@ namespace ecs::detail {
 						// Move components between the ranges
 						for (auto it = removes.cbegin() + 1; it != removes.cend(); ++it) {
 							index = find_entity_index(it->first());
-							assert(index.has_value());
+							Expects(index.has_value());
 
 							auto const last_it = components.begin() + index.value();
 							auto const dist = std::distance(from_it, last_it);

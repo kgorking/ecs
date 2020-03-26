@@ -5,6 +5,7 @@
 #include <map>
 #include <typeindex>
 #include <shared_mutex>
+#include <gsl/gsl>
 
 #include "component_pool.h"
 #include "component_specifier.h"
@@ -104,14 +105,14 @@ namespace ecs::detail {
 					lock.lock();
 
 					it = type_pool_lookup.find(type_index); 
-					assert(it != type_pool_lookup.end());
+					Expects(it != type_pool_lookup.end());
 				}
 
 				last_type = type_index;
 				last_pool = it->second;
 			}
 
-			assert(last_pool != nullptr);
+			Expects(last_pool != nullptr);
 			return *static_cast<component_pool<T>*>(last_pool);
 		}
 
