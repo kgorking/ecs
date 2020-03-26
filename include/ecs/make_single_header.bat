@@ -11,9 +11,11 @@ echo #include ^<map^> >> ecs_sh.h
 echo #include ^<typeindex^> >> ecs_sh.h
 echo #include ^<shared_mutex^> >> ecs_sh.h
 echo #include ^<execution^> >> ecs_sh.h
+echo. >> ecs_sh.h
 
-echo #include ^<gsl/gsl^> >> ecs_sh.h
-echo #include ^<gsl/span^> >> ecs_sh.h
+echo // Contracts. If they are violated, the program is an invalid state, so nuke it from orbit >> ecs_sh.h
+echo #define Expects(cond) ((cond) ? static_cast^<void^>(0) : std::terminate()) >> ecs_sh.h
+echo #define Ensures(cond) ((cond) ? static_cast^<void^>(0) : std::terminate()) >> ecs_sh.h
 
 echo. >> ecs_sh.h
 echo. >> ecs_sh.h

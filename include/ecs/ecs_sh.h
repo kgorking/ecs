@@ -10,8 +10,10 @@
 #include <typeindex> 
 #include <shared_mutex> 
 #include <execution> 
-#include <gsl/gsl> 
-#include <gsl/span> 
+ 
+// Contracts. If they are violated, the program is an invalid state, so nuke it from orbit 
+#define Expects(cond) ((cond) ? static_cast<void>(0) : std::terminate()) 
+#define Ensures(cond) ((cond) ? static_cast<void>(0) : std::terminate()) 
  
  
  
@@ -20,6 +22,7 @@
 
 namespace ecs {
 	using entity_type = int;
+	using entity_offset = std::ptrdiff_t; // can cover the entire entity_type domain
 
 	// A simple struct that is an entity identifier.
 	// Use a struct so the typesystem can differentiate
@@ -173,8 +176,8 @@ namespace ecs {
 		}
 
 		template <std::copyable Component>
-		[[nodiscard]] gsl::span<Component> get() const {
-			return gsl::span(get_component<Component>(first_), count());
+		[[nodiscard]] std::span<Component> get() const {
+			return std::span(get_component<Component>(first_), count());
 		}
 
 		constexpr bool operator == (entity_range const& other) const {
@@ -218,9 +221,10 @@ namespace ecs {
 		}
 
 		// Returns the offset of an entity into this range
-		[[nodiscard]] constexpr gsl::index offset(entity_id const ent) const {
+		// Pre: 'ent' must be in the range
+		[[nodiscard]] constexpr entity_offset offset(entity_id const ent) const {
 			Expects(contains(ent));
-			return static_cast<gsl::index>(ent) - first_;
+			return static_cast<entity_offset>(ent) - first_;
 		}
 
 		[[nodiscard]] constexpr bool can_merge(entity_range const& other) const {
@@ -281,7 +285,7 @@ namespace ecs {
 		}
 	};
 
-	using entity_range_view = gsl::span<entity_range const>;
+	using entity_range_view = std::span<entity_range const>;
 }
 
 #endif // !__ENTITTY_RANGE
@@ -1067,7 +1071,7 @@ namespace ecs::detail {
 
 		// Alias for stored pools
 		template <class T>
-		using pool = gsl::not_null<component_pool<T>*> const;
+		using pool = component_pool<T>* const;
 
 		// Tuple holding all pools used by this system
 		using tup_pools = std::conditional_t<is_first_arg_entity,
@@ -1121,8 +1125,7 @@ namespace ecs::detail {
 							return ptr;
 						}
 						else {
-							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
-								return ptr + offset;
+							return ptr + offset;
 						}
 					};
 
@@ -1540,13 +1543,13 @@ namespace ecs {
 	// or does not containg the component.
 	// The span might be invalidated after a call to 'ecs::commit_changes()'.
 	template <typename T>
-	gsl::span<T> get_components(entity_range const range) {
+	std::span<T> get_components(entity_range const range) {
 		if (!has_component<T>(range))
 			return {};
 
 		// Get the component pool
 		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-		return gsl::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
+		return std::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
 	}
 
 	// Returns the number of active components
