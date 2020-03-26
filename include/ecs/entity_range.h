@@ -1,8 +1,6 @@
 #ifndef __ENTITY_RANGE
 #define __ENTITY_RANGE
 
-//#include "entity_id.h"
-
 namespace ecs {
 	// Defines a range of entities.
 	// 'last' is included in the range.
