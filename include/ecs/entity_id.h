@@ -1,12 +1,9 @@
 #ifndef __ENTITY_ID
 #define __ENTITY_ID
 
-#include <cstdint>
-#include <numeric>
-
 namespace ecs
 {
-	using entity_type = std::int32_t;
+	using entity_type = int;
 
 	// A simple struct that is an entity identifier.
 	// Use a struct so the typesystem can differentiate
