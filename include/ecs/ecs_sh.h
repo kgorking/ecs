@@ -908,7 +908,7 @@ namespace ecs::detail {
 			}
 		}
 	};
-};
+}
 
 #endif // !__COMPONENT_POOL
  
@@ -993,7 +993,7 @@ namespace ecs::detail {
 	template <typename T>
 	concept lambda = requires {
 		// Must have the call operator
-		T::operator ();
+		&T::operator ();
 
 		// Check all the system requirements
 		lambda_to_system_bridge(&T::operator ());
