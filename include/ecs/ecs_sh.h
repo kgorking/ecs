@@ -8,6 +8,7 @@
 #include <span> 
 #include <type_traits> 
 #include <tuple> 
+#include <typeinfo> 
 #include <typeindex> 
 #include <utility> 
 #include <variant> 

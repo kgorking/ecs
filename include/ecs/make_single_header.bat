@@ -9,6 +9,7 @@ echo #include ^<shared_mutex^> >> ecs_sh.h
 echo #include ^<span^> >> ecs_sh.h
 echo #include ^<type_traits^> >> ecs_sh.h
 echo #include ^<tuple^> >> ecs_sh.h
+echo #include ^<typeinfo^> >> ecs_sh.h
 echo #include ^<typeindex^> >> ecs_sh.h
 echo #include ^<utility^> >> ecs_sh.h
 echo #include ^<variant^> >> ecs_sh.h
