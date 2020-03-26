@@ -1,15 +1,17 @@
 #include <algorithm> 
-#include <type_traits> 
-#include <optional> 
-#include <variant> 
-#include <utility> 
-#include <vector> 
-#include <functional> 
-#include <tuple> 
-#include <map> 
-#include <typeindex> 
-#include <shared_mutex> 
+#include <concepts> 
 #include <execution> 
+#include <functional> 
+#include <map> 
+#include <optional> 
+#include <shared_mutex> 
+#include <span> 
+#include <type_traits> 
+#include <tuple> 
+#include <typeindex> 
+#include <utility> 
+#include <variant> 
+#include <vector> 
  
 // Contracts. If they are violated, the program is an invalid state, so nuke it from orbit 
 #define Expects(cond) ((cond) ? static_cast<void>(0) : std::terminate()) 
