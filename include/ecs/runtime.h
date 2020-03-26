@@ -40,14 +40,14 @@ namespace ecs {
 	// Add a component to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename T>
-	void add_component(entity_id const id, T&& val)	{
+	void add_component(entity_id const id, T&& val) {
 		add_component({ id, id }, std::forward<T>(val));
 	}
 
 	// Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename ...T>
-	void add_components(entity_range const range, T &&... vals) {
+	void add_components(entity_range const range, T&&... vals) {
 		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(range, std::forward<T>(vals)), ...);
 	}
@@ -55,7 +55,7 @@ namespace ecs {
 	// Add several components to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename ...T>
-	void add_components(entity_id const id, T &&... vals) {
+	void add_components(entity_id const id, T&&... vals) {
 		static_assert(detail::unique<T...>, "the same component was specified more than once");
 		(add_component(id, std::forward<T>(vals)), ...);
 	}
@@ -65,7 +65,7 @@ namespace ecs {
 	template <detail::persistent T>
 	void remove_component(entity_range const range) {
 		// Remove the entities from the components pool
-		detail::component_pool<T> &pool = detail::_context.get_component_pool<T>();
+		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 		pool.remove_range(range);
 	}
 
@@ -95,8 +95,7 @@ namespace ecs {
 
 	// Returns the component from an entity, or nullptr if the entity is not found
 	template <typename T>
-	T* get_component(entity_id const id)
-	{
+	T* get_component(entity_id const id) {
 		// Get the component pool
 		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 		return pool.find_component_data(id);
@@ -117,8 +116,7 @@ namespace ecs {
 
 	// Returns the number of active components
 	template <typename T>
-	size_t get_component_count()
-	{
+	size_t get_component_count() {
 		if (!detail::_context.has_component_pool(typeid(T)))
 			return 0;
 
@@ -129,8 +127,7 @@ namespace ecs {
 
 	// Returns the number of entities that has the component.
 	template <typename T>
-	size_t get_entity_count()
-	{
+	size_t get_entity_count() {
 		if (!detail::_context.has_component_pool(typeid(T)))
 			return 0;
 
@@ -141,8 +138,7 @@ namespace ecs {
 
 	// Return true if an entity contains the component
 	template <typename T>
-	bool has_component(entity_id const id)
-	{
+	bool has_component(entity_id const id) {
 		if (!detail::_context.has_component_pool(typeid(T)))
 			return false;
 
@@ -152,31 +148,27 @@ namespace ecs {
 
 	// Returns true if all entities in a range has the component.
 	template <typename T>
-	bool has_component(entity_range const range)
-	{
+	bool has_component(entity_range const range) {
 		if (!detail::_context.has_component_pool(typeid(T)))
 			return false;
 
-		detail::component_pool<T> &pool = detail::_context.get_component_pool<T>();
+		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 		return pool.has_entity(range);
 	}
 
 	// Commits the changes to the entities.
-	inline void commit_changes()
-	{
+	inline void commit_changes() {
 		detail::_context.commit_changes();
 	}
 
 	// Calls the 'update' function on all the systems in the order they were added.
-	inline void run_systems()
-	{
+	inline void run_systems() {
 		detail::_context.run_systems();
 	}
 
 	// Commits all changes and calls the 'update' function on all the systems in the order they were added.
 	// Same as calling commit_changes() and run_systems().
-	inline void update_systems()
-	{
+	inline void update_systems() {
 		commit_changes();
 		run_systems();
 	}
@@ -189,8 +181,7 @@ namespace ecs {
 
 	// Make a new system. It will process components in parallel.
 	template <int Group = 0, detail::lambda UserUpdateFunc>
-	auto& make_parallel_system(UserUpdateFunc update_func)
-	{
+	auto& make_parallel_system(UserUpdateFunc update_func) {
 		return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UserUpdateFunc>(update_func, &UserUpdateFunc::operator());
 	}
 }

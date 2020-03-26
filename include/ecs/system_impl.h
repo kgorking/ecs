@@ -14,12 +14,10 @@ namespace ecs {
 	class entity;
 }
 
-namespace ecs::detail
-{
+namespace ecs::detail {
 	// The implementation of a system specialized on its components
 	template <int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class ...Components>
-	class system_impl final : public system
-	{
+	class system_impl final : public system {
 		// Determines if the first component is an entity
 		static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id> || std::is_same_v<FirstComponent, entity>;
 
@@ -40,7 +38,7 @@ namespace ecs::detail
 
 		// Holds an entity range and a pointer to the first component from each pool in that range
 		using range_arguments = std::conditional_t<is_first_arg_entity,
-			std::tuple<entity_range,                  Components* ...>,
+			std::tuple<entity_range, Components* ...>,
 			std::tuple<entity_range, FirstComponent*, Components* ...>>;
 
 		// Holds the arguments for a range of entities
@@ -69,8 +67,7 @@ namespace ecs::detail
 			build_args();
 		}
 
-		void update() override
-		{
+		void update() override {
 			if (!is_enabled()) {
 				return;
 			}
@@ -87,7 +84,7 @@ namespace ecs::detail
 						}
 						else {
 							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
-							return ptr + offset;
+								return ptr + offset;
 						}
 					};
 
@@ -110,8 +107,7 @@ namespace ecs::detail
 
 	private:
 		// Handle changes when the component pools change
-		void process_changes(bool force_rebuild) override
-		{
+		void process_changes(bool force_rebuild) override {
 			if (force_rebuild) {
 				build_args();
 				return;
@@ -123,23 +119,20 @@ namespace ecs::detail
 
 			auto constexpr is_pools_modified = [](auto ...pools) { return (pools->is_data_modified() || ...); };
 			bool const is_modified = std::apply(is_pools_modified, pools);
-	
+
 			if (is_modified) {
 				build_args();
 			}
 		}
 
-		void build_args()
-		{
+		void build_args() {
 			entity_range_view const entities = std::get<0>(pools)->get_entities();
 
-			if constexpr (num_components == 1)
-			{
+			if constexpr (num_components == 1) {
 				// Build the arguments
 				build_args(entities);
 			}
-			else
-			{
+			else {
 				// When there are more than one component required for a system,
 				// find the intersection of the sets of entities that have those components
 
@@ -187,8 +180,7 @@ namespace ecs::detail
 		}
 
 		// Convert a set of entities into arguments that can be passed to the system
-		void build_args(entity_range_view entities)
-		{
+		void build_args(entity_range_view entities) {
 			// Build the arguments for the ranges
 			arguments.clear();
 			for (auto const& range : entities) {
@@ -202,14 +194,12 @@ namespace ecs::detail
 		}
 
 		template <typename Component>
-		[[nodiscard]] component_pool<Component>& get_pool() const
-		{
+		[[nodiscard]] component_pool<Component>& get_pool() const {
 			return *std::get<pool<Component>>(pools);
 		}
 
 		template <typename Component>
-		[[nodiscard]] Component* get_component(entity_id const entity)
-		{
+		[[nodiscard]] Component* get_component(entity_id const entity) {
 			return get_pool<Component>().find_component_data(entity);
 		}
 	};

@@ -13,8 +13,7 @@
 
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
-	class context final
-	{
+	class context final {
 		// The values that make up the ecs core.
 		std::vector<std::unique_ptr<system>> systems;
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
@@ -24,8 +23,7 @@ namespace ecs::detail {
 
 	public:
 		// Commits the changes to the entities.
-		void commit_changes()
-		{
+		void commit_changes() {
 			// Prevent other threads from
 			//  adding components
 			//  registering new component types
@@ -49,8 +47,7 @@ namespace ecs::detail {
 		}
 
 		// Calls the 'update' function on all the systems in the order they were added.
-		void run_systems()
-		{
+		void run_systems() {
 			// Prevent other threads from adding new systems
 			std::shared_lock lock(mutex);
 
@@ -60,8 +57,7 @@ namespace ecs::detail {
 		}
 
 		// Returns true if a pool for the type exists
-		bool has_component_pool(type_info const& type) const
-		{
+		bool has_component_pool(type_info const& type) const {
 			// Prevent other threads from registering new component types
 			std::shared_lock lock(mutex);
 
@@ -69,8 +65,7 @@ namespace ecs::detail {
 		}
 
 		// Resets the runtime state. Removes all systems, empties component pools
-		void reset()
-		{
+		void reset() {
 			std::unique_lock lock(mutex);
 
 			systems.clear();
@@ -83,8 +78,7 @@ namespace ecs::detail {
 		// Returns a reference to a components pool.
 		// If a pool doesn't exist, one will be created.
 		template <typename T>
-		component_pool<T>& get_component_pool()
-		{
+		component_pool<T>& get_component_pool() {
 			// Simple thread-safe caching, ~15% performance boost in benchmarks
 			struct __internal_dummy {};
 			thread_local std::type_index last_type{ typeid(__internal_dummy) };		// init to a function-local type
@@ -104,7 +98,7 @@ namespace ecs::detail {
 					create_component_pool<T>();
 					lock.lock();
 
-					it = type_pool_lookup.find(type_index); 
+					it = type_pool_lookup.find(type_index);
 					Expects(it != type_pool_lookup.end());
 				}
 
@@ -118,30 +112,26 @@ namespace ecs::detail {
 
 		// Initialize a component pool for each component, if needed
 		template <typename ... Components>
-		void init_component_pools()
-		{
+		void init_component_pools() {
 			// Create a pool for each component
 			(create_component_pool<Components>(), ...);
 		}
 
 		// Const lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
-		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const)
-		{
+		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const) {
 			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 		// Mutable lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
-		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...))
-		{
+		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...)) {
 			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 	private:
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg, typename ...Args>
-		auto& create_system_impl(UserUpdateFunc update_func)
-		{
+		auto& create_system_impl(UserUpdateFunc update_func) {
 			// Set up the implementation
 			using typed_system_impl = system_impl<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
 
@@ -171,7 +161,7 @@ namespace ecs::detail {
 
 			std::unique_lock lock(mutex);
 			systems.push_back(std::move(sys));
-			system * ptr_system = systems.back().get();
+			system* ptr_system = systems.back().get();
 			Ensures(ptr_system != nullptr);
 
 			sort_systems_by_group();
@@ -189,12 +179,10 @@ namespace ecs::detail {
 
 		// Create a component pool for a new type
 		template <typename Component>
-		void create_component_pool()
-		{
+		void create_component_pool() {
 			// Create a new pool if one does not already exist
 			auto const& type = typeid(Component);
-			if (!has_component_pool(type))
-			{
+			if (!has_component_pool(type)) {
 				std::unique_lock lock(mutex);
 
 				auto pool = std::make_unique<component_pool<Component>>();
@@ -210,7 +198,7 @@ namespace ecs::detail {
 	}
 
 	// The global reference to the context
-	static inline context & _context = get_context();
+	static inline context& _context = get_context();
 }
 
 #endif // !__CONTEXT

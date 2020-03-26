@@ -5,10 +5,8 @@ namespace ecs::detail {
 	class context;
 }
 
-namespace ecs
-{
-	class system
-	{
+namespace ecs {
+	class system {
 	public:
 		system() = default;
 		virtual ~system() = default;

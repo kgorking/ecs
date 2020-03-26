@@ -21,7 +21,7 @@ namespace ecs::detail {
 
 	template<typename T> requires std::invocable<T, int>
 	struct get_type<T> {
-			using type = std::invoke_result_t<T, int>;
+		using type = std::invoke_result_t<T, int>;
 	};
 
 	template<typename T>
@@ -72,15 +72,15 @@ namespace ecs::detail {
 
 		// Components flagged as 'share' must not be 'tag'ged
 		requires
-			(detail::shared<FirstArg> ? !detail::tagged<FirstArg> : true) && 
+			(detail::shared<FirstArg> ? !detail::tagged<FirstArg> : true) &&
 			((detail::shared<Args> ? !detail::tagged<Args> : true) && ...);
 	};
 
 	// A small bridge to allow the Lambda concept to activate the system concept
 	template <class R, class C, class ...Args>
-		requires	(sizeof...(Args) > 0 &&
+	requires	(sizeof...(Args) > 0 &&
 					checked_system<R, Args...>)
-	struct lambda_to_system_bridge {
+		struct lambda_to_system_bridge {
 		lambda_to_system_bridge(R(C::*)(Args...)) {};
 		lambda_to_system_bridge(R(C::*)(Args...) const) {};
 		lambda_to_system_bridge(R(C::*)(Args...) noexcept) {};

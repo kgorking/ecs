@@ -44,8 +44,7 @@ namespace ecs::detail {
 		// Add a component to a range of entities, initialized by the supplied user function
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
-		template <typename Fn>
-		  requires (!unbound<T>)
+		template <typename Fn> requires (!unbound<T>)
 		void add_init(entity_range const range, Fn&& init) {
 			// Add the range and function to a temp storage
 			deferred_adds.local().emplace_back(range, std::forward<Fn>(init));

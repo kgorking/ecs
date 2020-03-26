@@ -3,8 +3,7 @@
 
 #include <type_traits>
 
-namespace ecs
-{
+namespace ecs {
 	// Add this in 'ecs_flags()' to mark a component as a tag.
 	// Uses O(1) memory instead of O(n).
 	// Mutually exclusive with 'share'
@@ -33,9 +32,9 @@ namespace ecs
 	// 	ecs_flags(ecs::tag, ecs::transient);
 	// 	// component data
 	// };
-	#define ecs_flags(...) struct _ecs_flags : __VA_ARGS__ {};
+#define ecs_flags(...) struct _ecs_flags : __VA_ARGS__ {};
 
-	// Some helpers
+// Some helpers
 	namespace detail {
 		template <typename T>
 		using flags = typename std::remove_cvref_t<T>::_ecs_flags;
