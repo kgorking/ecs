@@ -47,7 +47,7 @@ namespace ecs::detail {
 		}
 
 		// Returns true if a pool for the type exists
-		bool has_component_pool(type_info const& type) const {
+		bool has_component_pool(std::type_info const& type) const {
 			// Prevent other threads from registering new component types
 			std::shared_lock lock(mutex);
 
