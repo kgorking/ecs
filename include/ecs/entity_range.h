@@ -77,8 +77,8 @@ namespace ecs {
 		}
 
 		template <std::copyable Component>
-		[[nodiscard]] gsl::span<Component> get() const {
-			return gsl::span(get_component<Component>(first_), count());
+		[[nodiscard]] std::span<Component> get() const {
+			return std::span(get_component<Component>(first_), count());
 		}
 
 		constexpr bool operator == (entity_range const& other) const {
@@ -122,9 +122,10 @@ namespace ecs {
 		}
 
 		// Returns the offset of an entity into this range
-		[[nodiscard]] constexpr gsl::index offset(entity_id const ent) const {
+		// Pre: 'ent' must be in the range
+		[[nodiscard]] constexpr entity_offset offset(entity_id const ent) const {
 			Expects(contains(ent));
-			return static_cast<gsl::index>(ent) - first_;
+			return static_cast<entity_offset>(ent) - first_;
 		}
 
 		[[nodiscard]] constexpr bool can_merge(entity_range const& other) const {
@@ -185,7 +186,7 @@ namespace ecs {
 		}
 	};
 
-	using entity_range_view = gsl::span<entity_range const>;
+	using entity_range_view = std::span<entity_range const>;
 }
 
 #endif // !__ENTITTY_RANGE

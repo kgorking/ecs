@@ -3,6 +3,7 @@
 
 namespace ecs {
 	using entity_type = int;
+	using entity_offset = std::make_unsigned<entity_type>::type; // can go from the lowest value to the highest
 
 	// A simple struct that is an entity identifier.
 	// Use a struct so the typesystem can differentiate

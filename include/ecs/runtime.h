@@ -98,13 +98,13 @@ namespace ecs {
 	// or does not containg the component.
 	// The span might be invalidated after a call to 'ecs::commit_changes()'.
 	template <typename T>
-	gsl::span<T> get_components(entity_range const range) {
+	std::span<T> get_components(entity_range const range) {
 		if (!has_component<T>(range))
 			return {};
 
 		// Get the component pool
 		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-		return gsl::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
+		return std::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
 	}
 
 	// Returns the number of active components

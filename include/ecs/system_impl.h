@@ -16,7 +16,7 @@ namespace ecs::detail {
 
 		// Alias for stored pools
 		template <class T>
-		using pool = gsl::not_null<component_pool<T>*> const;
+		using pool = component_pool<T>* const;
 
 		// Tuple holding all pools used by this system
 		using tup_pools = std::conditional_t<is_first_arg_entity,
@@ -70,8 +70,7 @@ namespace ecs::detail {
 							return ptr;
 						}
 						else {
-							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
-								return ptr + offset;
+							return ptr + offset;
 						}
 					};
 

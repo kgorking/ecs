@@ -35,14 +35,12 @@ if(ECS_STANDALONE_PROJECT)
     target_include_directories(ecs INTERFACE
         $<BUILD_INTERFACE:
             ${CMAKE_CURRENT_SOURCE_DIR}/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/GSL/include
         >
     )
 else()
     target_include_directories(ecs SYSTEM INTERFACE
         $<BUILD_INTERFACE:
             ${CMAKE_CURRENT_SOURCE_DIR}/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/GSL/include
         >
     )
 endif()
