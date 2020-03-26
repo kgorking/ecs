@@ -978,14 +978,13 @@ namespace ecs::detail {
 	};
 
 	// A small bridge to allow the Lambda concept to activate the system concept
-	template <class R, class C, class ...Args>
-	requires	(sizeof...(Args) > 0 &&
-					checked_system<R, Args...>)
-		struct lambda_to_system_bridge {
-		lambda_to_system_bridge(R(C::*)(Args...)) {};
-		lambda_to_system_bridge(R(C::*)(Args...) const) {};
-		lambda_to_system_bridge(R(C::*)(Args...) noexcept) {};
-		lambda_to_system_bridge(R(C::*)(Args...) const noexcept) {};
+	template <class R, class C, class FirstArg, class ...Args>
+		requires (checked_system<R, FirstArg, Args...>)
+	struct lambda_to_system_bridge {
+		lambda_to_system_bridge(R(C::*)(FirstArg, Args...)) {};
+		lambda_to_system_bridge(R(C::*)(FirstArg, Args...) const) {};
+		lambda_to_system_bridge(R(C::*)(FirstArg, Args...) noexcept) {};
+		lambda_to_system_bridge(R(C::*)(FirstArg, Args...) const noexcept) {};
 	};
 
 	template <typename T>
