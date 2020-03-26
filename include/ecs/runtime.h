@@ -1,13 +1,6 @@
 #ifndef __RUNTIME
 #define __RUNTIME
 
-#include <execution>
-#include "system_verification.h"
-#include "entity_range.h"
-#include "component_pool.h"
-#include "component_specifier.h"
-#include "context.h"
-
 namespace ecs {
 	// Add components generated from an initializer function to a range of entities. Will not be added until 'commit_changes()' is called.
 	// The initializer function signature must be
@@ -105,13 +98,13 @@ namespace ecs {
 	// or does not containg the component.
 	// The span might be invalidated after a call to 'ecs::commit_changes()'.
 	template <typename T>
-	gsl::span<T> get_components(entity_range const range) {
+	std::span<T> get_components(entity_range const range) {
 		if (!has_component<T>(range))
 			return {};
 
 		// Get the component pool
 		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-		return gsl::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
+		return std::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
 	}
 
 	// Returns the number of active components

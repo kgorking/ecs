@@ -1,19 +1,6 @@
 #ifndef __SYSTEM_IMPL
 #define __SYSTEM_IMPL
 
-#include <utility>
-#include <algorithm>
-#include <type_traits>
-#include <gsl/gsl>
-
-#include "entity_id.h"
-#include "system.h"
-#include "component_pool.h"
-
-namespace ecs {
-	class entity;
-}
-
 namespace ecs::detail {
 	// The implementation of a system specialized on its components
 	template <int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class ...Components>
@@ -29,7 +16,7 @@ namespace ecs::detail {
 
 		// Alias for stored pools
 		template <class T>
-		using pool = gsl::not_null<component_pool<T>*> const;
+		using pool = component_pool<T>* const;
 
 		// Tuple holding all pools used by this system
 		using tup_pools = std::conditional_t<is_first_arg_entity,
@@ -83,8 +70,7 @@ namespace ecs::detail {
 							return ptr;
 						}
 						else {
-							GSL_SUPPRESS(bounds.1) // this access is checked in the loop
-								return ptr + offset;
+							return ptr + offset;
 						}
 					};
 
