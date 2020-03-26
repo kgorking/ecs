@@ -3,6 +3,7 @@
 
 namespace ecs {
 	using entity_type = int;
+	using entity_offset = std::ptrdiff_t; // can cover the entire entity_type domain
 
 	// A simple struct that is an entity identifier.
 	// Use a struct so the typesystem can differentiate
