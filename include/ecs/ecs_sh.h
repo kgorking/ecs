@@ -293,7 +293,9 @@ namespace ecs {
 
 #endif // !__ENTITTY_RANGE
  
-#pragma once
+#ifndef __THREADED
+#define __THREADED
+
 #include <mutex>
 #include <vector>
 #include <list>
@@ -385,7 +387,7 @@ private:
 	// instance-data created by each thread. list contents are not invalidated when more items are added, unlike a vector
 	std::list<T> data;
 };
- 
+#endif // !__THREADED 
 #ifndef __COMPONENT_SPECIFIER
 #define __COMPONENT_SPECIFIER
 
