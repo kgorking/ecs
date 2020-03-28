@@ -176,7 +176,7 @@ namespace ecs::detail {
 	}
 
 	// The global reference to the context
-	static inline context& _context = get_context();
+	inline context& _context = get_context();
 }
 
 #endif // !__CONTEXT
