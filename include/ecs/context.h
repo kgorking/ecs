@@ -170,10 +170,10 @@ namespace ecs::detail {
 		}
 	};
 
-	inline context& get_context() {
+	/*inline context& get_context() {
 		static context ctx;
 		return ctx;
-	}
+	}*/
 
 	// The global reference to the context
 	inline context& _context = get_context();
