@@ -79,10 +79,6 @@ namespace ecs {
 	// Returns a shared component. Can be called before a system for it has been added
 	template <detail::shared T>
 	T& get_shared_component() {
-		// Get the pool
-		if (!detail::_context.has_component_pool(typeid(T))) {
-			detail::_context.init_component_pools<T>();
-		}
 		return detail::_context.get_component_pool<T>().get_shared_component();
 	}
 
