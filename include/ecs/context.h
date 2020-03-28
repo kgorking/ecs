@@ -70,33 +70,31 @@ namespace ecs::detail {
 		template <typename T>
 		component_pool<T>& get_component_pool() {
 			// Simple thread-safe caching, ~15% performance boost in benchmarks
-			struct __internal_dummy {};
-			thread_local std::type_index last_type{ typeid(__internal_dummy) };		// init to a function-local type
+			struct internal_dummy__ {};
+			thread_local std::type_index last_type{ typeid(internal_dummy__) };		// init to a function-local type
 			thread_local component_pool_base* last_pool{};
 
 			auto const type_index = std::type_index(typeid(T));
 			if (type_index != last_type) {
 				// Look in the pool for the type
 				std::shared_lock lock(mutex);
-				auto it = type_pool_lookup.find(type_index);
+				auto const it = type_pool_lookup.find(type_index);
 
 				[[unlikely]] if (it == type_pool_lookup.end()) {
 					// The pool wasn't found so create it.
 					// create_component_pool takes a unique lock, so unlock the
 					// shared lock during its call
 					lock.unlock();
-					create_component_pool<T>();
-					lock.lock();
-
-					it = type_pool_lookup.find(type_index);
-					Expects(it != type_pool_lookup.end());
+					last_pool = create_component_pool<T>();
+					Ensures(last_pool != nullptr);
 				}
-
+				else {
+					last_pool = it->second;
+					Ensures(last_pool != nullptr);
+				}
 				last_type = type_index;
-				last_pool = it->second;
 			}
 
-			Expects(last_pool != nullptr);
 			return *static_cast<component_pool<T>*>(last_pool);
 		}
 
@@ -168,17 +166,20 @@ namespace ecs::detail {
 		}
 
 		// Create a component pool for a new type
-		template <typename Component>
-		void create_component_pool() {
+		template <typename T>
+		component_pool_base* create_component_pool() {
 			// Create a new pool if one does not already exist
-			auto const& type = typeid(Component);
+			auto const& type = typeid(T);
 			if (!has_component_pool(type)) {
 				std::unique_lock lock(mutex);
 
-				auto pool = std::make_unique<component_pool<Component>>();
+				auto pool = std::make_unique<component_pool<T>>();
 				type_pool_lookup.emplace(std::type_index(type), pool.get());
 				component_pools.push_back(std::move(pool));
+				return component_pools.back().get();
 			}
+			else
+				return &get_component_pool<T>();
 		}
 	};
 
