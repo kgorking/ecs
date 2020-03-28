@@ -98,13 +98,6 @@ namespace ecs::detail {
 			return *static_cast<component_pool<T>*>(last_pool);
 		}
 
-		// Initialize a component pool for each component, if needed
-		template <typename ... Components>
-		void init_component_pools() {
-			// Create a pool for each component
-			(create_component_pool<Components>(), ...);
-		}
-
 		// Const lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const) {
@@ -125,12 +118,6 @@ namespace ecs::detail {
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
-
-			// Set up everything for the component pool
-			if constexpr (!has_entity) {
-				init_component_pools< std::remove_cv_t<std::remove_reference_t<FirstArg>>>();
-			}
-			init_component_pools< std::remove_cv_t<std::remove_reference_t<Args>>...>();
 
 			// Create the system instance
 			std::unique_ptr<system> sys;
