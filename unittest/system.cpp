@@ -7,7 +7,7 @@ TEST_CASE("System specification", "[system]") {
 			int c;
 		};
 		// Add a system for the local component
-		ecs::system& sys = ecs::make_system([](local& l) {
+		auto& sys = ecs::make_system([](local& l) {
 			l.c++;
 		});
 
@@ -27,7 +27,7 @@ TEST_CASE("System specification", "[system]") {
 
 	SECTION("Verify enable/disable functions") {
 		struct local {};
-		ecs::system& sys = ecs::make_system([](local const& /*c*/) {});
+		auto& sys = ecs::make_system([](local const& /*c*/) {});
 
 		REQUIRE(true == sys.is_enabled());
 		sys.disable();
@@ -43,7 +43,7 @@ TEST_CASE("System specification", "[system]") {
 			int c;
 		};
 		// Add a system for the local component
-		ecs::system& sys = ecs::make_system([](local& l) {
+		auto& sys = ecs::make_system([](local& l) {
 			l.c++;
 		});
 
@@ -70,7 +70,7 @@ TEST_CASE("System specification", "[system]") {
 			int c;
 		};
 		// Add a system for the local component
-		ecs::system& sys = ecs::make_system([](local& l) {
+		auto& sys = ecs::make_system([](local& l) {
 			l.c++;
 		});
 		sys.disable();
