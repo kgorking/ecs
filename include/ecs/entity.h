@@ -1,6 +1,9 @@
 #ifndef __ENTITY
 #define __ENTITY
 
+#include <concepts>
+#include "entity_id.h"
+
 namespace ecs {
 	// A simple helper class for easing the adding and removing of components
 	class entity final {

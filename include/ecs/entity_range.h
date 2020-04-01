@@ -1,6 +1,15 @@
 #ifndef __ENTITY_RANGE
 #define __ENTITY_RANGE
 
+#include <limits>
+#include <iterator>
+#include <span>
+#include <optional>
+#include <algorithm>
+
+#include "contract.h"
+#include "entity_id.h"
+
 namespace ecs {
 	// Defines a range of entities.
 	// 'last' is included in the range.

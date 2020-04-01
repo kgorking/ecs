@@ -1,6 +1,14 @@
 #ifndef __CONTEXT
 #define __CONTEXT
 
+#include <memory>
+#include <vector>
+#include <typeindex>
+#include <map>
+#include <shared_mutex>
+#include "component_pool.h"
+#include "system.h"
+
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
 	class context final {
