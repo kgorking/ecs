@@ -5,6 +5,7 @@
 #include <vector>
 #include <functional>
 #include <variant>
+#include <algorithm>
 #include <type_traits>
 #include <tuple>
 #include "../threaded/threaded/threaded.h"

@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_IMPL
-#define __SYSTEM_IMPL
+#ifndef __SYSTEM
+#define __SYSTEM
 
 #include <type_traits>
 #include <tuple>
@@ -45,6 +45,9 @@ namespace ecs::detail {
 		// The user supplied system
 		UserUpdateFunc update_func;
 
+		// The execution policy (has to be declared here or gcc breaks)
+		[[no_unique_address]] ExecutionPolicy exepol{};
+
 	public:
 		// Constructor for when the first argument to the system is _not_ an entity
 		system(UserUpdateFunc update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
@@ -70,7 +73,7 @@ namespace ecs::detail {
 			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
 				auto const& range = std::get<entity_range>(argument);
-				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
+				std::for_each(exepol, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 					// Small helper function
 					auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
 						using T = std::remove_cvref_t<decltype(*ptr)>;
@@ -139,10 +142,10 @@ namespace ecs::detail {
 							return result;
 						}
 
-						auto it_a = view_a.cbegin();
-						auto it_b = view_b.cbegin();
+						auto it_a = view_a.begin();
+						auto it_b = view_b.begin();
 
-						while (it_a != view_a.cend() && it_b != view_b.cend()) {
+						while (it_a != view_a.end() && it_b != view_b.end()) {
 							if (it_a->overlaps(*it_b)) {
 								result.push_back(entity_range::intersect(*it_a, *it_b));
 							}
@@ -199,4 +202,4 @@ namespace ecs::detail {
 	};
 }
 
-#endif // !__SYSTEM_IMPL
+#endif // !__SYSTEM

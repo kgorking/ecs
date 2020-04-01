@@ -1,5 +1,5 @@
-#ifndef __SYSTEM
-#define __SYSTEM
+#ifndef __SYSTEM_BASE
+#define __SYSTEM_BASE
 
 namespace ecs::detail {
 	class context;
@@ -51,4 +51,4 @@ namespace ecs {
 	};
 }
 
-#endif // !__SYSTEM
+#endif // !__SYSTEM_BASE

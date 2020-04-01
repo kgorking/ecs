@@ -2,6 +2,7 @@
 #define __ENTITY
 
 #include <concepts>
+#include <utility>
 #include "entity_id.h"
 
 namespace ecs {
