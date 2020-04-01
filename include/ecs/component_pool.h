@@ -1,6 +1,18 @@
 #ifndef __COMPONENT_POOL
 #define __COMPONENT_POOL
 
+#include <concepts>
+#include <vector>
+#include <functional>
+#include <variant>
+#include <type_traits>
+#include <tuple>
+#include "../threaded/threaded/threaded.h"
+#include "component_specifier.h"
+#include "component_pool_base.h"
+#include "entity_id.h"
+#include "entity_range.h"
+
 namespace ecs::detail {
 	// For std::visit
 	template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };

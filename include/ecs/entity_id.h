@@ -1,6 +1,8 @@
 #ifndef __ENTITY_ID
 #define __ENTITY_ID
 
+#include <cstddef>
+
 namespace ecs {
 	using entity_type = int;
 	using entity_offset = std::ptrdiff_t; // can cover the entire entity_type domain

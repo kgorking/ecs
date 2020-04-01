@@ -1,23 +1,7 @@
-#include <concepts>
-#include <utility>
-#include <algorithm>
-#include <type_traits>
-#include <optional>
-#include <variant>
-#include <utility>
-#include <vector>
-#include <functional>
-#include <tuple>
-#include <map>
-#include <typeindex>
-#include <shared_mutex>
-#include <execution>
-#include <span>
-
 #include "contract.h"
 
-#include "entity_id.h"
 #include "entity.h"
+#include "entity_id.h"
 #include "entity_range.h"
 
 #include "../threaded/threaded/threaded.h"

@@ -1,6 +1,8 @@
 #ifndef __COMPONENT_SPECIFIER
 #define __COMPONENT_SPECIFIER
 
+#include <type_traits>
+
 namespace ecs {
 	// Add this in 'ecs_flags()' to mark a component as a tag.
 	// Uses O(1) memory instead of O(n).
