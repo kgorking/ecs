@@ -1,27 +1,16 @@
-#include <algorithm> 
-#include <concepts> 
-#include <execution> 
-#include <functional> 
-#include <map> 
-#include <optional> 
-#include <shared_mutex> 
-#include <span> 
-#include <type_traits> 
-#include <tuple> 
-#include <typeinfo> 
-#include <typeindex> 
-#include <utility> 
-#include <variant> 
-#include <vector> 
- 
-// Contracts. If they are violated, the program is an invalid state, so nuke it from orbit 
-#define Expects(cond) ((cond) ? static_cast<void>(0) : std::terminate()) 
-#define Ensures(cond) ((cond) ? static_cast<void>(0) : std::terminate()) 
- 
- 
+#ifndef __CONTRACT
+#define __CONTRACT
+
+// Contracts. If they are violated, the program is an invalid state, so nuke it from orbit
+#define Expects(cond) ((cond) ? static_cast<void>(0) : std::terminate())
+#define Ensures(cond) ((cond) ? static_cast<void>(0) : std::terminate())
+
+#endif // !__CONTRACT
  
 #ifndef __ENTITY_ID
 #define __ENTITY_ID
+
+#include <cstddef>
 
 namespace ecs {
 	using entity_type = int;
@@ -50,6 +39,9 @@ namespace ecs {
  
 #ifndef __ENTITY
 #define __ENTITY
+
+#include <concepts>
+#include "entity_id.h"
 
 namespace ecs {
 	// A simple helper class for easing the adding and removing of components
@@ -102,6 +94,15 @@ namespace ecs {
  
 #ifndef __ENTITY_RANGE
 #define __ENTITY_RANGE
+
+#include <limits>
+#include <iterator>
+#include <span>
+#include <optional>
+#include <algorithm>
+
+#include "contract.h"
+#include "entity_id.h"
 
 namespace ecs {
 	// Defines a range of entities.
@@ -391,6 +392,8 @@ private:
 #ifndef __COMPONENT_SPECIFIER
 #define __COMPONENT_SPECIFIER
 
+#include <type_traits>
+
 namespace ecs {
 	// Add this in 'ecs_flags()' to mark a component as a tag.
 	// Uses O(1) memory instead of O(n).
@@ -464,6 +467,18 @@ namespace ecs::detail {
  
 #ifndef __COMPONENT_POOL
 #define __COMPONENT_POOL
+
+#include <concepts>
+#include <vector>
+#include <functional>
+#include <variant>
+#include <type_traits>
+#include <tuple>
+#include "../threaded/threaded/threaded.h"
+#include "component_specifier.h"
+#include "component_pool_base.h"
+#include "entity_id.h"
+#include "entity_range.h"
 
 namespace ecs::detail {
 	// For std::visit
@@ -915,6 +930,10 @@ namespace ecs::detail {
 #ifndef __SYSTEM_VERIFICATION
 #define __SYSTEM_VERIFICATION
 
+#include <concepts>
+#include <type_traits>
+#include "component_specifier.h"
+
 namespace ecs::detail {
 	// Given a type T, if it is callable with an entity argument,
 	// resolve to the return type of the callable. Otherwise assume the type T.
@@ -924,61 +943,72 @@ namespace ecs::detail {
 	};
 
 	template<typename T> requires std::invocable<T, int>
-	struct get_type<T> {
-		using type = std::invoke_result_t<T, int>;
-	};
+		struct get_type<T> {
+			using type = std::invoke_result_t<T, int>;
+		};
 
-	template<typename T>
-	using get_type_t = typename get_type<T>::type;
+		template<typename T>
+		using get_type_t = typename get_type<T>::type;
 
-	// Count the number of times the type F appears in the parameter pack T
-	template<typename F, typename... T>
-	constexpr int count_types = (std::is_same_v<get_type_t<F>, get_type_t<T>> +... + 0);
+		template<typename First, typename... T>
+		constexpr bool unique_types() {
+			if constexpr ((std::is_same_v<First, T> || ...))
+				return false;
+			else {
+				if constexpr (sizeof...(T) == 0)
+					return true;
+				else
+					return unique_types<T...>();
+			}
+		}
 
-	// Ensure that any type in the parameter pack T is only present once.
-	template<typename... T>
-	concept unique = ((count_types<T, T...> == 1) && ...);
+		template<typename... T>
+		constexpr static bool unique_types_v = unique_types<get_type_t<T>...>();
 
-	template <class T>
-	concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
+		// Ensure that any type in the parameter pack T is only present once.
+		template<typename... T>
+		concept unique = unique_types_v<T...>;
 
-	template <class R, class FirstArg, class ...Args>
-	concept checked_system = requires {
-		// systems can not return values
-		requires std::is_same_v<R, void>;
+		template <class T>
+		concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
 
-		// no pointers allowed
-		requires !std::is_pointer_v<FirstArg> && (!std::is_pointer_v<Args>&& ...);
+		template <class R, class FirstArg, class ...Args>
+		concept checked_system = requires {
+			// systems can not return values
+			requires std::is_same_v<R, void>;
 
-		// systems must take at least one component argument
-		requires (entity_type<FirstArg> ? sizeof...(Args) >= 1 : true);
+			// no pointers allowed
+			requires !std::is_pointer_v<FirstArg> && (!std::is_pointer_v<Args>&& ...);
 
-		// Make sure the first entity is not passed as a reference
-		requires (entity_type<FirstArg> ? !std::is_reference_v<FirstArg> : true);
+			// systems must take at least one component argument
+			requires (entity_type<FirstArg> ? sizeof...(Args) >= 1 : true);
 
-		// Component types can only be specified once
-		requires unique<FirstArg, Args...>;
+			// Make sure the first entity is not passed as a reference
+			requires (entity_type<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
-		// Components flagged as 'immutable' must also be const
-		requires
-			(detail::immutable<FirstArg> ? std::is_const_v<std::remove_reference_t<FirstArg>> : true) &&
-			((detail::immutable<Args> ? std::is_const_v<std::remove_reference_t<Args>> : true) && ...);
+			// Component types can only be specified once
+			requires unique<FirstArg, Args...>;
 
-		// Components flagged as 'tag' must not be references
-		requires
-			(detail::tagged<FirstArg> ? !std::is_reference_v<FirstArg> : true) &&
-			((detail::tagged<Args> ? !std::is_reference_v<Args> : true) && ...);
+			// Components flagged as 'immutable' must also be const
+			requires
+				(detail::immutable<FirstArg> ? std::is_const_v<std::remove_reference_t<FirstArg>> : true) &&
+				((detail::immutable<Args> ? std::is_const_v<std::remove_reference_t<Args>> : true) && ...);
 
-		// Components flagged as 'tag' must not hold data
-		requires
-			(detail::tagged<FirstArg> ? sizeof(FirstArg) == 1 : true) &&
-			((detail::tagged<Args> ? sizeof(Args) == 1 : true) && ...);
+			// Components flagged as 'tag' must not be references
+			requires
+				(detail::tagged<FirstArg> ? !std::is_reference_v<FirstArg> : true) &&
+				((detail::tagged<Args> ? !std::is_reference_v<Args> : true) && ...);
 
-		// Components flagged as 'share' must not be 'tag'ged
-		requires
-			(detail::shared<FirstArg> ? !detail::tagged<FirstArg> : true) &&
-			((detail::shared<Args> ? !detail::tagged<Args> : true) && ...);
-	};
+			// Components flagged as 'tag' must not hold data
+			requires
+				(detail::tagged<FirstArg> ? sizeof(FirstArg) == 1 : true) &&
+				((detail::tagged<Args> ? sizeof(Args) == 1 : true) && ...);
+
+			// Components flagged as 'share' must not be 'tag'ged
+			requires
+				(detail::shared<FirstArg> ? !detail::tagged<FirstArg> : true) &&
+				((detail::shared<Args> ? !detail::tagged<Args> : true) && ...);
+		};
 
 	// A small bridge to allow the Lambda concept to activate the system concept
 	template <class R, class C, class FirstArg, class ...Args>
@@ -995,9 +1025,9 @@ namespace ecs::detail {
 		// Must have the call operator
 		&T::operator ();
 
-		// Check all the system requirements
-		lambda_to_system_bridge(&T::operator ());
-	};
+			// Check all the system requirements
+			lambda_to_system_bridge(&T::operator ());
+		};
 }
 
 #endif // !__SYSTEM_VERIFICATION
@@ -1010,14 +1040,14 @@ namespace ecs::detail {
 }
 
 namespace ecs {
-	class system {
+	class system_base {
 	public:
-		system() = default;
-		virtual ~system() = default;
-		system(system const&) = delete;
-		system(system&&) = default;
-		system& operator =(system const&) = delete;
-		system& operator =(system&&) = default;
+		system_base() = default;
+		virtual ~system_base() = default;
+		system_base(system_base const&) = delete;
+		system_base(system_base&&) = default;
+		system_base& operator =(system_base const&) = delete;
+		system_base& operator =(system_base&&) = default;
 
 		// Run this system on all of its associated components
 		virtual void update() = 0;
@@ -1060,10 +1090,18 @@ namespace ecs {
 #ifndef __SYSTEM_IMPL
 #define __SYSTEM_IMPL
 
+#include <type_traits>
+#include <tuple>
+#include <vector>
+#include "entity_id.h"
+#include "entity_range.h"
+#include "component_pool.h"
+#include "system_base.h"
+
 namespace ecs::detail {
 	// The implementation of a system specialized on its components
 	template <int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class ...Components>
-	class system_impl final : public system {
+	class system final : public system_base {
 		// Determines if the first component is an entity
 		static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id> || std::is_same_v<FirstComponent, entity>;
 
@@ -1096,12 +1134,9 @@ namespace ecs::detail {
 		// The user supplied system
 		UserUpdateFunc update_func;
 
-		// Execution policy
-		ExecutionPolicy exe_pol{};
-
 	public:
 		// Constructor for when the first argument to the system is _not_ an entity
-		system_impl(UserUpdateFunc update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
+		system(UserUpdateFunc update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
 			: pools{ first_pool, pools... }
 			, update_func{ update_func }
 		{
@@ -1109,7 +1144,7 @@ namespace ecs::detail {
 		}
 
 		// Constructor for when the first argument to the system _is_ an entity
-		system_impl(UserUpdateFunc update_func, pool<Components> ... pools)
+		system(UserUpdateFunc update_func, pool<Components> ... pools)
 			: pools{ pools... }
 			, update_func{ update_func }
 		{
@@ -1124,7 +1159,7 @@ namespace ecs::detail {
 			// Call the system for all pairs of components that match the system signature
 			for (auto const& argument : arguments) {
 				auto const& range = std::get<entity_range>(argument);
-				std::for_each(exe_pol, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
+				std::for_each(ExecutionPolicy{}, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 					// Small helper function
 					auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
 						using T = std::remove_cvref_t<decltype(*ptr)>;
@@ -1193,10 +1228,10 @@ namespace ecs::detail {
 							return result;
 						}
 
-						auto it_a = view_a.begin();
-						auto it_b = view_b.begin();
+						auto it_a = view_a.cbegin();
+						auto it_b = view_b.cbegin();
 
-						while (it_a != view_a.end() && it_b != view_b.end()) {
+						while (it_a != view_a.cend() && it_b != view_b.cend()) {
 							if (it_a->overlaps(*it_b)) {
 								result.push_back(entity_range::intersect(*it_a, *it_b));
 							}
@@ -1258,11 +1293,19 @@ namespace ecs::detail {
 #ifndef __CONTEXT
 #define __CONTEXT
 
+#include <memory>
+#include <vector>
+#include <typeindex>
+#include <map>
+#include <shared_mutex>
+#include "component_pool.h"
+#include "system.h"
+
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
 	class context final {
 		// The values that make up the ecs core.
-		std::vector<std::unique_ptr<system>> systems;
+		std::vector<std::unique_ptr<system_base>> systems;
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
 		std::map<std::type_index, component_pool_base*> type_pool_lookup;
 
@@ -1358,34 +1401,34 @@ namespace ecs::detail {
 		// Const lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const) {
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
+			return create_system<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 		// Mutable lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...)) {
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
+			return create_system<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 	private:
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg, typename ...Args>
-		auto& create_system_impl(UserUpdateFunc update_func) {
+		auto& create_system(UserUpdateFunc update_func) {
 			// Set up the implementation
-			using typed_system_impl = system_impl<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
+			using typed_system = system<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
 
 			// Create the system instance
-			std::unique_ptr<system> sys;
+			std::unique_ptr<system_base> sys;
 			if constexpr (has_entity) {
-				sys = std::make_unique<typed_system_impl>(
+				sys = std::make_unique<typed_system>(
 					update_func,
 					/* dont add the entity as a component pool */
 					&get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
 			}
 			else {
-				sys = std::make_unique<typed_system_impl>(
+				sys = std::make_unique<typed_system>(
 					update_func,
 					&get_component_pool<std::remove_cv_t<std::remove_reference_t<FirstArg>>>(),
 					&get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
@@ -1393,7 +1436,7 @@ namespace ecs::detail {
 
 			std::unique_lock lock(mutex);
 			systems.push_back(std::move(sys));
-			system* ptr_system = systems.back().get();
+			system_base* ptr_system = systems.back().get();
 			Ensures(ptr_system != nullptr);
 
 			sort_systems_by_group();
@@ -1427,19 +1470,29 @@ namespace ecs::detail {
 		}
 	};
 
-	/*inline context& get_context() {
+	inline context& get_context() {
 		static context ctx;
 		return ctx;
-	}*/
+	}
 
 	// The global reference to the context
-	inline context _context;
+	inline context& _context = get_context();
 }
 
 #endif // !__CONTEXT
  
 #ifndef __RUNTIME
 #define __RUNTIME
+
+#include <concepts>
+#include <utility>
+#include <type_traits>
+#include <execution>
+#include "entity_id.h"
+#include "component_pool.h"
+#include "system_verification.h"
+#include "system.h"
+#include "context.h"
 
 namespace ecs {
 	// Add components generated from an initializer function to a range of entities. Will not be added until 'commit_changes()' is called.
