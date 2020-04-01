@@ -5,7 +5,7 @@ namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
 	class context final {
 		// The values that make up the ecs core.
-		std::vector<std::unique_ptr<system>> systems;
+		std::vector<std::unique_ptr<system_base>> systems;
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
 		std::map<std::type_index, component_pool_base*> type_pool_lookup;
 
@@ -101,34 +101,34 @@ namespace ecs::detail {
 		// Const lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...) const) {
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
+			return create_system<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 		// Mutable lambdas
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R, typename C, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func, R(C::*)(Args...)) {
-			return create_system_impl<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
+			return create_system<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
 		}
 
 	private:
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg, typename ...Args>
-		auto& create_system_impl(UserUpdateFunc update_func) {
+		auto& create_system(UserUpdateFunc update_func) {
 			// Set up the implementation
-			using typed_system_impl = system_impl<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
+			using typed_system = system<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
 
 			// Create the system instance
-			std::unique_ptr<system> sys;
+			std::unique_ptr<system_base> sys;
 			if constexpr (has_entity) {
-				sys = std::make_unique<typed_system_impl>(
+				sys = std::make_unique<typed_system>(
 					update_func,
 					/* dont add the entity as a component pool */
 					&get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
 			}
 			else {
-				sys = std::make_unique<typed_system_impl>(
+				sys = std::make_unique<typed_system>(
 					update_func,
 					&get_component_pool<std::remove_cv_t<std::remove_reference_t<FirstArg>>>(),
 					&get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
@@ -136,7 +136,7 @@ namespace ecs::detail {
 
 			std::unique_lock lock(mutex);
 			systems.push_back(std::move(sys));
-			system* ptr_system = systems.back().get();
+			system_base* ptr_system = systems.back().get();
 			Ensures(ptr_system != nullptr);
 
 			sort_systems_by_group();

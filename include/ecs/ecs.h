@@ -28,8 +28,8 @@
 #include "component_pool.h"
 
 #include "system_verification.h"
+#include "system_base.h"
 #include "system.h"
-#include "system_impl.h"
 
 #include "context.h"
 #include "runtime.h"
