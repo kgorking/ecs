@@ -97,7 +97,7 @@ namespace ecs::detail {
 		&T::operator ();
 
 		// Check all the system requirements
-		///lambda_to_system_bridge(&T::operator ());
+		lambda_to_system_bridge(&T::operator ());
 	};
 }
 
