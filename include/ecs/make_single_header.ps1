@@ -1,3 +1,5 @@
+# Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
 # Get all the local include files from the ecs.h header
 $files = (type ecs.h) -replace '^.*?"(.*?)".*?$','$1'
 
