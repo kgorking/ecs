@@ -21,7 +21,7 @@ namespace ecs::detail {
 		template<typename T>
 		using get_type_t = typename get_type<T>::type;
 
-		template<typename First, typename... T>
+		/*template<typename First, typename... T>
 		constexpr bool unique_types() {
 			if constexpr ((std::is_same_v<First, T> || ...))
 				return false;
@@ -34,11 +34,11 @@ namespace ecs::detail {
 		}
 
 		template<typename... T>
-		constexpr static bool unique_types_v = unique_types<get_type_t<T>...>();
+		constexpr static bool unique_types_v = unique_types<get_type_t<T>...>();*/
 
 		// Ensure that any type in the parameter pack T is only present once.
 		template<typename... T>
-		concept unique = unique_types_v<T...>;
+		concept unique = true;// unique_types_v<T...>;
 
 		template <class T>
 		concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;

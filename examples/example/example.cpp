@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include <ecs/ecs.h>
+#include <ecs/ecs_sh.h>
 
 
 int main()
