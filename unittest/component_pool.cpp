@@ -33,9 +33,9 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("A new component pool") {
 		SECTION("is empty") {
 			ecs::detail::component_pool<int> pool;
-			REQUIRE(pool.num_entities() == 0);
-			REQUIRE(pool.num_components() == 0);
-			REQUIRE(pool.is_data_modified() == false);
+			CHECK(pool.num_entities() == 0);
+			CHECK(pool.num_components() == 0);
+			CHECK(pool.is_data_modified() == false);
 		}
 	}
 
@@ -48,15 +48,15 @@ TEST_CASE("Component pool specification", "[component]") {
 			SUCCEED();
 		}
 		SECTION("does not throw on bad component access") {
-			REQUIRE(nullptr == pool.find_component_data(0));
+			CHECK(nullptr == pool.find_component_data(0));
 		}
 		SECTION("grows when data is added to it") {
 			pool.add({ 0, 4 }, 0);
 			pool.process_changes();
 
-			REQUIRE(pool.num_entities() == 5);
-			REQUIRE(pool.num_components() == 5);
-			REQUIRE(pool.is_data_added());
+			CHECK(pool.num_entities() == 5);
+			CHECK(pool.num_components() == 5);
+			CHECK(pool.is_data_added());
 		}
 	}
 
@@ -68,8 +68,8 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.remove_range({ 0, 2 });
 			pool.process_changes();
 
-			REQUIRE(ctr_counter::copy_count == 3);
-			REQUIRE(ctr_counter::ctr_count == ctr_counter::dtr_count);
+			CHECK(ctr_counter::copy_count == 3);
+			CHECK(ctr_counter::ctr_count == ctr_counter::dtr_count);
 		}
 		SECTION("with a lambda is valid") {
 			ecs::detail::component_pool<int> pool;
@@ -77,7 +77,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			for (int i = 0; i <= 9; i++) {
-				REQUIRE(i == *pool.find_component_data(i));
+				CHECK(i == *pool.find_component_data(i));
 			}
 		}
 		SECTION("with negative entity ids is fine") {
@@ -85,8 +85,8 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add({ -999, -950 }, 0);
 			pool.process_changes();
 
-			REQUIRE(50 == pool.num_components());
-			REQUIRE(50 == pool.num_entities());
+			CHECK(50 == pool.num_components());
+			CHECK(50 == pool.num_entities());
 		}
 		SECTION("keeps them sorted by entity id") {
 			ecs::detail::component_pool<int> pool;
@@ -94,19 +94,19 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add(1,1);
 			pool.add(2,2);
 			pool.process_changes();
-			REQUIRE(pool.find_component_data(1) < pool.find_component_data(2));
-			REQUIRE(pool.find_component_data(2) < pool.find_component_data(4));
+			CHECK(pool.find_component_data(1) < pool.find_component_data(2));
+			CHECK(pool.find_component_data(2) < pool.find_component_data(4));
 
 			pool.add(9,9);
 			pool.add(3,3);
 			pool.add(7,7);
 			pool.process_changes();
 
-			REQUIRE(pool.find_component_data(1) < pool.find_component_data(2));
-			REQUIRE(pool.find_component_data(2) < pool.find_component_data(3));
-			REQUIRE(pool.find_component_data(3) < pool.find_component_data(4));
-			REQUIRE(pool.find_component_data(4) < pool.find_component_data(7));
-			REQUIRE(pool.find_component_data(7) < pool.find_component_data(9));
+			CHECK(pool.find_component_data(1) < pool.find_component_data(2));
+			CHECK(pool.find_component_data(2) < pool.find_component_data(3));
+			CHECK(pool.find_component_data(3) < pool.find_component_data(4));
+			CHECK(pool.find_component_data(4) < pool.find_component_data(7));
+			CHECK(pool.find_component_data(7) < pool.find_component_data(9));
 		}
 	}
 

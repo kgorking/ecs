@@ -7,7 +7,9 @@
 #include <variant>
 #include <type_traits>
 #include <tuple>
-#include "../threaded/threaded/threaded.h"
+
+#include <tls/splitter.h>
+
 #include "component_specifier.h"
 #include "component_pool_base.h"
 #include "entity_id.h"
@@ -30,8 +32,8 @@ namespace ecs::detail {
 		// Keep track of which components to add/remove each cycle
 		using variant = std::variant<T, std::function<T(entity_id)>>;
 		using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, variant>>;
-		threaded<std::vector<entity_data>> deferred_adds;
-		threaded<std::vector<entity_range>> deferred_removes;
+		tls::splitter<std::vector<entity_data>> deferred_adds;
+		tls::splitter<std::vector<entity_range>> deferred_removes;
 
 		// Status flags
 		bool data_added = false;

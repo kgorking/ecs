@@ -45,6 +45,10 @@ else()
     )
 endif()
 
+# add tls library
+add_subdirectory ("tls")
+target_link_libraries(ecs INTERFACE tls)
+
 if (ECS_STANDALONE_PROJECT)
     # Benchmark
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)

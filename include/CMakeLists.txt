@@ -15,5 +15,5 @@ add_library(ecs INTERFACE
 	"system.h"
 	"system_base.h"
 	"system_verification.h")
-target_link_libraries(ecs INTERFACE GSL)
+
 target_include_directories(ecs INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

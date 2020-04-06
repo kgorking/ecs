@@ -1,6 +1,6 @@
-[submodule "threaded"]
-	path = threaded
-	url = https://github.com/monkey-g/threaded
 [submodule "benchmark/gbench"]
 	path = benchmark/gbench
 	url = https://github.com/google/benchmark.git
+[submodule "tls"]
+	path = tls
+	url = https://github.com/kgorking/tls
