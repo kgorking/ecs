@@ -6,6 +6,7 @@
 #include <typeindex>
 #include <map>
 #include <shared_mutex>
+#include <tls/cache.h>
 #include "component_pool.h"
 #include "system.h"
 
@@ -77,33 +78,26 @@ namespace ecs::detail {
 		// If a pool doesn't exist, one will be created.
 		template <typename T>
 		component_pool<T>& get_component_pool() {
-			// Simple thread-safe caching, ~15% performance boost in benchmarks
-			struct internal_dummy__ {};
-			thread_local std::type_index last_type{ typeid(internal_dummy__) };		// init to a function-local type
-			thread_local component_pool_base* last_pool{};
+			thread_local tls::cache<std::type_info const*, component_pool_base*, nullptr> cache;
 
-			auto const type_index = std::type_index(typeid(T));
-			if (type_index != last_type) {
-				// Look in the pool for the type
+			auto pool = cache.get_or(&typeid(T), [this](std::type_info const* val) {
 				std::shared_lock lock(mutex);
-				auto const it = type_pool_lookup.find(type_index);
-
+				
+				// Look in the pool for the type
+				auto const it = type_pool_lookup.find(*val);
 				[[unlikely]] if (it == type_pool_lookup.end()) {
 					// The pool wasn't found so create it.
 					// create_component_pool takes a unique lock, so unlock the
 					// shared lock during its call
 					lock.unlock();
-					last_pool = create_component_pool<T>();
-					Ensures(last_pool != nullptr);
+					return create_component_pool<T>();
 				}
 				else {
-					last_pool = it->second;
-					Ensures(last_pool != nullptr);
+					return it->second;
 				}
-				last_type = type_index;
-			}
+			});
 
-			return *static_cast<component_pool<T>*>(last_pool);
+			return *static_cast<component_pool<T>*>(pool);
 		}
 
 		// Const lambdas
