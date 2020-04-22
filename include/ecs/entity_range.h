@@ -19,9 +19,9 @@ namespace ecs {
 
 	public:
 		// Iterator support
-		// TODO harden
 		class iterator {
-			entity_id ent_ = std::numeric_limits<entity_type>::min();  // has to be default initialized due to msvc parallel implementation of for_each, which is annoying
+			entity_id ent_{ 0 };
+			bool valid{ false };
 
 		public:
 			// iterator traits
@@ -32,23 +32,22 @@ namespace ecs {
 			using iterator_category = std::random_access_iterator_tag;
 
 			//iterator() = delete; // no such thing as a 'default' entity
-			iterator() noexcept = default;
-			constexpr iterator(entity_id ent) noexcept : ent_(ent) {}
-			constexpr iterator& operator++() { ent_++; return *this; }
-			constexpr iterator operator++(int) { iterator const retval = *this; ++(*this); return retval; }
-			constexpr iterator operator+(difference_type diff) const { return { ent_ + diff }; }
-			constexpr difference_type operator-(difference_type diff) const { return ent_ - diff; }
-			//constexpr iterator operator+(iterator in_it) const { return { ent_.id + in_it.ent_.id }; }
-			constexpr difference_type operator-(iterator in_it) const { return ent_ - in_it.ent_; }
-			constexpr bool operator==(iterator other) const { return ent_ == other.ent_; }
-			constexpr bool operator!=(iterator other) const { return !(*this == other); }
-			constexpr entity_id operator*() { return ent_; }
+			constexpr iterator() noexcept {};
+			constexpr iterator(entity_id ent) noexcept : ent_(ent), valid(true) {}
+			constexpr iterator& operator++() { Expects(valid); ent_++; return *this; }
+			constexpr iterator operator++(int) { Expects(valid); iterator const retval = *this; ++(*this); return retval; }
+			constexpr iterator operator+(difference_type diff) const { Expects(valid); return { ent_ + diff }; }
+			constexpr difference_type operator-(difference_type diff) const { Expects(valid); return ent_ - diff; }
+			constexpr difference_type operator-(iterator other) const { Expects(valid); Expects(other.valid); return ent_ - other.ent_; }
+			constexpr bool operator==(iterator other) const { Expects(valid); Expects(other.valid); return ent_ == other.ent_; }
+			constexpr bool operator!=(iterator other) const { Expects(valid); Expects(other.valid); return !(*this == other); }
+			constexpr entity_id operator*() { Expects(valid); return ent_; }
 		};
 		[[nodiscard]] constexpr iterator begin() const { return { first_ }; }
 		[[nodiscard]] constexpr iterator end() const { return { last_ + 1 }; }
 
 	public:
-		entity_range() = delete; // what is a default range?
+		entity_range() = delete; // no such thing as a 'default' range
 
 		constexpr entity_range(entity_id first, entity_id last)
 			: first_(first)
