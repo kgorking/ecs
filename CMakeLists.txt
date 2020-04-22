@@ -21,7 +21,7 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif ()
 
 if (MSVC)
-    # warning level 4, modules
+    # warning level 4
     target_compile_options(ecs INTERFACE /W4)
 else()
     # lots of warnings
