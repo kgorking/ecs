@@ -7,24 +7,6 @@ An ecs library seemed like a good fit for both objectives.
 More detail on what ecs is can be found [here](http://gameprogrammingpatterns.com/component.html) and
 [here](https://github.com/EngineArchitectureClub/TalkSlides/blob/master/2012/05-Components-SeanMiddleditch/ComponentDesign.pdf).
 
-# Table of Contents
-
-* [An example](#An-example)
-* [Components](#Components)
-  * [Generators](#Generators)
-  * [Flags](#Flags)
-    * [`tag`](#tag)
-    * [`share`](#share)
-    * [`transient`](#transient)
-    * [`immutable`](#immutable)
-* [Systems](#Systems)
-  * [Requirements and rules](#Requirements-and-rules)
-  * [Multi-component systems](#Multi-component-systems)
-  * [Current entity](#Current-entity)
-  * [Parallel systems](#Parallel-systems)
-* [Entities](#Entities)
-  * [Ranges](#Ranges)
-
 # An example
 The following example shows all you need to get started.
 
@@ -55,8 +37,24 @@ Running this will do a Matthew McConaughey impression and print 'alright alright
 
 This is pretty basic, but there are plenty of ways to extend this example to do cooler things, as explained below.
 
+# Table of Contents
+* [Components](#Components)
+  * [Generators](#Generators)
+  * [Flags](#Flags)
+    * [`tag`](#tag)
+    * [`share`](#share)
+    * [`transient`](#transient)
+    * [`immutable`](#immutable)
+* [Systems](#Systems)
+  * [Requirements and rules](#Requirements-and-rules)
+  * [Multi-component systems](#Multi-component-systems)
+  * [Current entity](#Current-entity)
+  * [Parallel systems](#Parallel-systems)
+* [Entities](#Entities)
+  * [Ranges](#Ranges)
+
 # Components
-There are very few restrictions on what a component can be. It does have to obey the requirements of
+There are very few restrictions on what a component can be, it does have to obey the requirements of
 [std::copyable](https://en.cppreference.com/w/cpp/concepts/copyable) though. In the example above you could
 have used a `std::string` instead of creating a custom component, and it would work just fine.
 
@@ -65,7 +63,7 @@ error to remind you. Remember to mark components you don't intend to change in a
 
 ## Generators
 When adding components to entities, you can specify a generator instead of a default constructed component
-if you need the individual components to have different initial states. Generators must have the signature
+if you need the individual components to have different initial states. Generators have the signature
 of `T(ecs::entity_id)`, where `T` is the component type that the generator makes.
 In the [mandelbrot](https://github.com/kgorking/ecs/blob/master/examples/mandelbrot/mandelbrot.cpp) example,
 a generator is used to create the (x,y) coordinates of the individual pixels from the entity id:
@@ -87,7 +85,7 @@ ecs::add_components({ 0, dimension * dimension},
 ```
 
 ## Flags
-The behaviour of components can be changed using component flags, which changes how they are managed
+The behaviour of components can be changed by using component flags, which can change how they are managed
 internally and can offer performance and memory benefits. There are four supported flags currently supported
 that can be added to components using the `ecs_flags()` macro:
 
@@ -103,7 +101,7 @@ struct freezable { ecs_flags(ecs::tag);
 
 Using tagged components in systems has a slightly different syntax to regular components, namely that they are
 passed by value. This is to discourage the use of tags to share some kind of data, which you should use the `share` flag
-for instead (see below).
+for instead.
 
 ```cpp
 ecs::make_system([](greeting const& g, freezable) {
@@ -129,7 +127,7 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 **Note!** Beware of using mutable shared components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
-to disallow systems modifying the shared component. `ecs_flags(ecs::share|ecs::immutable);`
+to disallow systems modifying the shared component, using `ecs_flags(ecs::share|ecs::immutable);`
 
 ### `immutable`
 Marking a component as immutable (a.k.a. const) is used for components that are not to be changed by systems.
@@ -153,7 +151,7 @@ ecs::commit_changes(); // removes the 100 damage components
 ```
 
 # Systems
-5
+
 
 ## Requirements and rules
 ## Multi-component systems
