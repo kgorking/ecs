@@ -211,6 +211,8 @@ Parallel systems can offer great speed-ups on multi-core machines, if the system
 
 The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code.
 
+Adding and removing components from an entity in a parallel system is a thread-safe operation-
+
 ## Groups
 Systems can be roughly segmented in to groups by passing along a compile-time integer as a template paramater to `ecs::make_system`. Systems are executed in the order they are made, but are stable-sorted on their group id. Systems with no group id specified are put in group 0.
 
