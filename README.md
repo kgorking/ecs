@@ -41,6 +41,7 @@ This is pretty basic, but there are plenty of ways to extend this example to do 
 * [Entities](#Entities)
 * [Components](#Components)
   * [Adding components to entities](#Adding-components-to-entities)
+  * [Committing component changes](#Committing-component-changes)
   * [Generators](#Generators)
   * [Flags](#Flags)
     * [`tag`](#tag)
@@ -52,6 +53,7 @@ This is pretty basic, but there are plenty of ways to extend this example to do 
   * [Requirements and rules](#Requirements-and-rules)
   * [Parallel systems](#Parallel-systems)
   * [Groups](#Groups)
+
 
 # Entities
 Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
