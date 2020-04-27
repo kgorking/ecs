@@ -151,7 +151,14 @@ namespace ecs::detail {
 
 		// Returns the pools entities
 		entity_range_view get_entities() const {
-			return ranges;
+			if constexpr (detail::global<T>) {
+				// globals are accessible to all entities
+				static constexpr entity_range global_range{ std::numeric_limits<ecs::entity_type>::min(), std::numeric_limits<ecs::entity_type>::max() };
+				return entity_range_view{ &global_range, 1 };
+			}
+			else {
+				return ranges;
+			}
 		}
 
 		// Returns true if an entity has a component in this pool

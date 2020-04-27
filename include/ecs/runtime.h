@@ -92,6 +92,12 @@ namespace ecs {
 		return detail::_context.get_component_pool<T>().get_shared_component();
 	}
 
+	// Returns a global component.
+	template <detail::global T>
+	T& get_global_component() {
+		return detail::_context.get_component_pool<T>().get_shared_component();
+	}
+
 	// Returns the component from an entity, or nullptr if the entity is not found
 	template <typename T>
 	T* get_component(entity_id const id) {

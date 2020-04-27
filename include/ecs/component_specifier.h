@@ -26,6 +26,11 @@ namespace ecs {
 	// access the component through a non-const reference.
 	struct immutable {};
 
+	// Add this is 'ecs_flags()' to mark a component as global.
+	// Global components can be referenced from systems without
+	// having been added to any entities.
+	struct global {};
+
 	// Add flags to a component to change its behaviour and memory usage.
 	// Example:
 	// struct my_component { 
@@ -43,9 +48,10 @@ namespace ecs {
 		template<typename T> concept shared = std::is_base_of_v<ecs::share, flags<T>>;
 		template<typename T> concept transient = std::is_base_of_v<ecs::transient, flags<T>>;
 		template<typename T> concept immutable = std::is_base_of_v<ecs::immutable, flags<T>>;
+		template<typename T> concept global = std::is_base_of_v<ecs::global, flags<T>>;
 
 		template<typename T> concept persistent = !transient<T>;
-		template<typename T> concept unbound = (shared<T> || tagged<T>); // component is not bound to a specific entity (ie static)
+		template<typename T> concept unbound = (shared<T> || tagged<T> || global<T>); // component is not bound to a specific entity (ie static)
 	}
 }
 
