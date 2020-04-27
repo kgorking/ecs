@@ -58,7 +58,7 @@ TEST_CASE("constexpr", "[constexpr]") {
 		constexpr auto offset = merged_range.offset({ 2 });
 		REQUIRE(2 == offset);
 
-		constexpr ecs::entity_range::iterator it{ 5 };
+		constexpr ecs::entity_iterator it{ 5 };
 
 		//constexpr ecs::entity_range range_with_component{ 0, 5, 3.14f };
 	}

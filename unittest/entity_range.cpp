@@ -39,7 +39,7 @@ TEST_CASE("entity_range ", "[entity]") {
 		constexpr auto max = std::numeric_limits<ecs::entity_type>::max();
 		ecs::entity_range r{ max - 1, max };
 		int64_t counter = 0;
-		for (auto const ent : r)
+		for (auto const ent : r) // end iterator becomes max+1, which is the same as std::numeric_limits<ecs::entity_type>::min()
 			counter++;
 		REQUIRE(counter == 2);
 	}
