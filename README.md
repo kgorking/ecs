@@ -48,6 +48,7 @@ This is pretty basic, but there are plenty of ways to extend this example to do 
     * [`share`](#share)
     * [`transient`](#transient)
     * [`immutable`](#immutable)
+    * [`global`](#global)
 * [Systems](#Systems)
   * [Current entity](#Current-entity)
   * [Requirements and rules](#Requirements-and-rules)
@@ -121,7 +122,7 @@ The behaviour of components can be changed by using component flags, which can c
 internally and can offer performance and memory benefits. Flags can be added to components using the `ecs_flags()` macro:
 
 ### `tag`
-Marking a component as a tag is used for components that signal some kind of state, without needing to
+Marking a component as a *tag* is used for components that signal some kind of state, without needing to
 take up any memory. For instance, you could use it to tag certain entities as having some form of capability,
 like a 'freezable' tag to mark stuff that can be frozen.
 
@@ -145,12 +146,14 @@ If tag components are marked as anything other than pass-by-value, the compiler 
 **Note** This flag is mutually exclusive with `share`.
 
 ### `share`
-Marking a component as shared is used for components that hold data that is shared between all entities the component is added to.
+Marking a component as *shared* is used for components that hold data that is shared between all entities the component is added to.
 
 ```cpp
 struct frame_data { ecs_flags(ecs::share);
     double delta_time = 0.0;
 };
+// ...
+ecs::add_components<position, velocity, frame_data>({0, 100});
 // ...
 ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
@@ -161,11 +164,11 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 to disallow systems modifying the shared component, using `ecs_flags(ecs::share|ecs::immutable);`
 
 ### `immutable`
-Marking a component as immutable (a.k.a. const) is used for components that are not to be changed by systems.
+Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
 This is used for passing read-only data to systems. If a component is marked as `immutable` and is used in a system without being marked `const`, you will get a compile-time error reminding you to make it constant.
 
 ### `transient`
-Marking a component as transient is used for components that only exists on entities temporarily. The runtime will remove these components
+Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
 struct damage { ecs_flags(ecs::transient);
@@ -175,6 +178,21 @@ struct damage { ecs_flags(ecs::transient);
 ecs::add_components({0,99}, damage{9001});
 ecs::commit_changes(); // adds the 100 damage components
 ecs::commit_changes(); // removes the 100 damage components
+```
+
+### `global`
+Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
+
+```cpp
+struct frame_data { ecs_flags(ecs::global);
+    double delta_time = 0.0;
+};
+// ...
+ecs::add_components<position, velocity>({0, 100});
+// ...
+ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
+    pos += vel * fd.delta_time;
+});
 ```
 
 # Systems

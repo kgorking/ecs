@@ -49,24 +49,22 @@ namespace ecs::detail {
 			deferred_adds.local().emplace_back(range, std::forward<Fn>(init));
 		}
 
-		// Add a shared/tagged component to a range of entity.
-		// Pre: entities has not already been added, or is in queue to be added
-		//      This condition will not be checked until 'process_changes' is called.
-		void add(entity_range const range, T&& /* unused */) requires unbound<T> {
-			deferred_adds.local().push_back(range);
-		}
-
 		// Add a component to a range of entity.
 		// Pre: entities has not already been added, or is in queue to be added
 		//      This condition will not be checked until 'process_changes' is called.
-		void add(entity_range const range, T&& component) {
-			deferred_adds.local().emplace_back(range, std::forward<T>(component));
+		void add(entity_range const range, T&& component) requires (!global<T>) {
+			if constexpr (shared<T> || tagged<T>) {
+				deferred_adds.local().push_back(range);
+			}
+			else {
+				deferred_adds.local().emplace_back(range, std::forward<T>(component));
+			}
 		}
 
 		// Add a component to an entity.
 		// Pre: entity has not already been added, or is in queue to be added.
 		//      This condition will not be checked until 'process_changes' is called.
-		void add(entity_id const id, T&& component) {
+		void add(entity_id const id, T&& component) requires (!global<T>) {
 			add({ id, id }, std::forward<T>(component));
 		}
 
@@ -77,12 +75,12 @@ namespace ecs::detail {
 		}
 
 		// Remove an entity from the component pool. This logically removes the component from the entity.
-		void remove(entity_id const id) {
+		void remove(entity_id const id) requires (!global<T>) {
 			remove_range({ id, id });
 		}
 
 		// Remove an entity from the component pool. This logically removes the component from the entity.
-		void remove_range(entity_range const range) {
+		void remove_range(entity_range const range) requires (!global<T>) {
 			if (!has_entity(range)) {
 				return;
 			}
@@ -151,16 +149,23 @@ namespace ecs::detail {
 
 		// Returns the pools entities
 		entity_range_view get_entities() const {
-			return ranges;
+			if constexpr (detail::global<T>) {
+				// globals are accessible to all entities
+				static constexpr entity_range global_range{ std::numeric_limits<ecs::entity_type>::min(), std::numeric_limits<ecs::entity_type>::max() };
+				return entity_range_view{ &global_range, 1 };
+			}
+			else {
+				return ranges;
+			}
 		}
 
 		// Returns true if an entity has a component in this pool
-		bool has_entity(entity_id const id) const {
+		bool has_entity(entity_id const id) const requires (!global<T>) {
 			return has_entity({ id, id });
 		}
 
 		// Returns true if an entity range has components in this pool
-		bool has_entity(entity_range const& range) const {
+		bool has_entity(entity_range const& range) const requires (!global<T>) {
 			if (ranges.empty()) {
 				return false;
 			}
@@ -175,12 +180,12 @@ namespace ecs::detail {
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_add(entity_id const id) {
+		bool is_queued_add(entity_id const id) requires (!global<T>) {
 			return is_queued_add({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_add(entity_range const& range) {
+		bool is_queued_add(entity_range const& range) requires (!global<T>) {
 			if (deferred_adds.local().empty()) {
 				return false;
 			}
@@ -195,12 +200,12 @@ namespace ecs::detail {
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_remove(entity_id const id) {
+		bool is_queued_remove(entity_id const id) requires (!global<T>) {
 			return is_queued_remove({ id, id });
 		}
 
 		// Checks the current threads queue for the entity
-		bool is_queued_remove(entity_range const& range) {
+		bool is_queued_remove(entity_range const& range) requires (!global<T>) {
 			if (deferred_removes.local().empty())
 				return false;
 

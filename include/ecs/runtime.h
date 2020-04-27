@@ -92,9 +92,15 @@ namespace ecs {
 		return detail::_context.get_component_pool<T>().get_shared_component();
 	}
 
+	// Returns a global component.
+	template <detail::global T>
+	T& get_global_component() {
+		return detail::_context.get_component_pool<T>().get_shared_component();
+	}
+
 	// Returns the component from an entity, or nullptr if the entity is not found
 	template <typename T>
-	T* get_component(entity_id const id) {
+	T* get_component(entity_id const id) requires (!detail::global<T>) {
 		// Get the component pool
 		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
 		return pool.find_component_data(id);
@@ -104,7 +110,7 @@ namespace ecs {
 	// or does not containg the component.
 	// The span might be invalidated after a call to 'ecs::commit_changes()'.
 	template <typename T>
-	std::span<T> get_components(entity_range const range) {
+	std::span<T> get_components(entity_range const range) requires (!detail::global<T>) {
 		if (!has_component<T>(range))
 			return {};
 

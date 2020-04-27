@@ -21,6 +21,7 @@ namespace ecs::detail {
 	template<typename T>
 	using get_type_t = typename get_type<T>::type;
 
+	// Returns true if all types passed are unique
 	template<typename First, typename... T>
 	constexpr bool unique_types() {
 		if constexpr ((std::is_same_v<First, T> || ...))
@@ -43,6 +44,52 @@ namespace ecs::detail {
 	template <class T>
 	concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
 
+	// Implement the requirements for immutable components
+	template<typename C>
+	constexpr bool req_immutable() {
+		// Components flagged as 'immutable' must also be const
+		if constexpr (detail::immutable<C>)
+			return std::is_const_v<std::remove_reference_t<C>>;
+		else
+			return true;
+	}
+
+	// Implement the requirements for tagged components
+	template<typename C>
+	constexpr bool req_tagged() {
+		// Components flagged as 'tag' must not be references
+		if constexpr (detail::tagged<C>)
+			return !std::is_reference_v<C> && (sizeof(C) == 1);
+		else
+			return true;
+	}
+
+	// Implement the requirements for shared components
+	template<typename C>
+	constexpr bool req_shared() {
+		// Components flagged as 'share' must not be tags or global
+		if constexpr (detail::shared<C>)
+			return !detail::tagged<C> && !detail::global<C>;
+		else
+			return true;
+	}
+
+	// Implement the requirements for global components
+	template<typename C>
+	constexpr bool req_global() {
+		// Components flagged as 'global' must not be tags or shared
+		// and must not be marked as 'transient'
+		if constexpr (detail::global<C>)
+			return !detail::tagged<C> && !detail::shared<C> && !detail::transient<C>;
+		else
+			return true;
+	}
+
+	template <class C>
+	concept Component = requires {
+		requires (req_immutable<C>() && req_tagged<C>() && req_shared<C>() && req_global<C>());
+	};
+
 	template <class R, class FirstArg, class ...Args>
 	concept checked_system = requires {
 		// systems can not return values
@@ -60,25 +107,8 @@ namespace ecs::detail {
 		// Component types can only be specified once
 		requires unique<FirstArg, Args...>;
 
-		// Components flagged as 'immutable' must also be const
-		requires
-			(detail::immutable<FirstArg> ? std::is_const_v<std::remove_reference_t<FirstArg>> : true) &&
-			((detail::immutable<Args> ? std::is_const_v<std::remove_reference_t<Args>> : true) && ...);
-
-		// Components flagged as 'tag' must not be references
-		requires
-			(detail::tagged<FirstArg> ? !std::is_reference_v<FirstArg> : true) &&
-			((detail::tagged<Args> ? !std::is_reference_v<Args> : true) && ...);
-
-		// Components flagged as 'tag' must not hold data
-		requires
-			(detail::tagged<FirstArg> ? sizeof(FirstArg) == 1 : true) &&
-			((detail::tagged<Args> ? sizeof(Args) == 1 : true) && ...);
-
-		// Components flagged as 'share' must not be 'tag'ged
-		requires
-			(detail::shared<FirstArg> ? !detail::tagged<FirstArg> : true) &&
-			((detail::shared<Args> ? !detail::tagged<Args> : true) && ...);
+		// Verify components
+		requires Component<FirstArg> && (Component<Args> && ...);
 	};
 
 	// A small bridge to allow the Lambda concept to activate the system concept
