@@ -99,9 +99,10 @@ TEST_CASE("The runtime interface") {
 
 			ecs::commit_changes();
 
-			for (ecs::entity_id i = 10; i <= 20; ++i) {
-				auto const& ra = *ecs::get_component<range_add>(i);
+			int i = 10;
+			for (auto const& ra : ecs::get_components<range_add>({10, 20})) {
 				CHECK(ra.i == i * 2);
+				i++;
 			}
 		}
 	}

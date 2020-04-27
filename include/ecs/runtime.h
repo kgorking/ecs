@@ -102,7 +102,7 @@ namespace ecs {
 	template <typename T>
 	T* get_component(entity_id const id) requires (!detail::global<T>) {
 		// Get the component pool
-		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
+		detail::component_pool<T> & pool = detail::_context.get_component_pool<T>();
 		return pool.find_component_data(id);
 	}
 
@@ -115,8 +115,8 @@ namespace ecs {
 			return {};
 
 		// Get the component pool
-		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-		return std::make_span(pool.find_component_data(range.first()), static_cast<ptrdiff_t>(range.count()));
+		detail::component_pool<T> & pool = detail::_context.get_component_pool<T>();
+		return { pool.find_component_data(range.first()), range.count() };
 	}
 
 	// Returns the number of active components
