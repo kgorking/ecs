@@ -2,13 +2,13 @@
 #define __ENTITY_RANGE
 
 #include <limits>
-#include <iterator>
 #include <span>
 #include <optional>
 #include <algorithm>
 
 #include "contract.h"
 #include "entity_id.h"
+#include "entity_iterator.h"
 
 namespace ecs {
 	// Defines a range of entities.
@@ -16,35 +16,6 @@ namespace ecs {
 	class entity_range final {
 		entity_id first_;
 		entity_id last_;
-
-	public:
-		// Iterator support
-		class iterator {
-			entity_id ent_{ 0 };
-			bool valid{ false };
-
-		public:
-			// iterator traits
-			using difference_type = entity_type;
-			using value_type = entity_id;
-			using pointer = const entity_id*;
-			using reference = const entity_id&;
-			using iterator_category = std::random_access_iterator_tag;
-
-			//iterator() = delete; // no such thing as a 'default' entity
-			constexpr iterator() noexcept {};
-			constexpr iterator(entity_id ent) noexcept : ent_(ent), valid(true) {}
-			constexpr iterator& operator++() { Expects(valid); ent_++; return *this; }
-			constexpr iterator operator++(int) { Expects(valid); iterator const retval = *this; ++(*this); return retval; }
-			constexpr iterator operator+(difference_type diff) const { Expects(valid); return { ent_ + diff }; }
-			constexpr difference_type operator-(difference_type diff) const { Expects(valid); return ent_ - diff; }
-			constexpr difference_type operator-(iterator other) const { Expects(valid); Expects(other.valid); return ent_ - other.ent_; }
-			constexpr bool operator==(iterator other) const { Expects(valid); Expects(other.valid); return ent_ == other.ent_; }
-			constexpr bool operator!=(iterator other) const { Expects(valid); Expects(other.valid); return !(*this == other); }
-			constexpr entity_id operator*() { Expects(valid); return ent_; }
-		};
-		[[nodiscard]] constexpr iterator begin() const { return { first_ }; }
-		[[nodiscard]] constexpr iterator end() const { return { last_ + 1 }; }
 
 	public:
 		entity_range() = delete; // no such thing as a 'default' range
@@ -89,12 +60,20 @@ namespace ecs {
 			return std::span(get_component<Component>(first_), count());
 		}
 
-		constexpr bool operator == (entity_range const& other) const {
+		[[nodiscard]] constexpr entity_iterator begin() const {
+			return entity_iterator{ first_ };
+		}
+
+		[[nodiscard]] constexpr entity_iterator end() const {
+			return entity_iterator{ last_ } + 1;
+		}
+
+		[[nodiscard]] constexpr bool operator == (entity_range const& other) const {
 			return equals(other);
 		}
 
 		// For sort
-		constexpr bool operator <(entity_range const& other) const {
+		[[nodiscard]] constexpr bool operator <(entity_range const& other) const {
 			return first_ < other.first() && last_ < other.last();
 		}
 
