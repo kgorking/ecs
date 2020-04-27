@@ -15,7 +15,7 @@ add_executable (unittests
 	"system.cpp"
 	"transient components.cpp"
 	
-	)
+	 "global_component.cpp")
 target_link_libraries(unittests ecs)
 
 

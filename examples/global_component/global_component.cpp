@@ -1,6 +1,10 @@
 #include <iostream>
 #include <ecs/ecs.h>
 
+// This is a slightly altered version of the 'shared_components' example
+// where the state_s component is never added to any entities, but is
+// still accessible from the system
+
 struct A {};
 struct B {};
 struct state_s { ecs_flags(ecs::global);
@@ -20,19 +24,14 @@ int main() {
 	std::cout << "Initial state:\n";
 	print_global_state();
 
-	auto& sys_a = ecs::make_system([](A const&, state_s& state) { state.a++; state.total++; });
-	auto& sys_b = ecs::make_system([](B const&, state_s& state) { state.b++; state.total++; });
+	ecs::make_system([](A const&, state_s& state) { state.a++; state.total++; });
+	ecs::make_system([](B const&, state_s& state) { state.b++; state.total++; });
 
 	std::cout << "Adding 10 entities with an A component:\n";
-	ecs::entity_range const a_ents{ 0, 9, A{} };
-	ecs::commit_changes();
-	sys_a.update(); // run A system
-	print_global_state();
-
 	std::cout << "Adding 10 more entities with a B component:\n";
+	ecs::entity_range const a_ents{ 0, 9, A{} };
 	ecs::entity_range const b_ents{ 10, 19, B{} };
-	ecs::commit_changes();
-	sys_b.update(); // run B system
+	ecs::update_systems();
 	print_global_state();
 
 	// Dump some stats
