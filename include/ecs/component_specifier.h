@@ -6,19 +6,20 @@
 namespace ecs {
 	// Add this in 'ecs_flags()' to mark a component as a tag.
 	// Uses O(1) memory instead of O(n).
-	// Mutually exclusive with 'share'
+	// Mutually exclusive with 'share' and 'global'
 	struct tag {};
 
 	// Add this in 'ecs_flags()' to mark a component as shared between components,
 	// meaning that any entity with a shared component will all point to the same component.
 	// Think of it as a static member variable in a regular class.
 	// Uses O(1) memory instead of O(n).
-	// Mutually exclusive with 'tag'
+	// Mutually exclusive with 'tag' and 'global'
 	struct share {};
 
 	// Add this in 'ecs_flags()' to mark a component as transient.
 	// The component will only exist on an entity for one cycle,
 	// and then be automatically removed.
+	// Mutually exclusive with 'global'
 	struct transient {};
 
 	// Add this in 'ecs_flags()' to mark a component as constant.
@@ -29,6 +30,8 @@ namespace ecs {
 	// Add this is 'ecs_flags()' to mark a component as global.
 	// Global components can be referenced from systems without
 	// having been added to any entities.
+	// Uses O(1) memory instead of O(n).
+	// Mutually exclusive with 'tag', 'share', and 'transient'
 	struct global {};
 
 	// Add flags to a component to change its behaviour and memory usage.
