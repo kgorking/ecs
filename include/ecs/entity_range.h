@@ -110,7 +110,6 @@ namespace ecs {
 
 		// Returns the number of entities in this range
 		[[nodiscard]] constexpr size_t count() const {
-			Expects(last_ >= first_);
 			return static_cast<size_t>(last_) - first_ + 1;
 		}
 
