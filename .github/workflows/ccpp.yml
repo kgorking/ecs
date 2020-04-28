@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -17,5 +17,5 @@ jobs:
       run: git submodule update --init --recursive
     - name: Run cmake
       run: cmake -S . -B build
-    - name: Run msbuild
-      run: msbuild build/ecs.sln
+    - name: Run make
+      run: make build
