@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: windows
+    runs-on: windows10
 
     steps:
     - uses: actions/checkout@v2
