@@ -3,16 +3,16 @@
 
 TEST_CASE("System specification", "[system]") {
 	SECTION("Running a system works") {
-		struct local {
+		struct local1 {
 			int c;
 		};
 		// Add a system for the local component
-		auto& sys = ecs::make_system([](local& l) {
+		auto& sys = ecs::make_system([](local1& l) {
 			l.c++;
 		});
 
 		// Add the component to an entity
-		ecs::add_component(0, local{ 0 });
+		ecs::add_component(0, local1{ 0 });
 		ecs::commit_changes();
 
 		// Run the system 5 times
@@ -21,13 +21,13 @@ TEST_CASE("System specification", "[system]") {
 		}
 
 		// Get the component data to verify that the system was run the correct number of times
-		auto const l = *ecs::get_component<local>(0);
+		auto const l = *ecs::get_component<local1>(0);
 		REQUIRE(5U == l.c);
 	}
 
 	SECTION("Verify enable/disable functions") {
-		struct local {};
-		auto& sys = ecs::make_system([](local const& /*c*/) {});
+		struct local2 {};
+		auto& sys = ecs::make_system([](local2 const& /*c*/) {});
 
 		REQUIRE(true == sys.is_enabled());
 		sys.disable();
@@ -39,50 +39,50 @@ TEST_CASE("System specification", "[system]") {
 	}
 
 	SECTION("Disabling systems prevents them from running") {
-		struct local {
+		struct local3 {
 			int c;
 		};
 		// Add a system for the local component
-		auto& sys = ecs::make_system([](local& l) {
+		auto& sys = ecs::make_system([](local3& l) {
 			l.c++;
 		});
 
-		ecs::add_component(0, local{ 0 });
+		ecs::add_component(0, local3{ 0 });
 		ecs::commit_changes();
 
 		// Run the system and check value
 		sys.update();
-		REQUIRE(1 == ecs::get_component<local>(0)->c);
+		REQUIRE(1 == ecs::get_component<local3>(0)->c);
 
 		// Disable system and re-run. Should not change the component
 		sys.disable();
 		sys.update();
-		REQUIRE(1 == ecs::get_component<local>(0)->c);
+		REQUIRE(1 == ecs::get_component<local3>(0)->c);
 
 		// Enable system and re-run. Should change the component
 		sys.enable();
 		sys.update();
-		REQUIRE(2 == ecs::get_component<local>(0)->c);
+		REQUIRE(2 == ecs::get_component<local3>(0)->c);
 	}
 
 	SECTION("Re-enabling systems forces a rebuild") {
-		struct local {
+		struct local4 {
 			int c;
 		};
 		// Add a system for the local component
-		auto& sys = ecs::make_system([](local& l) {
+		auto& sys = ecs::make_system([](local4& l) {
 			l.c++;
 		});
 		sys.disable();
 
-		ecs::add_component(0, local{ 0 });
+		ecs::add_component(0, local4{ 0 });
 		ecs::commit_changes();
 		sys.update();
-		REQUIRE(0 == ecs::get_component<local>(0)->c);
+		REQUIRE(0 == ecs::get_component<local4>(0)->c);
 
 		sys.enable();
 		sys.update();
-		REQUIRE(1 == ecs::get_component<local>(0)->c);
+		REQUIRE(1 == ecs::get_component<local4>(0)->c);
 	}
 
 	SECTION("Groups order systems correctly") {
