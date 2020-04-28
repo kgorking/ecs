@@ -32,8 +32,8 @@ namespace ecs::detail {
 		// Keep track of which components to add/remove each cycle
 		using variant = std::variant<T, std::function<T(entity_id)>>;
 		using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, variant>>;
-		tls::splitter<std::vector<entity_data>> deferred_adds;
-		tls::splitter<std::vector<entity_range>> deferred_removes;
+		tls::splitter<std::vector<entity_data>, component_pool<T>> deferred_adds;
+		tls::splitter<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 		// Status flags
 		bool data_added = false;
@@ -70,7 +70,7 @@ namespace ecs::detail {
 
 		// Return the shared component
 		T& get_shared_component() requires unbound<T> {
-			static T t;
+			static T t{};
 			return t;
 		}
 
