@@ -13,9 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+    - name: Create build dir
+      run: cmake -S . -B build -G Ninja
+    - name: Run ninja
+      run: cd build
+      run: ninja
