@@ -16,5 +16,4 @@ jobs:
     - name: Create build dir
       run: cmake -S . -B build -G Ninja
     - name: Run ninja
-      run: cd build
-      run: ninja
+      run: ninja -C build
