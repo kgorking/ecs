@@ -37,7 +37,7 @@ jobs:
       
     # Restore the WPF application to populate the obj folder with RuntimeIdentifiers
     - name: Build the library
-      run: msbuild build/ecs.sln /p:Configuration=$env:Configuration /p:Platform=x64
+      run: msbuild -verbosity:minimal -m build/ecs.sln /p:Configuration=$env:Configuration /p:Platform=x64
       env:
         Configuration: ${{ matrix.configuration }}
 
