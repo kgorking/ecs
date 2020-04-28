@@ -13,9 +13,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: update submodules
+    - name: Update submodules
       run: git submodule update --init --recursive
     - name: Run cmake
       run: cmake -S . -B build
     - name: Run msbuild
-      run: msbuild build/ecs.sln /p:Configuration=Debug /p:Platform=x64 -m
+      run: msbuild build/ecs.sln
