@@ -9,11 +9,11 @@ on:
 jobs:
   build:
 
-    runs-on: windows10
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
     - name: Create build dir
       run: cmake -S . -B build
     - name: Run msbuild
-      run: msbuild build/ecs.sln
+      run: msbuild build/ecs.sln /p:Configuration=Debug /p:Platform=x64 -m
