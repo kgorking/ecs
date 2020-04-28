@@ -18,4 +18,4 @@ jobs:
     - name: Run cmake
       run: cmake -S . -B build
     - name: Run make
-      run: make build
+      run: cd build && make
