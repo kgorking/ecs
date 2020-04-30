@@ -115,7 +115,12 @@ namespace ecs::detail {
 
 		// Returns the number of active entities in the pool
 		size_t num_entities() const {
-			return std::accumulate(ranges.begin(), ranges.end(), size_t{ 0 }, [](size_t val, entity_range const& range) { return val + range.count(); });
+			// Don't want to include <algorithm> just for this
+			size_t val = 0;
+			for (auto r : ranges) {
+				val += r.count();
+			}
+			return val;
 		}
 
 		// Returns the number of active components in the pool
