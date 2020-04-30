@@ -3,12 +3,13 @@
 
 #include <memory>
 #include <vector>
-#include <typeindex>
 #include <map>
 #include <shared_mutex>
 #include <tls/cache.h>
+
 #include "component_pool.h"
 #include "system.h"
+#include "type_hash.h"
 
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
@@ -16,7 +17,7 @@ namespace ecs::detail {
 		// The values that make up the ecs core.
 		std::vector<std::unique_ptr<system_base>> systems;
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
-		std::map<std::type_index, component_pool_base*> type_pool_lookup;
+		std::map<type_hash, component_pool_base*> type_pool_lookup;
 
 		mutable std::shared_mutex mutex;
 
@@ -56,11 +57,13 @@ namespace ecs::detail {
 		}
 
 		// Returns true if a pool for the type exists
-		bool has_component_pool(type_info const& type) const {
+		template<typename T>
+		bool has_component_pool() const {
 			// Prevent other threads from registering new component types
 			std::shared_lock lock(mutex);
 
-			return type_pool_lookup.contains(std::type_index(type));
+			constexpr auto hash = get_type_hash<T>();
+			return type_pool_lookup.contains(hash);
 		}
 
 		// Resets the runtime state. Removes all systems, empties component pools
@@ -78,13 +81,14 @@ namespace ecs::detail {
 		// If a pool doesn't exist, one will be created.
 		template <typename T>
 		component_pool<T>& get_component_pool() {
-			thread_local tls::cache<std::type_info const*, component_pool_base*, nullptr> cache;
+			thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
-			auto pool = cache.get_or(&typeid(T), [this](std::type_info const* val) {
+			constexpr auto hash = get_type_hash<T>();
+			auto pool = cache.get_or(hash, [this](type_hash hash) {
 				std::shared_lock lock(mutex);
 				
 				// Look in the pool for the type
-				auto const it = type_pool_lookup.find(*val);
+				auto const it = type_pool_lookup.find(hash);
 				[[unlikely]] if (it == type_pool_lookup.end()) {
 					// The pool wasn't found so create it.
 					// create_component_pool takes a unique lock, so unlock the
@@ -158,12 +162,12 @@ namespace ecs::detail {
 		template <typename T>
 		component_pool_base* create_component_pool() {
 			// Create a new pool if one does not already exist
-			auto const& type = typeid(T);
-			if (!has_component_pool(type)) {
+			if (!has_component_pool<T>()) {
 				std::unique_lock lock(mutex);
 
 				auto pool = std::make_unique<component_pool<T>>();
-				type_pool_lookup.emplace(std::type_index(type), pool.get());
+				constexpr auto hash = get_type_hash<T>();
+				type_pool_lookup.emplace(hash, pool.get());
 				component_pools.push_back(std::move(pool));
 				return component_pools.back().get();
 			}

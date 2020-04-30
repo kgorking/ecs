@@ -122,7 +122,7 @@ namespace ecs {
 	// Returns the number of active components
 	template <typename T>
 	size_t get_component_count() {
-		if (!detail::_context.has_component_pool(typeid(T)))
+		if (!detail::_context.has_component_pool<T>())
 			return 0;
 
 		// Get the component pool
@@ -133,7 +133,7 @@ namespace ecs {
 	// Returns the number of entities that has the component.
 	template <typename T>
 	size_t get_entity_count() {
-		if (!detail::_context.has_component_pool(typeid(T)))
+		if (!detail::_context.has_component_pool<T>())
 			return 0;
 
 		// Get the component pool
@@ -144,7 +144,7 @@ namespace ecs {
 	// Return true if an entity contains the component
 	template <typename T>
 	bool has_component(entity_id const id) {
-		if (!detail::_context.has_component_pool(typeid(T)))
+		if (!detail::_context.has_component_pool<T>())
 			return false;
 
 		detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
@@ -154,7 +154,7 @@ namespace ecs {
 	// Returns true if all entities in a range has the component.
 	template <typename T>
 	bool has_component(entity_range const range) {
-		if (!detail::_context.has_component_pool(typeid(T)))
+		if (!detail::_context.has_component_pool<T>())
 			return false;
 
 		detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
