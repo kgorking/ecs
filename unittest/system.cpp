@@ -118,4 +118,21 @@ TEST_CASE("System specification", "[system]") {
 
 		ecs::update_systems();
 	}
+
+	SECTION("Read/write info on systems is correct") {
+		auto const& sys1 = ecs::make_system([](int const&, float const&){});
+		CHECK(false == sys1.writes_to_any_components());
+		CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<int>()));
+		CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<float>()));
+
+		auto const& sys2 = ecs::make_system([](int&, float const&){});
+		CHECK(true  == sys2.writes_to_any_components());
+		CHECK(true  == sys2.writes_to_component(ecs::detail::get_type_hash<int>()));
+		CHECK(false == sys2.writes_to_component(ecs::detail::get_type_hash<float>()));
+
+		auto const& sys3 = ecs::make_system([](int&, float&){});
+		CHECK(true  == sys3.writes_to_any_components());
+		CHECK(true  == sys3.writes_to_component(ecs::detail::get_type_hash<int>()));
+		CHECK(true  == sys3.writes_to_component(ecs::detail::get_type_hash<float>()));
+	}
 }

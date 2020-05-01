@@ -10,6 +10,7 @@
 #include "component_pool.h"
 #include "system.h"
 #include "type_hash.h"
+#include "system_scheduler.h"
 
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
@@ -18,6 +19,7 @@ namespace ecs::detail {
 		std::vector<std::unique_ptr<system_base>> systems;
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
 		std::map<type_hash, component_pool_base*> type_pool_lookup;
+		system_scheduler scheduler;
 
 		mutable std::shared_mutex mutex;
 
@@ -120,7 +122,7 @@ namespace ecs::detail {
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func) {
 			// Set up the implementation
-			using typed_system = system<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
+			using typed_system = system<Group, ExecutionPolicy, UserUpdateFunc, FirstArg, Args...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
@@ -146,6 +148,8 @@ namespace ecs::detail {
 			Ensures(ptr_system != nullptr);
 
 			sort_systems_by_group();
+
+			//ptr_system->insert_into_scheduler(scheduler);
 
 			return *ptr_system;
 		}
