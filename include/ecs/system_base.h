@@ -53,7 +53,7 @@ namespace ecs {
 
 		// Returns true if this system has a dependency on another system
 		[[nodiscard]]
-		virtual bool depends_on(system_base const&) const noexcept = 0;
+		virtual bool depends_on(system_base const*) const noexcept = 0;
 
 		// Returns true if this system writes data to any component
 		[[nodiscard]]

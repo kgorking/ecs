@@ -145,9 +145,9 @@ namespace ecs::detail {
 			return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
 		}
 
-		bool depends_on(system_base const& other) const noexcept override {
+		bool depends_on(system_base const* other) const noexcept override {
 			for (auto hash : type_hashes) {
-				if (other.has_type(hash)) {
+				if (other->has_type(hash)) {
 					return true;
 				}
 			}

@@ -53,6 +53,7 @@ namespace ecs::detail {
 			// Prevent other threads from adding new systems
 			std::shared_lock lock(mutex);
 
+			//scheduler.run();
 			for (auto const& sys : systems) {
 				sys->update();
 			}
@@ -149,7 +150,7 @@ namespace ecs::detail {
 
 			sort_systems_by_group();
 
-			//ptr_system->insert_into_scheduler(scheduler);
+			//scheduler.insert(ptr_system);
 
 			return *ptr_system;
 		}
