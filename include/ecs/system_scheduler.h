@@ -17,7 +17,7 @@ namespace ecs::detail {
     struct system_node {
         // Construct a node from a system which can not be null
         system_node(system_base *sys) : sys(sys) {
-            //Expects(sys != nullptr);
+            Expects(sys != nullptr);
         }
 
         system_base* get_system() const noexcept {
@@ -49,13 +49,11 @@ namespace ecs::detail {
                 }
             }
 
-            if (sys != nullptr) {
-                {
-                    std::scoped_lock sl3(cout_mutex);
-                    std::cout << "running " << sys->get_signature() << '\n';
-                }
-                sys->update();
+            {
+                std::scoped_lock sl3(cout_mutex);
+                std::cout << "running " << sys->get_signature() << '\n';
             }
+            sys->update();
 
             std::for_each(std::execution::par, dependants.begin(), dependants.end(), [](auto & node) {
                 node->run();
@@ -63,10 +61,8 @@ namespace ecs::detail {
         }
 
         void print(int indent) const {
-            if (sys != nullptr) {
-                std::string s(indent, ' ');
-                std::cout << s << sys->get_signature() << '\n';
-            }
+            std::string s(indent, ' ');
+            std::cout << s << sys->get_signature() << '\n';
 
             for (auto dep : dependants) {
                 dep->print(1 + indent);
@@ -89,11 +85,11 @@ namespace ecs::detail {
     //
     class system_scheduler {
         std::list<system_node> all_nodes; // all systems added, in linear order
-        system_node entry_node{nullptr};
+        std::vector<system_node*> entry_nodes{};
 
     public:
         void reset() {
-            entry_node = system_node{nullptr};
+            entry_nodes.clear();
             all_nodes.clear();
         }
 
@@ -136,20 +132,22 @@ namespace ecs::detail {
 
             if (!inserted) {
                 std::cout << "New entrypoint: " << sys->get_signature() << '\n';
-                entry_node.add_dependant(node);
+                entry_nodes.push_back(node);
             }
         }
 
         void print_lanes() const {
-            entry_node.print(0);
+            for(auto node : entry_nodes)
+                node->print(0);
         }
 
         void run() {
-            entry_node.reset_run();
             for (auto & node : all_nodes)
                 node.reset_run();
 
-            entry_node.run();
+            std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [](auto node) {
+                node->run();
+            });
         }
     };
 }
