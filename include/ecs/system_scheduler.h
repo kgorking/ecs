@@ -8,6 +8,7 @@
 #include <vector>
 #include <execution>
 #include <algorithm>
+#include <mutex>
 #include "system_base.h"
 
 namespace ecs::detail {
@@ -18,6 +19,28 @@ namespace ecs::detail {
 
         // The systems that depend on this system
         std::vector<system_node*> dependants;
+
+        bool alread_run = false;
+
+        void run() {
+            if (alread_run) {
+                return;
+            }
+
+            {
+                static std::mutex run_mutex;
+                std::scoped_lock sl(run_mutex);
+                alread_run = true;
+            }
+
+            if (sys != nullptr) {
+                sys->update();
+            }
+
+            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [](auto & node) {
+                node->run();
+            });
+        }
 
         void print(int indent) const {
             if (sys != nullptr) {
@@ -87,6 +110,7 @@ namespace ecs::detail {
         }
 
         void run() {
+            entry_node.run();
         }
     };
 }
