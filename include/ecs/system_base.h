@@ -48,7 +48,7 @@ namespace ecs {
 		[[nodiscard]]
 		virtual std::string get_signature() const noexcept = 0;
 
-		// Get the hashes of types used by the system
+		// Get the hashes of types used by the system with const/reference qualifiers removed
 		[[nodiscard]]
 		virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;
 

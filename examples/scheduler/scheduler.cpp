@@ -15,6 +15,8 @@ struct velocity {
 int main() {
 	// creates lane 0
 	auto & sys1 = ecs::make_system([](position& , velocity const& ) { });
+
+	// add to lane 0
 	auto & sys2 = ecs::make_system([](velocity& ) { });
 
 	// creates lane 1
@@ -29,9 +31,6 @@ int main() {
 	// add to lane 1
 	auto & sys6 = ecs::make_system([](int const&) { });
 
-	// 1 4 5
-	// 1 2
-	// 3 5 6
 
 	ecs::add_components(0, position{}, velocity{}, int{});
 	ecs::commit_changes();

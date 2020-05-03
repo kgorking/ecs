@@ -18,12 +18,25 @@ namespace ecs::detail {
 	constexpr auto get_type_hashes_array() {
 		if constexpr (!ignore_first_arg) {
 			std::array<detail::type_hash, 1+sizeof...(Types)> arr {get_type_hash<First>(), get_type_hash<Types>()...};
-			std::sort(arr.begin(), arr.end());
 			return arr;
 		}
 		else {
 			std::array<detail::type_hash, sizeof...(Types)> arr {get_type_hash<Types>()...};
-			std::sort(arr.begin(), arr.end());
+			return arr;
+		}
+	}
+
+	template <bool ignore_first_arg, typename First, typename ...Types>
+	constexpr auto get_type_read_only() {
+		if constexpr (!ignore_first_arg) {
+			std::array<bool, 1 + sizeof...(Types)> arr {
+				std::is_const_v<std::remove_reference_t<First>>,
+				std::is_const_v<std::remove_reference_t<Types>>...};
+			return arr;
+		}
+		else {
+			std::array<bool, sizeof...(Types)> arr {
+				std::is_const_v<std::remove_reference_t<Types>>...};
 			return arr;
 		}
 	}
@@ -64,8 +77,13 @@ namespace ecs::detail {
 			get_type_name<Components>()...
 		});
 
-		// Hashes of types used by this system
-		static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<is_first_arg_entity, rcv<FirstComponent>, rcv<Components>...>();
+		// Hashes of stripped types used by this system ('int' instead of 'int const&')
+		static constexpr std::array<detail::type_hash, num_components> type_hashes =
+			get_type_hashes_array<is_first_arg_entity, rcv<FirstComponent>, rcv<Components>...>();
+
+		// Contains true if a type is read-only
+		static constexpr std::array<bool, num_components> type_read_only =
+			get_type_read_only<is_first_arg_entity, FirstComponent, Components...>();
 
 		// Holds the arguments for a range of entities
 		std::vector<range_arguments> arguments;
@@ -141,18 +159,42 @@ namespace ecs::detail {
 			return sig;
 		}
 
-		std::span<detail::type_hash const> get_type_hashes() const noexcept override {
+		constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
 			return type_hashes;
 		}
 
-		constexpr bool has_component(detail::type_hash hash) const noexcept {
+		constexpr bool has_component(detail::type_hash hash) const noexcept override {
 			return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
 		}
 
-		bool depends_on(system_base const* other) const noexcept override {
-			for (auto hash : other->get_type_hashes()) {
-				if (has_component(hash)) {
+		constexpr bool depends_on(system_base const* other) const noexcept override {
+			for (auto hash : get_type_hashes()) {
+				// If the other system doesn't touch the same component,
+				// then there can be no dependecy
+				if (!other->has_component(hash))
+					continue;
+
+				bool const other_writes = other->writes_to_component(hash);
+				if (other_writes) {
+					// The other system writes to the component,
+					// so there is a strong dependency here.
+					// Order is preserved.
 					return true;
+				}
+				else { // 'other' reads component
+					bool const this_writes = writes_to_component(hash);
+					if (this_writes) {
+						// This system writes to the component,
+						// so there is a strong dependency here.
+						// Order is preserved.
+						return true;
+					}
+					else {
+						// These systems have a weak read/read dependency
+						// and can be scheduled concurrently
+						// Order does not need to be preserved.
+						continue;
+					}
 				}
 			}
 
@@ -168,21 +210,14 @@ namespace ecs::detail {
 		}
 
 		constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
-			if constexpr (!is_first_arg_entity) {
-				if (writes_to_type<FirstComponent>(hash))
-					return true;
-			}
+			auto const it = std::find(type_hashes.begin(), type_hashes.end(), hash);
+			if (it == type_hashes.end())
+				return false;
 
-			return ((writes_to_type<Components>(hash)) && ...);
+			return !type_read_only[std::distance(type_hashes.begin(), it)];
 		}
 
 	protected:
-		template<typename T>
-		static constexpr bool writes_to_type(detail::type_hash hash){
-			if (hash == detail::get_type_hash<rcv<T>>())
-				return !std::is_const_v<std::remove_reference_t<T>>;
-			return false;
-		};
 
 	private:
 		// Handle changes when the component pools change
