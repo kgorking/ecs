@@ -10,30 +10,50 @@
 #include <algorithm>
 #include <mutex>
 #include "system_base.h"
+#include "contract.h"
 
 namespace ecs::detail {
     // Describes a single point of execution
     struct system_node {
-        // The system to execute
-        system_base * sys;
+        // Construct a node from a system which can not be null
+        system_node(system_base *sys) : sys(sys) {
+            //Expects(sys != nullptr);
+        }
 
-        // The systems that depend on this system
-        std::vector<system_node*> dependants;
+        system_base* get_system() const noexcept {
+            return sys;
+        }
 
-        bool alread_run = false;
+        // Add a dependency to this node.
+        // The dependency can not be null
+        void add_dependant(system_node* node) {
+            Expects(node != nullptr);
+            dependants.push_back(node);
+            node->total_dependencies++;
+        }
+
+        void reset_run() {
+            remaining_dependencies = total_dependencies;
+        }
 
         void run() {
-            if (alread_run) {
-                return;
-            }
-
-            {
-                static std::mutex run_mutex;
+            static std::mutex run_mutex, cout_mutex;
+            if(remaining_dependencies > 0) {
                 std::scoped_lock sl(run_mutex);
-                alread_run = true;
+                remaining_dependencies--;
+
+                if (remaining_dependencies > 0) {
+                    std::scoped_lock sl2(cout_mutex);
+                    std::cout << "skipping " << sys->get_signature() << " - " << remaining_dependencies << '\n';
+                    return;
+                }
             }
 
             if (sys != nullptr) {
+                {
+                    std::scoped_lock sl3(cout_mutex);
+                    std::cout << "running " << sys->get_signature() << '\n';
+                }
                 sys->update();
             }
 
@@ -52,6 +72,16 @@ namespace ecs::detail {
                 dep->print(1 + indent);
             }
         }
+
+    private:
+        // The system to execute
+        system_base * sys{};
+
+        // The systems that depend on this system
+        std::vector<system_node*> dependants{};
+
+        int16_t total_dependencies = 0;
+        int16_t remaining_dependencies = 0;
     };
 
     // A class to order systems to be run async without causing dataraces.
@@ -62,9 +92,14 @@ namespace ecs::detail {
         system_node entry_node{nullptr};
 
     public:
+        void reset() {
+            entry_node = system_node{nullptr};
+            all_nodes.clear();
+        }
+
         void insert(system_base * sys) {
             // Create a new node with the system
-            system_node * node = &all_nodes.emplace_back(system_node {sys, {}});
+            system_node * node = &all_nodes.emplace_back(sys);
 
             auto const end = all_nodes.rend();
 
@@ -77,14 +112,14 @@ namespace ecs::detail {
                     system_node & dep_node = *it;
                     // If the other system doesn't touch the same component,
                     // then there can be no dependecy
-                    if (dep_node.sys->has_component(hash)) {
-                        if (dep_node.sys->writes_to_component(hash) || sys->writes_to_component(hash)) {
+                    if (dep_node.get_system()->has_component(hash)) {
+                        if (dep_node.get_system()->writes_to_component(hash) || sys->writes_to_component(hash)) {
                             // The system writes to the component,
                             // so there is a strong dependency here.
                             // Order is preserved.
                             inserted = true;
-                            dep_node.dependants.push_back(node);
-                            std::cout << sys->get_signature() << " -> " << dep_node.sys->get_signature() << '\n';
+                            dep_node.add_dependant(node);
+                            std::cout << sys->get_signature() << " -> " << dep_node.get_system()->get_signature() << '\n';
                             break;
                         }
                         else { // 'other' reads component
@@ -101,7 +136,7 @@ namespace ecs::detail {
 
             if (!inserted) {
                 std::cout << "New entrypoint: " << sys->get_signature() << '\n';
-                entry_node.dependants.push_back(node);
+                entry_node.add_dependant(node);
             }
         }
 
@@ -110,6 +145,10 @@ namespace ecs::detail {
         }
 
         void run() {
+            entry_node.reset_run();
+            for (auto & node : all_nodes)
+                node.reset_run();
+
             entry_node.run();
         }
     };

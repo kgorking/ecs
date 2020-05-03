@@ -35,7 +35,7 @@ int main() {
 	ecs::add_components(0, position{}, velocity{}, int{});
 	ecs::commit_changes();
 
-	ecs::detail::system_scheduler ss;
+	/*ecs::detail::system_scheduler ss;
 	ss.insert(&sys1);
 	ss.insert(&sys2);
 	ss.insert(&sys3);
@@ -44,8 +44,12 @@ int main() {
 	ss.insert(&sys6);
 	std::cout << '\n';
 
-	ss.run();
+	ss.run();*/
 
 	std::cout << '\n';
-	ss.print_lanes();
+	std::cout << '\n';
+	ecs::run_systems();
+
+	//std::cout << '\n';
+	//ss.print_lanes();
 }

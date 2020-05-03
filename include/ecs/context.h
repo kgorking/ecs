@@ -53,10 +53,10 @@ namespace ecs::detail {
 			// Prevent other threads from adding new systems
 			std::shared_lock lock(mutex);
 
-			//scheduler.run();
-			for (auto const& sys : systems) {
+			scheduler.run();
+			/*for (auto const& sys : systems) {
 				sys->update();
-			}
+			}*/
 		}
 
 		// Returns true if a pool for the type exists
@@ -74,6 +74,7 @@ namespace ecs::detail {
 			std::unique_lock lock(mutex);
 
 			systems.clear();
+			scheduler.reset();
 			// context::component_pools.clear(); // this will cause an exception in get_component_pool() due to the cache
 			for (auto& pool : component_pools) {
 				pool->clear();
@@ -150,7 +151,7 @@ namespace ecs::detail {
 
 			sort_systems_by_group();
 
-			//scheduler.insert(ptr_system);
+			scheduler.insert(ptr_system);
 
 			return *ptr_system;
 		}
