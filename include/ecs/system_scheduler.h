@@ -18,6 +18,8 @@ namespace ecs::detail {
         // The remaining number of lanes that depend on this system.
         // Reset to 'num_dependencies' at the start of each scheduler run.
         uint8_t remaining_lanes;
+
+        std::vector<execution_point*> dependants;
     };
 
     // Contains systems that are dependent on each other
@@ -27,6 +29,7 @@ namespace ecs::detail {
     // Systems are ordered based on what components they read/write.
     //
     class system_scheduler {
+        std::vector<system_base*> systems; // all systems added, in linear order
         std::vector<execution_lane> lanes;
         std::vector<execution_point> points;
 
@@ -46,6 +49,8 @@ namespace ecs::detail {
                             std::cout << "* adding " << sys->get_signature() << " to lane " << lane_count << '\n';
                             deps.push_back(new_index);
                             new_ep->num_lanes += 1;
+
+                            points[ep_index].dependants.push_back(new_ep);
                             break;
                         }
                     }
@@ -68,6 +73,8 @@ namespace ecs::detail {
                 std::cout << "creating lane 0 with " << sys->get_signature() << '\n';
                 lanes.push_back({new_index});
             }
+
+            systems.push_back(sys);
         }
 
         void print_lanes() const {
@@ -87,9 +94,10 @@ namespace ecs::detail {
                 ep.remaining_lanes = ep.num_lanes;
             }
 
-            std::for_each(lanes.begin(), lanes.end(), [this](auto & lane) {
+            int lane_count = 0;
+            std::for_each(lanes.begin(), lanes.end(), [this, &lane_count](auto & lane) {
                 for (int ep_index : lane) {
-                    std::cout << points[ep_index].sys->get_signature() << " -- lanes: " << (int)points[ep_index].remaining_lanes ;
+                    std::cout << 'L' << lane_count << ' ' << points[ep_index].sys->get_signature();
 
                     if (points[ep_index].remaining_lanes == 1) {
                         points[ep_index].sys->update();
@@ -100,6 +108,8 @@ namespace ecs::detail {
                         std::cout << " - skipped\n";
                     }
                 }
+
+                lane_count++;
             });
         }
     };

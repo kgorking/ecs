@@ -23,8 +23,15 @@ int main() {
 	// add to lane 0
 	auto & sys4 = ecs::make_system([](position const&) { });
 
-	// merge lane 0+1
+	// add to lane 0+1
 	auto & sys5 = ecs::make_system([](int&, position const&) { });
+
+	// add to lane 1
+	auto & sys6 = ecs::make_system([](int const&) { });
+
+	// 1 4 5
+	// 1 2
+	// 3 5 6
 
 	ecs::add_components(0, position{}, velocity{}, int{});
 	ecs::commit_changes();
@@ -35,6 +42,7 @@ int main() {
 	ss.insert(&sys3);
 	ss.insert(&sys4);
 	ss.insert(&sys5);
+	ss.insert(&sys6);
 	std::cout << '\n';
 
 	ss.run();

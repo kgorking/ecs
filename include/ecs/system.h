@@ -141,13 +141,17 @@ namespace ecs::detail {
 			return sig;
 		}
 
-		constexpr bool has_type(detail::type_hash hash) const noexcept {
+		std::span<detail::type_hash const> get_type_hashes() const noexcept override {
+			return type_hashes;
+		}
+
+		constexpr bool has_component(detail::type_hash hash) const noexcept {
 			return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
 		}
 
 		bool depends_on(system_base const* other) const noexcept override {
-			for (auto hash : type_hashes) {
-				if (other->has_type(hash)) {
+			for (auto hash : other->get_type_hashes()) {
+				if (has_component(hash)) {
 					return true;
 				}
 			}

@@ -1,6 +1,7 @@
 #ifndef __SYSTEM
 #define __SYSTEM
 
+#include <span>
 #include "type_hash.h"
 
 namespace ecs::detail {
@@ -47,9 +48,13 @@ namespace ecs {
 		[[nodiscard]]
 		virtual std::string get_signature() const noexcept = 0;
 
-		// Returns true if this system has a dependency on another system
+		// Get the hashes of types used by the system
 		[[nodiscard]]
-		virtual bool has_type(detail::type_hash hash) const noexcept = 0;
+		virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;
+
+		// Returns true if this system uses the type
+		[[nodiscard]]
+		virtual bool has_component(detail::type_hash hash) const noexcept = 0;
 
 		// Returns true if this system has a dependency on another system
 		[[nodiscard]]
