@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_IMPL
-#define __SYSTEM_IMPL
+#ifndef __SYSTEM
+#define __SYSTEM
 
 #include <type_traits>
 #include <tuple>
@@ -319,4 +319,4 @@ namespace ecs::detail {
 	};
 }
 
-#endif // !__SYSTEM_IMPL
+#endif // !__SYSTEM

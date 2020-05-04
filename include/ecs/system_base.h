@@ -1,5 +1,5 @@
-#ifndef __SYSTEM
-#define __SYSTEM
+#ifndef __SYSTEM_BASE
+#define __SYSTEM_BASE
 
 #include <span>
 #include <string>
@@ -84,4 +84,4 @@ namespace ecs {
 	};
 }
 
-#endif // !__SYSTEM
+#endif // !__SYSTEM_BASE
