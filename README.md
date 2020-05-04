@@ -11,12 +11,12 @@ More detail on what ecs is can be found [here](http://gameprogrammingpatterns.co
 The following example shows the basics of the library.
 
 ```cpp
-#include <ecs/ecs.h>
 #include <iostream>
+#include <ecs/ecs.h>
 
 // The component
 struct greeting {
-    char const* msg = "alright";
+    char const* msg;
 };
 
 int main()
@@ -27,7 +27,7 @@ int main()
     });
 
     // The entities
-    ecs::add_components({0, 2}, greeting{});
+    ecs::add_components({0, 2}, greeting{"alright"});
 
     // Run it
     ecs::update_systems();
@@ -35,7 +35,7 @@ int main()
 ```
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
 
-This is pretty basic, but there are plenty of ways to extend this example to do cooler things, as explained below.
+This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things, as explained below.
 
 # Table of Contents
 * [Entities](#Entities)
@@ -53,27 +53,26 @@ This is pretty basic, but there are plenty of ways to extend this example to do 
   * [Current entity](#Current-entity)
   * [Requirements and rules](#Requirements-and-rules)
   * [Parallel systems](#Parallel-systems)
+  * [Automatic concurrency](#Automatic-concurrency)
   * [Groups](#Groups)
 
 
 # Entities
 Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
 
-* [`ecs::entity_id`](#https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
-* [`ecs::entity`](#https://github.com/kgorking/ecs/blob/master/include/ecs/entity.h) is a slightly more useful wrapper for `ecs::entity_id` which adds some helper-functions to ease to usage of entity-component interactions.
-* [`ecs::entity_range`](#https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` has a range of 101 entities.
+* [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
+* [`ecs::entity`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity.h) is a slightly more useful wrapper of `ecs::entity_id` which adds some helper-functions to ease to usage of entity-component interactions.
+* [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
 
 The management of entity id's is left to user.
 
 # Components
-There are very few restrictions on what a component can be, but it does have to obey the requirements of
-[std::copyable](https://en.cppreference.com/w/cpp/concepts/copyable). In the example above you could
-have used a `std::string` instead of creating a custom component, and it would work just fine.
+Components hold the data, and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [std::copyable](https://en.cppreference.com/w/cpp/concepts/copyable). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
 
-You can add as many components to an entity as you need; there is no upper limit.
+You can add as many different components to an entity as you need; there is no upper limit. You can not add more than one of the same type.
 
 ## Adding components to entities
-The simplest way to add components to entities is thought the helper-functions on `ecs::entity_range` and `ecs::entity`. Components can also be added using the free-standing functions `ecs::add_component`.
+The simplest way to add components to entities is through the helper-functions on `ecs::entity_range` and `ecs::entity`. Components can also be added using the free-standing functions `ecs::add_component()` and `ecs::add_components()`.
 
 ```cpp
 ecs::entity ent{0};         // entity helper-class working on id 0
@@ -82,16 +81,17 @@ ent.add(2L);                // add a long with value 2 to entity 0 (deduces type
 ent.add(4UL, 3.14f, 6.28);  // add an unsigned long, a float, and a double to entity 0
 ecs::add_component(0, 6LL); // add a long long to entity 0
 
-ecs::entity_range more_ents{1,100};  // entity helper-class working on ids from 1 to (and including) 100
-more_ents.add(3, 0.1f);              // add 100 ints with value 3 and 100 floats with value 0.1f
-ecs::add_component({1,50}, 6LL);     // add a long long to 50 entities
+ecs::entity_range more_ents{1,100};     // entity helper-class working on ids from 1 to (and including) 100
+more_ents.add(3, 0.1f);                 // add 100 ints with value 3 and 100 floats with value 0.1f
+ecs::add_component({1,50}, 6LL);        // add a long long to 50 entities
+ecs::add_components({1,50}, 'A', 2.2);  // add a char and a double to 50 entities
 // etc..
 ```
 
 ## Committing component changes
-All calls to add or remove components from entities are defered, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update_systems()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
+Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update_systems()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
 
-By defering the components changes to entites, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
+By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
 
 
 ## Generators
@@ -118,7 +118,7 @@ ecs::add_components({ 0, dimension * dimension},
 ```
 
 ## Flags
-The behaviour of components can be changed by using component flags, which can change how they are managed
+The behavior of components can be changed by using component flags, which can change how they are managed
 internally and can offer performance and memory benefits. Flags can be added to components using the `ecs_flags()` macro:
 
 ### `tag`
@@ -196,17 +196,13 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 # Systems
-Systems are where the code that operates on one or more components is located. A system is built from a
-user-provided lambda using the functions `ecs::make_system` or `ecs::make_parallel_system`. 
-Systems can operate on as many components as you need; there is no limit.
+Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the functions `ecs::make_(parallel_)system`. Systems can operate on as many components as you need; there is no limit. Do keep in mind that each component creates a dependency on previous systems, and can hinder concurrency performance.
 
-Accessing components from systems is done through *references*. If you forget to do so, you will get a compile-time
-error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
+Accessing components from systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
 
 
 ## The current entity
-If you need access to the entity currently being processed by a system, make the first parameter type either
-an `ecs::entity_id` or `ecs::entity`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
+If you need access to the entity currently being processed by a system, make the first parameter type either an `ecs::entity_id` or `ecs::entity`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
 
 ```cpp
 ecs::make_system([](ecs::entity_id ent, greeting const& g) {
@@ -214,25 +210,34 @@ ecs::make_system([](ecs::entity_id ent, greeting const& g) {
 });
 ```
 
-## Requirements and rules
-There are a few requirements and restrictions put on the provided lambdas to ensure that the runtime
-works as expected and the internal state makes sense.
 
-* **No return values.** Systems are not permitted to have return values, because it logically does not make any sense.
-  Systems with return types other than `void` will result in a compile time error.
+## Requirements and rules
+There are a few requirements and restrictions put on the lambdas:
+
+* **No return values.** Systems are not permitted to have return values, because it logically does not make any sense. Systems with return types other than `void` will result in a compile time error.
 * **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
-* **No duplicate components.** Having the same component more than once in the parameter list is likely an error on
-  the programmers side, so a compile time error will be raised if it occurs. 
+* **No duplicate components.** Having the same component more than once in the parameter list is likely an error on the programmers side, so a compile time error will be raised. 
+
 
 ## Parallel systems
 Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up loosing performance instead. A good profiler can often help with this determination.
 
 The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code.
 
-Adding and removing components from an entity in a parallel system is a thread-safe operation-
+Adding and removing components from entities in parallel systems is a thread-safe operation.
+
+
+## Automatic concurrency
+Whenever a system is made, it will internally be scheduled for execution concurrently with other systems, if the systems dependencies permit it. Systems are always scheduled so they don't interfere with each other, and the order in which they are made is respected.
+
+Dependencies are determined based on the components a system operate on.
+
+If a component is written to, the system that previously read from or wrote to that component becomes a dependency, which means that the system must be run to completion before the new system can execute. This ensures that no data-races occur.
+
+If a component is read from, the system that previously wrote to it becomes a dependency. Multiple systems that read from the same component can safely run concurrently.
 
 ## Groups
-Systems can be roughly segmented in to groups by passing along a compile-time integer as a template paramater to `ecs::make_system`. Systems are executed in the order they are made, but are stable-sorted on their group id. Systems with no group id specified are put in group 0.
+Systems can be segmented into groups by passing along a compile-time integer as a template parameter to `ecs::make_(parallel_)system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
 
 ```cpp
 ecs::make_system<1>([](int&) {
@@ -245,6 +250,7 @@ ecs::make_system([](int&) {
     std::cout << "hello from group whatever\n";
 });
 // ...
+ecs::add_components(0, int{});
 ecs::update_systems();
 ```
 Running the above code will print out
@@ -252,3 +258,4 @@ Running the above code will print out
 > hello from group whatever\
 > hello from group one
 
+**Note:** systems from different groups are never executed concurrently, and all systems in one group will run to completion before the next group is run.

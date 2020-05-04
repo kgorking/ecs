@@ -10,6 +10,7 @@
 #include "component_pool.h"
 #include "system.h"
 #include "type_hash.h"
+#include "scheduler.h"
 
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
@@ -18,6 +19,7 @@ namespace ecs::detail {
 		std::vector<std::unique_ptr<system_base>> systems;
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
 		std::map<type_hash, component_pool_base*> type_pool_lookup;
+		scheduler sched;
 
 		mutable std::shared_mutex mutex;
 
@@ -48,12 +50,11 @@ namespace ecs::detail {
 
 		// Calls the 'update' function on all the systems in the order they were added.
 		void run_systems() {
-			// Prevent other threads from adding new systems
+			// Prevent other threads from adding new systems during the run
 			std::shared_lock lock(mutex);
 
-			for (auto const& sys : systems) {
-				sys->update();
-			}
+			// Run all the systems
+			sched.run();
 		}
 
 		// Returns true if a pool for the type exists
@@ -71,6 +72,7 @@ namespace ecs::detail {
 			std::unique_lock lock(mutex);
 
 			systems.clear();
+			sched = scheduler();
 			// context::component_pools.clear(); // this will cause an exception in get_component_pool() due to the cache
 			for (auto& pool : component_pools) {
 				pool->clear();
@@ -120,7 +122,7 @@ namespace ecs::detail {
 		template <int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg, typename ...Args>
 		auto& create_system(UserUpdateFunc update_func) {
 			// Set up the implementation
-			using typed_system = system<Group, ExecutionPolicy, UserUpdateFunc, std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::remove_cv_t<std::remove_reference_t<Args>>...>;
+			using typed_system = system<Group, ExecutionPolicy, UserUpdateFunc, FirstArg, Args...>;
 
 			// Is the first argument an entity of sorts?
 			bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
@@ -146,6 +148,8 @@ namespace ecs::detail {
 			Ensures(ptr_system != nullptr);
 
 			sort_systems_by_group();
+
+			sched.insert(ptr_system);
 
 			return *ptr_system;
 		}

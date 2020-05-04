@@ -1,30 +1,65 @@
-#ifndef __SYSTEM_IMPL
-#define __SYSTEM_IMPL
+#ifndef __SYSTEM
+#define __SYSTEM
 
 #include <type_traits>
 #include <tuple>
+#include <utility>
+#include <array>
 #include <vector>
+
 #include "entity_id.h"
 #include "entity_range.h"
 #include "component_pool.h"
 #include "system_base.h"
+#include "type_hash.h"
 
 namespace ecs::detail {
+	template <bool ignore_first_arg, typename First, typename ...Types>
+	constexpr auto get_type_hashes_array() {
+		if constexpr (!ignore_first_arg) {
+			std::array<detail::type_hash, 1+sizeof...(Types)> arr {get_type_hash<First>(), get_type_hash<Types>()...};
+			return arr;
+		}
+		else {
+			std::array<detail::type_hash, sizeof...(Types)> arr {get_type_hash<Types>()...};
+			return arr;
+		}
+	}
+
+	template <bool ignore_first_arg, typename First, typename ...Types>
+	constexpr auto get_type_read_only() {
+		if constexpr (!ignore_first_arg) {
+			std::array<bool, 1 + sizeof...(Types)> arr {
+				std::is_const_v<std::remove_reference_t<First>>,
+				std::is_const_v<std::remove_reference_t<Types>>...};
+			return arr;
+		}
+		else {
+			std::array<bool, sizeof...(Types)> arr {
+				std::is_const_v<std::remove_reference_t<Types>>...};
+			return arr;
+		}
+	}
+
 	// The implementation of a system specialized on its components
 	template <int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class ...Components>
 	class system final : public system_base {
+
+		template <typename T>
+		using rcv = std::remove_cvref_t<T>;
+
 		// Determines if the first component is an entity
 		static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id> || std::is_same_v<FirstComponent, entity>;
+
+		// Number of aarguments
+		static constexpr size_t num_arguments = 1 + sizeof...(Components);
 
 		// Calculate the number of components
 		static constexpr size_t num_components = sizeof...(Components) + (is_first_arg_entity ? 0 : 1);
 
-		// The first type in the system, entity or component
-		using first_type = std::conditional_t<is_first_arg_entity, FirstComponent, FirstComponent*>;
-
 		// Alias for stored pools
 		template <class T>
-		using pool = component_pool<T>* const;
+		using pool = component_pool<rcv<T>>* const;
 
 		// Tuple holding all pools used by this system
 		using tup_pools = std::conditional_t<is_first_arg_entity,
@@ -33,8 +68,22 @@ namespace ecs::detail {
 
 		// Holds an entity range and a pointer to the first component from each pool in that range
 		using range_arguments = std::conditional_t<is_first_arg_entity,
-			std::tuple<entity_range, Components* ...>,
-			std::tuple<entity_range, FirstComponent*, Components* ...>>;
+			std::tuple<entity_range, rcv<Components>* ...>,
+			std::tuple<entity_range, rcv<FirstComponent>*, rcv<Components>* ...>>;
+
+		// Component names
+		static constexpr std::array<std::string_view, num_arguments> argument_names = std::to_array({
+			get_type_name<FirstComponent>(),
+			get_type_name<Components>()...
+		});
+
+		// Hashes of stripped types used by this system ('int' instead of 'int const&')
+		static constexpr std::array<detail::type_hash, num_components> type_hashes =
+			get_type_hashes_array<is_first_arg_entity, rcv<FirstComponent>, rcv<Components>...>();
+
+		// Contains true if a type is read-only
+		static constexpr std::array<bool, num_components> type_read_only =
+			get_type_read_only<is_first_arg_entity, FirstComponent, Components...>();
 
 		// Holds the arguments for a range of entities
 		std::vector<range_arguments> arguments;
@@ -85,19 +134,90 @@ namespace ecs::detail {
 					auto const offset = ent - first_id;
 					if constexpr (is_first_arg_entity) {
 						update_func(ent,
-									*extract_arg(std::get<Components*>(argument), offset)...);
+									*extract_arg(std::get<rcv<Components>*>(argument), offset)...);
 					}
 					else {
-						update_func(*extract_arg(std::get<FirstComponent*>(argument), offset),
-									*extract_arg(std::get<Components*>(argument), offset)...);
+						update_func(*extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
+									*extract_arg(std::get<rcv<Components>*>(argument), offset)...);
 					}
 				});
 			}
 		}
 
-		[[nodiscard]] constexpr int get_group() const noexcept override {
+		constexpr int get_group() const noexcept override {
 			return Group;
 		}
+
+		std::string get_signature() const noexcept {
+			std::string sig("system(");
+			for (size_t i=0; i < num_arguments-1; i++) {
+				sig += argument_names[i];
+				sig += ", ";
+			}
+			sig += argument_names[num_arguments-1];
+			sig += ')';
+			return sig;
+		}
+
+		constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
+			return type_hashes;
+		}
+
+		constexpr bool has_component(detail::type_hash hash) const noexcept override {
+			return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
+		}
+
+		constexpr bool depends_on(system_base const* other) const noexcept override {
+			for (auto hash : get_type_hashes()) {
+				// If the other system doesn't touch the same component,
+				// then there can be no dependecy
+				if (!other->has_component(hash))
+					continue;
+
+				bool const other_writes = other->writes_to_component(hash);
+				if (other_writes) {
+					// The other system writes to the component,
+					// so there is a strong dependency here.
+					// Order is preserved.
+					return true;
+				}
+				else { // 'other' reads component
+					bool const this_writes = writes_to_component(hash);
+					if (this_writes) {
+						// This system writes to the component,
+						// so there is a strong dependency here.
+						// Order is preserved.
+						return true;
+					}
+					else {
+						// These systems have a weak read/read dependency
+						// and can be scheduled concurrently
+						// Order does not need to be preserved.
+						continue;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		constexpr bool writes_to_any_components() const noexcept override {
+			if constexpr (!is_first_arg_entity && !std::is_const_v<std::remove_reference_t<FirstComponent>>)
+				return true;
+			else {
+				return ((!std::is_const_v<std::remove_reference_t<Components>>) && ...);
+			}
+		}
+
+		constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
+			auto const it = std::find(type_hashes.begin(), type_hashes.end(), hash);
+			if (it == type_hashes.end())
+				return false;
+
+			return !type_read_only[std::distance(type_hashes.begin(), it)];
+		}
+
+	protected:
 
 	private:
 		// Handle changes when the component pools change
@@ -168,7 +288,7 @@ namespace ecs::detail {
 				};
 
 				// Build the arguments
-				auto const intersect = do_intersection(entities, get_pool<Components>().get_entities()...);
+				auto const intersect = do_intersection(entities, get_pool<rcv<Components>>().get_entities()...);
 				build_args(intersect);
 			}
 		}
@@ -179,10 +299,10 @@ namespace ecs::detail {
 			arguments.clear();
 			for (auto const& range : entities) {
 				if constexpr (is_first_arg_entity) {
-					arguments.emplace_back(range, get_component<Components>(range.first())...);
+					arguments.emplace_back(range, get_component<rcv<Components>>(range.first())...);
 				}
 				else {
-					arguments.emplace_back(range, get_component<FirstComponent>(range.first()), get_component<Components>(range.first())...);
+					arguments.emplace_back(range, get_component<rcv<FirstComponent>>(range.first()), get_component<rcv<Components>>(range.first())...);
 				}
 			}
 		}
@@ -199,4 +319,4 @@ namespace ecs::detail {
 	};
 }
 
-#endif // !__SYSTEM_IMPL
+#endif // !__SYSTEM

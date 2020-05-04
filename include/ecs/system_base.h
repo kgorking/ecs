@@ -1,5 +1,9 @@
-#ifndef __SYSTEM
-#define __SYSTEM
+#ifndef __SYSTEM_BASE
+#define __SYSTEM_BASE
+
+#include <span>
+#include <string>
+#include "type_hash.h"
 
 namespace ecs::detail {
 	class context;
@@ -33,10 +37,36 @@ namespace ecs {
 		}
 
 		// Returns true if this system is enabled
-		[[nodiscard]] bool is_enabled() const { return enabled; }
+		[[nodiscard]]
+		bool is_enabled() const { return enabled; }
 
 		// Returns the group this system belongs to
-		[[nodiscard]] virtual int get_group() const noexcept = 0;
+		[[nodiscard]]
+		virtual int get_group() const noexcept = 0;
+
+		// Get the signature of the system
+		[[nodiscard]]
+		virtual std::string get_signature() const noexcept = 0;
+
+		// Get the hashes of types used by the system with const/reference qualifiers removed
+		[[nodiscard]]
+		virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;
+
+		// Returns true if this system uses the type
+		[[nodiscard]]
+		virtual bool has_component(detail::type_hash hash) const noexcept = 0;
+
+		// Returns true if this system has a dependency on another system
+		[[nodiscard]]
+		virtual bool depends_on(system_base const*) const noexcept = 0;
+
+		// Returns true if this system writes data to any component
+		[[nodiscard]]
+		virtual bool writes_to_any_components() const noexcept = 0;
+
+		// Returns true if this system writes data to a specific component
+		[[nodiscard]]
+		virtual bool writes_to_component(detail::type_hash hash) const noexcept = 0;
 
 	private:
 		// Only allow the context class to call 'process_changes'
@@ -51,4 +81,4 @@ namespace ecs {
 	};
 }
 
-#endif // !__SYSTEM
+#endif // !__SYSTEM_BASE
