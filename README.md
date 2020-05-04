@@ -67,7 +67,7 @@ Entities are the scaffolding on which you build your objects. There a three enti
 The management of entity id's is left to user.
 
 # Components
-Components hold the data. There are very few restrictions on what a component can be, but it does have to obey the requirements of [std::copyable](https://en.cppreference.com/w/cpp/concepts/copyable). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
+Components hold the data, and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [std::copyable](https://en.cppreference.com/w/cpp/concepts/copyable). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
 
 You can add as many different components to an entity as you need; there is no upper limit. You can not add more than one of the same type.
 
@@ -196,17 +196,13 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 # Systems
-Systems are where the code that operates on components is located. A system is built from a
-user-provided lambda using the functions `ecs::make_system` or `ecs::make_parallel_system`. 
-Systems can operate on as many components as you need; there is no limit.
+Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the functions `ecs::make_(parallel_)system`. Systems can operate on as many components as you need; there is no limit. Do keep in mind that each component creates a dependency on previous systems, and can hinder concurrency performance.
 
-Accessing components from systems is done through *references*. If you forget to do so, you will get a compile-time
-error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
+Accessing components from systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
 
 
 ## The current entity
-If you need access to the entity currently being processed by a system, make the first parameter type either
-an `ecs::entity_id` or `ecs::entity`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
+If you need access to the entity currently being processed by a system, make the first parameter type either an `ecs::entity_id` or `ecs::entity`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
 
 ```cpp
 ecs::make_system([](ecs::entity_id ent, greeting const& g) {
