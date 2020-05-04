@@ -26,7 +26,7 @@ namespace ecs::detail {
     }
 
     template<class T>
-    constexpr const type_hash get_type_hash() {
+    constexpr type_hash get_type_hash() {
         constexpr type_hash prime = 0x100000001b3;
         constexpr std::string_view string = get_type_name<T>();
 
