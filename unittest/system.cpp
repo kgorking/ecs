@@ -92,14 +92,14 @@ TEST_CASE("System specification", "[system]") {
 		struct Sx {};
 
 		// Add systems in reverse order, they should execute in correct order
-		/*int counter = 0;
+		int counter = 0;
 		ecs::make_system<                              3>([&counter](S3&) { REQUIRE(counter == 3); counter++; });
 		ecs::make_system<                              2>([&counter](S2&) { REQUIRE(counter == 2); counter++; });
 		ecs::make_system<                              1>([&counter](S1&) { REQUIRE(counter == 1); counter++; });
 		ecs::make_system<std::numeric_limits<int>::min()>([&counter](Sx&) { REQUIRE(counter == 0); counter++; });
 
 		ecs::add_components(0, S1{}, S3{}, Sx{}, S2{});
-		ecs::update_systems();*/
+		ecs::update_systems();
 	}
 
 	SECTION("Components are passed in the correct order to the system") {

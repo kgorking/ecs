@@ -45,14 +45,14 @@ namespace ecs::detail {
 
                 if (remaining_dependencies > 0) {
                     std::scoped_lock sl2(cout_mutex);
-                    std::cout << "skipping " << sys->get_signature() << " - " << remaining_dependencies << '\n';
+                    std::cout << "  * skipping " << sys->get_signature() << " - " << remaining_dependencies << '\n';
                     return;
                 }
             }
 
             {
                 std::scoped_lock sl3(cout_mutex);
-                std::cout << "running " << sys->get_signature() << '\n';
+                std::cout << "  running " << sys->get_signature() << '\n';
             }
             sys->update();
 
@@ -84,26 +84,49 @@ namespace ecs::detail {
 
     // A class to order systems to be run async without causing dataraces.
     // Systems are ordered based on what components they read/write.
-    //
     class system_scheduler {
-        std::list<system_node> all_nodes; // all systems added, in linear order
-        std::vector<system_node*> entry_nodes{};
+        // Describes systems belonging to a certain group
+        struct system_group {
+            int id;
+            std::list<system_node> all_nodes; // all systems added, in linear order
+            std::vector<system_node*> entry_nodes{};
+        };
+
+        std::list<system_group> groups;
+
+    protected:
+        system_group* find_group(int id) {
+            if (!groups.empty()) {
+                for (auto &group : groups) {
+                    if (group.id == id)
+                        return &group;
+                }
+            }
+
+            auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int id, system_group const& sg) {
+                return id < sg.id;
+            });
+
+            return &*groups.insert(insert_point, system_group{id, {}, {}});
+        }
 
     public:
         void reset() {
-            entry_nodes.clear();
-            all_nodes.clear();
+            groups.clear();
         }
 
         void insert(system_base * sys) {
+            // Find the group
+            auto group = find_group(sys->get_group());
+
             // Create a new node with the system
-            system_node * node = &all_nodes.emplace_back(sys);
+            system_node * node = &group->all_nodes.emplace_back(sys);
 
             // Find a dependant system for each component
             bool inserted = false;
-            auto const end = all_nodes.rend();
+            auto const end = group->all_nodes.rend();
             for (auto const hash : sys->get_type_hashes()) {
-                auto it = std::next(all_nodes.rbegin());
+                auto it = std::next(group->all_nodes.rbegin());
                 while(it != end) {
                     system_node & dep_node = *it;
                     // If the other system doesn't touch the same component,
@@ -131,23 +154,30 @@ namespace ecs::detail {
             }
 
             if (!inserted) {
-                std::cout << "New entrypoint: " << sys->get_signature() << '\n';
-                entry_nodes.push_back(node);
+                std::cout << "New entrypoint (G" << sys->get_group() << "): " << sys->get_signature() << '\n';
+                group->entry_nodes.push_back(node);
             }
         }
 
         void print_lanes() const {
-            for(auto node : entry_nodes)
-                node->print(0);
+            for (auto const& group : groups) {
+                for(auto node : group.entry_nodes)
+                    node->print(0);
+            }
         }
 
         void run() {
-            for (auto & node : all_nodes)
-                node.reset_run();
+            for (auto & group : groups) {
+                for (auto & node : group.all_nodes)
+                    node.reset_run();
+            }
 
-            std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [](auto node) {
-                node->run();
-            });
+            for (auto const& group : groups) {
+                std::cout << "Running group " << group.id << '\n';
+                std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(), [](auto node) {
+                    node->run();
+                });
+            }
         }
     };
 }
