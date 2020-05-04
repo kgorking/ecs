@@ -36,13 +36,14 @@ namespace ecs::detail {
         }
 
         void run() {
-            static std::mutex run_mutex;
-            if(remaining_dependencies > 0) {
+            static std::mutex run_mutex; {
                 std::scoped_lock sl(run_mutex);
-                remaining_dependencies--;
+                if(remaining_dependencies > 0) {
+                    remaining_dependencies--;
 
-                if (remaining_dependencies > 0) {
-                    return;
+                    if (remaining_dependencies > 0) {
+                        return;
+                    }
                 }
             }
 
