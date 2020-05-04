@@ -99,10 +99,6 @@ namespace ecs::detail {
         }
 
     public:
-        void reset() {
-            groups.clear();
-        }
-
         void insert(system_base * sys) {
             // Find the group
             auto group = find_group(sys->get_group());
