@@ -17,7 +17,7 @@ namespace ecs::detail {
         std::vector<std::size_t> entry_nodes{};
     };
 
-    // Describes a point in the scheduler execution graph
+    // Describes a node in the scheduler execution graph
     struct scheduler_node {
         // Construct a node from a system.
         // The system can not be null
@@ -30,7 +30,6 @@ namespace ecs::detail {
         }
 
         // Add a dependency to this node.
-        // The dependency can not be null
         void add_dependant(size_t node_index) {
             dependants.push_back(node_index);
         }
@@ -74,12 +73,12 @@ namespace ecs::detail {
         int16_t remaining_dependencies = 0;
     };
 
-    // Schedules systems based on their components for concurrent execution.
+    // Schedules systems for concurrent execution based on their components.
     class system_scheduler {
         std::vector<system_group> groups;
 
     protected:
-        system_group* find_group(int id) {
+        system_group& find_group(int id) {
             // Look for an existing group
             if (!groups.empty()) {
                 for (auto &group : groups) {
@@ -95,23 +94,23 @@ namespace ecs::detail {
             });
 
             // Insert the group and return it
-            return &*groups.insert(insert_point, system_group{id, {}, {}});
+            return *groups.insert(insert_point, system_group{id, {}, {}});
         }
 
     public:
         void insert(system_base * sys) {
             // Find the group
-            auto group = find_group(sys->get_group());
+            auto & group = find_group(sys->get_group());
 
             // Create a new node with the system
-            size_t const node_index = group->all_nodes.size();
-            scheduler_node & node = group->all_nodes.emplace_back(sys);
+            size_t const node_index = group.all_nodes.size();
+            scheduler_node & node = group.all_nodes.emplace_back(sys);
 
             // Find a dependant system for each component
             bool inserted = false;
-            auto const end = group->all_nodes.rend();
+            auto const end = group.all_nodes.rend();
             for (auto const hash : sys->get_type_hashes()) {
-                auto it = std::next(group->all_nodes.rbegin());
+                auto it = std::next(group.all_nodes.rbegin());
                 while(it != end) {
                     scheduler_node & dep_node = *it;
                     // If the other system doesn't touch the same component,
@@ -139,7 +138,7 @@ namespace ecs::detail {
 
             // The system has no dependencies, so make it an entry node
             if (!inserted) {
-                group->entry_nodes.push_back(node_index);
+                group.entry_nodes.push_back(node_index);
             }
         }
 
