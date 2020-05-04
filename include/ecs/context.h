@@ -74,7 +74,7 @@ namespace ecs::detail {
 			std::unique_lock lock(mutex);
 
 			systems.clear();
-			scheduler.reset();
+			scheduler = system_scheduler();
 			// context::component_pools.clear(); // this will cause an exception in get_component_pool() due to the cache
 			for (auto& pool : component_pools) {
 				pool->clear();
