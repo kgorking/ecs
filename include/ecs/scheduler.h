@@ -22,27 +22,27 @@ namespace ecs::detail {
             return sys;
         }
 
-        // Add a dependency to this node.
-        void add_dependant(size_t node_index) {
-            dependants.push_back(node_index);
+        // Add a child to this node.
+        void add_child(size_t node_index) {
+            children.push_back(node_index);
         }
 
-        void increase_dependencies() {
-            total_dependencies += 1;
+        void increase_parent_count() {
+            total_parents += 1;
         }
 
         void reset_run() {
-            remaining_dependencies = total_dependencies;
+            unfinished_parents = total_parents;
         }
 
         void run(std::vector<struct scheduler_node> & nodes) {
             static std::mutex run_mutex;
             {
                 std::scoped_lock sl(run_mutex);
-                if(remaining_dependencies > 0) {
-                    remaining_dependencies--;
+                if(unfinished_parents > 0) {
+                    unfinished_parents--;
 
-                    if (remaining_dependencies > 0) {
+                    if (unfinished_parents > 0) {
                         return;
                     }
                 }
@@ -50,7 +50,7 @@ namespace ecs::detail {
 
             sys->update();
 
-            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](auto node) {
+            std::for_each(std::execution::par, children.begin(), children.end(), [&nodes](auto node) {
                 nodes[node].run(nodes);
             });
         }
@@ -60,11 +60,11 @@ namespace ecs::detail {
         system_base * sys{};
 
         // The systems that depend on this
-        std::vector<std::size_t> dependants{};
+        std::vector<std::size_t> children{};
 
         // The number of systems this depends on
-        int16_t total_dependencies = 0;
-        int16_t remaining_dependencies = 0;
+        int16_t total_parents = 0;
+        int16_t unfinished_parents = 0;
     };
 
     // Schedules systems for concurrent execution based on their components.
@@ -126,8 +126,8 @@ namespace ecs::detail {
                             // so there is a strong dependency here.
                             // Order is preserved.
                             inserted = true;
-                            dep_node.add_dependant(node_index);
-                            node.increase_dependencies();
+                            dep_node.add_child(node_index);
+                            node.increase_parent_count();
                             break;
                         }
                         else { // 'other' reads component
