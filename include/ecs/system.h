@@ -26,17 +26,22 @@ namespace ecs::detail {
 		}
 	}
 
+	template <typename T>
+	constexpr bool is_read_only() {
+		return detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
+	}
+
 	template <bool ignore_first_arg, typename First, typename ...Types>
 	constexpr auto get_type_read_only() {
 		if constexpr (!ignore_first_arg) {
 			std::array<bool, 1 + sizeof...(Types)> arr {
-				std::is_const_v<std::remove_reference_t<First>>,
-				std::is_const_v<std::remove_reference_t<Types>>...};
+				is_read_only<First>(),
+				is_read_only<Types>()...};
 			return arr;
 		}
 		else {
 			std::array<bool, sizeof...(Types)> arr {
-				std::is_const_v<std::remove_reference_t<Types>>...};
+				is_read_only<Types>()...};
 			return arr;
 		}
 	}
