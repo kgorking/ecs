@@ -50,13 +50,11 @@ namespace ecs::detail {
 
 		// Calls the 'update' function on all the systems in the order they were added.
 		void run_systems() {
-			// Prevent other threads from adding new systems
+			// Prevent other threads from adding new systems during the run
 			std::shared_lock lock(mutex);
 
+			// Run all the systems
 			sched.run();
-			/*for (auto const& sys : systems) {
-				sys->update();
-			}*/
 		}
 
 		// Returns true if a pool for the type exists
