@@ -9,6 +9,7 @@
 #include <execution>
 #include <algorithm>
 #include <mutex>
+
 #include "system_base.h"
 #include "contract.h"
 
@@ -76,6 +77,7 @@ namespace ecs::detail {
         // The systems that depend on this system
         std::vector<system_node*> dependants{};
 
+        // The number of systems this system depends on
         int16_t total_dependencies = 0;
         int16_t remaining_dependencies = 0;
     };
@@ -97,11 +99,9 @@ namespace ecs::detail {
             // Create a new node with the system
             system_node * node = &all_nodes.emplace_back(sys);
 
-            auto const end = all_nodes.rend();
-
-            bool inserted = false;
-
             // Find a dependant system for each component
+            bool inserted = false;
+            auto const end = all_nodes.rend();
             for (auto const hash : sys->get_type_hashes()) {
                 auto it = std::next(all_nodes.rbegin());
                 while(it != end) {
