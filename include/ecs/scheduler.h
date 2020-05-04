@@ -10,13 +10,6 @@
 #include "contract.h"
 
 namespace ecs::detail {
-    // A group of systems with the same group id
-    struct system_group {
-        int id;
-        std::vector<struct scheduler_node> all_nodes;
-        std::vector<std::size_t> entry_nodes{};
-    };
-
     // Describes a node in the scheduler execution graph
     struct scheduler_node {
         // Construct a node from a system.
@@ -42,8 +35,9 @@ namespace ecs::detail {
             remaining_dependencies = total_dependencies;
         }
 
-        void run(struct system_group & group) {
-            static std::mutex run_mutex; {
+        void run(std::vector<struct scheduler_node> & nodes) {
+            static std::mutex run_mutex;
+            {
                 std::scoped_lock sl(run_mutex);
                 if(remaining_dependencies > 0) {
                     remaining_dependencies--;
@@ -56,8 +50,8 @@ namespace ecs::detail {
 
             sys->update();
 
-            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&group](auto node) {
-                group.all_nodes[node].run(group);
+            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](auto node) {
+                nodes[node].run(nodes);
             });
         }
 
@@ -74,27 +68,38 @@ namespace ecs::detail {
     };
 
     // Schedules systems for concurrent execution based on their components.
-    class system_scheduler {
-        std::vector<system_group> groups;
+    class scheduler {
+        // A group of systems with the same group id
+        struct group {
+            int id;
+            std::vector<scheduler_node> all_nodes;
+            std::vector<std::size_t> entry_nodes{};
+
+            void run(size_t node_index) {
+                all_nodes[node_index].run(all_nodes);
+            }
+        };
+
+        std::vector<group> groups;
 
     protected:
-        system_group& find_group(int id) {
+        group& find_group(int id) {
             // Look for an existing group
             if (!groups.empty()) {
                 for (auto &group : groups) {
                     if (group.id == id) {
-                        return &group;
+                        return group;
                     }
                 }
             }
 
             // No group found, so find an insertion point
-            auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int id, system_group const& sg) {
+            auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int id, group const& sg) {
                 return id < sg.id;
             });
 
             // Insert the group and return it
-            return *groups.insert(insert_point, system_group{id, {}, {}});
+            return *groups.insert(insert_point, group{id, {}, {}});
         }
 
     public:
@@ -152,7 +157,7 @@ namespace ecs::detail {
             // Run the groups in succession
             for (auto & group : groups) {
                 std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(), [&group](auto node) {
-                    group.all_nodes[node].run(group);
+                    group.run(node);
                 });
             }
         }

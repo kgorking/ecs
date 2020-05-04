@@ -10,7 +10,7 @@
 #include "component_pool.h"
 #include "system.h"
 #include "type_hash.h"
-#include "system_scheduler.h"
+#include "scheduler.h"
 
 namespace ecs::detail {
 	// The central class of the ecs implementation. Maintains the state of the system.
@@ -19,7 +19,7 @@ namespace ecs::detail {
 		std::vector<std::unique_ptr<system_base>> systems;
 		std::vector<std::unique_ptr<component_pool_base>> component_pools;
 		std::map<type_hash, component_pool_base*> type_pool_lookup;
-		system_scheduler scheduler;
+		scheduler sched;
 
 		mutable std::shared_mutex mutex;
 
@@ -53,7 +53,7 @@ namespace ecs::detail {
 			// Prevent other threads from adding new systems
 			std::shared_lock lock(mutex);
 
-			scheduler.run();
+			sched.run();
 			/*for (auto const& sys : systems) {
 				sys->update();
 			}*/
@@ -74,7 +74,7 @@ namespace ecs::detail {
 			std::unique_lock lock(mutex);
 
 			systems.clear();
-			scheduler = system_scheduler();
+			sched = scheduler();
 			// context::component_pools.clear(); // this will cause an exception in get_component_pool() due to the cache
 			for (auto& pool : component_pools) {
 				pool->clear();
@@ -151,7 +151,7 @@ namespace ecs::detail {
 
 			sort_systems_by_group();
 
-			scheduler.insert(ptr_system);
+			sched.insert(ptr_system);
 
 			return *ptr_system;
 		}

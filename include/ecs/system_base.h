@@ -7,7 +7,6 @@
 
 namespace ecs::detail {
 	class context;
-	class system_scheduler;
 }
 
 namespace ecs {
