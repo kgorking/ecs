@@ -116,7 +116,7 @@ namespace ecs::detail {
             bool inserted = false;
             auto const end = group.all_nodes.rend();
             for (auto const hash : sys->get_type_hashes()) {
-                auto it = std::next(group.all_nodes.rbegin());
+                auto it = std::next(group.all_nodes.rbegin()); // 'next' to skip the newly added system
                 while(it != end) {
                     scheduler_node & dep_node = *it;
                     // If the other system doesn't touch the same component,
@@ -125,7 +125,6 @@ namespace ecs::detail {
                         if (dep_node.get_system()->writes_to_component(hash) || sys->writes_to_component(hash)) {
                             // The system writes to the component,
                             // so there is a strong dependency here.
-                            // Order is preserved.
                             inserted = true;
                             dep_node.add_child(node_index);
                             node.increase_parent_count();
@@ -134,7 +133,6 @@ namespace ecs::detail {
                         else { // 'other' reads component
                             // These systems have a weak read/read dependency
                             // and can be scheduled concurrently
-                            // Order does not need to be preserved.
                         }
                     }
 
