@@ -28,6 +28,7 @@ namespace ecs::detail {
         }
 
         void increase_parent_count() {
+            Expects(total_parents != std::numeric_limits<uint16_t>::max()); // You have 32k dependencies on a single system. Just delete your code.
             total_parents += 1;
         }
 
@@ -63,8 +64,8 @@ namespace ecs::detail {
         std::vector<std::size_t> children{};
 
         // The number of systems this depends on
-        int16_t total_parents = 0;
-        int16_t unfinished_parents = 0;
+        uint16_t total_parents = 0;
+        uint16_t unfinished_parents = 0;
     };
 
     // Schedules systems for concurrent execution based on their components.
