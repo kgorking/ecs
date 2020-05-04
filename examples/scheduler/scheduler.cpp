@@ -4,13 +4,13 @@
 
 using namespace std::chrono_literals;
 
-// A simple example that creates 6 systems with dependencies on 3 components.
+// A small example that creates 6 systems with dependencies on 3 components.
 //
 // Prints out each systems dependencies, which
 // can then be verified when the systems are run.
 //
 // Systems without dependencies are executed concurrently,
-// while system with dependencies will only be executed
+// while systems with dependencies will only be executed
 // after other systems are done with them.
 
 template <size_t I>
