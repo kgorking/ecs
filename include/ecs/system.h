@@ -148,7 +148,7 @@ namespace ecs::detail {
 			return Group;
 		}
 
-		std::string get_signature() const noexcept {
+		std::string get_signature() const noexcept override {
 			std::string sig("system(");
 			for (size_t i=0; i < num_arguments-1; i++) {
 				sig += argument_names[i];
