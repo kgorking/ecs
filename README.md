@@ -16,7 +16,7 @@ The following example shows the basics of the library.
 
 // The component
 struct greeting {
-    char const* msg = "alright";
+    char const* msg;
 };
 
 int main()
@@ -27,7 +27,7 @@ int main()
     });
 
     // The entities
-    ecs::add_components({0, 2}, greeting{});
+    ecs::add_components({0, 2}, greeting{"alright"});
 
     // Run it
     ecs::update_systems();
@@ -53,6 +53,7 @@ This is pretty basic, but there are plenty of ways to extend this example to do 
   * [Current entity](#Current-entity)
   * [Requirements and rules](#Requirements-and-rules)
   * [Parallel systems](#Parallel-systems)
+  * [Automatic concurrency](#Automatic-concurrency)
   * [Groups](#Groups)
 
 
@@ -214,6 +215,7 @@ ecs::make_system([](ecs::entity_id ent, greeting const& g) {
 });
 ```
 
+
 ## Requirements and rules
 There are a few requirements and restrictions put on the provided lambdas to ensure that the runtime
 works as expected and the internal state makes sense.
@@ -224,12 +226,23 @@ works as expected and the internal state makes sense.
 * **No duplicate components.** Having the same component more than once in the parameter list is likely an error on
   the programmers side, so a compile time error will be raised if it occurs. 
 
+
 ## Parallel systems
 Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up loosing performance instead. A good profiler can often help with this determination.
 
 The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code.
 
-Adding and removing components from an entity in a parallel system is a thread-safe operation-
+Adding and removing components from entities in parallel systems is a thread-safe operation.
+
+
+## Automatic concurrency
+Whenever a system is made, it will internally be scheduled for execution concurrently with other systems, if the systems dependencies permit it. Systems are always scheduled so they don't interfere with each other, and the order in which they are made is respected.
+
+Dependencies are determined based on the components a system operate on.
+
+If a component is written to, the system that previously read from or wrote to that component becomes a dependency, which means that the system must be run to completion before the new system can execute. This ensures that no data-races occur.
+
+If a component is read from, the system that previously wrote to it becomes a dependency. Multiple systems that read from the same component can ssafely run concurrently.
 
 ## Groups
 Systems can be roughly segmented in to groups by passing along a compile-time integer as a template paramater to `ecs::make_system`. Systems are executed in the order they are made, but are stable-sorted on their group id. Systems with no group id specified are put in group 0.
@@ -245,6 +258,7 @@ ecs::make_system([](int&) {
     std::cout << "hello from group whatever\n";
 });
 // ...
+ecs::add_components(0, int{});
 ecs::update_systems();
 ```
 Running the above code will print out
@@ -252,3 +266,4 @@ Running the above code will print out
 > hello from group whatever\
 > hello from group one
 
+**Note:** systems in different groups are never executed concurrently, and all systems in one group will run to completion before the next group is run.
