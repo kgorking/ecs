@@ -68,9 +68,6 @@ namespace ecs {
 		[[nodiscard]]
 		virtual bool writes_to_component(detail::type_hash hash) const noexcept = 0;
 
-		// Returns the hashes of components the system writes to
-		//virtual std::vector<detail::type_hash> get_write_component_hashes() const noexcept = 0;
-
 	private:
 		// Only allow the context class to call 'process_changes'
 		friend class detail::context;
