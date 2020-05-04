@@ -1,9 +1,6 @@
 #ifndef __SYSTEM_SCHEDULER
 #define __SYSTEM_SCHEDULER
 
-#include <iostream>
-#include <string>
-
 #include <list>
 #include <vector>
 #include <execution>
@@ -14,10 +11,11 @@
 #include "contract.h"
 
 namespace ecs::detail {
-    // Describes a single point of execution
-    struct system_node {
-        // Construct a node from a system which can not be null
-        system_node(system_base *sys) : sys(sys) {
+    // Describes a point in the scheduler execution graph
+    struct scheduler_node {
+        // Construct a node from a system.
+        // The system can not be null
+        scheduler_node(system_base *sys) : sys(sys) {
             Expects(sys != nullptr);
         }
 
@@ -27,7 +25,7 @@ namespace ecs::detail {
 
         // Add a dependency to this node.
         // The dependency can not be null
-        void add_dependant(system_node* node) {
+        void add_dependant(scheduler_node* node) {
             Expects(node != nullptr);
             dependants.push_back(node);
             node->total_dependencies++;
@@ -38,22 +36,16 @@ namespace ecs::detail {
         }
 
         void run() {
-            static std::mutex run_mutex, cout_mutex;
+            static std::mutex run_mutex;
             if(remaining_dependencies > 0) {
                 std::scoped_lock sl(run_mutex);
                 remaining_dependencies--;
 
                 if (remaining_dependencies > 0) {
-                    std::scoped_lock sl2(cout_mutex);
-                    std::cout << "  * skipping " << sys->get_signature() << " - " << remaining_dependencies << '\n';
                     return;
                 }
             }
 
-            {
-                std::scoped_lock sl3(cout_mutex);
-                std::cout << "  running " << sys->get_signature() << '\n';
-            }
             sys->update();
 
             std::for_each(std::execution::par, dependants.begin(), dependants.end(), [](auto & node) {
@@ -61,52 +53,46 @@ namespace ecs::detail {
             });
         }
 
-        void print(int indent) const {
-            std::string s(indent, ' ');
-            std::cout << s << sys->get_signature() << '\n';
-
-            for (auto dep : dependants) {
-                dep->print(1 + indent);
-            }
-        }
-
     private:
         // The system to execute
         system_base * sys{};
 
-        // The systems that depend on this system
-        std::vector<system_node*> dependants{};
+        // The systems that depend on this
+        std::vector<scheduler_node*> dependants{};
 
-        // The number of systems this system depends on
+        // The number of systems this depends on
         int16_t total_dependencies = 0;
         int16_t remaining_dependencies = 0;
     };
 
-    // A class to order systems to be run async without causing dataraces.
-    // Systems are ordered based on what components they read/write.
+    // Schedules systems based on their components for concurrent execution.
     class system_scheduler {
-        // Describes systems belonging to a certain group
+        // A group of systems with the same group id
         struct system_group {
             int id;
-            std::list<system_node> all_nodes; // all systems added, in linear order
-            std::vector<system_node*> entry_nodes{};
+            std::list<scheduler_node> all_nodes;
+            std::vector<scheduler_node*> entry_nodes{};
         };
 
         std::list<system_group> groups;
 
     protected:
         system_group* find_group(int id) {
+            // Look for an existing group
             if (!groups.empty()) {
                 for (auto &group : groups) {
-                    if (group.id == id)
+                    if (group.id == id) {
                         return &group;
+                    }
                 }
             }
 
+            // No group found, so find an insertion point
             auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int id, system_group const& sg) {
                 return id < sg.id;
             });
 
+            // Insert the group and return it
             return &*groups.insert(insert_point, system_group{id, {}, {}});
         }
 
@@ -120,7 +106,7 @@ namespace ecs::detail {
             auto group = find_group(sys->get_group());
 
             // Create a new node with the system
-            system_node * node = &group->all_nodes.emplace_back(sys);
+            scheduler_node & node = group->all_nodes.emplace_back(sys);
 
             // Find a dependant system for each component
             bool inserted = false;
@@ -128,7 +114,7 @@ namespace ecs::detail {
             for (auto const hash : sys->get_type_hashes()) {
                 auto it = std::next(group->all_nodes.rbegin());
                 while(it != end) {
-                    system_node & dep_node = *it;
+                    scheduler_node & dep_node = *it;
                     // If the other system doesn't touch the same component,
                     // then there can be no dependecy
                     if (dep_node.get_system()->has_component(hash)) {
@@ -137,15 +123,13 @@ namespace ecs::detail {
                             // so there is a strong dependency here.
                             // Order is preserved.
                             inserted = true;
-                            dep_node.add_dependant(node);
-                            std::cout << sys->get_signature() << " -> " << dep_node.get_system()->get_signature() << '\n';
+                            dep_node.add_dependant(&node);
                             break;
                         }
                         else { // 'other' reads component
                             // These systems have a weak read/read dependency
                             // and can be scheduled concurrently
                             // Order does not need to be preserved.
-                            //continue;
                         }
                     }
 
@@ -153,27 +137,21 @@ namespace ecs::detail {
                 }
             }
 
+            // The system has no dependencies, so make it an entry node
             if (!inserted) {
-                std::cout << "New entrypoint (G" << sys->get_group() << "): " << sys->get_signature() << '\n';
-                group->entry_nodes.push_back(node);
-            }
-        }
-
-        void print_lanes() const {
-            for (auto const& group : groups) {
-                for(auto node : group.entry_nodes)
-                    node->print(0);
+                group->entry_nodes.push_back(&node);
             }
         }
 
         void run() {
+            // Reset the execution data
             for (auto & group : groups) {
                 for (auto & node : group.all_nodes)
                     node.reset_run();
             }
 
+            // Run the groups in succession
             for (auto const& group : groups) {
-                std::cout << "Running group " << group.id << '\n';
                 std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(), [](auto node) {
                     node->run();
                 });
