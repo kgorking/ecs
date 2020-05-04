@@ -18,66 +18,67 @@ struct type { };
 
 int main() {
 	std::cout << std::boolalpha;
+	std::cout << "creating systems:\n";
 
-	// creates lane 0
+
 	auto & sys1 = ecs::make_system([](type<0>& , type<1> const& ) {
-		std::cout << "sys1\n";
-		std::this_thread::sleep_for(20ms); // simulate works
+		std::cout << "1 ";
+		std::this_thread::sleep_for(20ms); // simulate work
 	});
-	std::cout << "sys1: " << sys1.get_signature() << '\n';
+	std::cout << "1 - " << sys1.get_signature() << '\n';
 
-	// add to lane 0
+
 	auto & sys2 = ecs::make_system([](type<1>& ) { 
-		std::cout << "sys2\n";
+		std::cout << "2 ";
 		std::this_thread::sleep_for(20ms);
 	});
-	std::cout << "sys2: " << sys2.get_signature() << '\n';
-	std::cout << " depends on sys1? " << sys2.depends_on(&sys1) << '\n';
+	std::cout << "2 - " << sys2.get_signature() << '\n';
+	std::cout << " depends on 1? " << sys2.depends_on(&sys1) << '\n';
 
-	// creates lane 1
+
 	auto & sys3 = ecs::make_system([](type<2>&) { 
-		std::cout << "sys3\n";
+		std::cout << "3 ";
 		std::this_thread::sleep_for(20ms);
 	});
-	std::cout << "sys3: " << sys3.get_signature() << '\n';
-	std::cout << " depends on sys1? " << sys3.depends_on(&sys1) << '\n';
-	std::cout << " depends on sys2? " << sys3.depends_on(&sys2) << '\n';
+	std::cout << "3 - " << sys3.get_signature() << '\n';
+	std::cout << " depends on 1? " << sys3.depends_on(&sys1) << '\n';
+	std::cout << " depends on 2? " << sys3.depends_on(&sys2) << '\n';
 
-	// add to lane 0
+
 	auto & sys4 = ecs::make_system([](type<0> const&) { 
-		std::cout << "sys4\n";
+		std::cout << "4 ";
 		std::this_thread::sleep_for(20ms);
 	});
-	std::cout << "sys4: " << sys4.get_signature() << '\n';
-	std::cout << " depends on sys1? " << sys4.depends_on(&sys1) << '\n';
-	std::cout << " depends on sys2? " << sys4.depends_on(&sys2) << '\n';
-	std::cout << " depends on sys3? " << sys4.depends_on(&sys3) << '\n';
+	std::cout << "4 - " << sys4.get_signature() << '\n';
+	std::cout << " depends on 1? " << sys4.depends_on(&sys1) << '\n';
+	std::cout << " depends on 2? " << sys4.depends_on(&sys2) << '\n';
+	std::cout << " depends on 3? " << sys4.depends_on(&sys3) << '\n';
 
-	// add to lane 0+1
+
 	auto & sys5 = ecs::make_system([](type<2>&, type<0> const&) { 
-		std::cout << "sys5\n";
+		std::cout << "5 ";
 		std::this_thread::sleep_for(20ms);
 	});
-	std::cout << "sys5: " << sys5.get_signature() << '\n';
-	std::cout << " depends on sys1? " << sys5.depends_on(&sys1) << '\n';
-	std::cout << " depends on sys2? " << sys5.depends_on(&sys2) << '\n';
-	std::cout << " depends on sys3? " << sys5.depends_on(&sys3) << '\n';
-	std::cout << " depends on sys4? " << sys5.depends_on(&sys4) << '\n';
+	std::cout << "5 - " << sys5.get_signature() << '\n';
+	std::cout << " depends on 1? " << sys5.depends_on(&sys1) << '\n';
+	std::cout << " depends on 2? " << sys5.depends_on(&sys2) << '\n';
+	std::cout << " depends on 3? " << sys5.depends_on(&sys3) << '\n';
+	std::cout << " depends on 4? " << sys5.depends_on(&sys4) << '\n';
 
-	// add to lane 1
+
 	auto & sys6 = ecs::make_system([](type<2> const&) { 
-		std::cout << "sys6\n";
+		std::cout << "6 ";
 		std::this_thread::sleep_for(20ms);
 	});
-	std::cout << "sys6: " << sys6.get_signature() << '\n';
-	std::cout << " depends on sys1? " << sys6.depends_on(&sys1) << '\n';
-	std::cout << " depends on sys2? " << sys6.depends_on(&sys2) << '\n';
-	std::cout << " depends on sys3? " << sys6.depends_on(&sys3) << '\n';
-	std::cout << " depends on sys4? " << sys6.depends_on(&sys4) << '\n';
-	std::cout << " depends on sys5? " << sys6.depends_on(&sys5) << '\n';
+	std::cout << "6 - " << sys6.get_signature() << '\n';
+	std::cout << " depends on 1? " << sys6.depends_on(&sys1) << '\n';
+	std::cout << " depends on 2? " << sys6.depends_on(&sys2) << '\n';
+	std::cout << " depends on 3? " << sys6.depends_on(&sys3) << '\n';
+	std::cout << " depends on 4? " << sys6.depends_on(&sys4) << '\n';
+	std::cout << " depends on 5? " << sys6.depends_on(&sys5) << '\n';
 
-	std::cout << "\nrunning systems:\n";
-	ecs::add_components({0, 2}, type<0>{}, type<1>{}, type<2>{});
-	ecs::commit_changes();
-	ecs::run_systems();
+
+	std::cout << "\nrunning systems on 5 entities:\n";
+	ecs::add_components({0, 4}, type<0>{}, type<1>{}, type<2>{});
+	ecs::update_systems();
 }
