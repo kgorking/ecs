@@ -1,7 +1,6 @@
 #ifndef __SYSTEM_SCHEDULER
 #define __SYSTEM_SCHEDULER
 
-#include <list>
 #include <vector>
 #include <execution>
 #include <algorithm>
@@ -11,6 +10,13 @@
 #include "contract.h"
 
 namespace ecs::detail {
+    // A group of systems with the same group id
+    struct system_group {
+        int id;
+        std::vector<struct scheduler_node> all_nodes;
+        std::vector<std::size_t> entry_nodes{};
+    };
+
     // Describes a point in the scheduler execution graph
     struct scheduler_node {
         // Construct a node from a system.
@@ -25,17 +31,19 @@ namespace ecs::detail {
 
         // Add a dependency to this node.
         // The dependency can not be null
-        void add_dependant(scheduler_node* node) {
-            Expects(node != nullptr);
-            dependants.push_back(node);
-            node->total_dependencies++;
+        void add_dependant(size_t node_index) {
+            dependants.push_back(node_index);
+        }
+
+        void increase_dependencies() {
+            total_dependencies += 1;
         }
 
         void reset_run() {
             remaining_dependencies = total_dependencies;
         }
 
-        void run() {
+        void run(struct system_group & group) {
             static std::mutex run_mutex; {
                 std::scoped_lock sl(run_mutex);
                 if(remaining_dependencies > 0) {
@@ -49,8 +57,8 @@ namespace ecs::detail {
 
             sys->update();
 
-            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [](auto & node) {
-                node->run();
+            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&group](auto node) {
+                group.all_nodes[node].run(group);
             });
         }
 
@@ -59,7 +67,7 @@ namespace ecs::detail {
         system_base * sys{};
 
         // The systems that depend on this
-        std::vector<scheduler_node*> dependants{};
+        std::vector<std::size_t> dependants{};
 
         // The number of systems this depends on
         int16_t total_dependencies = 0;
@@ -68,14 +76,7 @@ namespace ecs::detail {
 
     // Schedules systems based on their components for concurrent execution.
     class system_scheduler {
-        // A group of systems with the same group id
-        struct system_group {
-            int id;
-            std::list<scheduler_node> all_nodes;
-            std::vector<scheduler_node*> entry_nodes{};
-        };
-
-        std::list<system_group> groups;
+        std::vector<system_group> groups;
 
     protected:
         system_group* find_group(int id) {
@@ -107,6 +108,7 @@ namespace ecs::detail {
             auto group = find_group(sys->get_group());
 
             // Create a new node with the system
+            size_t const node_index = group->all_nodes.size();
             scheduler_node & node = group->all_nodes.emplace_back(sys);
 
             // Find a dependant system for each component
@@ -124,7 +126,8 @@ namespace ecs::detail {
                             // so there is a strong dependency here.
                             // Order is preserved.
                             inserted = true;
-                            dep_node.add_dependant(&node);
+                            dep_node.add_dependant(node_index);
+                            node.increase_dependencies();
                             break;
                         }
                         else { // 'other' reads component
@@ -140,7 +143,7 @@ namespace ecs::detail {
 
             // The system has no dependencies, so make it an entry node
             if (!inserted) {
-                group->entry_nodes.push_back(&node);
+                group->entry_nodes.push_back(node_index);
             }
         }
 
@@ -152,9 +155,9 @@ namespace ecs::detail {
             }
 
             // Run the groups in succession
-            for (auto const& group : groups) {
-                std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(), [](auto node) {
-                    node->run();
+            for (auto & group : groups) {
+                std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(), [&group](auto node) {
+                    group.all_nodes[node].run(group);
                 });
             }
         }
