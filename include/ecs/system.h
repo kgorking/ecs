@@ -41,8 +41,20 @@ namespace ecs::detail {
         }
     }
 
+    // clang-format off
+    // Gets the type a sorting functions operates on
+    template<class R, class C, class T1, class T2>
+    struct get_sort_func_type_impl {
+        get_sort_func_type_impl(R (C::*)(T1, T2) const) { }
+        using type = std::remove_cvref_t<T1>;
+    };
+    template <class T>
+    using sort_func_type = typename decltype(get_sort_func_type_impl(&T::operator ()))::type;
+    // clang-format on
+
     // The implementation of a system specialized on its components
-    template<int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class... Components>
+    template<int Group, class ExecutionPolicy, typename UpdateFunc, typename SortFunc, class FirstComponent,
+        class... Components>
     class system final : public system_base {
 
         template<typename T>
@@ -58,18 +70,6 @@ namespace ecs::detail {
         // Calculate the number of components
         static constexpr size_t num_components = sizeof...(Components) + (is_first_arg_entity ? 0 : 1);
 
-        // Alias for stored pools
-        template<class T>
-        using pool = component_pool<rcv<T>>* const;
-
-        // Tuple holding all pools used by this system
-        using tup_pools = std::conditional_t<is_first_arg_entity, std::tuple<pool<Components>...>,
-                                             std::tuple<pool<FirstComponent>, pool<Components>...>>;
-
-        // Holds an entity range and a pointer to the first component from each pool in that range
-        using range_arguments = std::conditional_t<is_first_arg_entity, std::tuple<entity_range, rcv<Components>*...>,
-                                                   std::tuple<entity_range, rcv<FirstComponent>*, rcv<Components>*...>>;
-
         // Component names
         static constexpr std::array<std::string_view, num_arguments> argument_names =
             std::to_array({get_type_name<FirstComponent>(), get_type_name<Components>()...});
@@ -82,6 +82,22 @@ namespace ecs::detail {
         static constexpr std::array<bool, num_components> type_read_only =
             get_type_read_only<is_first_arg_entity, FirstComponent, Components...>();
 
+        // Alias for stored pools
+        template<class T>
+        using pool = component_pool<rcv<T>>* const;
+
+        // Tuple holding all pools used by this system
+        using tup_pools = std::conditional_t<is_first_arg_entity, std::tuple<pool<Components>...>,
+            std::tuple<pool<FirstComponent>, pool<Components>...>>;
+
+        // Holds an entity range and a pointer to the first component from each pool in that range
+        using range_arguments = std::conditional_t<is_first_arg_entity, std::tuple<entity_range, rcv<Components>*...>,
+            std::tuple<entity_range, rcv<FirstComponent>*, rcv<Components>*...>>;
+
+        // Holds a single entity id and its arguments
+        using packed_argument = std::conditional_t<is_first_arg_entity, std::tuple<entity_id, rcv<Components>*...>,
+            std::tuple<entity_id, rcv<FirstComponent>*, rcv<Components>*...>>;
+
         // Holds the arguments for a range of entities
         std::vector<range_arguments> arguments;
 
@@ -89,17 +105,27 @@ namespace ecs::detail {
         tup_pools const pools;
 
         // The user supplied system
-        UserUpdateFunc update_func;
+        UpdateFunc update_func;
+
+        // True if a valid sorting function is supplied
+        static constexpr bool has_sort_func = !std::is_same_v<std::nullptr_t, SortFunc>;
+
+        // The user supplied sorting function
+        SortFunc sort_func;
+
+        // The vector of unrolled arguments, sorted using 'sort_func'
+        std::vector<packed_argument> sorted_arguments;
 
     public:
         // Constructor for when the first argument to the system is _not_ an entity
-        system(UserUpdateFunc update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
-            : pools{first_pool, pools...}, update_func{update_func} {
+        system(UpdateFunc update_func, SortFunc sort_func, pool<FirstComponent> first_pool, pool<Components>... pools)
+            : pools{first_pool, pools...}, update_func{update_func}, sort_func{sort_func} {
             build_args();
         }
 
         // Constructor for when the first argument to the system _is_ an entity
-        system(UserUpdateFunc update_func, pool<Components>... pools) : pools{pools...}, update_func{update_func} {
+        system(UpdateFunc update_func, SortFunc sort_func, pool<Components>... pools)
+            : pools{pools...}, update_func{update_func}, sort_func{sort_func} {
             build_args();
         }
 
@@ -108,29 +134,41 @@ namespace ecs::detail {
                 return;
             }
 
-            // Call the system for all pairs of components that match the system signature
-            for (auto const& argument : arguments) {
-                auto const& range = std::get<entity_range>(argument);
-                std::for_each(ExecutionPolicy{}, range.begin(), range.end(),
-                              [this, &argument, first_id = range.first()](auto ent) {
-                                  // Small helper function
-                                  auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
-                                      using T = std::remove_cvref_t<decltype(*ptr)>;
-                                      if constexpr (detail::unbound<T>) {
-                                          return ptr;
-                                      } else {
-                                          return ptr + offset;
-                                      }
-                                  };
+            if constexpr (has_sort_func) {
+                std::for_each(
+                    ExecutionPolicy{}, sorted_arguments.begin(), sorted_arguments.end(), [this](auto packed_arg) {
+                        if constexpr (is_first_arg_entity) {
+                            update_func(std::get<0>(packed_arg), *std::get<rcv<Components>*>(packed_arg)...);
+                        } else {
+                            update_func(*std::get<rcv<FirstComponent>*>(packed_arg),
+                                *std::get<rcv<Components>*>(packed_arg)...);
+                        }
+                    });
+            } else {
+                // Small helper function
+                auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
+                    using T = std::remove_cvref_t<decltype(*ptr)>;
+                    if constexpr (detail::unbound<T>) {
+                        return ptr;
+                    } else {
+                        return ptr + offset;
+                    }
+                };
 
-                                  auto const offset = ent - first_id;
-                                  if constexpr (is_first_arg_entity) {
-                                      update_func(ent, *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
-                                  } else {
-                                      update_func(*extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
-                                                  *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
-                                  }
-                              });
+                // Call the system for all pairs of components that match the system signature
+                for (auto const& argument : arguments) {
+                    auto const& range = std::get<entity_range>(argument);
+                    std::for_each(ExecutionPolicy{}, range.begin(), range.end(),
+                        [extract_arg, this, &argument, first_id = range.first()](auto ent) {
+                            auto const offset = ent - first_id;
+                            if constexpr (is_first_arg_entity) {
+                                update_func(ent, *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                            } else {
+                                update_func(*extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
+                                    *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                            }
+                        });
+                }
             }
         }
 
@@ -150,6 +188,10 @@ namespace ecs::detail {
         constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override { return type_hashes; }
 
         constexpr bool has_component(detail::type_hash hash) const noexcept override {
+            return static_has_component(hash);
+        }
+
+        static constexpr bool static_has_component(detail::type_hash hash) noexcept {
             return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
         }
 
@@ -223,6 +265,12 @@ namespace ecs::detail {
         }
 
         void build_args() {
+            if constexpr (has_sort_func) {
+                // Check the sort_func return type
+                static_assert(static_has_component(get_type_hash<sort_func_type<SortFunc>>()),
+                    "sorting function requires a type that the system does not have");
+            }
+
             entity_range_view const entities = std::get<0>(pools)->get_entities();
 
             if constexpr (num_components == 1) {
@@ -273,6 +321,35 @@ namespace ecs::detail {
                 auto const intersect = do_intersection(entities, get_pool<rcv<Components>>().get_entities()...);
                 build_args(intersect);
             }
+
+            // Unpack the arguments and sort them
+            if constexpr (has_sort_func) {
+                // Count the total number of arguments
+                size_t args = std::accumulate(entities.begin(), entities.end(), size_t{0},
+                    [](size_t val, auto const& range) { return val + range.count(); });
+
+                // Unpack the arguments
+                sorted_arguments.clear();
+                sorted_arguments.reserve(args);
+                for (entity_range const& range : entities) {
+                    for (entity_id const& entity : range) {
+                        if constexpr (is_first_arg_entity) {
+                            sorted_arguments.emplace_back(entity, get_component<rcv<Components>>(entity)...);
+                        } else {
+                            sorted_arguments.emplace_back(entity, get_component<rcv<FirstComponent>>(entity),
+                                get_component<rcv<Components>>(entity)...);
+                        }
+                    }
+                }
+
+                // Sort the arguments
+                using sort_type = sort_func_type<SortFunc>;
+                std::sort(sorted_arguments.begin(), sorted_arguments.end(), [this](auto const& l, auto const& r) {
+                    sort_type* t_l = std::get<sort_type*>(l);
+                    sort_type* t_r = std::get<sort_type*>(r);
+                    return sort_func(*t_l, *t_r);
+                });
+            }
         }
 
         // Convert a set of entities into arguments that can be passed to the system
@@ -284,7 +361,7 @@ namespace ecs::detail {
                     arguments.emplace_back(range, get_component<rcv<Components>>(range.first())...);
                 } else {
                     arguments.emplace_back(range, get_component<rcv<FirstComponent>>(range.first()),
-                                           get_component<rcv<Components>>(range.first())...);
+                        get_component<rcv<Components>>(range.first())...);
                 }
             }
         }

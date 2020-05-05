@@ -82,6 +82,7 @@ if (ECS_STANDALONE_PROJECT)
     add_subdirectory ("examples/plague_spell")
     add_subdirectory ("examples/scheduler")
     add_subdirectory ("examples/shared_components")
+    add_subdirectory ("examples/sorting")
     add_subdirectory ("examples/tagged_components")
 
     # Unittests
