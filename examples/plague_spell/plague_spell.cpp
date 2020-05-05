@@ -4,19 +4,19 @@
 
 using namespace std::chrono_literals;
 
-constexpr int delta_time = 10;  // tick rate
+constexpr int delta_time = 10; // tick rate
 
 struct health {
     int hp = 30;
 };
 
 struct plague {
-    static constexpr int dmg = 3;             // dmg per tick
-    static constexpr int dmg_tick = 500;      // how often it damages
-    static constexpr int spread_tick = 1500;  // how often it spreads
-    static constexpr int spread_range = 2;    // how far it spreads
+    static constexpr int dmg = 3;            // dmg per tick
+    static constexpr int dmg_tick = 500;     // how often it damages
+    static constexpr int spread_tick = 1500; // how often it spreads
+    static constexpr int spread_range = 2;   // how far it spreads
 
-    int duration = 6000;                      // lasts for 6 seconds
+    int duration = 6000; // lasts for 6 seconds
     int dmg_duration = dmg_tick;
     int spread_duration = spread_tick;
 };
@@ -36,9 +36,9 @@ void do_damage_logic(ecs::entity self, plague& p, health& h) {
             self.remove<plague>();
 
             std::cout << "entity " << self.get_id() << " has died of the plague.\n";
-        }
-        else
-            std::cout << "entity " << self.get_id() << " took " << plague::dmg << " damage, health is now " << h.hp << '\n';
+        } else
+            std::cout << "entity " << self.get_id() << " took " << plague::dmg << " damage, health is now " << h.hp
+                      << '\n';
     }
 }
 
@@ -50,14 +50,16 @@ void do_spread_logic(ecs::entity self, plague& p) {
         p.spread_duration += plague::spread_tick;
 
         // Do a spread tick. Use hardcoded entities for simplicitys sake
-        auto ents_in_range = { ecs::entity{1}, ecs::entity{2} }; /* should find all entities (with health component) in spread_range using game logic */
+        auto ents_in_range = {
+            ecs::entity{1},
+            ecs::entity{2}}; /* should find all entities (with health component) in spread_range using game logic */
         for (auto ent : ents_in_range) {
             if (!ent.has<plague>()) {
                 // Add a copy of the plague component if the entity doesn't already have it.
                 // This means that newly infected entities are only affected for
                 // the remaing duration of this plague component
-                ent.add(plague{ p });   // entity 1 and 2 survives (barely)
-                //ent.add(plague{});    // start a fresh plague instead. Entity 1 and 2 dies as well
+                ent.add(plague{p}); // entity 1 and 2 survives (barely)
+                // ent.add(plague{});    // start a fresh plague instead. Entity 1 and 2 dies as well
 
                 std::cout << "entity " << self.get_id() << " infected entity " << ent.get_id() << '\n';
             }
@@ -88,7 +90,7 @@ int main() {
     ecs::make_system(plague_spell_lambda);
 
     // Add health components to entities 0, 1, 2
-    ecs::add_component({ 0, 2 }, health{});
+    ecs::add_component({0, 2}, health{});
 
     // Infect the first entity
     ecs::add_component(0, plague{});

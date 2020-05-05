@@ -38,6 +38,6 @@ namespace ecs::detail {
 
         return hash;
     }
-}
+} // namespace ecs::detail
 
 #endif // !__TYPE_HASH

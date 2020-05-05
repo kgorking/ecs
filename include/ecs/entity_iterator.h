@@ -1,12 +1,12 @@
 #ifndef __ENTITY_ITERATOR
 #define __ENTITY_ITERATOR
 
-#include <limits>
-#include <iterator>
-#include "entity_id.h"
 #include "contract.h"
+#include "entity_id.h"
+#include <iterator>
+#include <limits>
 
-namespace ecs/*::detail*/ {
+namespace ecs /*::detail*/ {
 
     // Iterator support
     class entity_iterator {
@@ -18,13 +18,10 @@ namespace ecs/*::detail*/ {
         using reference = const entity_type&;
         using iterator_category = std::random_access_iterator_tag;
 
-        //entity_iterator() = delete; // no such thing as a 'default' entity
-        constexpr entity_iterator() noexcept
-        { };
+        // entity_iterator() = delete; // no such thing as a 'default' entity
+        constexpr entity_iterator() noexcept {};
 
-        constexpr entity_iterator(entity_id ent) noexcept
-            : ent_(ent)
-        { }
+        constexpr entity_iterator(entity_id ent) noexcept : ent_(ent) {}
 
         constexpr entity_iterator& operator++() {
             ent_ = step(ent_, 1);
@@ -38,24 +35,18 @@ namespace ecs/*::detail*/ {
         }
 
         constexpr entity_iterator operator+(difference_type diff) const {
-            return entity_iterator{ step(ent_, diff) };
+            return entity_iterator{step(ent_, diff)};
         }
 
         constexpr value_type operator-(entity_iterator other) const {
             return step(ent_, -other.ent_);
         }
 
-        constexpr bool operator==(entity_iterator other) const {
-            return ent_ == other.ent_;
-        }
+        constexpr bool operator==(entity_iterator other) const { return ent_ == other.ent_; }
 
-        constexpr bool operator!=(entity_iterator other) const {
-            return !(*this == other);
-        }
+        constexpr bool operator!=(entity_iterator other) const { return !(*this == other); }
 
-        constexpr entity_id operator*() {
-            return { ent_ };
-        }
+        constexpr entity_id operator*() { return {ent_}; }
 
     protected:
         constexpr entity_type step(entity_type start, entity_offset diff) const {
@@ -65,8 +56,8 @@ namespace ecs/*::detail*/ {
         }
 
     private:
-        value_type ent_{ 0 };
+        value_type ent_{0};
     };
-}
+} // namespace ecs
 
 #endif // !__ENTITY_RANGE
