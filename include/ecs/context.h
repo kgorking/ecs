@@ -152,19 +152,9 @@ namespace ecs::detail {
             system_base* ptr_system = systems.back().get();
             Ensures(ptr_system != nullptr);
 
-            // TODO no longer needed
-            sort_systems_by_group();
-
             sched.insert(ptr_system);
 
             return *ptr_system;
-        }
-
-        // Sorts the systems based on their group number.
-        // The sort maintains ordering in the individual groups.
-        void sort_systems_by_group() {
-            std::stable_sort(systems.begin(), systems.end(),
-                [](auto const& l, auto const& r) { return l->get_group() < r->get_group(); });
         }
 
         // Create a component pool for a new type
