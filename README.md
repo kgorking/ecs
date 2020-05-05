@@ -37,6 +37,11 @@ Running this will do a Matthew McConaughey impression and print 'alright alright
 
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things, as explained below.
 
+# Building
+* MSVC 16.6 will compile this library with no problems.
+* GCC might work, but it hasn't been tested extensively. Its implementation of the parallel algorithms also seem kind of brittle atm.
+* Clang does not work, because it is missing the `<concepts>` header yet.
+
 # Table of Contents
 * [Entities](#Entities)
 * [Components](#Components)
