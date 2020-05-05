@@ -17,8 +17,7 @@ namespace ecs::detail {
     template<bool ignore_first_arg, typename First, typename... Types>
     constexpr auto get_type_hashes_array() {
         if constexpr (!ignore_first_arg) {
-            std::array<detail::type_hash, 1 + sizeof...(Types)> arr{get_type_hash<First>(),
-                                                                    get_type_hash<Types>()...};
+            std::array<detail::type_hash, 1 + sizeof...(Types)> arr{get_type_hash<First>(), get_type_hash<Types>()...};
             return arr;
         } else {
             std::array<detail::type_hash, sizeof...(Types)> arr{get_type_hash<Types>()...};
@@ -28,15 +27,13 @@ namespace ecs::detail {
 
     template<typename T>
     constexpr bool is_read_only() {
-        return detail::immutable<T> || detail::tagged<T> ||
-               std::is_const_v<std::remove_reference_t<T>>;
+        return detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
     }
 
     template<bool ignore_first_arg, typename First, typename... Types>
     constexpr auto get_type_read_only() {
         if constexpr (!ignore_first_arg) {
-            std::array<bool, 1 + sizeof...(Types)> arr{is_read_only<First>(),
-                                                       is_read_only<Types>()...};
+            std::array<bool, 1 + sizeof...(Types)> arr{is_read_only<First>(), is_read_only<Types>()...};
             return arr;
         } else {
             std::array<bool, sizeof...(Types)> arr{is_read_only<Types>()...};
@@ -45,8 +42,7 @@ namespace ecs::detail {
     }
 
     // The implementation of a system specialized on its components
-    template<int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent,
-             class... Components>
+    template<int Group, class ExecutionPolicy, typename UserUpdateFunc, class FirstComponent, class... Components>
     class system final : public system_base {
 
         template<typename T>
@@ -60,8 +56,7 @@ namespace ecs::detail {
         static constexpr size_t num_arguments = 1 + sizeof...(Components);
 
         // Calculate the number of components
-        static constexpr size_t num_components =
-            sizeof...(Components) + (is_first_arg_entity ? 0 : 1);
+        static constexpr size_t num_components = sizeof...(Components) + (is_first_arg_entity ? 0 : 1);
 
         // Alias for stored pools
         template<class T>
@@ -72,9 +67,8 @@ namespace ecs::detail {
                                              std::tuple<pool<FirstComponent>, pool<Components>...>>;
 
         // Holds an entity range and a pointer to the first component from each pool in that range
-        using range_arguments =
-            std::conditional_t<is_first_arg_entity, std::tuple<entity_range, rcv<Components>*...>,
-                               std::tuple<entity_range, rcv<FirstComponent>*, rcv<Components>*...>>;
+        using range_arguments = std::conditional_t<is_first_arg_entity, std::tuple<entity_range, rcv<Components>*...>,
+                                                   std::tuple<entity_range, rcv<FirstComponent>*, rcv<Components>*...>>;
 
         // Component names
         static constexpr std::array<std::string_view, num_arguments> argument_names =
@@ -99,15 +93,13 @@ namespace ecs::detail {
 
     public:
         // Constructor for when the first argument to the system is _not_ an entity
-        system(UserUpdateFunc update_func, pool<FirstComponent> first_pool,
-               pool<Components>... pools)
+        system(UserUpdateFunc update_func, pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}, update_func{update_func} {
             build_args();
         }
 
         // Constructor for when the first argument to the system _is_ an entity
-        system(UserUpdateFunc update_func, pool<Components>... pools)
-            : pools{pools...}, update_func{update_func} {
+        system(UserUpdateFunc update_func, pool<Components>... pools) : pools{pools...}, update_func{update_func} {
             build_args();
         }
 
@@ -119,29 +111,26 @@ namespace ecs::detail {
             // Call the system for all pairs of components that match the system signature
             for (auto const& argument : arguments) {
                 auto const& range = std::get<entity_range>(argument);
-                std::for_each(
-                    ExecutionPolicy{}, range.begin(), range.end(),
-                    [this, &argument, first_id = range.first()](auto ent) {
-                        // Small helper function
-                        auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
-                            using T = std::remove_cvref_t<decltype(*ptr)>;
-                            if constexpr (detail::unbound<T>) {
-                                return ptr;
-                            } else {
-                                return ptr + offset;
-                            }
-                        };
+                std::for_each(ExecutionPolicy{}, range.begin(), range.end(),
+                              [this, &argument, first_id = range.first()](auto ent) {
+                                  // Small helper function
+                                  auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
+                                      using T = std::remove_cvref_t<decltype(*ptr)>;
+                                      if constexpr (detail::unbound<T>) {
+                                          return ptr;
+                                      } else {
+                                          return ptr + offset;
+                                      }
+                                  };
 
-                        auto const offset = ent - first_id;
-                        if constexpr (is_first_arg_entity) {
-                            update_func(
-                                ent, *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
-                        } else {
-                            update_func(
-                                *extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
-                                *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
-                        }
-                    });
+                                  auto const offset = ent - first_id;
+                                  if constexpr (is_first_arg_entity) {
+                                      update_func(ent, *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                                  } else {
+                                      update_func(*extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
+                                                  *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                                  }
+                              });
             }
         }
 
@@ -158,9 +147,7 @@ namespace ecs::detail {
             return sig;
         }
 
-        constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
-            return type_hashes;
-        }
+        constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override { return type_hashes; }
 
         constexpr bool has_component(detail::type_hash hash) const noexcept override {
             return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
@@ -199,8 +186,7 @@ namespace ecs::detail {
         }
 
         constexpr bool writes_to_any_components() const noexcept override {
-            if constexpr (!is_first_arg_entity &&
-                          !std::is_const_v<std::remove_reference_t<FirstComponent>>)
+            if constexpr (!is_first_arg_entity && !std::is_const_v<std::remove_reference_t<FirstComponent>>)
                 return true;
             else {
                 return ((!std::is_const_v<std::remove_reference_t<Components>>) &&...);
@@ -228,9 +214,7 @@ namespace ecs::detail {
                 return;
             }
 
-            auto constexpr is_pools_modified = [](auto... pools) {
-                return (pools->is_data_modified() || ...);
-            };
+            auto constexpr is_pools_modified = [](auto... pools) { return (pools->is_data_modified() || ...); };
             bool const is_modified = std::apply(is_pools_modified, pools);
 
             if (is_modified) {
@@ -248,11 +232,9 @@ namespace ecs::detail {
                 // When there are more than one component required for a system,
                 // find the intersection of the sets of entities that have those components
 
-                auto constexpr do_intersection = [](entity_range_view initial,
-                                                    entity_range_view first, auto... rest) {
+                auto constexpr do_intersection = [](entity_range_view initial, entity_range_view first, auto... rest) {
                     // Intersects two ranges of entities
-                    auto constexpr intersector = [](entity_range_view view_a,
-                                                    entity_range_view view_b) {
+                    auto constexpr intersector = [](entity_range_view view_a, entity_range_view view_b) {
                         std::vector<entity_range> result;
 
                         if (view_a.empty() || view_b.empty()) {
@@ -288,8 +270,7 @@ namespace ecs::detail {
                 };
 
                 // Build the arguments
-                auto const intersect =
-                    do_intersection(entities, get_pool<rcv<Components>>().get_entities()...);
+                auto const intersect = do_intersection(entities, get_pool<rcv<Components>>().get_entities()...);
                 build_args(intersect);
             }
         }
