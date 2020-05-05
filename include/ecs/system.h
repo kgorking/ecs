@@ -266,7 +266,7 @@ namespace ecs::detail {
 
         void build_args() {
             if constexpr (has_sort_func) {
-                // Check the sort_func return type
+                // Check that the system has the type that sort_func wants to sort on
                 static_assert(static_has_component(get_type_hash<sort_func_type<SortFunc>>()),
                     "sorting function requires a type that the system does not have");
             }
