@@ -75,6 +75,7 @@ if (ECS_STANDALONE_PROJECT)
     # Examples
     add_subdirectory ("examples/entt_example")
     add_subdirectory ("examples/example")
+    add_subdirectory ("examples/filtering")
     add_subdirectory ("examples/finite_state_machine")
     add_subdirectory ("examples/global_component")
     add_subdirectory ("examples/mandelbrot")
