@@ -325,8 +325,8 @@ namespace ecs::detail {
             // Unpack the arguments and sort them
             if constexpr (has_sort_func) {
                 // Count the total number of arguments
-                size_t args = std::accumulate(entities.begin(), entities.end(), size_t{0},
-                    [](size_t val, auto const& range) { return val + range.count(); });
+                size_t args = 0;
+                for (auto const& range : entities) { args += range.count(); }
 
                 // Unpack the arguments
                 sorted_arguments.clear();
