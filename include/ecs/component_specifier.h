@@ -40,7 +40,7 @@ namespace ecs {
 // 	ecs_flags(ecs::tag, ecs::transient);
 // 	// component data
 // };
-#define ecs_flags(...)                                                                             \
+#define ecs_flags(...)                                                                                                 \
     struct _ecs_flags : __VA_ARGS__ {};
 
     // Some helpers
@@ -62,6 +62,9 @@ namespace ecs {
 
         template<typename T>
         concept global = std::is_base_of_v<ecs::global, flags<T>>;
+
+        template<typename T>
+        concept local = !global<T>;
 
         template<typename T>
         concept persistent = !transient<T>;

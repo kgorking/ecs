@@ -1,15 +1,16 @@
 #ifndef __RUNTIME
 #define __RUNTIME
 
+#include <concepts>
+#include <execution>
+#include <type_traits>
+#include <utility>
+
 #include "component_pool.h"
 #include "context.h"
 #include "entity_id.h"
 #include "system.h"
 #include "system_verification.h"
-#include <concepts>
-#include <execution>
-#include <type_traits>
-#include <utility>
 
 namespace ecs {
     // Add components generated from an initializer function to a range of entities. Will not be
@@ -22,12 +23,10 @@ namespace ecs {
     void add_component(entity_range const range, Callable&& func) {
         // Return type of 'func'
         using ComponentType = decltype(std::declval<Callable>()(entity_id{0}));
-        static_assert(!std::is_same_v<ComponentType, void>,
-                      "Initializer functions must return a component");
+        static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
 
         // Add it to the component pool
-        detail::component_pool<ComponentType>& pool =
-            detail::_context.get_component_pool<ComponentType>();
+        detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
         pool.add_init(range, std::forward<Callable>(func));
     }
 
@@ -95,8 +94,8 @@ namespace ecs {
     }
 
     // Returns the component from an entity, or nullptr if the entity is not found
-    template<typename T>
-    T* get_component(entity_id const id) requires(!detail::global<T>) {
+    template<detail::local T>
+    T* get_component(entity_id const id) {
         // Get the component pool
         detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
         return pool.find_component_data(id);
@@ -105,8 +104,8 @@ namespace ecs {
     // Returns the components from an entity range, or an empty span if the entities are not found
     // or does not containg the component.
     // The span might be invalidated after a call to 'ecs::commit_changes()'.
-    template<typename T>
-    std::span<T> get_components(entity_range const range) requires(!detail::global<T>) {
+    template<detail::local T>
+    std::span<T> get_components(entity_range const range) {
         if (!has_component<T>(range))
             return {};
 
@@ -173,17 +172,15 @@ namespace ecs {
     // Make a new system
     template<int Group = 0, detail::lambda UserUpdateFunc>
     auto& make_system(UserUpdateFunc update_func) {
-        return detail::_context
-            .create_system<Group, std::execution::sequenced_policy, UserUpdateFunc>(
-                update_func, &UserUpdateFunc::operator());
+        return detail::_context.create_system<Group, std::execution::sequenced_policy, UserUpdateFunc>(
+            update_func, &UserUpdateFunc::operator());
     }
 
     // Make a new system. It will process components in parallel.
     template<int Group = 0, detail::lambda UserUpdateFunc>
     auto& make_parallel_system(UserUpdateFunc update_func) {
-        return detail::_context
-            .create_system<Group, std::execution::parallel_unsequenced_policy, UserUpdateFunc>(
-                update_func, &UserUpdateFunc::operator());
+        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UserUpdateFunc>(
+            update_func, &UserUpdateFunc::operator());
     }
 } // namespace ecs
 
