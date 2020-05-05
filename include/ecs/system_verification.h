@@ -131,13 +131,16 @@ namespace ecs::detail {
         lambda_to_system_bridge(&T::operator());
     };
 
-    template<class R, class FirstArg, class... Args>
+    template<class R, class T, class U>
     concept checked_sorter = requires {
         // sorter must return boolean
         requires std::is_same_v<R, bool>;
 
         // Arguments must be of same type
-        requires(std::is_same_v<std::remove_cvref_t<FirstArg>, std::remove_cvref_t<Args>> && ...);
+        requires std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
+
+        // Most obey strict ordering
+        requires std::totally_ordered_with<T, U>;
     };
 
     // A small bridge to allow the Lambda concept to activate the sorter concept
