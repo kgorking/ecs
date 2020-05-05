@@ -226,21 +226,21 @@ There are a few requirements and restrictions put on the lambdas:
 
 
 ## Sorting
-An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed, and must adhere to the [Compare](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
+An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
 // sort ascending
-auto& sys_asc = ecs::make_system(
+ecs::make_system(
     [](int const&) { /* ... */ },
     std::less<int>());
 
 // sort descending
-auto& sys_dec = ecs::make_system(
+ecs::make_system(
     [](int const&) { /* ... */ },
     std::greater<int>());
 
 // sort length
-auto& sys_pos = ecs::make_system(
+ecs::make_system(
     [](position& pos, some_component const&) { /* ... */ },
     [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
 ```
@@ -249,7 +249,7 @@ This code will ensure that all the integers passed to `sys_dec` will arrive in d
 
 Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
 
-**Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might affect cache efficiency. Only use it if necessary.
+**Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
 
 
 ## Parallel systems
