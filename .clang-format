@@ -10,8 +10,10 @@ NamespaceIndentation: All
 SpaceAfterTemplateKeyword: false
 
 AlwaysBreakTemplateDeclarations: true
-BreakConstructorInitializersBeforeComma: true
+AlignAfterOpenBracket: DontAlign
+BreakConstructorInitializers: BeforeComma
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
+
 AllowShortBlocksOnASingleLine: true
 AllowShortFunctionsOnASingleLine: true
 AllowShortIfStatementsOnASingleLine: false

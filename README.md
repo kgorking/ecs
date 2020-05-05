@@ -56,6 +56,7 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
     * [`global`](#global)
 * [Systems](#Systems)
   * [Current entity](#Current-entity)
+  * [Sorting](#Sorting)
   * [Requirements and rules](#Requirements-and-rules)
   * [Parallel systems](#Parallel-systems)
   * [Automatic concurrency](#Automatic-concurrency)
@@ -222,6 +223,33 @@ There are a few requirements and restrictions put on the lambdas:
 * **No return values.** Systems are not permitted to have return values, because it logically does not make any sense. Systems with return types other than `void` will result in a compile time error.
 * **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
 * **No duplicate components.** Having the same component more than once in the parameter list is likely an error on the programmers side, so a compile time error will be raised. 
+
+
+## Sorting
+An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed, and must adhere to the [Compare](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
+
+```cpp
+// sort ascending
+auto& sys_asc = ecs::make_system(
+    [](int const&) { /* ... */ },
+    std::less<int>());
+
+// sort descending
+auto& sys_dec = ecs::make_system(
+    [](int const&) { /* ... */ },
+    std::greater<int>());
+
+// sort length
+auto& sys_pos = ecs::make_system(
+    [](position& pos, some_component const&) { /* ... */ },
+    [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
+```
+
+This code will ensure that all the integers passed to `sys_dec` will arrive in descending order, from highest to lowest. Integers passed to `sys_asc` will arrive in ascending order. Positions passed to `sys_pos` will be sorted wrt to their length.
+
+Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
+
+**Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might affect cache efficiency. Only use it if necessary.
 
 
 ## Parallel systems

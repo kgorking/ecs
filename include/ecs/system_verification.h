@@ -43,8 +43,8 @@ namespace ecs::detail {
     concept unique = unique_types_v<T...>;
 
     template<class T>
-    concept entity_type = std::is_same_v<std::remove_cvref_t<T>, entity_id> ||
-                          std::is_same_v<std::remove_cvref_t<T>, entity>;
+    concept entity_type =
+        std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
 
     // Implement the requirements for immutable components
     template<typename C>
@@ -129,6 +129,36 @@ namespace ecs::detail {
 
         // Check all the system requirements
         lambda_to_system_bridge(&T::operator());
+    };
+
+    template<class R, class T, class U>
+    concept checked_sorter = requires {
+        // sorter must return boolean
+        requires std::is_same_v<R, bool>;
+
+        // Arguments must be of same type
+        requires std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
+
+        // Most obey strict ordering
+        requires std::totally_ordered_with<T, U>;
+    };
+
+    // A small bridge to allow the Lambda concept to activate the sorter concept
+    template<class R, class C, class... Args>
+    requires(sizeof...(Args) == 2 && checked_sorter<R, Args...>) struct lambda_to_sorter_bridge {
+        lambda_to_sorter_bridge(R (C::*)(Args...)){};
+        lambda_to_sorter_bridge(R (C::*)(Args...) const){};
+        lambda_to_sorter_bridge(R (C::*)(Args...) noexcept){};
+        lambda_to_sorter_bridge(R (C::*)(Args...) const noexcept){};
+    };
+
+    template<typename T>
+    concept sorter = requires {
+        // Must have the call operator
+        &T::operator();
+
+        // Check all the sorter requirements
+        lambda_to_sorter_bridge(&T::operator());
     };
 } // namespace ecs::detail
 

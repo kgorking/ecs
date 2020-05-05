@@ -99,41 +99,50 @@ namespace ecs::detail {
             return *static_cast<component_pool<T>*>(pool);
         }
 
-        // Const lambdas
-        template<int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R,
-                 typename C, typename... Args>
-        auto& create_system(UserUpdateFunc update_func, R (C::*)(Args...) const) {
-            return create_system<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
+        // Const lambda
+        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename R, typename C, typename... Args>
+        auto& create_system(UpdateFunc update_func, R (C::*)(Args...) const) {
+            return create_system<Group, ExecutionPolicy, UpdateFunc, nullptr_t, Args...>(update_func, nullptr);
         }
 
-        // Mutable lambdas
-        template<int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename R,
-                 typename C, typename... Args>
-        auto& create_system(UserUpdateFunc update_func, R (C::*)(Args...)) {
-            return create_system<Group, ExecutionPolicy, UserUpdateFunc, Args...>(update_func);
+        // Const lambda with sort
+        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename SortFunc, typename R, typename C,
+            typename... Args>
+        auto& create_system(UpdateFunc update_func, SortFunc sort_func, R (C::*)(Args...) const) {
+            return create_system<Group, ExecutionPolicy, UpdateFunc, SortFunc, Args...>(update_func, sort_func);
+        }
+
+        // Mutable lambda
+        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename R, typename C, typename... Args>
+        auto& create_system(UpdateFunc update_func, R (C::*)(Args...)) {
+            return create_system<Group, ExecutionPolicy, UpdateFunc, nullptr_t, Args...>(update_func, nullptr);
+        }
+
+        // Mutable lambda with sort
+        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename SortFunc, typename R, typename C,
+            typename... Args>
+        auto& create_system(UpdateFunc update_func, SortFunc sort_func, R (C::*)(Args...)) {
+            return create_system<Group, ExecutionPolicy, UpdateFunc, SortFunc, Args...>(update_func, sort_func);
         }
 
     private:
-        template<int Group, typename ExecutionPolicy, typename UserUpdateFunc, typename FirstArg,
-                 typename... Args>
-        auto& create_system(UserUpdateFunc update_func) {
+        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename SortFunc, typename FirstArg,
+            typename... Args>
+        auto& create_system(UpdateFunc update_func, SortFunc sort_func) {
             // Set up the implementation
-            using typed_system = system<Group, ExecutionPolicy, UserUpdateFunc, FirstArg, Args...>;
+            using typed_system = system<Group, ExecutionPolicy, UpdateFunc, SortFunc, FirstArg, Args...>;
 
             // Is the first argument an entity of sorts?
-            bool constexpr has_entity =
-                std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
+            bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
 
             // Create the system instance
             std::unique_ptr<system_base> sys;
             if constexpr (has_entity) {
-                sys = std::make_unique<typed_system>(
-                    update_func,
+                sys = std::make_unique<typed_system>(update_func, sort_func,
                     /* dont add the entity as a component pool */
                     &get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
             } else {
-                sys = std::make_unique<typed_system>(
-                    update_func,
+                sys = std::make_unique<typed_system>(update_func, sort_func,
                     &get_component_pool<std::remove_cv_t<std::remove_reference_t<FirstArg>>>(),
                     &get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
             }
@@ -143,6 +152,7 @@ namespace ecs::detail {
             system_base* ptr_system = systems.back().get();
             Ensures(ptr_system != nullptr);
 
+            // TODO no longer needed
             sort_systems_by_group();
 
             sched.insert(ptr_system);
@@ -153,9 +163,8 @@ namespace ecs::detail {
         // Sorts the systems based on their group number.
         // The sort maintains ordering in the individual groups.
         void sort_systems_by_group() {
-            std::stable_sort(systems.begin(), systems.end(), [](auto const& l, auto const& r) {
-                return l->get_group() < r->get_group();
-            });
+            std::stable_sort(systems.begin(), systems.end(),
+                [](auto const& l, auto const& r) { return l->get_group() < r->get_group(); });
         }
 
         // Create a component pool for a new type
