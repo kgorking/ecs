@@ -73,7 +73,7 @@ Entities are the scaffolding on which you build your objects. There a three enti
 The management of entity id's is left to user.
 
 # Components
-Components hold the data, and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [std::copyable](https://en.cppreference.com/w/cpp/concepts/copyable). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
+Components hold the data, and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [CopyConstructible](https://en.cppreference.com/w/cpp/named_req/CopyConstructible). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
 
 You can add as many different components to an entity as you need; there is no upper limit. You can not add more than one of the same type.
 
