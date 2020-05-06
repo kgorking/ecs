@@ -40,7 +40,7 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 # Building
 * MSVC 16.6 will compile this library with no problems.
 * GCC might work, but it hasn't been tested extensively. Its implementation of the parallel algorithms also seem kind of brittle atm.
-* Clang does not work, because it is missing the `<concepts>` header yet.
+* Clang does not work, because it is missing the `<concepts>` header.
 
 # Table of Contents
 * [Entities](#Entities)
