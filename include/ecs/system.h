@@ -141,6 +141,15 @@ namespace ecs::detail {
             }
 
             if constexpr (has_sort_func) {
+                // Sort the arguments
+                using sort_type = sort_func_type<SortFunc>;
+                // if get_pool is_data_modified
+                std::sort(sorted_arguments.begin(), sorted_arguments.end(), [this](auto const& l, auto const& r) {
+                    sort_type* t_l = std::get<sort_type*>(l);
+                    sort_type* t_r = std::get<sort_type*>(r);
+                    return sort_func(*t_l, *t_r);
+                });
+
                 std::for_each(
                     ExecutionPolicy{}, sorted_arguments.begin(), sorted_arguments.end(), [this](auto packed_arg) {
                         if constexpr (is_first_arg_entity) {
@@ -415,12 +424,12 @@ namespace ecs::detail {
                 }
 
                 // Sort the arguments
-                using sort_type = sort_func_type<SortFunc>;
+                /*using sort_type = sort_func_type<SortFunc>;
                 std::sort(sorted_arguments.begin(), sorted_arguments.end(), [this](auto const& l, auto const& r) {
                     sort_type* t_l = std::get<sort_type*>(l);
                     sort_type* t_r = std::get<sort_type*>(r);
                     return sort_func(*t_l, *t_r);
-                });
+                });*/
             }
         }
 
