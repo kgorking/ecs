@@ -98,7 +98,7 @@ namespace ecs::detail {
         requires std::is_same_v<R, void>;
 
         // no pointers allowed
-        requires !std::is_pointer_v<FirstArg> && (!std::is_pointer_v<Args> && ...);
+        // requires !std::is_pointer_v<FirstArg> && (!std::is_pointer_v<Args> && ...);
 
         // systems must take at least one component argument
         requires(entity_type<FirstArg> ? sizeof...(Args) >= 1 : true);

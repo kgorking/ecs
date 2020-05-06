@@ -70,6 +70,10 @@ namespace ecs::detail {
         // Calculate the number of components
         static constexpr size_t num_components = sizeof...(Components) + (is_first_arg_entity ? 0 : 1);
 
+        // Calculate the number of filters
+        static constexpr size_t num_filters = (std::is_pointer_v<FirstComponent> + ... + std::is_pointer_v<Components>);
+        static_assert(num_filters < num_components, "systems can not consist of just filters");
+
         // Component names
         static constexpr std::array<std::string_view, num_arguments> argument_names =
             std::to_array({get_type_name<FirstComponent>(), get_type_name<Components>()...});
@@ -84,22 +88,24 @@ namespace ecs::detail {
 
         // Alias for stored pools
         template<class T>
-        using pool = component_pool<rcv<T>>* const;
+        using pool = component_pool<std::remove_pointer_t<rcv<T>>>* const;
 
         // Tuple holding all pools used by this system
         using tup_pools = std::conditional_t<is_first_arg_entity, std::tuple<pool<Components>...>,
             std::tuple<pool<FirstComponent>, pool<Components>...>>;
 
-        // Holds an entity range and a pointer to the first component from each pool in that range
-        using range_arguments = std::conditional_t<is_first_arg_entity, std::tuple<entity_range, rcv<Components>*...>,
-            std::tuple<entity_range, rcv<FirstComponent>*, rcv<Components>*...>>;
+        // Holds a pointer to the first component from each pool
+        using argument_tuple = std::conditional_t<is_first_arg_entity, std::tuple<rcv<Components>*...>,
+            std::tuple<rcv<FirstComponent>*, rcv<Components>*...>>;
+
+        // Holds an entity range and its arguments
+        using range_argument = decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, argument_tuple{}));
 
         // Holds a single entity id and its arguments
-        using packed_argument = std::conditional_t<is_first_arg_entity, std::tuple<entity_id, rcv<Components>*...>,
-            std::tuple<entity_id, rcv<FirstComponent>*, rcv<Components>*...>>;
+        using packed_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple{}));
 
         // Holds the arguments for a range of entities
-        std::vector<range_arguments> arguments;
+        std::vector<range_argument> arguments;
 
         // A tuple of the fully typed component pools used by this system
         tup_pools const pools;
@@ -146,12 +152,14 @@ namespace ecs::detail {
                     });
             } else {
                 // Small helper function
-                auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) {
+                auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) -> decltype(auto) {
                     using T = std::remove_cvref_t<decltype(*ptr)>;
-                    if constexpr (detail::unbound<T>) {
-                        return ptr;
+                    if constexpr (std::is_pointer_v<T>) {
+                        return nullptr;
+                    } else if constexpr (detail::unbound<T>) {
+                        return *ptr;
                     } else {
-                        return ptr + offset;
+                        return *(ptr + offset);
                     }
                 };
 
@@ -162,10 +170,10 @@ namespace ecs::detail {
                         [extract_arg, this, &argument, first_id = range.first()](auto ent) {
                             auto const offset = ent - first_id;
                             if constexpr (is_first_arg_entity) {
-                                update_func(ent, *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                                update_func(ent, extract_arg(std::get<rcv<Components>*>(argument), offset)...);
                             } else {
-                                update_func(*extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
-                                    *extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                                update_func(extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
+                                    extract_arg(std::get<rcv<Components>*>(argument), offset)...);
                             }
                         });
                 }
@@ -268,71 +276,135 @@ namespace ecs::detail {
             if constexpr (has_sort_func) {
                 // Check that the system has the type that sort_func wants to sort on
                 static_assert(static_has_component(get_type_hash<sort_func_type<SortFunc>>()),
-                    "sorting function requires a type that the system does not have");
+                    "sorting function operates on a type that the system does not have");
             }
-
-            entity_range_view const entities = std::get<0>(pools)->get_entities();
 
             if constexpr (num_components == 1) {
                 // Build the arguments
+                entity_range_view const entities = std::get<0>(pools)->get_entities();
                 build_args(entities);
             } else {
                 // When there are more than one component required for a system,
                 // find the intersection of the sets of entities that have those components
 
-                auto constexpr do_intersection = [](entity_range_view initial, entity_range_view first, auto... rest) {
-                    // Intersects two ranges of entities
-                    auto constexpr intersector = [](entity_range_view view_a, entity_range_view view_b) {
-                        std::vector<entity_range> result;
+                // Intersects two ranges of entities
+                auto const intersect_ranges = [](entity_range_view view_a, entity_range_view view_b) {
+                    std::vector<entity_range> result;
 
-                        if (view_a.empty() || view_b.empty()) {
-                            return result;
-                        }
-
-                        auto it_a = view_a.cbegin();
-                        auto it_b = view_b.cbegin();
-
-                        while (it_a != view_a.cend() && it_b != view_b.cend()) {
-                            if (it_a->overlaps(*it_b)) {
-                                result.push_back(entity_range::intersect(*it_a, *it_b));
-                            }
-
-                            if (it_a->last() < it_b->last()) { // range a is inside range b, move to
-                                                               // the next range in a
-                                ++it_a;
-                            } else if (it_b->last() < it_a->last()) { // range b is inside range a,
-                                                                      // move to the next range in b
-                                ++it_b;
-                            } else { // ranges are equal, move to next ones
-                                ++it_a;
-                                ++it_b;
-                            }
-                        }
-
+                    if (view_a.empty() || view_b.empty()) {
                         return result;
-                    };
+                    }
 
-                    std::vector<entity_range> intersect = intersector(initial, first);
-                    ((intersect = intersector(intersect, rest)), ...);
-                    return intersect;
+                    auto it_a = view_a.cbegin();
+                    auto it_b = view_b.cbegin();
+
+                    while (it_a != view_a.cend() && it_b != view_b.cend()) {
+                        if (it_a->overlaps(*it_b)) {
+                            result.push_back(entity_range::intersect(*it_a, *it_b));
+                        }
+
+                        if (it_a->last() < it_b->last()) { // range a is inside range b, move to
+                                                           // the next range in a
+                            ++it_a;
+                        } else if (it_b->last() < it_a->last()) { // range b is inside range a,
+                                                                  // move to the next range in b
+                            ++it_b;
+                        } else { // ranges are equal, move to next ones
+                            ++it_a;
+                            ++it_b;
+                        }
+                    }
+
+                    return result;
                 };
 
+                auto const difference_ranges = [](entity_range_view view_a, entity_range_view view_b) {
+                    std::vector<entity_range> result;
+
+                    if (view_a.empty() || view_b.empty()) {
+                        return result;
+                    }
+
+                    auto it_a = view_a.cbegin();
+                    auto it_b = view_b.cbegin();
+
+                    while (it_a != view_a.cend() && it_b != view_b.cend()) {
+                        if (it_a->overlaps(*it_b)) {
+                            auto res = entity_range::remove(*it_a, *it_b);
+                            result.push_back(res.first);
+                            if (res.second.has_value())
+                                result.push_back(res.second.value());
+                        }
+
+                        if (it_a->last() < it_b->last()) { // range a is inside range b, move to
+                                                           // the next range in a
+                            ++it_a;
+                        } else if (it_b->last() < it_a->last()) { // range b is inside range a,
+                                                                  // move to the next range in b
+                            ++it_b;
+                        } else { // ranges are equal, move to next ones
+                            ++it_a;
+                            ++it_b;
+                        }
+                    }
+
+                    return result;
+                };
+
+                // Intersect the entity ranges
+                // auto const intersect = do_intersection(entities, get_pool<rcv<Components>>().get_entities()...);
+
+                // The intersector
+                std::optional<std::vector<entity_range>> ranges;
+                auto const intersect = [&, this](auto arg) { // arg = rcv<Components>*
+                    using type = std::remove_pointer_t<decltype(arg)>;
+                    if constexpr (std::is_pointer_v<type>) {
+                        // Skip pointers
+                        return;
+                    } else {
+                        auto const& type_pool = get_pool<type>();
+                        // auto& type_pool = *std::get<pool<type>>(pools);
+
+                        if (ranges.has_value()) {
+                            ranges = intersect_ranges(*ranges, type_pool.get_entities());
+                        } else {
+                            auto span = type_pool.get_entities();
+                            ranges.emplace(span.begin(), span.end());
+                        }
+                    }
+                };
+
+                auto const difference = [&, this](auto arg) { // arg = rcv<Components>*
+                    using type = std::remove_pointer_t<decltype(arg)>;
+                    if constexpr (std::is_pointer_v<type>) {
+                        auto& type_pool = get_pool<std::remove_pointer_t<type>>();
+                        ranges = difference_ranges(*ranges, type_pool.get_entities());
+                    }
+                };
+
+                // Find the intersections and differences
+                auto dummy = argument_tuple{};
+                std::apply([&intersect](auto... args) { (..., intersect(args)); }, dummy);
+                std::apply([&difference](auto... args) { (..., difference(args)); }, dummy);
+
                 // Build the arguments
-                auto const intersect = do_intersection(entities, get_pool<rcv<Components>>().get_entities()...);
-                build_args(intersect);
+                if (ranges.has_value())
+                    build_args(ranges.value());
+                else
+                    arguments.clear();
             }
 
             // Unpack the arguments and sort them
             if constexpr (has_sort_func) {
                 // Count the total number of arguments
-                size_t args = 0;
-                for (auto const& range : entities) { args += range.count(); }
+                size_t arg_count = 0;
+                for (auto const& args : arguments) { arg_count += std::get<0>(args).count(); }
 
                 // Unpack the arguments
                 sorted_arguments.clear();
-                sorted_arguments.reserve(args);
-                for (entity_range const& range : entities) {
-                    for (entity_id const& entity : range) {
+                sorted_arguments.reserve(arg_count);
+                for (auto const& args : arguments) {
+                    for (entity_id const& entity : std::get<0>(args)) {
                         if constexpr (is_first_arg_entity) {
                             sorted_arguments.emplace_back(entity, get_component<rcv<Components>>(entity)...);
                         } else {
@@ -373,9 +445,15 @@ namespace ecs::detail {
 
         template<typename Component>
         [[nodiscard]] Component* get_component(entity_id const entity) {
-            return get_pool<Component>().find_component_data(entity);
+            if constexpr (std::is_pointer_v<Component>) {
+                static_cast<void>(entity);
+                static Component* dummy = nullptr;
+                return dummy;
+            } else {
+                return get_pool<Component>().find_component_data(entity);
+            }
         }
-    };
+    }; // namespace ecs::detail
 } // namespace ecs::detail
 
 #endif // !__SYSTEM
