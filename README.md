@@ -258,7 +258,7 @@ Components can easily be filtered by marking the component you wish to filter as
 ```cpp
 ecs::make_system([](int&, float*) { /* ... */ });
 ```
-This system will run on all entities that has an `int` component, and no `float` component.
+This system will run on all entities that has an `int` component and no `float` component.
 
 More than one filter can be present; there is no limit.
 

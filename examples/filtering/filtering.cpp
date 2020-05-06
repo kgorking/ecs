@@ -7,39 +7,44 @@ int main() {
     ecs::add_components({2, 3}, short());
     ecs::commit_changes();
 
-    auto& s_ints            = ecs::make_system([](ecs::entity_id id, int&          ) { std::cout << id << ' '; });
-    auto& s_floats          = ecs::make_system([](ecs::entity_id id, float&        ) { std::cout << id << ' '; });
-    auto& s_shorts          = ecs::make_system([](ecs::entity_id id, short&        ) { std::cout << id << ' '; });
-    auto& s_ints_no_floats  = ecs::make_system([](ecs::entity_id id, int&,   float*) { std::cout << id << ' '; });
-    auto& s_floats_no_ints  = ecs::make_system([](ecs::entity_id id, int*,   float&) { std::cout << id << ' '; });
-    auto& s_ints_and_floats = ecs::make_system([](ecs::entity_id id, int&,   float&) { std::cout << id << ' '; });
-    auto& s_ints_no_f_shorts = ecs::make_system([](ecs::entity_id id, int&, float*, short*) { std::cout << id << ' '; });
+    auto& i        = ecs::make_system([](ecs::entity_id id, int&          ) { std::cout << id << ' '; });
+    auto& f        = ecs::make_system([](ecs::entity_id id, float&        ) { std::cout << id << ' '; });
+    auto& s        = ecs::make_system([](ecs::entity_id id, short&        ) { std::cout << id << ' '; });
+    auto& i_no_f   = ecs::make_system([](ecs::entity_id id, int&,   float*) { std::cout << id << ' '; });
+    auto& f_no_i   = ecs::make_system([](ecs::entity_id id, int*,   float&) { std::cout << id << ' '; });
+    auto& i_f      = ecs::make_system([](ecs::entity_id id, int&,   float&) { std::cout << id << ' '; });
+    auto& i_no_s   = ecs::make_system([](ecs::entity_id id, int&,   short*) { std::cout << id << ' '; });
+    auto& i_no_f_s = ecs::make_system([](ecs::entity_id id, int&, float*, short*) { std::cout << id << ' '; });
 
     std::cout << "ints:\n";
-    s_ints.update();
+    i.update();
     std::cout << "\n\n";
 
     std::cout << "floats:\n";
-    s_floats.update();
+    f.update();
     std::cout << "\n\n";
 
     std::cout << "shorts:\n";
-    s_shorts.update();
+    s.update();
     std::cout << "\n\n";
 
     std::cout << "ints - floats:\n";
-    s_ints_no_floats.update();
+    i_no_f.update();
     std::cout << "\n\n";
 
     std::cout << "floats - ints:\n";
-    s_floats_no_ints.update();
+    f_no_i.update();
     std::cout << "\n\n";
 
     std::cout << "ints & floats:\n";
-    s_ints_and_floats.update();
+    i_f.update();
+    std::cout << "\n\n";
+
+    std::cout << "ints - shorts:\n";
+    i_no_s.update();
     std::cout << "\n\n";
 
     std::cout << "ints - floats - shorts:\n";
-    s_ints_no_f_shorts.update();
-    std::cout << '\n';
+    i_no_f_s.update();
+    std::cout << "\n\n";
 }
