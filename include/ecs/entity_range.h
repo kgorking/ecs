@@ -113,10 +113,9 @@ namespace ecs {
 
         // Removes a range from another range.
         // If the range was split by the remove, it returns two ranges.
-        // Pre: 'other' must be contained in 'range', but must not be equal to it
+        // Pre: 'other' must overlap 'range', but must not be equal to it
         [[nodiscard]] constexpr static std::pair<entity_range, std::optional<entity_range>>
         remove(entity_range const& range, entity_range const& other) {
-            Expects(range.contains(other));
             Expects(!range.equals(other));
 
             // Remove from the front
@@ -129,9 +128,18 @@ namespace ecs {
                 return {entity_range{range.first(), other.first() - 1}, std::nullopt};
             }
 
-            // Remove from the middle
-            return {entity_range{range.first(), other.first() - 1},
-                    entity_range{other.last() + 1, range.last()}};
+            if (range.contains(other)) {
+                // Remove from the middle
+                return {entity_range{range.first(), other.first() - 1}, entity_range{other.last() + 1, range.last()}};
+            } else {
+                // Remove overlaps
+                Expects(range.overlaps(other));
+
+                if (range.first() < other.first())
+                    return {entity_range{range.first(), other.first() - 1}, std::nullopt};
+                else
+                    return {entity_range{other.last() + 1, range.last()}, std::nullopt};
+            }
         }
 
         // Combines two ranges into one
