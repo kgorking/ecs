@@ -74,9 +74,11 @@ namespace ecs::detail {
 
         // Returns a reference to a components pool.
         // If a pool doesn't exist, one will be created.
-        template<typename T, typename NakedType = std::remove_pointer_t<std::remove_cvref_t<T>>>
-        component_pool<NakedType>& get_component_pool() {
+        template<typename T>
+        auto& get_component_pool() {
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
+
+            using NakedType = std::remove_pointer_t<std::remove_cvref_t<T>>;
 
             constexpr auto hash = get_type_hash<NakedType>();
             auto pool = cache.get_or(hash, [this](type_hash hash) {
