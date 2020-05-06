@@ -62,7 +62,7 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
     * [`global`](#global)
 * [Systems](#Systems)
   * [Requirements and rules](#Requirements-and-rules)
-  * [Current entity](#Current-entity)
+  * [The current entity](#The-current-entity)
   * [Sorting](#Sorting)
   * [Filtering](#Filtering)
   * [Parallel systems](#Parallel-systems)
