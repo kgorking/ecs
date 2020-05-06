@@ -55,9 +55,10 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
     * [`immutable`](#immutable)
     * [`global`](#global)
 * [Systems](#Systems)
+  * [Requirements and rules](#Requirements-and-rules)
   * [Current entity](#Current-entity)
   * [Sorting](#Sorting)
-  * [Requirements and rules](#Requirements-and-rules)
+  * [Filtering](#Filtering)
   * [Parallel systems](#Parallel-systems)
   * [Automatic concurrency](#Automatic-concurrency)
   * [Groups](#Groups)
@@ -202,9 +203,17 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 # Systems
-Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the functions `ecs::make_(parallel_)system`. Systems can operate on as many components as you need; there is no limit. Do keep in mind that each component creates a dependency on previous systems, and can hinder concurrency performance.
+Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the functions `ecs::make_(parallel_)system`. Systems can operate on as many components as you need; there is no limit.
 
-Accessing components from systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
+Accessing components in systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
+
+
+## Requirements and rules
+There are a few requirements and restrictions put on the lambdas:
+
+* **No return values.** Systems are not permitted to have return values, because it logically does not make any sense. Systems with return types other than `void` will result in a compile time error.
+* **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
+* **No duplicate components.** Having the same component more than once in the parameter list is likely an error on the programmers side, so a compile time error will be raised. 
 
 
 ## The current entity
@@ -217,16 +226,8 @@ ecs::make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Requirements and rules
-There are a few requirements and restrictions put on the lambdas:
-
-* **No return values.** Systems are not permitted to have return values, because it logically does not make any sense. Systems with return types other than `void` will result in a compile time error.
-* **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
-* **No duplicate components.** Having the same component more than once in the parameter list is likely an error on the programmers side, so a compile time error will be raised. 
-
-
 ## Sorting
-An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
+An additional function object can be passed along to `ecs::make_(parallel_)system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
 // sort ascending
@@ -250,6 +251,18 @@ This code will ensure that all the integers passed to `sys_dec` will arrive in d
 Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
 
 **Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
+
+
+## Filtering
+Components can easily be filtered by marking the component you wish to filter as a pointer argument:
+```cpp
+ecs::make_system([](int&, float*) { /* ... */ });
+```
+This system will run on all entities that has an `int` component, and no `float` component.
+
+More than one filter can be present; there is no limit.
+
+**Note** `nullptr` is always passed to filtered components, so don't try to read from them.
 
 
 ## Parallel systems

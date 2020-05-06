@@ -74,11 +74,11 @@ namespace ecs::detail {
 
         // Returns a reference to a components pool.
         // If a pool doesn't exist, one will be created.
-        template<typename T>
-        component_pool<T>& get_component_pool() {
+        template<typename T, typename NakedType = std::remove_pointer_t<std::remove_cvref_t<T>>>
+        component_pool<NakedType>& get_component_pool() {
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
-            constexpr auto hash = get_type_hash<T>();
+            constexpr auto hash = get_type_hash<NakedType>();
             auto pool = cache.get_or(hash, [this](type_hash hash) {
                 std::shared_lock lock(mutex);
 
@@ -89,14 +89,14 @@ namespace ecs::detail {
                     // create_component_pool takes a unique lock, so unlock the
                     // shared lock during its call
                     lock.unlock();
-                    return create_component_pool<T>();
+                    return create_component_pool<NakedType>();
                 }
                 else {
                     return it->second;
                 }
             });
 
-            return *static_cast<component_pool<T>*>(pool);
+            return *static_cast<component_pool<NakedType>*>(pool);
         }
 
         // Const lambda
@@ -138,13 +138,10 @@ namespace ecs::detail {
             // Create the system instance
             std::unique_ptr<system_base> sys;
             if constexpr (has_entity) {
-                sys = std::make_unique<typed_system>(update_func, sort_func,
-                    /* dont add the entity as a component pool */
-                    &get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
+                sys = std::make_unique<typed_system>(update_func, sort_func, &get_component_pool<Args>()...);
             } else {
-                sys = std::make_unique<typed_system>(update_func, sort_func,
-                    &get_component_pool<std::remove_cv_t<std::remove_reference_t<FirstArg>>>(),
-                    &get_component_pool<std::remove_cv_t<std::remove_reference_t<Args>>>()...);
+                sys = std::make_unique<typed_system>(
+                    update_func, sort_func, &get_component_pool<FirstArg>(), &get_component_pool<Args>()...);
             }
 
             std::unique_lock lock(mutex);
