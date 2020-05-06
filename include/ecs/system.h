@@ -152,12 +152,11 @@ namespace ecs::detail {
                     });
             } else {
                 // Small helper function
-                auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) -> decltype(auto){
+                auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) -> decltype(auto) {
                     using T = std::remove_cvref_t<decltype(*ptr)>;
                     if constexpr (std::is_pointer_v<T>) {
                         return nullptr;
-                    }
-                    else if constexpr (detail::unbound<T>) {
+                    } else if constexpr (detail::unbound<T>) {
                         return *ptr;
                     } else {
                         return *(ptr + offset);
@@ -281,11 +280,9 @@ namespace ecs::detail {
             }
 
             if constexpr (num_components == 1) {
-                if constexpr (!std::is_pointer_v<std::remove_pointer_t<std::tuple_element_t<0, argument_tuple>>>) {
-                    // Build the arguments
-                    entity_range_view const entities = std::get<0>(pools)->get_entities();
-                    build_args(entities);
-                }
+                // Build the arguments
+                entity_range_view const entities = std::get<0>(pools)->get_entities();
+                build_args(entities);
             } else {
                 // When there are more than one component required for a system,
                 // find the intersection of the sets of entities that have those components
