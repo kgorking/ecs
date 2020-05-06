@@ -19,8 +19,7 @@ struct greeting {
     char const* msg;
 };
 
-int main()
-{
+int main() {
     // The system
     ecs::make_system([](greeting const& g) {
         std::cout << g.msg << ' ';
