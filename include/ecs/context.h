@@ -102,37 +102,37 @@ namespace ecs::detail {
         }
 
         // Const lambda
-        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename R, typename C, typename... Args>
-        auto& create_system(UpdateFunc update_func, R (C::*)(Args...) const) {
-            return create_system<Group, ExecutionPolicy, UpdateFunc, nullptr_t, Args...>(update_func, nullptr);
+        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename... Args>
+        auto& create_system(UpdateFn update_func, R (C::*)(Args...) const) {
+            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, Args...>(update_func, nullptr);
         }
 
         // Const lambda with sort
-        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename SortFunc, typename R, typename C,
+        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
             typename... Args>
-        auto& create_system(UpdateFunc update_func, SortFunc sort_func, R (C::*)(Args...) const) {
-            return create_system<Group, ExecutionPolicy, UpdateFunc, SortFunc, Args...>(update_func, sort_func);
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(Args...) const) {
+            return create_system<Group, ExePolicy, UpdateFn, SortFn, Args...>(update_func, sort_func);
         }
 
         // Mutable lambda
-        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename R, typename C, typename... Args>
-        auto& create_system(UpdateFunc update_func, R (C::*)(Args...)) {
-            return create_system<Group, ExecutionPolicy, UpdateFunc, nullptr_t, Args...>(update_func, nullptr);
+        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename... Args>
+        auto& create_system(UpdateFn update_func, R (C::*)(Args...)) {
+            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, Args...>(update_func, nullptr);
         }
 
         // Mutable lambda with sort
-        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename SortFunc, typename R, typename C,
+        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
             typename... Args>
-        auto& create_system(UpdateFunc update_func, SortFunc sort_func, R (C::*)(Args...)) {
-            return create_system<Group, ExecutionPolicy, UpdateFunc, SortFunc, Args...>(update_func, sort_func);
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(Args...)) {
+            return create_system<Group, ExePolicy, UpdateFn, SortFn, Args...>(update_func, sort_func);
         }
 
     private:
-        template<int Group, typename ExecutionPolicy, typename UpdateFunc, typename SortFunc, typename FirstArg,
+        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename FirstArg,
             typename... Args>
-        auto& create_system(UpdateFunc update_func, SortFunc sort_func) {
+        auto& create_system(UpdateFn update_func, SortFn sort_func) {
             // Set up the implementation
-            using typed_system = system<Group, ExecutionPolicy, UpdateFunc, SortFunc, FirstArg, Args...>;
+            using typed_system = system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>;
 
             // Is the first argument an entity of sorts?
             bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;

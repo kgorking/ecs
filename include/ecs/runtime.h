@@ -170,31 +170,31 @@ namespace ecs {
     }
 
     // Make a new system
-    template<int Group = 0, detail::lambda UpdateFunc>
-    auto& make_system(UpdateFunc update_func) {
-        return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFunc>(
-            update_func, &UpdateFunc::operator());
+    template<int Group = 0, detail::lambda UpdateFn>
+    auto& make_system(UpdateFn update_func) {
+        return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn>(
+            update_func, &UpdateFn::operator());
     }
 
     // Make a new system with a sort function attached
-    template<int Group = 0, detail::lambda UpdateFunc, detail::sorter SortFunc>
-    auto& make_system(UpdateFunc update_func, SortFunc sort_func) {
-        return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFunc, SortFunc>(
-            update_func, sort_func, &UpdateFunc::operator());
+    template<int Group = 0, detail::lambda UpdateFn, detail::sorter SortFn>
+    auto& make_system(UpdateFn update_func, SortFn sort_func) {
+        return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn, SortFn>(
+            update_func, sort_func, &UpdateFn::operator());
     }
 
     // Make a new system. It will process components in parallel.
-    template<int Group = 0, detail::lambda UpdateFunc>
-    auto& make_parallel_system(UpdateFunc update_func) {
-        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFunc>(
-            update_func, &UpdateFunc::operator());
+    template<int Group = 0, detail::lambda UpdateFn>
+    auto& make_parallel_system(UpdateFn update_func) {
+        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn>(
+            update_func, &UpdateFn::operator());
     }
 
     // Make a new system. It will process components in parallel.
-    template<int Group = 0, detail::lambda UpdateFunc, detail::sorter SortFunc>
-    auto& make_parallel_system(UpdateFunc update_func, SortFunc sort_func) {
-        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFunc, SortFunc>(
-            update_func, sort_func, &UpdateFunc::operator());
+    template<int Group = 0, detail::lambda UpdateFn, detail::sorter SortFn>
+    auto& make_parallel_system(UpdateFn update_func, SortFn sort_func) {
+        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn, SortFn>(
+            update_func, sort_func, &UpdateFn::operator());
     }
 } // namespace ecs
 

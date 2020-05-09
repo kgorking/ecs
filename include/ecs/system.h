@@ -41,20 +41,17 @@ namespace ecs::detail {
         }
     }
 
-    // clang-format off
     // Gets the type a sorting functions operates on
     template<class R, class C, class T1, class T2>
     struct get_sort_func_type_impl {
-        get_sort_func_type_impl(R (C::*)(T1, T2) const) { }
+        get_sort_func_type_impl(R (C::*)(T1, T2) const) {}
         using type = std::remove_cvref_t<T1>;
     };
-    template <class T>
-    using sort_func_type = typename decltype(get_sort_func_type_impl(&T::operator ()))::type;
-    // clang-format on
+    template<class F>
+    using sort_func_type = typename decltype(get_sort_func_type_impl(&F::operator()))::type;
 
     // The implementation of a system specialized on its components
-    template<int Group, class ExecutionPolicy, typename UpdateFunc, typename SortFunc, class FirstComponent,
-        class... Components>
+    template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     class system final : public system_base {
 
         template<typename T>
@@ -111,26 +108,26 @@ namespace ecs::detail {
         tup_pools const pools;
 
         // The user supplied system
-        UpdateFunc update_func;
+        UpdateFn update_func;
 
         // True if a valid sorting function is supplied
-        static constexpr bool has_sort_func = !std::is_same_v<std::nullptr_t, SortFunc>;
+        static constexpr bool has_sort_func = !std::is_same_v<std::nullptr_t, SortFn>;
 
         // The user supplied sorting function
-        SortFunc sort_func;
+        SortFn sort_func;
 
         // The vector of unrolled arguments, sorted using 'sort_func'
         std::vector<packed_argument> sorted_arguments;
 
     public:
         // Constructor for when the first argument to the system is _not_ an entity
-        system(UpdateFunc update_func, SortFunc sort_func, pool<FirstComponent> first_pool, pool<Components>... pools)
+        system(UpdateFn update_func, SortFn sort_func, pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}, update_func{update_func}, sort_func{sort_func} {
             build_args();
         }
 
         // Constructor for when the first argument to the system _is_ an entity
-        system(UpdateFunc update_func, SortFunc sort_func, pool<Components>... pools)
+        system(UpdateFn update_func, SortFn sort_func, pool<Components>... pools)
             : pools{pools...}, update_func{update_func}, sort_func{sort_func} {
             build_args();
         }
@@ -141,8 +138,9 @@ namespace ecs::detail {
             }
 
             if constexpr (has_sort_func) {
+                using sort_type = sort_func_type<SortFn>;
+
                 // Sort the arguments
-                using sort_type = sort_func_type<SortFunc>;
                 // if get_pool is_data_modified
                 std::sort(sorted_arguments.begin(), sorted_arguments.end(), [this](auto const& l, auto const& r) {
                     sort_type* t_l = std::get<sort_type*>(l);
@@ -150,15 +148,14 @@ namespace ecs::detail {
                     return sort_func(*t_l, *t_r);
                 });
 
-                std::for_each(
-                    ExecutionPolicy{}, sorted_arguments.begin(), sorted_arguments.end(), [this](auto packed_arg) {
-                        if constexpr (is_first_arg_entity) {
-                            update_func(std::get<0>(packed_arg), *std::get<rcv<Components>*>(packed_arg)...);
-                        } else {
-                            update_func(*std::get<rcv<FirstComponent>*>(packed_arg),
-                                *std::get<rcv<Components>*>(packed_arg)...);
-                        }
-                    });
+                std::for_each(ExePolicy{}, sorted_arguments.begin(), sorted_arguments.end(), [this](auto packed_arg) {
+                    if constexpr (is_first_arg_entity) {
+                        update_func(std::get<0>(packed_arg), *std::get<rcv<Components>*>(packed_arg)...);
+                    } else {
+                        update_func(
+                            *std::get<rcv<FirstComponent>*>(packed_arg), *std::get<rcv<Components>*>(packed_arg)...);
+                    }
+                });
             } else {
                 // Small helper function
                 auto const extract_arg = [](auto ptr, [[maybe_unused]] ptrdiff_t offset) -> decltype(auto) {
@@ -175,7 +172,7 @@ namespace ecs::detail {
                 // Call the system for all pairs of components that match the system signature
                 for (auto const& argument : arguments) {
                     auto const& range = std::get<entity_range>(argument);
-                    std::for_each(ExecutionPolicy{}, range.begin(), range.end(),
+                    std::for_each(ExePolicy{}, range.begin(), range.end(),
                         [extract_arg, this, &argument, first_id = range.first()](auto ent) {
                             auto const offset = ent - first_id;
                             if constexpr (is_first_arg_entity) {
@@ -284,7 +281,7 @@ namespace ecs::detail {
         void build_args() {
             if constexpr (has_sort_func) {
                 // Check that the system has the type that sort_func wants to sort on
-                static_assert(static_has_component(get_type_hash<sort_func_type<SortFunc>>()),
+                static_assert(static_has_component(get_type_hash<sort_func_type<SortFn>>()),
                     "sorting function operates on a type that the system does not have");
             }
 
