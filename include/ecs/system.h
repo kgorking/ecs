@@ -139,6 +139,7 @@ namespace ecs::detail {
 
             if constexpr (has_sort_func) {
                 using sort_type = sort_func_type<SortFn>;
+                static_assert(std::predicate<SortFn, sort_type, sort_type>);
 
                 // Sort the arguments
                 // if get_pool is_data_modified
