@@ -28,7 +28,11 @@ namespace ecs::detail {
     template<class T>
     constexpr type_hash get_type_hash() {
         constexpr type_hash prime = 0x100000001b3;
+#ifdef _MSC_VER
         constexpr std::string_view string = __FUNCDNAME__; // has full type info, but is not very readable
+#else
+        constexpr std::string_view string = __PRETTY_FUNCTION__ ;
+#endif
 
         type_hash hash = 0xcbf29ce484222325;
         for (auto const value : string) {
