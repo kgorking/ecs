@@ -54,9 +54,6 @@ namespace ecs::detail {
     template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     class system final : public system_base {
 
-        template<typename T>
-        using rcv = std::remove_cvref_t<T>;
-
         // Determines if the first component is an entity
         static constexpr bool is_first_arg_entity =
             std::is_same_v<FirstComponent, entity_id> || std::is_same_v<FirstComponent, entity>;
@@ -77,7 +74,7 @@ namespace ecs::detail {
 
         // Hashes of stripped types used by this system ('int' instead of 'int const&')
         static constexpr std::array<detail::type_hash, num_components> type_hashes =
-            get_type_hashes_array<is_first_arg_entity, rcv<FirstComponent>, rcv<Components>...>();
+            get_type_hashes_array<is_first_arg_entity, std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>();
 
         // Contains true if a type is read-only
         static constexpr std::array<bool, num_components> type_read_only =
@@ -85,15 +82,15 @@ namespace ecs::detail {
 
         // Alias for stored pools
         template<class T>
-        using pool = component_pool<std::remove_pointer_t<rcv<T>>>* const;
+        using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>* const;
 
         // Tuple holding all pools used by this system
         using tup_pools = std::conditional_t<is_first_arg_entity, std::tuple<pool<Components>...>,
             std::tuple<pool<FirstComponent>, pool<Components>...>>;
 
         // Holds a pointer to the first component from each pool
-        using argument_tuple = std::conditional_t<is_first_arg_entity, std::tuple<rcv<Components>*...>,
-            std::tuple<rcv<FirstComponent>*, rcv<Components>*...>>;
+        using argument_tuple = std::conditional_t<is_first_arg_entity, std::tuple<std::remove_cvref_t<Components>*...>,
+            std::tuple<std::remove_cvref_t<FirstComponent>*, std::remove_cvref_t<Components>*...>>;
 
         // Holds an entity range and its arguments
         using range_argument = decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, argument_tuple{}));
@@ -151,10 +148,10 @@ namespace ecs::detail {
 
                 std::for_each(ExePolicy{}, sorted_arguments.begin(), sorted_arguments.end(), [this](auto packed_arg) {
                     if constexpr (is_first_arg_entity) {
-                        update_func(std::get<0>(packed_arg), *std::get<rcv<Components>*>(packed_arg)...);
+                        update_func(std::get<0>(packed_arg), *std::get<std::remove_cvref_t<Components>*>(packed_arg)...);
                     } else {
                         update_func(
-                            *std::get<rcv<FirstComponent>*>(packed_arg), *std::get<rcv<Components>*>(packed_arg)...);
+                            *std::get<std::remove_cvref_t<FirstComponent>*>(packed_arg), *std::get<std::remove_cvref_t<Components>*>(packed_arg)...);
                     }
                 });
             } else {
@@ -177,10 +174,10 @@ namespace ecs::detail {
                         [extract_arg, this, &argument, first_id = range.first()](auto ent) {
                             auto const offset = ent - first_id;
                             if constexpr (is_first_arg_entity) {
-                                update_func(ent, extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                                update_func(ent, extract_arg(std::get<std::remove_cvref_t<Components>*>(argument), offset)...);
                             } else {
-                                update_func(extract_arg(std::get<rcv<FirstComponent>*>(argument), offset),
-                                    extract_arg(std::get<rcv<Components>*>(argument), offset)...);
+                                update_func(extract_arg(std::get<std::remove_cvref_t<FirstComponent>*>(argument), offset),
+                                    extract_arg(std::get<std::remove_cvref_t<Components>*>(argument), offset)...);
                             }
                         });
                 }
@@ -359,11 +356,11 @@ namespace ecs::detail {
                 };
 
                 // Intersect the entity ranges
-                // auto const intersect = do_intersection(entities, get_pool<rcv<Components>>().get_entities()...);
+                // auto const intersect = do_intersection(entities, get_pool<std::remove_cvref_t<Components>>().get_entities()...);
 
                 // The intersector
                 std::optional<std::vector<entity_range>> ranges;
-                auto const intersect = [&, this](auto arg) { // arg = rcv<Components>*
+                auto const intersect = [&, this](auto arg) { // arg = std::remove_cvref_t<Components>*
                     using type = std::remove_pointer_t<decltype(arg)>;
                     if constexpr (std::is_pointer_v<type>) {
                         // Skip pointers
@@ -381,7 +378,7 @@ namespace ecs::detail {
                     }
                 };
 
-                auto const difference = [&, this](auto arg) { // arg = rcv<Components>*
+                auto const difference = [&, this](auto arg) { // arg = std::remove_cvref_t<Components>*
                     using type = std::remove_pointer_t<decltype(arg)>;
                     if constexpr (std::is_pointer_v<type>) {
                         auto& type_pool = get_pool<std::remove_pointer_t<type>>();
@@ -413,10 +410,10 @@ namespace ecs::detail {
                 for (auto const& args : arguments) {
                     for (entity_id const& entity : std::get<0>(args)) {
                         if constexpr (is_first_arg_entity) {
-                            sorted_arguments.emplace_back(entity, get_component<rcv<Components>>(entity)...);
+                            sorted_arguments.emplace_back(entity, get_component<std::remove_cvref_t<Components>>(entity)...);
                         } else {
-                            sorted_arguments.emplace_back(entity, get_component<rcv<FirstComponent>>(entity),
-                                get_component<rcv<Components>>(entity)...);
+                            sorted_arguments.emplace_back(entity, get_component<std::remove_cvref_t<FirstComponent>>(entity),
+                                get_component<std::remove_cvref_t<Components>>(entity)...);
                         }
                     }
                 }
@@ -429,10 +426,10 @@ namespace ecs::detail {
             arguments.clear();
             for (auto const& range : entities) {
                 if constexpr (is_first_arg_entity) {
-                    arguments.emplace_back(range, get_component<rcv<Components>>(range.first())...);
+                    arguments.emplace_back(range, get_component<std::remove_cvref_t<Components>>(range.first())...);
                 } else {
-                    arguments.emplace_back(range, get_component<rcv<FirstComponent>>(range.first()),
-                        get_component<rcv<Components>>(range.first())...);
+                    arguments.emplace_back(range, get_component<std::remove_cvref_t<FirstComponent>>(range.first()),
+                        get_component<std::remove_cvref_t<Components>>(range.first())...);
                 }
             }
         }
