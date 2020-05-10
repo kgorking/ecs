@@ -72,8 +72,8 @@ namespace ecs::detail {
         static_assert(num_filters < num_components, "systems can not consist of just filters");
 
         // Component names
-        static constexpr std::array<std::string_view, num_arguments> argument_names =
-            std::to_array({get_type_name<FirstComponent>(), get_type_name<Components>()...});
+        static constexpr std::array<std::string_view, num_arguments> argument_names{
+            get_type_name<FirstComponent>(), get_type_name<Components>()...};
 
         // Hashes of stripped types used by this system ('int' instead of 'int const&')
         static constexpr std::array<detail::type_hash, num_components> type_hashes =
