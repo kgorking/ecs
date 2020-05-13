@@ -28,11 +28,11 @@ int main() {
     s.update();
     std::cout << "\n\n";
 
-    std::cout << "ints - floats:\n";
+    std::cout << "ints, no floats:\n";
     i_no_f.update();
     std::cout << "\n\n";
 
-    std::cout << "floats - ints:\n";
+    std::cout << "floats, no ints:\n";
     f_no_i.update();
     std::cout << "\n\n";
 
@@ -40,11 +40,11 @@ int main() {
     i_f.update();
     std::cout << "\n\n";
 
-    std::cout << "ints - shorts:\n";
+    std::cout << "ints, no shorts:\n";
     i_no_s.update();
     std::cout << "\n\n";
 
-    std::cout << "ints - floats - shorts:\n";
+    std::cout << "ints, no floats, no shorts:\n";
     i_no_f_s.update();
     std::cout << "\n\n";
 }
