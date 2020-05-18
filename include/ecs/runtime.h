@@ -175,6 +175,11 @@ namespace ecs {
         return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn>(
             update_func, &UpdateFn::operator());
     }
+    // template<int Group = 0>
+    // auto& make_system(detail::lambda auto update_func) {
+    //     return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn>(
+    //         update_func, &UpdateFn::operator());
+    // }
 
     // Make a new system with a sort function attached
     template<int Group = 0, detail::lambda UpdateFn, detail::sorter SortFn>
