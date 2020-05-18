@@ -50,6 +50,7 @@ namespace ecs::detail {
     template<class F>
     using sort_func_type = typename decltype(get_sort_func_type_impl(&F::operator()))::type;
 
+
     // The implementation of a system specialized on its components
     template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     class system final : public system_base {
@@ -66,7 +67,7 @@ namespace ecs::detail {
 
         // Calculate the number of filters
         static constexpr size_t num_filters = (std::is_pointer_v<FirstComponent> + ... + std::is_pointer_v<Components>);
-        static_assert(num_filters < num_components, "systems can not consist of just filters");
+        static_assert(num_filters < num_components, "systems must have at least one non-filter component");
 
         // Component names
         static constexpr std::array<std::string_view, num_arguments> argument_names{
