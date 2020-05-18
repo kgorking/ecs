@@ -282,8 +282,8 @@ namespace ecs::detail {
             auto constexpr comparator = [](entity_data const& l, entity_data const& r) {
                 return std::get<0>(l).first() < std::get<0>(r).first();
             };
-            if (!std::is_sorted(adds.begin(), adds.end(), comparator)) {
-                std::sort(adds.begin(), adds.end(), comparator);
+            /*if (!std::is_sorted(adds.begin(), adds.end(), comparator))*/ {
+                std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
             }
 
             // Check the 'add*' functions precondition.
@@ -331,7 +331,7 @@ namespace ecs::detail {
                 // Add the new range
                 add_range(new_ranges, range);
 
-                if constexpr (!unbound<T>) {
+                if constexpr (!detail::unbound<T>) {
                     auto const add_val = [this, &component_it, range](T&& val) {
                         component_it =
                             components.insert(component_it, range.count(), std::forward<T>(val));

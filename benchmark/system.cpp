@@ -1,16 +1,8 @@
-#include <string>
-#include <random>
 #include <complex>
 #include <ecs/ecs.h>
 #include "gbench/include/benchmark/benchmark.h"
 
-//size_t constexpr num_components = 32;
-//size_t constexpr num_components = 4 * 1024;
-//size_t constexpr num_components = 32 * 1024;
-size_t constexpr num_components = 256 * 1024;
-//size_t constexpr num_components = 1024 * 1024;
-//size_t constexpr num_components = 16 * 1024 * 1024;
-//size_t constexpr num_components = 1024 * 1024 * 1024;  // 1 billion entities
+#include "shared.h"
 
 // 514868000 ns
 // 459405950 ns
@@ -53,35 +45,36 @@ auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, shared_s co
 void raw_update(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
 
-	std::vector<int> colors(nentities);
+	auto & shared = ecs::get_shared_component<shared_s>();
+	shared.dimension = nentities;
+
+	std::vector<int> colors(nentities+1);
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
 
-		auto & shared = ecs::get_shared_component<shared_s>();
-		shared.dimension = nentities;
-
 		std::fill_n(colors.begin(), nentities, int{});
-		for (ecs::entity_id ent{ 0 }; ent < nentities; ent++) {
+		for (ecs::entity_id ent{ 0 }; ent <= nentities; ent++) {
 			benchmark_system(ent, colors[ent], shared);
 		}
 	}
 }
-BENCHMARK(raw_update)->Range(num_components, num_components);
+BENCHMARK(raw_update)->Arg(num_components);
 
 void system_update(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
 
+	ecs::detail::get_context().get_component_pool<int>();
+	ecs::get_shared_component<shared_s>().dimension = nentities;
+	
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
-
 		ecs::make_system(benchmark_system);
-		ecs::get_shared_component<shared_s>().dimension = nentities;
 
 		ecs::add_components({0, nentities}, int{}, shared_s{});
 		ecs::update_systems();
 	}
 }
-BENCHMARK(system_update)->Range(num_components, num_components);
+BENCHMARK(system_update)->Arg(num_components);
 
 void system_update_parallel(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
@@ -96,63 +89,48 @@ void system_update_parallel(benchmark::State& state) {
 		ecs::update_systems();
 	}
 }
-BENCHMARK(system_update_parallel)->Range(num_components, num_components);
+BENCHMARK(system_update_parallel)->Arg(num_components);
 
-void component_add(benchmark::State& state) {
+void system_register(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
-		state.PauseTiming();
-			ecs::detail::_context.reset();
-			ecs::make_system([](ecs::entity /*ent*/, size_t const& /*unused*/) { });
-		state.ResumeTiming();
-
-		ecs::add_component({ 0, nentities }, size_t{});
+		ecs::detail::_context.reset();
+		ecs::add_components({0, nentities}, int{}, shared_s{});
 		ecs::commit_changes();
+		ecs::make_system(benchmark_system);
 	}
 }
-BENCHMARK(component_add)->Range(num_components, num_components);
+BENCHMARK(system_register)->Arg(num_components);
 
-void component_randomized_add(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
-
-	std::vector<ecs::entity_id> ids;
-	ids.reserve(nentities);
-	std::generate_n(std::back_inserter(ids), nentities, [i = std::int32_t{ 0 }]() mutable { return i++; });
-	std::random_device rd;
-	std::mt19937 g(rd());
-	std::shuffle(ids.begin(), ids.end(), g);
-
-	for ([[maybe_unused]] auto const _ : state) {
-		state.PauseTiming();
-			ecs::detail::_context.reset();
-			ecs::make_system(benchmark_system);
-			ecs::get_shared_component<shared_s>().dimension = nentities;
-		state.ResumeTiming();
-
-		for (auto id : ids) {
-			ecs::add_component(id, int{});
-		}
-		ecs::commit_changes();
-	}
-}
-BENCHMARK(component_randomized_add)->Range(num_components, num_components);
-
-void component_remove(benchmark::State& state) {
+void system_unregister(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
-		state.PauseTiming();
-			ecs::detail::_context.reset();
-			ecs::make_system(benchmark_system);
-			ecs::get_shared_component<shared_s>().dimension = nentities;
-		state.ResumeTiming();
-
-		ecs::add_component({ 0, nentities }, int{});
+		ecs::detail::_context.reset();
+		ecs::add_components({0, nentities}, int{}, shared_s{});
 		ecs::commit_changes();
+		ecs::make_system(benchmark_system);
 
-		ecs::remove_component<int>({ 0, nentities });
+		ecs::remove_component<int>({0, nentities});
+		ecs::remove_component<shared_s>({0, nentities});
 		ecs::commit_changes();
 	}
 }
-BENCHMARK(component_remove)->Range(num_components, num_components);
+BENCHMARK(system_unregister)->Arg(num_components);
+
+void system_unregister_half_middle(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+
+	for ([[maybe_unused]] auto const _ : state) {
+		ecs::detail::_context.reset();
+		ecs::add_components({0, nentities}, int{}, shared_s{});
+		ecs::commit_changes();
+		ecs::make_system(benchmark_system);
+
+		ecs::remove_component<int>({nentities/4, nentities - nentities/4});
+		ecs::remove_component<shared_s>({nentities/4, nentities - nentities/4});
+		ecs::commit_changes();
+	}
+}
+BENCHMARK(system_unregister_half_middle)->Arg(num_components);
