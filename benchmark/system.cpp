@@ -4,18 +4,6 @@
 
 #include "shared.h"
 
-// 514868000 ns
-// 459405950 ns
-// 463761700 ns
-// 602081200 ns
-// 522946700 ns
-// 498973400 ns
-
-struct shared_s {
-	ecs_flags(ecs::share);
-	size_t dimension;
-};
-
 auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, shared_s const& shared) {
 	constexpr int max_iterations = 50;
 	constexpr double fr_w = 1.5;
