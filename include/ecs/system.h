@@ -300,10 +300,10 @@ namespace ecs::detail {
                         return result;
                     }
 
-                    auto it_a = view_a.cbegin();
-                    auto it_b = view_b.cbegin();
+                    auto it_a = view_a.begin();
+                    auto it_b = view_b.begin();
 
-                    while (it_a != view_a.cend() && it_b != view_b.cend()) {
+                    while (it_a != view_a.end() && it_b != view_b.end()) {
                         if (it_a->overlaps(*it_b)) {
                             result.push_back(entity_range::intersect(*it_a, *it_b));
                         }
@@ -330,10 +330,10 @@ namespace ecs::detail {
                         return result;
                     }
 
-                    auto it_a = view_a.cbegin();
-                    auto it_b = view_b.cbegin();
+                    auto it_a = view_a.begin();
+                    auto it_b = view_b.begin();
 
-                    while (it_a != view_a.cend() && it_b != view_b.cend()) {
+                    while (it_a != view_a.end() && it_b != view_b.end()) {
                         if (it_a->overlaps(*it_b)) {
                             auto res = entity_range::remove(*it_a, *it_b);
                             result.push_back(res.first);
