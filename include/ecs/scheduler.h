@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <execution>
-#include <mutex>
+#include <atomic>
 #include <vector>
 
 #include "contract.h"
@@ -35,26 +35,20 @@ namespace ecs::detail {
         }
 
         void reset_run() {
-            unfinished_parents = total_parents;
+            *unfinished_parents = total_parents;
         }
 
         void run(std::vector<struct scheduler_node>& nodes) {
-            static std::mutex run_mutex;
-            {
-                std::scoped_lock sl(run_mutex);
-                if (unfinished_parents > 0) {
-                    unfinished_parents--;
-
-                    if (unfinished_parents > 0) {
-                        return;
-                    }
+            if (*unfinished_parents > 0) {
+                if (--(*unfinished_parents) > 0) {
+                    return;
                 }
             }
 
             sys->update();
 
             std::for_each(std::execution::par, children.begin(), children.end(),
-                          [&nodes](auto node) { nodes[node].run(nodes); });
+                        [&nodes](auto node) { nodes[node].run(nodes); });
         }
 
     private:
@@ -66,7 +60,7 @@ namespace ecs::detail {
 
         // The number of systems this depends on
         uint16_t total_parents = 0;
-        uint16_t unfinished_parents = 0;
+        std::unique_ptr<std::atomic<uint16_t>> unfinished_parents = std::make_unique<std::atomic<uint16_t>>();
     };
 
     // Schedules systems for concurrent execution based on their components.
