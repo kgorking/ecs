@@ -333,8 +333,7 @@ namespace ecs::detail {
 
                 if constexpr (!detail::unbound<T>) {
                     auto const add_val = [this, &component_it, range](T&& val) {
-                        component_it =
-                            components.insert(component_it, range.count(), std::forward<T>(val));
+                        component_it = components.insert(component_it, range.count(), std::forward<T>(val));
                         component_it = std::next(component_it, range.count());
                     };
                     auto const add_init = [this, &component_it,
