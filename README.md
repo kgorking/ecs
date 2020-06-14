@@ -237,17 +237,17 @@ An additional function object can be passed along to `ecs::make_(parallel_)syste
 
 ```cpp
 // sort ascending
-ecs::make_system(
+auto &sys_dec = ecs::make_system(
     [](int const&) { /* ... */ },
     std::less<int>());
 
 // sort descending
-ecs::make_system(
+auto & sys_asc = ecs::make_system(
     [](int const&) { /* ... */ },
     std::greater<int>());
 
 // sort length
-ecs::make_system(
+auto &sys_pos = ecs::make_system(
     [](position& pos, some_component const&) { /* ... */ },
     [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
 ```
