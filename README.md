@@ -254,7 +254,9 @@ auto &sys_pos = ecs::make_system(
     [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
 ```
 
-This code will ensure that all the integers passed to `sys_dec` will arrive in descending order, from highest to lowest. Integers passed to `sys_asc` will arrive in ascending order. Positions passed to `sys_pos` will be sorted according to their length.
+* Integers passed to `sys_dec` will arrive in descending order, from highest to lowest.
+* Integers passed to `sys_asc` will arrive in ascending order.
+* Positions passed to `sys_pos` will be sorted according to their length. You could also have sorted on the `some_component`.
 
 Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
 
