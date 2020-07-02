@@ -211,7 +211,9 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 # Systems
 Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the functions `ecs::make_(parallel_)system`. Systems can operate on as many components as you need; there is no limit.
 
-Accessing components in systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
+Accessing components in systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you.
+
+Remember to mark components you don't intend to change in a system as `const`, as this will help the sceduler by allowing the system to run concurrently with other systems that also only reads from the component. There is more information available in the [automatic concurrency](#Automatic-concurrency) section.
 
 
 ## Requirements and rules
@@ -252,7 +254,7 @@ auto &sys_pos = ecs::make_system(
     [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
 ```
 
-This code will ensure that all the integers passed to `sys_dec` will arrive in descending order, from highest to lowest. Integers passed to `sys_asc` will arrive in ascending order. Positions passed to `sys_pos` will be sorted wrt to their length.
+This code will ensure that all the integers passed to `sys_dec` will arrive in descending order, from highest to lowest. Integers passed to `sys_asc` will arrive in ascending order. Positions passed to `sys_pos` will be sorted according to their length.
 
 Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
 
