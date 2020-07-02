@@ -264,7 +264,7 @@ Sorting functions must correspond to a type that is processed by the system, or 
 
 
 ## Filtering
-Components can easily be filtered by marking the component you wish to filter as a pointer argument:
+Components can be filtered by marking the component you wish to filter as a pointer argument:
 ```cpp
 ecs::make_system([](int&, float*) { /* ... */ });
 ```
