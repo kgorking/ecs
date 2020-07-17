@@ -158,7 +158,6 @@ namespace ecs {
 
             entity_id const first{std::max(range.first(), other.first())};
             entity_id const last{std::min(range.last(), other.last())};
-            Expects(last - first >= 0);
 
             return entity_range{first, last};
         }
