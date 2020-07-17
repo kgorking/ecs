@@ -334,7 +334,7 @@ namespace ecs::detail {
                     auto it_b = view_b.begin();
 
                     while (it_a != view_a.end() && it_b != view_b.end()) {
-                        if (it_a->overlaps(*it_b)) {
+                        if (it_a->overlaps(*it_b) && !it_a->equals(*it_b)) {
                             auto res = entity_range::remove(*it_a, *it_b);
                             result.push_back(res.first);
                             if (res.second.has_value())
