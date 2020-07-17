@@ -29,5 +29,13 @@ TEST_CASE("Filtering", "[component][system]") {
         CHECK(id <= 6);
     });
 
+    // Filtering on non-existant component should run normally
+    int no_shorts = 0;
+    ecs::make_system([&no_shorts](ecs::entity_id id, int&, short*) {
+        no_shorts++;
+    });
+
     ecs::run_systems();
+
+    CHECK(no_shorts == ecs::get_entity_count<int>());
 }

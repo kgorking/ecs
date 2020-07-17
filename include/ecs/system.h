@@ -323,13 +323,13 @@ namespace ecs::detail {
                     return result;
                 };
 
-                auto const difference_ranges = [](entity_range_view view_a, entity_range_view view_b) {
+                auto const difference_ranges = [](entity_range_view view_a, entity_range_view view_b) -> std::vector<entity_range> {
+                    if (view_a.empty())
+                        return {view_b.begin(), view_b.end()};
+                    if (view_b.empty())
+                        return {view_a.begin(), view_a.end()};
+
                     std::vector<entity_range> result;
-
-                    if (view_a.empty() || view_b.empty()) {
-                        return result;
-                    }
-
                     auto it_a = view_a.begin();
                     auto it_b = view_b.begin();
 
