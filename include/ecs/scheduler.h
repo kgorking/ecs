@@ -34,21 +34,25 @@ namespace ecs::detail {
             total_parents += 1;
         }
 
+        void parent_done() {
+            --(*unfinished_parents);
+        }
+
         void reset_run() {
             *unfinished_parents = total_parents;
         }
 
         void run(std::vector<struct scheduler_node>& nodes) {
             if (*unfinished_parents > 0) {
-                if (--(*unfinished_parents) > 0) {
                     return;
-                }
             }
 
             sys->update();
 
-            std::for_each(std::execution::par, children.begin(), children.end(),
-                        [&nodes](auto node) { nodes[node].run(nodes); });
+            std::for_each(std::execution::par, children.begin(), children.end(), [&nodes](auto node) {
+                nodes[node].parent_done();
+                nodes[node].run(nodes);
+            });
         }
 
     private:
