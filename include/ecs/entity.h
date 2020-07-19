@@ -40,7 +40,7 @@ namespace ecs {
 
         template<typename Component>
         [[nodiscard]] Component& get() const {
-            return get_component<Component>(ent);
+            return *get_component<Component>(ent);
         }
 
         [[nodiscard]] constexpr entity_id get_id() const { return ent; }
