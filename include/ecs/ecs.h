@@ -1,4 +1,5 @@
 #include "contract.h"
+#include "type_hash.h"
 
 #include "entity_id.h"
 
