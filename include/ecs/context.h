@@ -32,14 +32,18 @@ namespace ecs::detail {
             //  adding new systems
             std::shared_lock lock(mutex);
 
+            auto constexpr process_changes = [](auto const& inst) { inst->process_changes(); };
+
             // Let the component pools handle pending add/remove requests for components
-            for (auto const& pool : component_pools) { pool->process_changes(); }
+            std::for_each(std::execution::par, component_pools.begin(), component_pools.end(), process_changes);
 
             // Let the systems respond to any changes in the component pools
-            for (auto const& sys : systems) { sys->process_changes(); }
+            std::for_each(std::execution::par, systems.begin(), systems.end(), process_changes);
 
             // Reset any dirty flags on pools
-            for (auto const& pool : component_pools) { pool->clear_flags(); }
+            for (auto const& pool : component_pools) {
+                pool->clear_flags();
+            }
         }
 
         // Calls the 'update' function on all the systems in the order they were added.
@@ -69,7 +73,9 @@ namespace ecs::detail {
             sched = scheduler();
             // context::component_pools.clear(); // this will cause an exception in
             // get_component_pool() due to the cache
-            for (auto& pool : component_pools) { pool->clear(); }
+            for (auto& pool : component_pools) {
+                pool->clear();
+            }
         }
 
         // Returns a reference to a components pool.
@@ -128,8 +134,7 @@ namespace ecs::detail {
         }
 
     private:
-        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename FirstArg,
-            typename... Args>
+        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename FirstArg, typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
             // Set up the implementation
             using typed_system = system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>;
