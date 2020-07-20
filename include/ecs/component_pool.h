@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <execution>
 
 #include "tls/splitter.h"
 
