@@ -3,6 +3,7 @@
 #include "entity_id.h"
 
 #include "entity.h"
+#include "entity_iterator.h"
 #include "entity_range.h"
 
 #include "../../tls/include/tls/splitter.h"
