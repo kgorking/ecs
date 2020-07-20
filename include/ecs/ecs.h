@@ -17,5 +17,6 @@
 #include "system_base.h"
 #include "system.h"
 
+#include "scheduler.h"
 #include "context.h"
 #include "runtime.h"
