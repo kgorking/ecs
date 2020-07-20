@@ -35,12 +35,12 @@ namespace ecs::detail {
         }
     }
 
-    template<typename... T>
-    constexpr static bool unique_types_v = unique_types<get_type_t<T>...>();
+    template<typename First, typename... T>
+    constexpr static bool unique_types_v = unique_types<get_type<First>, get_type_t<T>...>();
 
     // Ensure that any type in the parameter pack T is only present once.
-    template<typename... T>
-    concept unique = unique_types_v<T...>;
+    template<typename First, typename... T>
+    concept unique = unique_types_v<First, T...>;
 
     template<class T>
     concept entity_type =
