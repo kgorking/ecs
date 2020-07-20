@@ -51,17 +51,19 @@ namespace ecs {
 
     // Add several components to a range of entities. Will not be added until 'commit_changes()' is
     // called. Pre: entity does not already have the component, or have it in queue to be added
-    template<typename... T>
-    void add_components(entity_range const range, T&&... vals) {
-        static_assert(detail::unique<T...>, "the same component was specified more than once");
+    template<typename First, typename... T>
+    void add_components(entity_range const range, First&& first_val, T&&... vals) {
+        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+        add_component(range, std::forward<First>(first_val));
         (add_component(range, std::forward<T>(vals)), ...);
     }
 
     // Add several components to an entity. Will not be added until 'commit_changes()' is called.
     // Pre: entity does not already have the component, or have it in queue to be added
-    template<typename... T>
-    void add_components(entity_id const id, T&&... vals) {
-        static_assert(detail::unique<T...>, "the same component was specified more than once");
+    template<typename First, typename... T>
+    void add_components(entity_id const id, First&& first_val, T&&... vals) {
+        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+        add_component(id, std::forward<First>(first_val));
         (add_component(id, std::forward<T>(vals)), ...);
     }
 
