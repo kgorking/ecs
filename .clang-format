@@ -12,12 +12,12 @@ SpaceAfterTemplateKeyword: false
 AlwaysBreakTemplateDeclarations: true
 AlignAfterOpenBracket: DontAlign
 BreakConstructorInitializers: BeforeComma
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
 
 AllowShortBlocksOnASingleLine: false
-AllowShortFunctionsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: false
-AllowShortLoopsOnASingleLine: true
+AllowShortLoopsOnASingleLine: false
 
 PointerAlignment: Left
 AlignConsecutiveAssignments: false
