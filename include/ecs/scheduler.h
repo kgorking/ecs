@@ -29,7 +29,7 @@ namespace ecs::detail {
 
         void increase_parent_count() {
             Expects(dependencies != std::numeric_limits<uint16_t>::max()); // You have 32k dependencies on a single
-                                                                            // system. Just delete your code.
+                                                                           // system. Just delete your code.
             dependencies += 1;
         }
 
