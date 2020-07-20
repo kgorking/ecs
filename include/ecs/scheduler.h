@@ -75,6 +75,7 @@ namespace ecs::detail {
             dependants = other.dependants;
             dependencies = other.dependencies;
             unfinished_dependencies = other.unfinished_dependencies.load();
+            return *this;
         }
 
     private:

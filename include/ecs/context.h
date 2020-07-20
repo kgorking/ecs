@@ -4,9 +4,9 @@
 #include <map>
 #include <memory>
 #include <shared_mutex>
-#include <tls/cache.h>
 #include <vector>
 
+#include "tls/cache.h"
 #include "component_pool.h"
 #include "scheduler.h"
 #include "system.h"
@@ -108,29 +108,31 @@ namespace ecs::detail {
         }
 
         // Const lambda
-        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename... Args>
-        auto& create_system(UpdateFn update_func, R (C::*)(Args...) const) {
-            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, Args...>(update_func, nullptr);
+        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename FirstArg,
+            typename... Args>
+        auto& create_system(UpdateFn update_func, R (C::*)(FirstArg, Args...) const) {
+            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, FirstArg, Args...>(update_func, nullptr);
         }
 
         // Const lambda with sort
         template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
-            typename... Args>
-        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(Args...) const) {
-            return create_system<Group, ExePolicy, UpdateFn, SortFn, Args...>(update_func, sort_func);
+            typename FirstArg, typename... Args>
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
+            return create_system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
         }
 
         // Mutable lambda
-        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename... Args>
-        auto& create_system(UpdateFn update_func, R (C::*)(Args...)) {
-            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, Args...>(update_func, nullptr);
+        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename FirstArg,
+            typename... Args>
+        auto& create_system(UpdateFn update_func, R (C::*)(FirstArg, Args...)) {
+            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, FirstArg, Args...>(update_func, nullptr);
         }
 
         // Mutable lambda with sort
         template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
-            typename... Args>
-        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(Args...)) {
-            return create_system<Group, ExePolicy, UpdateFn, SortFn, Args...>(update_func, sort_func);
+            typename FirstArg, typename... Args>
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...)) {
+            return create_system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
         }
 
     private:

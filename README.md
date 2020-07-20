@@ -41,12 +41,14 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 * **Non-instrusive interface** No need for components to inherit from a library type, and no need for systems to inherit from a library class and override some member function.
 * **Simple interface** As shown in the example, you can get up and running with just 3 function calls;
 * **Fast** This library is built to be as fast as absolutely possible. The mandelbrot [benchmark](https://github.com/kgorking/ecs/blob/master/benchmark/system.cpp#L51) shows it running as fast a raw hand-written loop.
+* **Automatic concurrency (Experimental)** Implements a scheduler that safely runs systems concurrently, to take maximum advantage of multi-core machines.
 
 
-# Building
-* MSVC 16.6 will compile this library with no problems.
-* GCC might work, but it hasn't been tested extensively. Its implementation of the parallel algorithms also seem kind of brittle atm.
-* Clang does not work, because it is missing the `<concepts>` header.
+# Building (checked july 20. 2020)
+[Compiler explorer test link](https://godbolt.org/z/on6zY8)
+* MSVC 16.6+ (v14.26) will compile this library with no problems.
+* GCC 11 keeps ICEing on simple concepts. Seems to strugle immensely with parameter packs.
+* Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` header and 'std::shift_right'.
 
 # Table of Contents
 * [Entities](#Entities)

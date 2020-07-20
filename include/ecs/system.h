@@ -361,7 +361,7 @@ namespace ecs::detail {
 
                 // The intersector
                 std::optional<std::vector<entity_range>> ranges;
-                auto const intersect = [&, this](auto arg) { // arg = std::remove_cvref_t<Components>*
+                auto const intersect = [&](auto arg) { // arg = std::remove_cvref_t<Components>*
                     using type = std::remove_pointer_t<decltype(arg)>;
                     if constexpr (std::is_pointer_v<type>) {
                         // Skip pointers
@@ -379,7 +379,7 @@ namespace ecs::detail {
                     }
                 };
 
-                auto const difference = [&, this](auto arg) { // arg = std::remove_cvref_t<Components>*
+                auto const difference = [&](auto arg) { // arg = std::remove_cvref_t<Components>*
                     using type = std::remove_pointer_t<decltype(arg)>;
                     if constexpr (std::is_pointer_v<type>) {
                         auto& type_pool = get_pool<std::remove_pointer_t<type>>();
