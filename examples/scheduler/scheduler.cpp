@@ -62,7 +62,7 @@ int main() {
 
     //
     // Writes to type 2 and reads from type 0. Must not execute until after
-    // sys3 and sys1 us done, can execute concurrently with sys4.
+    // sys3 and sys1 us done.
     auto& sys5 = ecs::make_system([](type<2>&, type<0> const&) {
         std::cout << "5 ";
         std::this_thread::sleep_for(20ms);
