@@ -35,8 +35,7 @@ namespace ecs::detail {
 
         // Keep track of which components to add/remove each cycle
         using variant = std::variant<T, std::function<T(entity_id)>>;
-        using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>,
-                                               std::tuple<entity_range, variant>>;
+        using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, variant>>;
         tls::splitter<std::vector<entity_data>, component_pool<T>> deferred_adds;
         tls::splitter<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
@@ -80,7 +79,9 @@ namespace ecs::detail {
 
         // Remove an entity from the component pool. This logically removes the component from the
         // entity.
-        void remove(entity_id const id) requires(!global<T>) { remove_range({id, id}); }
+        void remove(entity_id const id) requires(!global<T>) {
+            remove_range({id, id});
+        }
 
         // Remove an entity from the component pool. This logically removes the component from the
         // entity.
@@ -120,7 +121,9 @@ namespace ecs::detail {
         size_t num_entities() const {
             // Don't want to include <algorithm> just for this
             size_t val = 0;
-            for (auto r : ranges) { val += r.count(); }
+            for (auto r : ranges) {
+                val += r.count();
+            }
             return val;
         }
 
@@ -139,21 +142,26 @@ namespace ecs::detail {
         }
 
         // Returns true if components has been added since last clear_flags() call
-        bool is_data_added() const { return data_added; }
+        bool is_data_added() const {
+            return data_added;
+        }
 
         // Returns true if components has been removed since last clear_flags() call
-        bool is_data_removed() const { return data_removed; }
+        bool is_data_removed() const {
+            return data_removed;
+        }
 
         // Returns true if components has been added/removed since last clear_flags() call
-        bool is_data_modified() const { return data_added || data_removed; }
+        bool is_data_modified() const {
+            return data_added || data_removed;
+        }
 
         // Returns the pools entities
         entity_range_view get_entities() const {
             if constexpr (detail::global<T>) {
                 // globals are accessible to all entities
                 static constexpr entity_range global_range{
-                    std::numeric_limits<ecs::entity_type>::min(),
-                    std::numeric_limits<ecs::entity_type>::max()};
+                    std::numeric_limits<ecs::entity_type>::min(), std::numeric_limits<ecs::entity_type>::max()};
                 return entity_range_view{&global_range, 1};
             } else {
                 return ranges;
@@ -236,10 +244,14 @@ namespace ecs::detail {
 
     private:
         // Flag that components has been added
-        void set_data_added() { data_added = true; }
+        void set_data_added() {
+            data_added = true;
+        }
 
         // Flag that components has been removed
-        void set_data_removed() { data_removed = true; }
+        void set_data_removed() {
+            data_removed = true;
+        }
 
         // Searches for an entitys offset in to the component pool.
         // Returns nothing if 'ent' is not a valid entity
@@ -265,6 +277,11 @@ namespace ecs::detail {
 
         // Add new queued entities and components to the main storage
         void process_add_components() {
+            // Comparator used for sorting
+            auto constexpr comparator = [](entity_data const& l, entity_data const& r) {
+                return std::get<0>(l).first() < std::get<0>(r).first();
+            };
+
             // Combine the components in to a single vector
             std::vector<entity_data> adds;
             for (auto& vec : deferred_adds) {
@@ -279,9 +296,6 @@ namespace ecs::detail {
             deferred_adds.clear();
 
             // Sort the input
-            auto constexpr comparator = [](entity_data const& l, entity_data const& r) {
-                return std::get<0>(l).first() < std::get<0>(r).first();
-            };
             /*if (!std::is_sorted(adds.begin(), adds.end(), comparator))*/ {
                 std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
             }
@@ -289,10 +303,8 @@ namespace ecs::detail {
             // Check the 'add*' functions precondition.
             // An entity can not have more than one of the same component
             auto const has_duplicate_entities = [](auto const& vec) {
-                return vec.end() !=
-                       std::adjacent_find(vec.begin(), vec.end(), [](auto const& l, auto const& r) {
-                           return std::get<0>(l) == std::get<0>(r);
-                       });
+                return vec.end() != std::adjacent_find(vec.begin(), vec.end(),
+                                        [](auto const& l, auto const& r) { return std::get<0>(l) == std::get<0>(r); });
             };
             Expects(false == has_duplicate_entities(adds));
 
@@ -336,8 +348,7 @@ namespace ecs::detail {
                         component_it = components.insert(component_it, range.count(), std::forward<T>(val));
                         component_it = std::next(component_it, range.count());
                     };
-                    auto const add_init = [this, &component_it,
-                                           range](std::function<T(entity_id)> init) {
+                    auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
                         for (entity_id ent = range.first(); ent <= range.last(); ++ent) {
                             component_it = components.emplace(component_it, init(ent));
                             component_it = std::next(component_it);
