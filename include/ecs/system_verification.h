@@ -107,7 +107,8 @@ namespace ecs::detail {
         requires(entity_type<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
         // Component types can only be specified once
-        requires unique<FirstArg, Args...>;
+        // requires unique<FirstArg, Args...>; // ICE's gcc 10.1
+        requires unique_types_v<FirstArg, Args...>;
 
         // Verify components
         requires Component<FirstArg> && (Component<Args> && ...);
