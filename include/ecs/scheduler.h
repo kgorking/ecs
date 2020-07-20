@@ -11,7 +11,7 @@
 
 namespace ecs::detail {
     // Describes a node in the scheduler execution graph
-    struct scheduler_node {
+    struct scheduler_node final {
         // Construct a node from a system.
         // The system can not be null
         scheduler_node(system_base* sys)
@@ -85,9 +85,9 @@ namespace ecs::detail {
     };
 
     // Schedules systems for concurrent execution based on their components.
-    class scheduler {
+    class scheduler final {
         // A group of systems with the same group id
-        struct group {
+        struct group final {
             int id;
             std::vector<scheduler_node> all_nodes;
             std::vector<std::size_t> entry_nodes{};
