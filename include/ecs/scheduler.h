@@ -14,8 +14,19 @@ namespace ecs::detail {
     struct scheduler_node {
         // Construct a node from a system.
         // The system can not be null
-        scheduler_node(system_base* sys) : sys(sys) {
+        scheduler_node(system_base* sys)
+            : sys(sys)
+            , dependants{}
+            , dependencies{0}
+            , unfinished_dependencies{0} {
             Expects(sys != nullptr);
+        }
+
+        scheduler_node(scheduler_node const& other) {
+            sys = other.sys;
+            dependants = other.dependants;
+            dependencies = other.dependencies;
+            unfinished_dependencies = other.unfinished_dependencies.load();
         }
 
         system_base* get_system() const noexcept {
@@ -34,15 +45,15 @@ namespace ecs::detail {
         }
 
         void dependency_done() {
-            --(*unfinished_dependencies);
+            --unfinished_dependencies;
         }
 
         void reset_dependencies() {
-            *unfinished_dependencies = dependencies;
+            unfinished_dependencies = dependencies;
         }
 
         void run(std::vector<struct scheduler_node>& nodes) {
-            if (*unfinished_dependencies > 0) {
+            if (unfinished_dependencies > 0) {
                 return;
             }
 
@@ -54,6 +65,13 @@ namespace ecs::detail {
             });
         }
 
+        scheduler_node& operator = (scheduler_node const& other) {
+            sys = other.sys;
+            dependants = other.dependants;
+            dependencies = other.dependencies;
+            unfinished_dependencies = other.unfinished_dependencies.load();
+        }
+
     private:
         // The system to execute
         system_base* sys{};
@@ -63,7 +81,7 @@ namespace ecs::detail {
 
         // The number of systems this depends on
         uint16_t dependencies = 0;
-        std::unique_ptr<std::atomic<uint16_t>> unfinished_dependencies = std::make_unique<std::atomic<uint16_t>>();
+        std::atomic<uint16_t> unfinished_dependencies = 0;
     };
 
     // Schedules systems for concurrent execution based on their components.
