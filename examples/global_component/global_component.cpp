@@ -1,47 +1,45 @@
 #include <ecs/ecs.h>
 #include <iostream>
 
+// This is a slightly altered version of the 'shared_components' example
+// where the state_s component is never added to any entities, but is
+// still accessible from the system
 
 struct A {};
 struct B {};
 struct state_s {
-    ecs_flags(ecs::share);
+    ecs_flags(ecs::global);
     int a = 0;
     int b = 0;
     int total = 0;
 };
 
-static void print_shared_state() {
-    auto const& shared = ecs::get_shared_component<state_s>();
-    std::cout << " A touches:       " << shared.a << "\n";
-    std::cout << " B touches:       " << shared.b << "\n";
-    std::cout << " state_s touches: " << shared.total << "\n\n";
+static void print_global_state() {
+    auto const& global = ecs::get_global_component<state_s>();
+    std::cout << "  A touches:       " << global.a << "\n";
+    std::cout << "  B touches:       " << global.b << "\n";
+    std::cout << "  state_s touches: " << global.total << "\n\n";
 }
 
 int main() {
     std::cout << "Initial state:\n";
-    print_shared_state();
+    print_global_state();
 
-    auto& sys_a = ecs::make_system([](A const&, state_s& state) {
+    ecs::make_system([](A const&, state_s& state) {
         state.a++;
         state.total++;
     });
-    auto& sys_b = ecs::make_system([](B const&, state_s& state) {
+    ecs::make_system([](B const&, state_s& state) {
         state.b++;
         state.total++;
     });
 
-    std::cout << "Adding 10 entities with an A and state_s component:\n";
-    ecs::entity_range const a_ents{0, 9, A{}, state_s{}};
-    ecs::commit_changes();
-    sys_a.update(); // run A system
-    print_shared_state();
-
-    std::cout << "Adding 10 more entities with a B and state_s component:\n";
-    ecs::entity_range const b_ents{10, 19, B{}, state_s{}};
-    ecs::commit_changes();
-    sys_b.update(); // run B system
-    print_shared_state();
+    std::cout << "Adding 10 entities with an A component:\n";
+    std::cout << "Adding 10 more entities with a B component:\n";
+    ecs::entity_range const a_ents{0, 9, A{}};
+    ecs::entity_range const b_ents{10, 19, B{}};
+    ecs::update_systems();
+    print_global_state();
 
     // Dump some stats
     std::cout << "Number of entities with an A component:      " << ecs::get_entity_count<A>() << "\n";

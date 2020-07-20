@@ -21,11 +21,28 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif ()
 
 if (MSVC)
-    # warning level 4, modules
+    # warning level 4
     target_compile_options(ecs INTERFACE /W4)
+
+    # Disable C++ exceptions.
+    string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHs-c-")
+    add_definitions(-D_HAS_EXCEPTIONS=0)
+
+    # Disable RTTI.
+    string(REGEX REPLACE "/GR" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 else()
     # lots of warnings
     target_compile_options(ecs INTERFACE -Wall -Wextra -pedantic)
+
+    # Disable C++ exceptions.
+    string(REGEX REPLACE "-fexceptions" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+
+    # Disable RTTI.
+    string(REGEX REPLACE "-frtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 endif()
 
 # Project headers
@@ -45,6 +62,10 @@ else()
     )
 endif()
 
+# add tls library
+add_subdirectory ("tls")
+target_link_libraries(ecs INTERFACE tls)
+
 if (ECS_STANDALONE_PROJECT)
     # Benchmark
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
@@ -52,13 +73,17 @@ if (ECS_STANDALONE_PROJECT)
     add_subdirectory ("benchmark")
 
     # Examples
-    add_subdirectory ("examples/example")
-    add_subdirectory ("examples/plague_spell")
     add_subdirectory ("examples/entt_example")
-    add_subdirectory ("examples/parallelism")
+    add_subdirectory ("examples/example")
+    add_subdirectory ("examples/filtering")
     add_subdirectory ("examples/finite_state_machine")
+    add_subdirectory ("examples/global_component")
     add_subdirectory ("examples/mandelbrot")
+    add_subdirectory ("examples/parallelism")
+    add_subdirectory ("examples/plague_spell")
+    add_subdirectory ("examples/scheduler")
     add_subdirectory ("examples/shared_components")
+    add_subdirectory ("examples/sorting")
     add_subdirectory ("examples/tagged_components")
 
     # Unittests

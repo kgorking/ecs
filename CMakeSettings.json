@@ -12,23 +12,7 @@
       "ctestCommandArgs": "",
       "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "intelliSenseMode": "windows-msvc-x64",
-      "variables": [
-        {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "GSL_CXX_STANDARD",
-          "value": "17",
-          "type": "STRING"
-        }
-      ]
+      "variables": []
     },
     {
       "name": "x64-Release",
@@ -41,23 +25,7 @@
       "ctestCommandArgs": "",
       "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": [
-        {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "GSL_CXX_STANDARD",
-          "value": "17",
-          "type": "STRING"
-        }
-      ],
+      "variables": [],
       "intelliSenseMode": "windows-msvc-x64"
     },
     {
@@ -72,19 +40,14 @@
       "inheritEnvironments": [ "clang_cl_x64" ],
       "variables": [
         {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
           "name": "BENCHMARK_ENABLE_GTEST_TESTS",
           "value": "False",
           "type": "BOOL"
         },
         {
-          "name": "GSL_CXX_STANDARD",
-          "value": "17",
-          "type": "STRING"
+          "name": "BENCHMARK_ENABLE_INSTALL",
+          "value": "False",
+          "type": "BOOL"
         }
       ],
       "intelliSenseMode": "windows-msvc-x64"
@@ -101,19 +64,14 @@
       "inheritEnvironments": [ "clang_cl_x64" ],
       "variables": [
         {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
           "name": "BENCHMARK_ENABLE_GTEST_TESTS",
           "value": "False",
           "type": "BOOL"
         },
         {
-          "name": "GSL_CXX_STANDARD",
-          "value": "17",
-          "type": "STRING"
+          "name": "BENCHMARK_ENABLE_INSTALL",
+          "value": "False",
+          "type": "BOOL"
         }
       ],
       "intelliSenseMode": "windows-msvc-x64"

@@ -1,0 +1,27 @@
+ColumnLimit: 120
+
+UseTab: Never
+IndentWidth: 4
+AccessModifierOffset: -4
+
+FixNamespaceComments: true
+NamespaceIndentation: All
+
+SpaceAfterTemplateKeyword: false
+
+AlwaysBreakTemplateDeclarations: true
+AlignAfterOpenBracket: DontAlign
+BreakConstructorInitializers: BeforeComma
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+
+PointerAlignment: Left
+AlignConsecutiveAssignments: false
+AlignTrailingComments: true
+
+SpaceAfterCStyleCast: true
+CommentPragmas: '^ NO-FORMAT:'

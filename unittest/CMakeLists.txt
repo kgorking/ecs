@@ -6,17 +6,14 @@ add_executable (unittests
 	"runtime.cpp"
 	"component removal.cpp"
 	"component_pool.cpp"
-	
-	
 	"entity_range.cpp"
-	
 	"shared component.cpp"
-	
 	"system.cpp"
 	"transient components.cpp"
-	
-	)
+	"global_component.cpp"
+	"sorting.cpp"
+	"filtering.cpp"
+	"scheduler.cpp")
 target_link_libraries(unittests ecs)
-
 
 add_test(unittests unittests)
