@@ -54,11 +54,11 @@ namespace ecs::detail {
 
         // Called from systems we depend on when they have run to completion.
         void dependency_done() {
-            unfinished_dependencies.fetch_sub(1, std::memory_order_acquire);
+            unfinished_dependencies.fetch_sub(1, std::memory_order_release);
         }
 
         void run(std::vector<struct scheduler_node>& nodes) {
-            if (unfinished_dependencies.load(std::memory_order_release) > 0) {
+            if (unfinished_dependencies.load(std::memory_order_acquire) > 0) {
                 return;
             }
 
