@@ -33,21 +33,26 @@ namespace ecs::detail {
             return sys;
         }
 
-        // Add a child to this node.
-        void add_child(size_t node_index) {
+        // Add a dependant to this system. This system has to run to
+        // completion before the dependants can run.
+        void add_dependant(size_t node_index) {
             dependants.push_back(node_index);
         }
 
-        void increase_parent_count() {
+        // Increase the dependency counter of this system. These dependencies has to
+        // run to completion before this system can run.
+        void increase_dependency_count() {
             Expects(dependencies != std::numeric_limits<uint16_t>::max()); // You have 32k dependencies on a single
                                                                            // system. Just delete your code.
             dependencies += 1;
         }
 
-        void reset_dependencies() {
+        // Resets the unfinished dependencies to the total number of dependencies.
+        void reset_unfinished_dependencies() {
             unfinished_dependencies = dependencies;
         }
 
+        // Called from systems we depend on when they have run to completion.
         void dependency_done() {
             unfinished_dependencies.fetch_sub(1, std::memory_order_acquire);
         }
@@ -141,8 +146,8 @@ namespace ecs::detail {
                             // The system writes to the component,
                             // so there is a strong dependency here.
                             inserted = true;
-                            dep_node.add_child(node_index);
-                            node.increase_parent_count();
+                            dep_node.add_dependant(node_index);
+                            node.increase_dependency_count();
                             break;
                         } else { // 'other' reads component
                                  // These systems have a weak read/read dependency
@@ -164,7 +169,7 @@ namespace ecs::detail {
             // Reset the execution data
             for (auto& group : groups) {
                 for (auto& node : group.all_nodes)
-                    node.reset_dependencies();
+                    node.reset_unfinished_dependencies();
             }
 
             // Run the groups in succession
