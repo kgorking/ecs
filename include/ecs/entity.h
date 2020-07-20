@@ -3,7 +3,7 @@
 
 #include "entity_id.h"
 #include <concepts>
-
+#include <type_traits>
 
 namespace ecs {
     // A simple helper class for easing the adding and removing of components
