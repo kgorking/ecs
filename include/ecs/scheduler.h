@@ -44,16 +44,16 @@ namespace ecs::detail {
             dependencies += 1;
         }
 
-        void dependency_done() {
-            --unfinished_dependencies;
-        }
-
         void reset_dependencies() {
             unfinished_dependencies = dependencies;
         }
 
+        void dependency_done() {
+            unfinished_dependencies.fetch_sub(1, std::memory_order_acquire);
+        }
+
         void run(std::vector<struct scheduler_node>& nodes) {
-            if (unfinished_dependencies > 0) {
+            if (unfinished_dependencies.load(std::memory_order_release) > 0) {
                 return;
             }
 
@@ -65,7 +65,7 @@ namespace ecs::detail {
             });
         }
 
-        scheduler_node& operator = (scheduler_node const& other) {
+        scheduler_node& operator=(scheduler_node const& other) {
             sys = other.sys;
             dependants = other.dependants;
             dependencies = other.dependencies;
