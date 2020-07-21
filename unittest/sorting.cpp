@@ -1,9 +1,8 @@
 #include "catch.hpp"
 #include <ecs/ecs.h>
+#include <functional>
 
-auto constexpr generator = [](ecs::entity_id) -> int { return rand() % 9; };
-auto constexpr sort_asc = [](int const& l, int const& r) { return l < r; };
-auto constexpr sort_dec = [](int const& l, int const& r) { return l > r; };
+int generator(ecs::entity_id) { return rand() % 9; };
 
 TEST_CASE("Sorting") {
     ecs::detail::_context.reset();
@@ -17,7 +16,7 @@ TEST_CASE("Sorting") {
             CHECK(test <= i);
             test = i;
         },
-        sort_asc);
+        std::less<int>());
     asc.update();
 
     test = std::numeric_limits<int>::max();
@@ -26,11 +25,12 @@ TEST_CASE("Sorting") {
             CHECK(test >= i);
             test = i;
         },
-        sort_dec);
+        std::greater<int>());
     dec.update();
 
     // modify the components and re-check
-    for (int& i : ecs::get_components<int>({0, 9})) { i = generator(0); }
+    auto& mod = ecs::make_system([](int& i) { i = generator(0); });
+    mod.update();
 
     test = std::numeric_limits<int>::min();
     asc.update();

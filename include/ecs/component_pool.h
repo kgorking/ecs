@@ -41,8 +41,9 @@ namespace ecs::detail {
         tls::splitter<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
         // Status flags
-        bool data_added = false;
-        bool data_removed = false;
+        bool components_added = false;
+        bool components_removed = false;
+        bool components_modified = false;
 
     public:
         // Add a component to a range of entities, initialized by the supplied user function
@@ -138,23 +139,28 @@ namespace ecs::detail {
 
         // Clears the pools state flags
         void clear_flags() override {
-            data_added = false;
-            data_removed = false;
+            components_added = false;
+            components_removed = false;
+            components_modified = false;
         }
 
         // Returns true if components has been added since last clear_flags() call
-        bool is_data_added() const {
-            return data_added;
+        bool has_more_components() const {
+            return components_added;
         }
 
         // Returns true if components has been removed since last clear_flags() call
-        bool is_data_removed() const {
-            return data_removed;
+        bool has_less_components() const {
+            return components_removed;
         }
 
         // Returns true if components has been added/removed since last clear_flags() call
-        bool is_data_modified() const {
-            return data_added || data_removed;
+        bool has_component_count_changed() const {
+            return components_added || components_removed;
+        }
+
+        bool has_components_been_modified() const {
+            return has_component_count_changed() || components_modified;
         }
 
         // Returns the pools entities
@@ -240,18 +246,23 @@ namespace ecs::detail {
             clear_flags();
 
             // Save the removal state
-            data_removed = is_removed;
+            components_removed = is_removed;
+        }
+
+        // Flag that components has been modified
+        void notify_components_modified() {
+            components_modified = true;
         }
 
     private:
         // Flag that components has been added
         void set_data_added() {
-            data_added = true;
+            components_added = true;
         }
 
         // Flag that components has been removed
         void set_data_removed() {
-            data_removed = true;
+            components_removed = true;
         }
 
         // Searches for an entitys offset in to the component pool.
