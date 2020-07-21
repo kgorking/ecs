@@ -84,18 +84,20 @@ void system_register(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
-		ecs::add_components({0, nentities}, int{}, shared_s{});
+
+        ecs::add_components({0, nentities}, int{}, shared_s{});
 		ecs::commit_changes();
 		ecs::make_system(benchmark_system);
 	}
 }
 BENCHMARK(system_register)->Arg(num_components);
 
-void system_unregister(benchmark::State& state) {
+void system_register_and_unregister(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
+
 		ecs::add_components({0, nentities}, int{}, shared_s{});
 		ecs::commit_changes();
 		ecs::make_system(benchmark_system);
@@ -105,14 +107,15 @@ void system_unregister(benchmark::State& state) {
 		ecs::commit_changes();
 	}
 }
-BENCHMARK(system_unregister)->Arg(num_components);
+BENCHMARK(system_register_and_unregister)->Arg(num_components);
 
-void system_unregister_half_middle(benchmark::State& state) {
+void system_register_and_unregister_half_middle(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
-		ecs::add_components({0, nentities}, int{}, shared_s{});
+
+        ecs::add_components({0, nentities}, int{}, shared_s{});
 		ecs::commit_changes();
 		ecs::make_system(benchmark_system);
 
@@ -121,4 +124,4 @@ void system_unregister_half_middle(benchmark::State& state) {
 		ecs::commit_changes();
 	}
 }
-BENCHMARK(system_unregister_half_middle)->Arg(num_components);
+BENCHMARK(system_register_and_unregister_half_middle)->Arg(num_components);
