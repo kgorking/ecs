@@ -24,7 +24,7 @@ TEST_CASE("constexpr", "[constexpr]") {
     SECTION("context") { /*constexpr*/ ecs::detail::context ctx; }
 
     SECTION("entity") {
-        constexpr ecs::entity ent{0};
+        constexpr ecs::entity_id ent{0};
         // constexpr ecs::entity ent2{ 1, 3.14f };
     }
 

@@ -5,8 +5,6 @@
 #include "detail/type_hash.h"
 
 #include "entity_id.h"
-
-#include "entity.h"
 #include "entity_iterator.h"
 #include "entity_range.h"
 

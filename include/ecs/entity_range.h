@@ -24,34 +24,6 @@ namespace ecs {
             Expects(first <= last);
         }
 
-        // Construct an entity range and add components to them.
-        template<typename... Components>
-        entity_range(entity_id first, entity_id last, Components&&... components)
-            : first_(first), last_(last) {
-            Expects(first <= last);
-            add<Components...>(std::forward<Components>(components)...);
-        }
-
-        template<typename... Components>
-        void add(Components&&... components) const {
-            add_components(*this, std::forward<Components>(components)...);
-        }
-
-        template<typename... Components>
-        void add() const {
-            add_components(*this, Components{}...);
-        }
-
-        template<std::copyable... Components>
-        void remove() const {
-            (remove_component<Components>(*this), ...);
-        }
-
-        template<std::copyable... Components>
-        [[nodiscard]] bool has() const {
-            return (has_component<Components>(*this) && ...);
-        }
-
         template<std::copyable Component>
         [[nodiscard]] std::span<Component> get() const {
             return std::span(get_component<Component>(first_), count());

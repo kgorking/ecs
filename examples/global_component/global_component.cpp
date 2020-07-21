@@ -36,8 +36,10 @@ int main() {
 
     std::cout << "Adding 10 entities with an A component:\n";
     std::cout << "Adding 10 more entities with a B component:\n";
-    ecs::entity_range const a_ents{0, 9, A{}};
-    ecs::entity_range const b_ents{10, 19, B{}};
+    ecs::entity_range const a_ents{0, 9};
+    ecs::entity_range const b_ents{10, 19};
+    ecs::add_component(a_ents, A{});
+    ecs::add_component(b_ents, B{});
     ecs::update_systems();
     print_global_state();
 

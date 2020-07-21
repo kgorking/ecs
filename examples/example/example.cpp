@@ -2,7 +2,6 @@
 #include <iostream>
 #include <string>
 
-
 // Systems are placed in different groups so they
 // don't write text at the same time to the console.
 
@@ -14,19 +13,20 @@ int main() {
     // Set up 3 entities with their components
     // This uses the entity_range class, which is a
     // wrapper for the interface to allow easy usage
-    ecs::entity_range const ents{0, 2, int{1}};
+    ecs::entity_range const ents{0, 2};
+    ecs::add_component(ents, int{1});
 
     // Commit the changes and run the systems
     ecs::update_systems();
 
     std::cout << "\n# 2. using a lambda to initialize components\n";
-    ecs::entity_range const more_ents{3, 5, [](ecs::entity_id ent) -> int { return ent * 2; }};
+    ecs::entity_range const more_ents{3, 5};
+    ecs::add_component(more_ents, [](ecs::entity_id ent) -> int { return ent * 2; });
     ecs::update_systems();
 
     std::cout << "\n# 3. Adding a second component\n";
     // Add another system that operates on entities that hold an 'int' and 'std::string'
-    ecs::make_system<1>(
-        [](int const& i, std::string const& s) { std::cout << i << ": " << s << '\n'; });
+    ecs::make_system<1>([](int const& i, std::string const& s) { std::cout << i << ": " << s << '\n'; });
 
     // Add a second component to the last 3 entities
     ecs::add_component(3, std::string{"jon"});
@@ -38,8 +38,8 @@ int main() {
 
     std::cout << "\n# 4. Removing a component\n";
     // Remove the integer component from the 'sean' entity using the 'ecc::entity' helper class
-    ecs::entity sean{4};
-    sean.remove<int>(); // same as ecs::remove_component<int>(4);
+    ecs::entity_id const sean{4};
+    ecs::remove_component<int>(sean);
 
     // Commit the changes and run the systems
     ecs::update_systems();

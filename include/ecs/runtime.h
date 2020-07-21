@@ -33,7 +33,7 @@ namespace ecs {
     // Add a component to a range of entities. Will not be added until 'commit_changes()' is called.
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename T>
-    void add_component(entity_range const range, T&& val) {
+    void add_component(entity_range const range, T&& val = T{}) {
         static_assert(!std::is_reference_v<T>, "can not store references; pass a copy instead");
         static_assert(std::copyable<T>, "T must be copyable");
 
@@ -45,7 +45,7 @@ namespace ecs {
     // Add a component to an entity. Will not be added until 'commit_changes()' is called.
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename T>
-    void add_component(entity_id const id, T&& val) {
+    void add_component(entity_id const id, T&& val = T{}) {
         add_component({id, id}, std::forward<T>(val));
     }
 

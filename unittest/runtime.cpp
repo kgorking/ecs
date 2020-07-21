@@ -76,7 +76,8 @@ TEST_CASE("The runtime interface") {
 
         SECTION("of components works") {
             ecs::add_component({0, 5}, range_add{5});
-            ecs::entity_range const ents{6, 9, range_add{5}};
+            ecs::entity_range const ents{6, 9};
+            ecs::add_component(ents, range_add{5});
             ecs::commit_changes();
 
             for (ecs::entity_id i = 0; i <= 9; ++i) {
@@ -89,7 +90,8 @@ TEST_CASE("The runtime interface") {
             auto const init = [](auto ent) -> range_add { return {ent * 2}; };
 
             ecs::add_component({10, 15}, init);
-            ecs::entity_range const ents{16, 20, init};
+            ecs::entity_range const ents{16, 20};
+            ecs::add_component(ents, init);
 
             ecs::commit_changes();
 
