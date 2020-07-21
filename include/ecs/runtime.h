@@ -6,11 +6,11 @@
 #include <type_traits>
 #include <utility>
 
-#include "component_pool.h"
-#include "context.h"
+#include "detail/component_pool.h"
+#include "detail/context.h"
 #include "entity_id.h"
-#include "system.h"
-#include "system_verification.h"
+#include "detail/system.h"
+#include "detail/system_verification.h"
 
 namespace ecs {
     // Add components generated from an initializer function to a range of entities. Will not be

@@ -7,10 +7,10 @@
 #include <utility>
 #include <vector>
 
+#include "../entity_id.h"
+#include "../entity_range.h"
+#include "../system_base.h"
 #include "component_pool.h"
-#include "entity_id.h"
-#include "entity_range.h"
-#include "system_base.h"
 #include "type_hash.h"
 
 namespace ecs::detail {

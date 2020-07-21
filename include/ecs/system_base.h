@@ -4,7 +4,7 @@
 #include <span>
 #include <string>
 
-#include "type_hash.h"
+#include "detail/type_hash.h"
 
 namespace ecs::detail {
     class context;
