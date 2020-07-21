@@ -93,7 +93,7 @@ int main() {
     ecs::add_component({0, 2}, health{});
 
     // Infect the first entity
-    ecs::add_component({0}, plague{});
+    ecs::add_component(0, plague{});
 
     // Simulate a game loop. Keep going until the plague is gone x_x
     do {
