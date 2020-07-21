@@ -42,6 +42,18 @@ namespace ecs::detail {
 
         return hash;
     }
+
+    template<bool ignore_first_arg, typename First, typename... Types>
+    constexpr auto get_type_hashes_array() {
+        if constexpr (!ignore_first_arg) {
+            std::array<detail::type_hash, 1 + sizeof...(Types)> arr{get_type_hash<First>(), get_type_hash<Types>()...};
+            return arr;
+        } else {
+            std::array<detail::type_hash, sizeof...(Types)> arr{get_type_hash<Types>()...};
+            return arr;
+        }
+    }
+
 } // namespace ecs::detail
 
 #endif // !__TYPE_HASH
