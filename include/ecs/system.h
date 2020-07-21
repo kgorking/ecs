@@ -390,12 +390,11 @@ namespace ecs::detail {
                         return;
                     } else {
                         auto const& type_pool = get_pool<type>();
-                        // auto& type_pool = *std::get<pool<type>>(pools);
 
                         if (ranges.has_value()) {
                             ranges = intersect_ranges(*ranges, type_pool.get_entities());
                         } else {
-                            auto span = type_pool.get_entities();
+                            auto const span = type_pool.get_entities();
                             ranges.emplace(span.begin(), span.end());
                         }
                     }
@@ -410,7 +409,7 @@ namespace ecs::detail {
                     auto const difference = [&](auto arg) { // arg = std::remove_cvref_t<Components>*
                         using type = std::remove_pointer_t<decltype(arg)>;
                         if constexpr (std::is_pointer_v<type>) {
-                            auto& type_pool = get_pool<std::remove_pointer_t<type>>();
+                            auto const& type_pool = get_pool<std::remove_pointer_t<type>>();
                             ranges = difference_ranges(*ranges, type_pool.get_entities());
                         }
                     };
