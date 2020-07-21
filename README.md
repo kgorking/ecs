@@ -45,7 +45,7 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 
 # Building (checked july 20. 2020)
-[Compiler explorer test link](https://godbolt.org/z/on6zY8)
+[Compiler explorer test link](https://godbolt.org/z/MYxdnW)
 * MSVC 16.6+ (v14.26) will compile this library with no problems.
 * GCC 11 keeps ICEing on simple concepts. Seems to strugle immensely with parameter packs.
 * Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` header and 'std::shift_right'.
