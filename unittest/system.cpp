@@ -103,7 +103,7 @@ TEST_CASE("System specification", "[system]") {
             counter++;
         });
 
-        ecs::add_components(0, S1{}, S3{}, Sx{}, S2{});
+        ecs::add_component(0, S1{}, S3{}, Sx{}, S2{});
         ecs::update_systems();
     }
 
@@ -121,7 +121,7 @@ TEST_CASE("System specification", "[system]") {
         ecs::make_system([](C_Order1& o1, C_Order2& o2) { CHECK(o1.i < o2.j); });
 
         // Add the test components
-        ecs::add_components(0, C_Order1{1}, C_Order2{2});
+        ecs::add_component(0, C_Order1{1}, C_Order2{2});
 
         ecs::update_systems();
     }

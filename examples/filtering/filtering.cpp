@@ -2,9 +2,9 @@
 #include <iostream>
 
 int main() {
-    ecs::add_components({0, 6}, int());
-    ecs::add_components({3, 9}, float());
-    ecs::add_components({2, 3}, short());
+    ecs::add_component({0, 6}, int());
+    ecs::add_component({3, 9}, float());
+    ecs::add_component({2, 3}, short());
     ecs::commit_changes();
 
     auto& i        = ecs::make_system([](ecs::entity_id id, int&          ) { std::cout << id << ' '; });

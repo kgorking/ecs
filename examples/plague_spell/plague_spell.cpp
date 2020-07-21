@@ -22,7 +22,7 @@ struct plague {
 };
 
 // Handle damage logic
-void do_damage_logic(ecs::entity self, plague& p, health& h) {
+void do_damage_logic(ecs::entity_id self, plague& p, health& h) {
     p.dmg_duration -= delta_time;
     if (p.dmg_duration <= 0) {
         // Reset the tick duration
@@ -33,17 +33,17 @@ void do_damage_logic(ecs::entity self, plague& p, health& h) {
 
         if (h.hp <= 0) {
             // The plague did its job, so remove it from the entity
-            self.remove<plague>();
+            ecs::remove_component(self, p);
 
-            std::cout << "entity " << self.get_id() << " has died of the plague.\n";
+            std::cout << "entity " << self << " has died of the plague.\n";
         } else
-            std::cout << "entity " << self.get_id() << " took " << plague::dmg << " damage, health is now " << h.hp
+            std::cout << "entity " << self << " took " << plague::dmg << " damage, health is now " << h.hp
                       << '\n';
     }
 }
 
 // Handle spread logic
-void do_spread_logic(ecs::entity self, plague& p) {
+void do_spread_logic(ecs::entity_id self, plague& p) {
     p.spread_duration -= delta_time;
     if (p.spread_duration <= 0) {
         // Reset the tick duration
@@ -51,35 +51,35 @@ void do_spread_logic(ecs::entity self, plague& p) {
 
         // Do a spread tick. Use hardcoded entities for simplicitys sake
         auto ents_in_range = {
-            ecs::entity{1},
-            ecs::entity{2}}; /* should find all entities (with health component) in spread_range using game logic */
+            ecs::entity_id{1},
+            ecs::entity_id{2}}; /* should find all entities (with health component) in spread_range using game logic */
         for (auto ent : ents_in_range) {
-            if (!ent.has<plague>()) {
+            if (!ecs::has_component<plague>(ent)) {
                 // Add a copy of the plague component if the entity doesn't already have it.
                 // This means that newly infected entities are only affected for
                 // the remaing duration of this plague component
-                ent.add(plague{p}); // entity 1 and 2 survives (barely)
-                // ent.add(plague{});    // start a fresh plague instead. Entity 1 and 2 dies as well
+                ecs::add_component(ent, plague{p});     // entity 1 and 2 survives (barely)
+                // ecs::add_component(ent, plague{});   // start a fresh plague instead. Entity 1 and 2 dies as well
 
-                std::cout << "entity " << self.get_id() << " infected entity " << ent.get_id() << '\n';
+                std::cout << "entity " << self << " infected entity " << ent << '\n';
             }
         }
     }
 }
 
 // Handle spell logic
-void do_spell_logic(ecs::entity self, plague& p, health const& h) {
+void do_spell_logic(ecs::entity_id self, plague& p, health const& h) {
     p.duration -= delta_time;
     if (p.duration <= 0 && h.hp > 0) {
         // The spell has run its course without depleting the health, so remove it.
-        self.remove<plague>();
+        ecs::remove_component(self, p);
 
-        std::cout << "entity " << self.get_id() << " is no longer infected\n";
+        std::cout << "entity " << self << " is no longer infected\n";
     }
 }
 
 // The plague spell lambda that works on entities with a plague- and health component
-auto constexpr plague_spell_lambda = [](ecs::entity self, plague& p, health& h) {
+auto constexpr plague_spell_lambda = [](ecs::entity_id self, plague& p, health& h) {
     do_damage_logic(self, p, h);
     do_spread_logic(self, p);
     do_spell_logic(self, p, h);

@@ -21,7 +21,9 @@ namespace ecs /*::detail*/ {
         // entity_iterator() = delete; // no such thing as a 'default' entity
         constexpr entity_iterator() noexcept {};
 
-        constexpr entity_iterator(entity_id ent) noexcept : ent_(ent) {}
+        constexpr entity_iterator(entity_id ent) noexcept
+            : ent_(ent) {
+        }
 
         constexpr entity_iterator& operator++() {
             ent_ = step(ent_, 1);
@@ -42,11 +44,17 @@ namespace ecs /*::detail*/ {
             return step(ent_, -other.ent_);
         }
 
-        constexpr bool operator==(entity_iterator other) const { return ent_ == other.ent_; }
+        constexpr bool operator==(entity_iterator other) const {
+            return ent_ == other.ent_;
+        }
 
-        constexpr bool operator!=(entity_iterator other) const { return !(*this == other); }
+        constexpr bool operator!=(entity_iterator other) const {
+            return !(*this == other);
+        }
 
-        constexpr entity_id operator*() { return {ent_}; }
+        constexpr entity_id operator*() {
+            return {ent_};
+        }
 
     protected:
         constexpr entity_type step(entity_type start, entity_offset diff) const {

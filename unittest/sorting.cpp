@@ -7,7 +7,7 @@ int generator(ecs::entity_id) { return rand() % 9; };
 TEST_CASE("Sorting") {
     ecs::detail::_context.reset();
 
-    ecs::add_components({0, 9}, generator);
+    ecs::add_component({0, 9}, generator);
     ecs::commit_changes();
 
     int test = std::numeric_limits<int>::min();

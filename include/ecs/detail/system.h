@@ -43,10 +43,9 @@ namespace ecs::detail {
     // The implementation of a system specialized on its components
     template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     class system final : public system_base {
-
+    public:
         // Determines if the first component is an entity
-        static constexpr bool is_first_arg_entity =
-            std::is_same_v<FirstComponent, entity_id> || std::is_same_v<FirstComponent, entity>;
+        static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id>;
 
         // Number of arguments
         static constexpr size_t num_arguments = 1 + sizeof...(Components);
@@ -92,7 +91,7 @@ namespace ecs::detail {
         // Holds a single entity id and its arguments
         using packed_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple{}));
 
-
+    private:
         // Holds the arguments for a range of entities
         std::vector<range_argument> arguments;
 

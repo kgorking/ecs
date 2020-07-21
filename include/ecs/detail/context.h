@@ -132,12 +132,9 @@ namespace ecs::detail {
             // Set up the implementation
             using typed_system = system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>;
 
-            // Is the first argument an entity of sorts?
-            bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
-
             // Create the system instance
             std::unique_ptr<system_base> sys;
-            if constexpr (has_entity) {
+            if constexpr (typed_system::is_first_arg_entity) {
                 sys = std::make_unique<typed_system>(update_func, sort_func, &get_component_pool<Args>()...);
             } else {
                 sys = std::make_unique<typed_system>(

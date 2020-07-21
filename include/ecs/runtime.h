@@ -13,64 +13,49 @@
 #include "detail/system_verification.h"
 
 namespace ecs {
-    // Add components generated from an initializer function to a range of entities. Will not be
-    // added until 'commit_changes()' is called. The initializer function signature must be
-    //   T(ecs::entity_id)
-    // where T is the component type returned by the function.
+    // Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
+    // Initializers can be used with the function signature 'T(ecs::entity_id)'
+    //   where T is the component type returned by the function.
     // Pre: entity does not already have the component, or have it in queue to be added
-    // template<typename Callable> requires std::invocable<Callable, entity_id>
-    template<std::invocable<entity_id> Callable>
-    void add_component(entity_range const range, Callable&& func) {
-        // Return type of 'func'
-        using ComponentType = decltype(std::declval<Callable>()(entity_id{0}));
-        static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
-
-        // Add it to the component pool
-        detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
-        pool.add_init(range, std::forward<Callable>(func));
-    }
-
-    // Add a component to a range of entities. Will not be added until 'commit_changes()' is called.
-    // Pre: entity does not already have the component, or have it in queue to be added
-    template<typename T>
-    void add_component(entity_range const range, T&& val) {
-        static_assert(!std::is_reference_v<T>, "can not store references; pass a copy instead");
-        static_assert(std::copyable<T>, "T must be copyable");
-
-        // Add it to the component pool
-        detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-        pool.add(range, std::forward<T>(val));
-    }
-
-    // Add a component to an entity. Will not be added until 'commit_changes()' is called.
-    // Pre: entity does not already have the component, or have it in queue to be added
-    template<typename T>
-    void add_component(entity_id const id, T&& val) {
-        add_component({id, id}, std::forward<T>(val));
-    }
-
-    // Add several components to a range of entities. Will not be added until 'commit_changes()' is
-    // called. Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
-    void add_components(entity_range const range, First&& first_val, T&&... vals) {
+    void add_component(entity_range const range, First&& first_val, T&&... vals) {
         static_assert(detail::unique<First, T...>, "the same component was specified more than once");
-        add_component(range, std::forward<First>(first_val));
-        (add_component(range, std::forward<T>(vals)), ...);
+
+        auto const adder = []<class T>(entity_range const range, T&& val) {
+            if constexpr (std::invocable<T, entity_id>) {
+                // Return type of 'func'
+                using ComponentType = decltype(std::declval<T>()(entity_id{0}));
+                static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
+
+                // Add it to the component pool
+                detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
+                pool.add_init(range, std::forward<T>(val));
+            } else {
+                static_assert(!std::is_reference_v<T>, "can not store references; pass a copy instead");
+                static_assert(std::copyable<T>, "T must be copyable");
+
+                // Add it to the component pool
+                detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
+                pool.add(range, std::forward<T>(val));
+            }
+        };
+
+        //add_component(range, std::forward<First>(first_val));
+        adder(range, std::forward<First>(first_val));
+        (adder(range, std::forward<T>(vals)), ...);
     }
 
     // Add several components to an entity. Will not be added until 'commit_changes()' is called.
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
-    void add_components(entity_id const id, First&& first_val, T&&... vals) {
-        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
-        add_component(id, std::forward<First>(first_val));
-        (add_component(id, std::forward<T>(vals)), ...);
+    void add_component(entity_id const id, First&& first_val, T&&... vals) {
+        add_component(entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
     }
 
     // Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
     // called. Pre: entity has the component
     template<detail::persistent T>
-    void remove_component(entity_range const range) {
+    void remove_component(entity_range const range, T const& = T{}) {
         // Remove the entities from the components pool
         detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
         pool.remove_range(range);
@@ -79,7 +64,7 @@ namespace ecs {
     // Removes a component from an entity. Will not be removed until 'commit_changes()' is called.
     // Pre: entity has the component
     template<typename T>
-    void remove_component(entity_id const id) {
+    void remove_component(entity_id const id, T const& = T{}) {
         remove_component<T>({id, id});
     }
 

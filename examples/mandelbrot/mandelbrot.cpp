@@ -40,11 +40,12 @@ int main() {
     ecs::make_system(mandelbrot_system);
 
     // Add the size_t component to the pixels/entities
-    ecs::entity_range const ents{0, dimension * dimension, size_t{0}, [](ecs::entity_id ent) -> pos {
-                                     int const x = ent % dimension;
-                                     int const y = ent / dimension;
-                                     return {x, y};
-                                 }};
+    ecs::entity_range const ents{0, dimension * dimension};
+    ecs::add_component(ents, size_t{0}, [](ecs::entity_id ent) -> pos {
+        int const x = ent % dimension;
+        int const y = ent / dimension;
+        return {x, y};
+    });
 
     // Commit all component changes and run the system
     ecs::update_systems();
