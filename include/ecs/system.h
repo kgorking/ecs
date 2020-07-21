@@ -70,8 +70,8 @@ namespace ecs::detail {
         static_assert(num_filters < num_components, "systems must have at least one non-filter component");
 
         // Component names
-        static constexpr std::array<std::string_view, num_arguments> argument_names{
-            get_type_name<FirstComponent>(), get_type_name<Components>()...};
+        static constexpr std::array<std::string_view, num_arguments> argument_names =
+            {get_type_name<FirstComponent>(), get_type_name<Components>()...};
 
         // Hashes of stripped types used by this system ('int' instead of 'int const&')
         static constexpr std::array<detail::type_hash, num_components> type_hashes =
@@ -381,9 +381,6 @@ namespace ecs::detail {
                     return result;
                 };
 
-                // Intersect the entity ranges
-                // auto const intersect = do_intersection(entities, get_pool<std::remove_cvref_t<Components>>().get_entities()...);
-
                 // The intersector
                 std::optional<std::vector<entity_range>> ranges;
                 auto const intersect = [&](auto arg) { // arg = std::remove_cvref_t<Components>*
@@ -404,18 +401,22 @@ namespace ecs::detail {
                     }
                 };
 
-                auto const difference = [&](auto arg) { // arg = std::remove_cvref_t<Components>*
-                    using type = std::remove_pointer_t<decltype(arg)>;
-                    if constexpr (std::is_pointer_v<type>) {
-                        auto& type_pool = get_pool<std::remove_pointer_t<type>>();
-                        ranges = difference_ranges(*ranges, type_pool.get_entities());
-                    }
-                };
-
-                // Find the intersections and differences
+                // Find the intersections
                 auto dummy = argument_tuple{};
                 std::apply([&intersect](auto... args) { (..., intersect(args)); }, dummy);
-                std::apply([&difference](auto... args) { (..., difference(args)); }, dummy);
+
+                // Filter out types if needed
+                if constexpr (num_filters > 0) {
+                    auto const difference = [&](auto arg) { // arg = std::remove_cvref_t<Components>*
+                        using type = std::remove_pointer_t<decltype(arg)>;
+                        if constexpr (std::is_pointer_v<type>) {
+                            auto& type_pool = get_pool<std::remove_pointer_t<type>>();
+                            ranges = difference_ranges(*ranges, type_pool.get_entities());
+                        }
+                    };
+
+                    std::apply([&difference](auto... args) { (..., difference(args)); }, dummy);
+                }
 
                 // Build the arguments
                 if (ranges.has_value())
