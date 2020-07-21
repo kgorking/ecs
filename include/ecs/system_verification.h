@@ -125,9 +125,6 @@ namespace ecs::detail {
 
     template<typename T>
     concept lambda = requires {
-        // Must have the call operator
-        &T::operator();
-
         // Check all the system requirements
         lambda_to_system_bridge(&T::operator());
     };
@@ -155,9 +152,6 @@ namespace ecs::detail {
 
     template<typename T>
     concept sorter = requires {
-        // Must have the call operator
-        &T::operator();
-
         // Check all the sorter requirements
         lambda_to_sorter_bridge(&T::operator());
     };
