@@ -23,12 +23,11 @@ int main() {
     ecs::make_system<2>([](Name const& name, flameable_t) { std::cout << "  flammeable: " << name << "\n"; });
 
     // Set up the entities with a name and tags
-    ecs::entity_id const jon{0}, sean{1}, jimmy{2}, rachel{3}, suzy{4};
-    ecs::add_component(jon, Name{"Jon"}, freezeable_t{});
-    ecs::add_component(sean, Name{"Sean"}, flameable_t{});
-    ecs::add_component(jimmy, Name{"Jimmy"}, shockable_t{});
-    ecs::add_component(rachel, Name{"Rachel"}, flameable_t{}, freezeable_t{}, shockable_t{});
-    ecs::add_component(suzy, Name{"Suzy"}, flameable_t{});
+    ecs::add_component(0, Name{"Jon"}, freezeable_t{});
+    ecs::add_component(1, Name{"Sean"}, flameable_t{});
+    ecs::add_component(2, Name{"Jimmy"}, shockable_t{});
+    ecs::add_component(3, Name{"Rachel"}, flameable_t{}, freezeable_t{}, shockable_t{});
+    ecs::add_component(4, Name{"Suzy"}, flameable_t{});
 
     // Commit the changes
     ecs::commit_changes();

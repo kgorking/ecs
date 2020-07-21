@@ -33,7 +33,7 @@ void do_damage_logic(ecs::entity_id self, plague& p, health& h) {
 
         if (h.hp <= 0) {
             // The plague did its job, so remove it from the entity
-            ecs::remove_component<plague>(self);
+            ecs::remove_component(self, p);
 
             std::cout << "entity " << self << " has died of the plague.\n";
         } else
@@ -72,7 +72,7 @@ void do_spell_logic(ecs::entity_id self, plague& p, health const& h) {
     p.duration -= delta_time;
     if (p.duration <= 0 && h.hp > 0) {
         // The spell has run its course without depleting the health, so remove it.
-        ecs::remove_component<plague>(self);
+        ecs::remove_component(self, p);
 
         std::cout << "entity " << self << " is no longer infected\n";
     }

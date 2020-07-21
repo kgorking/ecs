@@ -16,8 +16,7 @@ int main() {
 
     // Create a range of entities that would
     // take 5 seconds to process serially
-    ecs::entity_range const ents{0, 500 - 1};
-    ecs::add_component(ents, short{0});
+    ecs::add_component({0, 500 - 1}, short{0});
 
     // Commit the components (does not run the systems)
     ecs::commit_changes();

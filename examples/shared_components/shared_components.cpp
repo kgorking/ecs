@@ -32,15 +32,13 @@ int main() {
     });
 
     std::cout << "Adding 10 entities with an A and state_s component:\n";
-    ecs::entity_range const a_ents{0, 9};
-    ecs::add_component(a_ents, A{}, state_s{});
+    ecs::add_component({0, 9}, A{}, state_s{});
     ecs::commit_changes();
     sys_a.update(); // run A system
     print_shared_state();
 
     std::cout << "Adding 10 more entities with a B and state_s component:\n";
-    ecs::entity_range const b_ents{10, 19};
-    ecs::add_component(b_ents, B{}, state_s{});
+    ecs::add_component({10, 19}, B{}, state_s{});
     ecs::commit_changes();
     sys_b.update(); // run B system
     print_shared_state();
