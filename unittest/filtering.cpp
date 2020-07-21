@@ -4,8 +4,8 @@
 TEST_CASE("Filtering", "[component][system]") {
     ecs::detail::_context.reset();
 
-    ecs::add_components({0, 6}, int());
-    ecs::add_components({3, 9}, float());
+    ecs::add_component({0, 6}, int());
+    ecs::add_component({3, 9}, float());
     ecs::commit_changes();
 
     ecs::make_system([](ecs::entity_id id, int&) {

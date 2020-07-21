@@ -41,7 +41,7 @@ int main() {
 
     // Add the size_t component to the pixels/entities
     ecs::entity_range const ents{0, dimension * dimension};
-    ecs::add_components(ents, size_t{0}, [](ecs::entity_id ent) -> pos {
+    ecs::add_component(ents, size_t{0}, [](ecs::entity_id ent) -> pos {
         int const x = ent % dimension;
         int const y = ent / dimension;
         return {x, y};

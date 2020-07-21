@@ -14,13 +14,15 @@ namespace ecs {
     // Defines a range of entities.
     // 'last' is included in the range.
     class entity_range final {
-        entity_id first_;
-        entity_id last_;
+        entity_type first_;
+        entity_type last_;
 
     public:
         entity_range() = delete; // no such thing as a 'default' range
 
-        constexpr entity_range(entity_id first, entity_id last) : first_(first), last_(last) {
+        constexpr entity_range(entity_type first, entity_type last)
+            : first_(first)
+            , last_(last) {
             Expects(first <= last);
         }
 
@@ -29,9 +31,13 @@ namespace ecs {
             return std::span(get_component<Component>(first_), count());
         }
 
-        [[nodiscard]] constexpr entity_iterator begin() const { return entity_iterator{first_}; }
+        [[nodiscard]] constexpr entity_iterator begin() const {
+            return entity_iterator{first_};
+        }
 
-        [[nodiscard]] constexpr entity_iterator end() const { return entity_iterator{last_} + 1; }
+        [[nodiscard]] constexpr entity_iterator end() const {
+            return entity_iterator{last_} + 1;
+        }
 
         [[nodiscard]] constexpr bool operator==(entity_range const& other) const {
             return equals(other);
@@ -43,10 +49,14 @@ namespace ecs {
         }
 
         // Returns the first entity in the range
-        [[nodiscard]] constexpr entity_id first() const { return first_; }
+        [[nodiscard]] constexpr entity_id first() const {
+            return entity_id{first_};
+        }
 
         // Returns the last entity in the range
-        [[nodiscard]] constexpr entity_id last() const { return last_; }
+        [[nodiscard]] constexpr entity_id last() const {
+            return entity_id{last_};
+        }
 
         // Returns the number of entities in this range
         [[nodiscard]] constexpr size_t count() const {
@@ -86,8 +96,8 @@ namespace ecs {
         // Removes a range from another range.
         // If the range was split by the remove, it returns two ranges.
         // Pre: 'other' must overlap 'range', but must not be equal to it
-        [[nodiscard]] constexpr static std::pair<entity_range, std::optional<entity_range>>
-        remove(entity_range const& range, entity_range const& other) {
+        [[nodiscard]] constexpr static std::pair<entity_range, std::optional<entity_range>> remove(
+            entity_range const& range, entity_range const& other) {
             Expects(!range.equals(other));
 
             // Remove from the front
@@ -116,16 +126,14 @@ namespace ecs {
 
         // Combines two ranges into one
         // Pre: r1 and r2 must be adjacent ranges, r1 < r2
-        [[nodiscard]] constexpr static entity_range merge(entity_range const& r1,
-                                                          entity_range const& r2) {
+        [[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
             Expects(r1.can_merge(r2));
             return entity_range{r1.first(), r2.last()};
         }
 
         // Returns the intersection of two ranges
         // Pre: The ranges must overlap, the resulting ranges can not have zero-length
-        [[nodiscard]] constexpr static entity_range intersect(entity_range const& range,
-                                                              entity_range const& other) {
+        [[nodiscard]] constexpr static entity_range intersect(entity_range const& range, entity_range const& other) {
             Expects(range.overlaps(other));
 
             entity_id const first{std::max(range.first(), other.first())};

@@ -26,7 +26,7 @@ int main() {
     });
 
     // The entities
-    ecs::add_components({0, 2}, greeting{"alright"});
+    ecs::add_component({0, 2}, greeting{"alright"});
 
     // Run it
     ecs::update_systems();
@@ -76,30 +76,27 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
 
 * [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
-* [`ecs::entity`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity.h) is a slightly more useful wrapper of `ecs::entity_id` which adds some helper-functions to ease to usage of entity-component interactions.
 * [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
 
 The management of entity id's is left to user.
 
 # Components
-Components hold the data, and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [CopyConstructible](https://en.cppreference.com/w/cpp/named_req/CopyConstructible). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
+Components hold the data and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [CopyConstructible](https://en.cppreference.com/w/cpp/named_req/CopyConstructible). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
 
 You can add as many different components to an entity as you need; there is no upper limit. You can not add more than one of the same type.
 
 ## Adding components to entities
-The simplest way to add components to entities is through the helper-functions on `ecs::entity_range` and `ecs::entity`. Components can also be added using the free-standing functions `ecs::add_component()` and `ecs::add_components()`.
+Adding components is done with the function `ecs::add_component()`.
 
 ```cpp
-ecs::entity ent{0};         // entity helper-class working on id 0
-ent.add<int>();             // add a default-initialized integer to entity 0
-ent.add(2L);                // add a long with value 2 to entity 0 (deduces type from the argument)
-ent.add(4UL, 3.14f, 6.28);  // add an unsigned long, a float, and a double to entity 0
-ecs::add_component(0, 6LL); // add a long long to entity 0
+ecs::add_component(0, 4UL, 3.14f, 6.28); // add an unsigned long, a float, and a double to entity 0
 
-ecs::entity_range more_ents{1,100};     // entity helper-class working on ids from 1 to (and including) 100
-more_ents.add(3, 0.1f);                 // add 100 ints with value 3 and 100 floats with value 0.1f
-ecs::add_component({1,50}, 6LL);        // add a long long to 50 entities
-ecs::add_components({1,50}, 'A', 2.2);  // add a char and a double to 50 entities
+ecs::entity_id ent{1};
+ecs::add_component(ent, "hello");        // add const char* to entity 1
+
+ecs::entity_range more_ents{1,100};      // entity range of ids from 1 to (and including) 100
+ecs::add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 floats with value 0.1f
+ecs::add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entities
 // etc..
 ```
 
@@ -123,7 +120,7 @@ struct pos {
 
 // ...
 
-ecs::add_components({ 0, dimension * dimension},
+ecs::add_component({ 0, dimension * dimension},
     [](ecs::entity_id ent) -> pos {
         int const x = ent % dimension;
         int const y = ent / dimension;
@@ -168,7 +165,7 @@ struct frame_data { ecs_flags(ecs::share);
     double delta_time = 0.0;
 };
 // ...
-ecs::add_components<position, velocity, frame_data>({0, 100});
+ecs::add_component({0, 100}, position{}, velocity{}, frame_data{});
 // ...
 ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
@@ -190,7 +187,7 @@ struct damage { ecs_flags(ecs::transient);
     double value;
 };
 // ...
-ecs::add_components({0,99}, damage{9001});
+ecs::add_component({0,99}, damage{9001});
 ecs::commit_changes(); // adds the 100 damage components
 ecs::commit_changes(); // removes the 100 damage components
 ```
@@ -203,7 +200,7 @@ struct frame_data { ecs_flags(ecs::global);
     double delta_time = 0.0;
 };
 // ...
-ecs::add_components<position, velocity>({0, 100});
+ecs::add_component({0, 100}, position{}, velocity{});
 // ...
 ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
@@ -308,7 +305,7 @@ ecs::make_system([](int&) {
     std::cout << "hello from group whatever\n";
 });
 // ...
-ecs::add_components(0, int{});
+ecs::add_component(0, int{});
 ecs::update_systems();
 ```
 Running the above code will print out

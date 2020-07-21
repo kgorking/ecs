@@ -89,6 +89,6 @@ int main() {
     //
     // Add the components to an entitiy and run the systems.
     std::cout << "\nrunning systems on 5 entities:\n";
-    ecs::add_components({0, 4}, type<0>{}, type<1>{}, type<2>{});
+    ecs::add_component({0, 4}, type<0>{}, type<1>{}, type<2>{});
     ecs::update_systems();
 }

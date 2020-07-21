@@ -75,7 +75,7 @@ TEST_CASE("Scheduler") {
             sys6 = true;
         });
 
-        ecs::add_components(0, type<0>{}, type<1>{}, type<2>{});
+        ecs::add_component(0, type<0>{}, type<1>{}, type<2>{});
         ecs::update_systems();
 
         CHECK(sys1 == true);
