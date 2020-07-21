@@ -44,7 +44,7 @@ namespace ecs::detail {
 
     template<class T>
     concept entity_type =
-        std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
+        std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
     // Implement the requirements for immutable components
     template<typename C>
