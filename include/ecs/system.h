@@ -63,7 +63,7 @@ namespace ecs::detail {
         static constexpr size_t num_arguments = 1 + sizeof...(Components);
 
         // Calculate the number of components
-        static constexpr size_t num_components = sizeof...(Components) + (is_first_arg_entity ? 0 : 1);
+        static constexpr size_t num_components = sizeof...(Components) + !is_first_arg_entity;
 
         // Calculate the number of filters
         static constexpr size_t num_filters = (std::is_pointer_v<FirstComponent> + ... + std::is_pointer_v<Components>);
@@ -80,6 +80,10 @@ namespace ecs::detail {
         // Contains true if a type is read-only
         static constexpr std::array<bool, num_components> type_read_only =
             get_type_read_only<is_first_arg_entity, FirstComponent, Components...>();
+
+         // True if a valid sorting function is supplied
+        static constexpr bool has_sort_func = !std::is_same_v<std::nullptr_t, SortFn>;
+
 
         // Alias for stored pools
         template<class T>
@@ -99,6 +103,7 @@ namespace ecs::detail {
         // Holds a single entity id and its arguments
         using packed_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple{}));
 
+
         // Holds the arguments for a range of entities
         std::vector<range_argument> arguments;
 
@@ -108,14 +113,14 @@ namespace ecs::detail {
         // The user supplied system
         UpdateFn update_func;
 
-        // True if a valid sorting function is supplied
-        static constexpr bool has_sort_func = !std::is_same_v<std::nullptr_t, SortFn>;
-
         // The user supplied sorting function
         SortFn sort_func;
 
         // The vector of unrolled arguments, sorted using 'sort_func'
         std::vector<packed_argument> sorted_arguments;
+
+        // True if the data needs to be sorted
+        bool needs_sorting = false;
 
     public:
         // Constructor for when the first argument to the system is _not_ an entity
@@ -139,13 +144,17 @@ namespace ecs::detail {
                 using sort_type = sort_func_type<SortFn>;
                 static_assert(std::predicate<SortFn, sort_type, sort_type>);
 
-                // Sort the arguments
-                // if get_pool is_data_modified
-                std::sort(sorted_arguments.begin(), sorted_arguments.end(), [this](auto const& l, auto const& r) {
-                    sort_type* t_l = std::get<sort_type*>(l);
-                    sort_type* t_r = std::get<sort_type*>(r);
-                    return sort_func(*t_l, *t_r);
-                });
+                // Sort the arguments if the component data has been modified
+                if (needs_sorting || std::get<pool<sort_type>>(pools)->has_components_been_modified()) {
+                    std::sort(ExePolicy{}, sorted_arguments.begin(), sorted_arguments.end(),
+                        [this](auto const& l, auto const& r) {
+                            sort_type* t_l = std::get<sort_type*>(l);
+                            sort_type* t_r = std::get<sort_type*>(r);
+                            return sort_func(*t_l, *t_r);
+                        });
+
+                    needs_sorting = false;
+                }
 
                 std::for_each(ExePolicy{}, sorted_arguments.begin(), sorted_arguments.end(), [this](auto packed_arg) {
                     if constexpr (is_first_arg_entity) {
@@ -182,6 +191,19 @@ namespace ecs::detail {
                             }
                         });
                 }
+            }
+
+            // Notify pools if data was written to them
+            if constexpr (!is_first_arg_entity) {
+                notify_pool_modifed<FirstComponent>();
+            }
+            (notify_pool_modifed<Components>(), ...);
+        }
+
+        template<typename T>
+        void notify_pool_modifed() {
+            if constexpr (!is_read_only<T>()) {
+                std::get<pool<T>>(pools)->notify_components_modified();
             }
         }
 
@@ -256,7 +278,6 @@ namespace ecs::detail {
             return !type_read_only[std::distance(type_hashes.begin(), it)];
         }
 
-    protected:
     private:
         // Handle changes when the component pools change
         void process_changes(bool force_rebuild) override {
@@ -269,7 +290,9 @@ namespace ecs::detail {
                 return;
             }
 
-            auto constexpr is_pools_modified = [](auto... pools) { return (pools->is_data_modified() || ...); };
+            auto constexpr is_pools_modified = [](auto... pools) {
+                return (pools->has_component_count_changed() || ...);
+            };
             bool const is_modified = std::apply(is_pools_modified, pools);
 
             if (is_modified) {
@@ -282,6 +305,8 @@ namespace ecs::detail {
                 // Check that the system has the type that sort_func wants to sort on
                 static_assert(static_has_component(get_type_hash<sort_func_type<SortFn>>()),
                     "sorting function operates on a type that the system does not have");
+ 
+                needs_sorting = true;
             }
 
             if constexpr (num_components == 1) {
