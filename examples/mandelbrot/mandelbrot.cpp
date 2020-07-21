@@ -48,7 +48,7 @@ int main() {
     });
 
     // Commit all component changes and run the system
-    ecs::update_systems();
+    ecs::update();
 
     // Count the pixels equal to one
     size_t counter = 0;

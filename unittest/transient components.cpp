@@ -20,17 +20,17 @@ TEST_CASE("Transient components", "[component][transient]") {
 
     ecs::add_component(0, test_t{});
     ecs::add_component(0, foo{});
-    ecs::update_systems();
+    ecs::update();
     CHECK(1 == counter);
 
     // test_t will be removed in this update,
     // and the counter should thus not be incremented
-    ecs::update_systems();
+    ecs::update();
     CHECK(1 == counter);
 
     // Add the test_t again, should increment the count
     ecs::add_component(0, test_t{});
-    ecs::update_systems();
+    ecs::update();
     CHECK(2 == counter);
 
     // This should clean up test_t

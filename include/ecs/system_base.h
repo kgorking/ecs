@@ -21,7 +21,7 @@ namespace ecs {
         system_base& operator=(system_base&&) = default;
 
         // Run this system on all of its associated components
-        virtual void update() = 0;
+        virtual void run() = 0;
 
         // Enables this system for updates and runs
         void enable() { set_enable(true); }

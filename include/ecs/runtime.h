@@ -151,7 +151,7 @@ namespace ecs {
 
     // Commits all changes and calls the 'update' function on all the systems in the order they were
     // added. Same as calling commit_changes() and run_systems().
-    inline void update_systems() {
+    inline void update() {
         commit_changes();
         run_systems();
     }

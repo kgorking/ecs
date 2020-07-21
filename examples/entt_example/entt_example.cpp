@@ -31,5 +31,5 @@ int main() {
     ecs::add_component({0, 4}, [](auto id) { return velocity{id * 1.f, id * 1.f}; });
 
     // Run the systems
-    ecs::update_systems();
+    ecs::update();
 }

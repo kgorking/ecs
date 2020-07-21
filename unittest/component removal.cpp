@@ -26,10 +26,10 @@ TEST_CASE("Component removal", "[component][transient]") {
     ecs::commit_changes();
 
     ecs::add_component(fsm, ev_connect{});
-    ecs::update_systems();
+    ecs::update();
     CHECK(run_counter_idle == 1);
 
     ecs::add_component(fsm, ev_timeout{});
-    ecs::update_systems();
+    ecs::update();
     CHECK(run_counter_idle == 1);
 }

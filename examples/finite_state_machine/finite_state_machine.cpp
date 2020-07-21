@@ -77,25 +77,25 @@ int main() {
     // Will trigger the 'state_idle/ev_connect_t' system (1) and change the state to
     // 'state_connecting'
     ecs::add_component(fsm, ev_connect_t{});
-    ecs::update_systems();
+    ecs::update();
 
     // Add a 'timeout' event to the fsm, and commit and run any appropiate systems.
     // Will trigger the 'state_connecting/ev_timeout_t' system (2). If too many timeouts happen,
     // change the state back to idle
     ecs::add_component(fsm, ev_timeout_t{});
-    ecs::update_systems();
+    ecs::update();
 
     // Add a 'connected' event to the fsm, and commit and run any appropiate systems.
     // Will trigger the 'state_connecting/ev_connected_t' system (3) and change the state to
     // 'state_connected'
     ecs::add_component(fsm, ev_connected_t{});
-    ecs::update_systems();
+    ecs::update();
 
     // Add a 'disconnect' event to the fsm, and commit and run any appropiate systems.
     // Will trigger the 'state_connected/ev_disconnect_t' system (4) and change the state to
     // 'state_idle'
     ecs::add_component(fsm, ev_disconnect_t{});
-    ecs::update_systems();
+    ecs::update();
 
     // Add a new event and system
     struct ev_hello {
@@ -106,5 +106,5 @@ int main() {
     });
 
     ecs::add_component(fsm, ev_hello{});
-    ecs::update_systems();
+    ecs::update();
 }

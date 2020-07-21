@@ -62,7 +62,7 @@ namespace ecs::detail {
                 return;
             }
 
-            sys->update();
+            sys->run();
 
             std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](auto node) {
                 nodes[node].dependency_done();

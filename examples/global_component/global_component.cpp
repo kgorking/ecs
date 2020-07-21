@@ -40,7 +40,7 @@ int main() {
     std::cout << "Adding 10 more entities with a B component:\n";
     ecs::add_component({10, 19}, B{});
 
-    ecs::update_systems();
+    ecs::update();
     print_global_state();
 
     // Dump some stats

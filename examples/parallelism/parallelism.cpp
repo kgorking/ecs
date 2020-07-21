@@ -24,14 +24,14 @@ int main() {
     // Time the serial system
     std::cout << "Running serial system: ";
     auto start = std::chrono::high_resolution_clock::now();
-    serial_sys.update();
+    serial_sys.run();
     std::chrono::duration<double> const serial_time = std::chrono::high_resolution_clock::now() - start;
     std::cout << serial_time.count() << " seconds\n";
 
     // Time the parallel system
     std::cout << "Running parallel system: ";
     start = std::chrono::high_resolution_clock::now();
-    parallel_sys.update();
+    parallel_sys.run();
     std::chrono::duration<double> const parallel_time = std::chrono::high_resolution_clock::now() - start;
     std::cout << parallel_time.count() << " seconds\n";
 }

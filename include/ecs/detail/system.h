@@ -123,7 +123,7 @@ namespace ecs::detail {
             build_args();
         }
 
-        void update() override {
+        void run() override {
             if (!is_enabled()) {
                 return;
             }

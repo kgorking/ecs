@@ -17,7 +17,7 @@ TEST_CASE("Sorting") {
             test = i;
         },
         std::less<int>());
-    asc.update();
+    asc.run();
 
     test = std::numeric_limits<int>::max();
     auto& dec = ecs::make_system(
@@ -26,15 +26,15 @@ TEST_CASE("Sorting") {
             test = i;
         },
         std::greater<int>());
-    dec.update();
+    dec.run();
 
     // modify the components and re-check
     auto& mod = ecs::make_system([](int& i) { i = generator(0); });
-    mod.update();
+    mod.run();
 
     test = std::numeric_limits<int>::min();
-    asc.update();
+    asc.run();
 
     test = std::numeric_limits<int>::max();
-    dec.update();
+    dec.run();
 }

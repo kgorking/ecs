@@ -59,7 +59,7 @@ void system_update(benchmark::State& state) {
 		ecs::make_system(benchmark_system);
 
 		ecs::add_component({0, nentities}, int{}, shared_s{});
-		ecs::update_systems();
+		ecs::update();
 	}
 }
 BENCHMARK(system_update)->Arg(num_components);
@@ -74,7 +74,7 @@ void system_update_parallel(benchmark::State& state) {
 		ecs::get_shared_component<shared_s>().dimension = nentities;
 
 		ecs::add_component({ 0, nentities }, int{}, shared_s{});
-		ecs::update_systems();
+		ecs::update();
 	}
 }
 BENCHMARK(system_update_parallel)->Arg(num_components);

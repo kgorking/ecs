@@ -16,11 +16,11 @@ int main() {
     ecs::add_component({0, 2}, int{1});
 
     // Commit the changes and run the systems
-    ecs::update_systems();
+    ecs::update();
 
     std::cout << "\n# 2. using a lambda to initialize components\n";
     ecs::add_component({3, 5}, [](ecs::entity_id ent) -> int { return ent * 2; });
-    ecs::update_systems();
+    ecs::update();
 
     std::cout << "\n# 3. Adding a second component\n";
     // Add another system that operates on entities that hold an 'int' and 'std::string'
@@ -32,7 +32,7 @@ int main() {
     ecs::add_component(5, std::string{"jimmy"});
 
     // Commit the changes and run the systems
-    ecs::update_systems();
+    ecs::update();
 
     std::cout << "\n# 4. Removing a component\n";
     // Remove the integer component from the 'sean' entity using the 'ecc::entity' helper class
@@ -40,11 +40,11 @@ int main() {
     ecs::remove_component<int>(sean);
 
     // Commit the changes and run the systems
-    ecs::update_systems();
+    ecs::update();
 
     std::cout << "\n# 5. Accessing the entity id\n";
     ecs::make_system<2>([](ecs::entity_id ent, std::string const& s) {
         std::cout << "entity with id " << ent << " is named " << s << '\n';
     });
-    ecs::update_systems();
+    ecs::update();
 }

@@ -66,7 +66,7 @@ TEST_CASE("The runtime interface") {
 
         // Create 100 entities and add stuff to them
         ecs::add_component({0, 3}, mut_lambda{0});
-        ecs::update_systems();
+        ecs::update();
     }
 
     SECTION("Ranged add") {

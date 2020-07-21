@@ -15,7 +15,9 @@ TEST_CASE("System specification", "[system]") {
         ecs::commit_changes();
 
         // Run the system 5 times
-        for (int i = 0; i < 5; i++) { sys.update(); }
+        for (int i = 0; i < 5; i++) {
+            sys.run();
+        }
 
         // Get the component data to verify that the system was run the correct number of times
         auto const l = *ecs::get_component<local1>(0);
@@ -46,17 +48,17 @@ TEST_CASE("System specification", "[system]") {
         ecs::commit_changes();
 
         // Run the system and check value
-        sys.update();
+        sys.run();
         REQUIRE(1 == ecs::get_component<local3>(0)->c);
 
         // Disable system and re-run. Should not change the component
         sys.disable();
-        sys.update();
+        sys.run();
         REQUIRE(1 == ecs::get_component<local3>(0)->c);
 
         // Enable system and re-run. Should change the component
         sys.enable();
-        sys.update();
+        sys.run();
         REQUIRE(2 == ecs::get_component<local3>(0)->c);
     }
 
@@ -70,11 +72,11 @@ TEST_CASE("System specification", "[system]") {
 
         ecs::add_component(0, local4{0});
         ecs::commit_changes();
-        sys.update();
+        sys.run();
         REQUIRE(0 == ecs::get_component<local4>(0)->c);
 
         sys.enable();
-        sys.update();
+        sys.run();
         REQUIRE(1 == ecs::get_component<local4>(0)->c);
     }
 
@@ -104,7 +106,7 @@ TEST_CASE("System specification", "[system]") {
         });
 
         ecs::add_component(0, S1{}, S3{}, Sx{}, S2{});
-        ecs::update_systems();
+        ecs::update();
     }
 
     SECTION("Components are passed in the correct order to the system") {
@@ -123,7 +125,7 @@ TEST_CASE("System specification", "[system]") {
         // Add the test components
         ecs::add_component(0, C_Order1{1}, C_Order2{2});
 
-        ecs::update_systems();
+        ecs::update();
     }
 
     SECTION("Read/write info on systems is correct") {

@@ -98,7 +98,7 @@ int main() {
     // Simulate a game loop. Keep going until the plague is gone x_x
     do {
         // Commits changes to components and runs the system
-        ecs::update_systems();
+        ecs::update();
 
         std::this_thread::sleep_for(delta_time * 1ms);
 

@@ -29,7 +29,7 @@ int main() {
     ecs::add_component({0, 2}, greeting{"alright"});
 
     // Run it
-    ecs::update_systems();
+    ecs::update();
 }
 ```
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
@@ -101,7 +101,7 @@ ecs::add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entiti
 ```
 
 ## Committing component changes
-Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update_systems()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
+Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
 
 By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
 
@@ -306,7 +306,7 @@ ecs::make_system([](int&) {
 });
 // ...
 ecs::add_component(0, int{});
-ecs::update_systems();
+ecs::update();
 ```
 Running the above code will print out
 > hello from group negative one\
