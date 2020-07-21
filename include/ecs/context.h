@@ -107,25 +107,11 @@ namespace ecs::detail {
             return *static_cast<component_pool<NakedType>*>(pool);
         }
 
-        // Const lambda
-        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename FirstArg,
-            typename... Args>
-        auto& create_system(UpdateFn update_func, R (C::*)(FirstArg, Args...) const) {
-            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, FirstArg, Args...>(update_func, nullptr);
-        }
-
         // Const lambda with sort
         template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
             typename FirstArg, typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
             return create_system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
-        }
-
-        // Mutable lambda
-        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename FirstArg,
-            typename... Args>
-        auto& create_system(UpdateFn update_func, R (C::*)(FirstArg, Args...)) {
-            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, FirstArg, Args...>(update_func, nullptr);
         }
 
         // Mutable lambda with sort
@@ -138,6 +124,11 @@ namespace ecs::detail {
     private:
         template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename FirstArg, typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
+            // Make sure we have a valid sort function
+            if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
+                static_assert(detail::sorter<SortFn>, "Invalid sort-function supplied, should be 'bool(T const&, T const&)'");
+            }
+
             // Set up the implementation
             using typed_system = system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>;
 

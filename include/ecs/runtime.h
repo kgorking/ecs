@@ -171,35 +171,16 @@ namespace ecs {
         run_systems();
     }
 
-    // Make a new system
-    template<int Group = 0, detail::lambda UpdateFn>
-    auto& make_system(UpdateFn update_func) {
-        return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn>(
-            update_func, &UpdateFn::operator());
-    }
-    // template<int Group = 0>
-    // auto& make_system(detail::lambda auto update_func) {
-    //     return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn>(
-    //         update_func, &UpdateFn::operator());
-    // }
-
     // Make a new system with a sort function attached
-    template<int Group = 0, detail::lambda UpdateFn, detail::sorter SortFn>
-    auto& make_system(UpdateFn update_func, SortFn sort_func) {
+    template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
+    auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
         return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());
     }
 
     // Make a new system. It will process components in parallel.
-    template<int Group = 0, detail::lambda UpdateFn>
-    auto& make_parallel_system(UpdateFn update_func) {
-        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn>(
-            update_func, &UpdateFn::operator());
-    }
-
-    // Make a new system. It will process components in parallel.
-    template<int Group = 0, detail::lambda UpdateFn, detail::sorter SortFn>
-    auto& make_parallel_system(UpdateFn update_func, SortFn sort_func) {
+    template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
+    auto& make_parallel_system(UpdateFn update_func, SortFn sort_func = nullptr) {
         return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());
     }
