@@ -389,10 +389,8 @@ namespace ecs::detail {
                 return;
             }
 
-            auto constexpr are_pools_modified = [](auto... pools) {
-                return (pools->has_component_count_changed() || ...);
-            };
-            bool const modified = std::apply(are_pools_modified, arguments.get_pools());
+            bool const modified = std::apply(
+                [](auto... pools) { return (pools->has_component_count_changed() || ...); }, arguments.get_pools());
 
             if (modified) {
                 build_args();
