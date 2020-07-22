@@ -1,7 +1,6 @@
 #include "catch.hpp"
 #include <ecs/ecs.h>
 
-
 TEST_CASE("System specification", "[system]") {
     SECTION("Running a system works") {
         struct local1 {
@@ -143,5 +142,52 @@ TEST_CASE("System specification", "[system]") {
         CHECK(true == sys3.writes_to_any_components());
         CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<int>()));
         CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<float>()));
+    }
+
+    SECTION("System with all combinations of types works") {
+        ecs::detail::get_context().reset();
+
+        struct vanilla {
+            int x;
+        };
+        struct tagged {
+            ecs_flags(ecs::tag);
+        };
+        struct shared {
+            ecs_flags(ecs::share);
+        };
+        struct transient {
+            ecs_flags(ecs::transient);
+        };
+        struct immutable {
+            ecs_flags(ecs::immutable);
+        };
+        struct global {
+            ecs_flags(ecs::global);
+        };
+
+        auto constexpr vanilla_sort = [](vanilla l, vanilla r) { return l.x < r.x; };
+
+        int last = -100'000'000;
+        int run_counter = 0;
+        ecs::make_system(
+            [&](vanilla const& v, tagged, shared const&, transient const&, immutable const&, global const&, short*) {
+                CHECK(last <= v.x);
+                last = v.x;
+
+                run_counter++;
+            },
+            vanilla_sort);
+
+        auto const vanilla_init = [](ecs::entity_id) { return vanilla{rand()}; };
+        ecs::add_component({0, 1000}, vanilla_init, tagged{}, shared{}, transient{}, immutable{});
+        ecs::add_component({10, 20}, short{0});
+
+        ecs::update();
+        CHECK(run_counter == 1001 - 11);
+
+        last = -100'000'000;
+        ecs::update(); // transient component is gone, so system wont run
+        CHECK(run_counter == 1001 - 11);
     }
 }
