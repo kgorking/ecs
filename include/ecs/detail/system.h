@@ -40,39 +40,51 @@ namespace ecs::detail {
     template<class F>
     using sort_func_type = typename decltype(get_sort_func_type_impl(&F::operator()))::type;
 
+    // Returns true if the type is an entity_id
+    template<class T>
+    constexpr bool is_entity() {
+        return std::is_same_v<T, entity_id>;
+    }
+
     // Alias for stored pools
     template<class T>
     using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>* const;
 
+    // Get a component pool from a component pool tuple
+    template<typename Component, typename Pools>
+    component_pool<Component>& get_pool(Pools const& pools) {
+        return *std::get<pool<Component>>(pools);
+    }
 
+    // Get an entities component from a component pool
+    template<typename Component, typename Pools>
+    [[nodiscard]] Component* get_component(entity_id const entity, Pools const& pools) {
+        if constexpr (std::is_pointer_v<Component>) {
+            static_cast<void>(entity);
+            return nullptr;
+        } else {
+            return get_pool<Component>(pools).find_component_data(entity);
+        }
+    }
+
+    // Holds a pointer to the first component from each pool
+    template<class FirstComponent, class... Components>
+    using argument_tuple = std::conditional_t<is_entity<FirstComponent>(),
+        std::tuple<std::remove_cvref_t<Components>*...>,
+        std::tuple<std::remove_cvref_t<FirstComponent>*, std::remove_cvref_t<Components>*...>>;
+
+    // Tuple holding component pools
+    template<class FirstComponent, class... Components>
+    using tup_pools = std::conditional_t<is_entity<FirstComponent>(),
+        std::tuple<pool<Components>...>,
+        std::tuple<pool<FirstComponent>, pool<Components>...>>;
+
+
+    // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
     template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     struct ranged_arguments {
-        // Determines if the first component is an entity
-        static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id>;
-
-        // Tuple holding all pools used by this system
-        using tup_pools = std::conditional_t<is_first_arg_entity, std::tuple<pool<Components>...>,
-            std::tuple<pool<FirstComponent>, pool<Components>...>>;
-
-        // Holds a pointer to the first component from each pool
-        using argument_tuple = std::conditional_t<is_first_arg_entity, std::tuple<std::remove_cvref_t<Components>*...>,
-            std::tuple<std::remove_cvref_t<FirstComponent>*, std::remove_cvref_t<Components>*...>>;
-
-        // A tuple of the fully typed component pools used by this system
-        tup_pools const pools;
-
-        // The user supplied system
-        UpdateFn update_func;
-
-
-        // Holds an entity range and its arguments
-        using range_argument = decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, argument_tuple{}));
-
-        // Holds the arguments for a range of entities
-        std::vector<range_argument> arguments;
-
-
-        ranged_arguments(UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
+        ranged_arguments(
+            UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}
             , update_func{update_func} {
         }
@@ -80,6 +92,10 @@ namespace ecs::detail {
         ranged_arguments(UpdateFn update_func, SortFn /*sort*/, pool<Components>... pools)
             : pools{pools...}
             , update_func{update_func} {
+        }
+
+        tup_pools<FirstComponent, Components...> get_pools() const {
+            return pools;
         }
 
         void run() {
@@ -101,7 +117,7 @@ namespace ecs::detail {
                 std::for_each(ExePolicy{}, range.begin(), range.end(),
                     [extract_arg, this, &argument, first_id = range.first()](auto ent) {
                         auto const offset = ent - first_id;
-                        if constexpr (is_first_arg_entity) {
+                        if constexpr (is_entity<FirstComponent>()) {
                             update_func(
                                 ent, extract_arg(std::get<std::remove_cvref_t<Components>*>(argument), offset)...);
                         } else {
@@ -117,64 +133,34 @@ namespace ecs::detail {
             // Build the arguments for the ranges
             arguments.clear();
             for (auto const& range : entities) {
-                if constexpr (is_first_arg_entity) {
-                    arguments.emplace_back(range, get_component<std::remove_cvref_t<Components>>(range.first())...);
+                if constexpr (is_entity<FirstComponent>()) {
+                    arguments.emplace_back(range, get_component<std::remove_cvref_t<Components>>(range.first(), pools)...);
                 } else {
-                    arguments.emplace_back(range, get_component<std::remove_cvref_t<FirstComponent>>(range.first()),
-                        get_component<std::remove_cvref_t<Components>>(range.first())...);
+                    arguments.emplace_back(range,
+                        get_component<std::remove_cvref_t<FirstComponent>>(range.first(), pools),
+                        get_component<std::remove_cvref_t<Components>>(range.first(), pools)...);
                 }
             }
         }
 
-        template<typename Component>
-        [[nodiscard]] component_pool<Component>& get_pool() const {
-            return *std::get<pool<Component>>(pools);
-        }
-
-        template<typename Component>
-        [[nodiscard]] Component* get_component(entity_id const entity) {
-            if constexpr (std::is_pointer_v<Component>) {
-                static_cast<void>(entity);
-                static Component* dummy = nullptr;
-                return nullptr;
-            } else {
-                return get_pool<Component>().find_component_data(entity);
-            }
-        }
-    };
-
-    template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    struct sorted_arguments {
-        // Determines if the first component is an entity
-        static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id>;
-
-        // Tuple holding all pools used by this system
-        using tup_pools = std::conditional_t<is_first_arg_entity, std::tuple<pool<Components>...>,
-            std::tuple<pool<FirstComponent>, pool<Components>...>>;
-
-        // Holds a pointer to the first component from each pool
-        using argument_tuple = std::conditional_t<is_first_arg_entity, std::tuple<std::remove_cvref_t<Components>*...>,
-            std::tuple<std::remove_cvref_t<FirstComponent>*, std::remove_cvref_t<Components>*...>>;
-
-        // Holds a single entity id and its arguments
-        using packed_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple{}));
+    private:
+        // Holds an entity range and its arguments
+        using range_argument = decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, argument_tuple<FirstComponent, Components...>{}));
 
         // A tuple of the fully typed component pools used by this system
-        tup_pools const pools;
+        tup_pools<FirstComponent, Components...> const pools;
 
         // The user supplied system
         UpdateFn update_func;
 
-        // The user supplied sorting function
-        SortFn sort_func;
+        // Holds the arguments for a range of entities
+        std::vector<range_argument> arguments;
+    };
 
-        // The vector of unrolled arguments, sorted using 'sort_func'
-        std::vector<packed_argument> arguments;
-
-        // True if the data needs to be sorted
-        bool needs_sorting = false;
-
-
+    // Manages sorted arguments. Neither cache nor storage space friendly, but arguments
+    // will be passed to the user supplied lambda in a sorted
+    template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
+    struct sorted_arguments {
         sorted_arguments(UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}
             , update_func{update_func}
@@ -187,26 +173,25 @@ namespace ecs::detail {
             , sort_func{sort} {
         }
 
-        void run() {
-            using sort_type = sort_func_type<SortFn>;
-            static_assert(std::predicate<SortFn, sort_type, sort_type>);
+        tup_pools<FirstComponent, Components...> get_pools() const {
+            return pools;
+        }
 
+        void run() {
             // Sort the arguments if the component data has been modified
             if (needs_sorting || std::get<pool<sort_type>>(pools)->has_components_been_modified()) {
-                std::sort(ExePolicy{}, arguments.begin(), arguments.end(),
-                    [this](auto const& l, auto const& r) {
-                        sort_type* t_l = std::get<sort_type*>(l);
-                        sort_type* t_r = std::get<sort_type*>(r);
-                        return sort_func(*t_l, *t_r);
-                    });
+                std::sort(ExePolicy{}, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
+                    sort_type* t_l = std::get<sort_type*>(l);
+                    sort_type* t_r = std::get<sort_type*>(r);
+                    return sort_func(*t_l, *t_r);
+                });
 
                 needs_sorting = false;
             }
 
             std::for_each(ExePolicy{}, arguments.begin(), arguments.end(), [this](auto packed_arg) {
-                if constexpr (is_first_arg_entity) {
-                    update_func(
-                        std::get<0>(packed_arg), *std::get<std::remove_cvref_t<Components>*>(packed_arg)...);
+                if constexpr (is_entity<FirstComponent>()) {
+                    update_func(std::get<0>(packed_arg), *std::get<std::remove_cvref_t<Components>*>(packed_arg)...);
                 } else {
                     update_func(*std::get<std::remove_cvref_t<FirstComponent>*>(packed_arg),
                         *std::get<std::remove_cvref_t<Components>*>(packed_arg)...);
@@ -216,9 +201,10 @@ namespace ecs::detail {
 
         // Convert a set of entities into arguments that can be passed to the system
         void build(entity_range_view entities) {
-            // Check that the system has the type that sort_func wants to sort on
-            //static_assert(static_has_component(get_type_hash<sort_func_type<SortFn>>()),
-            //    "sorting function operates on a type that the system does not have");
+            if (entities.size() == 0) {
+                arguments.clear();
+                return;
+            }
 
             // Count the total number of arguments
             size_t arg_count = 0;
@@ -233,13 +219,13 @@ namespace ecs::detail {
             // Build the arguments for the ranges
             for (auto const& range : entities) {
                 for (entity_id const& entity : range) {
-                    if constexpr (is_first_arg_entity) {
-                        arguments.emplace_back(entity,
-                            get_component<std::remove_cvref_t<Components>>(entity)...);
+                    if constexpr (is_entity<FirstComponent>()) {
+                        arguments.emplace_back(
+                            entity, get_component<std::remove_cvref_t<Components>>(entity, pools)...);
                     } else {
                         arguments.emplace_back(entity,
-                            get_component<std::remove_cvref_t<FirstComponent>>(entity),
-                            get_component<std::remove_cvref_t<Components>>(entity)...);
+                            get_component<std::remove_cvref_t<FirstComponent>>(entity, pools),
+                            get_component<std::remove_cvref_t<Components>>(entity, pools)...);
                     }
                 }
             }
@@ -247,71 +233,39 @@ namespace ecs::detail {
             needs_sorting = true;
         }
 
-        template<typename Component>
-        [[nodiscard]] component_pool<Component>& get_pool() const {
-            return *std::get<pool<Component>>(pools);
-        }
+    private:
+        // Holds a single entity id and its arguments
+        using single_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
 
-        template<typename Component>
-        [[nodiscard]] Component* get_component(entity_id const entity) {
-            if constexpr (std::is_pointer_v<Component>) {
-                static_cast<void>(entity);
-                static Component* dummy = nullptr;
-                return dummy;
-            } else {
-                return get_pool<Component>().find_component_data(entity);
-            }
-        }
+        using sort_type = sort_func_type<SortFn>;
+        static_assert(std::predicate<SortFn, sort_type, sort_type>, "Sorting function is not a predicate");
 
-        static constexpr bool static_has_component(detail::type_hash hash) noexcept {
-            constexpr auto type_hashes = get_type_hashes_array<is_first_arg_entity, std::remove_cvref_t<FirstComponent>,
-                std::remove_cvref_t<Components>...>();
-            return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
-        }
+        // A tuple of the fully typed component pools used by this system
+        tup_pools<FirstComponent, Components...> const pools;
+
+        // The user supplied system
+        UpdateFn update_func;
+
+        // The user supplied sorting function
+        SortFn sort_func;
+
+        // The vector of unrolled arguments, sorted using 'sort_func'
+        std::vector<single_argument> arguments;
+
+        // True if the data needs to be sorted
+        bool needs_sorting = false;
     };
 
+    // Select the argument manager based on wheter a sorting function is supplied or not
     template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    constexpr auto argument_selector() {
-        if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
-            return (sorted_arguments<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>*)0;
-        } else {
-            return (ranged_arguments<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>*)0;
-        }
-    }
+    using argument_selector = std::conditional_t<std::is_same_v<SortFn, std::nullptr_t>,
+        ranged_arguments<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>,
+        sorted_arguments<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>>;
 
     // The implementation of a system specialized on its components
     template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     class system final : public system_base {
-    public:
-        // Determines if the first component is an entity
-        static constexpr bool is_first_arg_entity = std::is_same_v<FirstComponent, entity_id>;
-
-        // Number of arguments
-        static constexpr size_t num_arguments = 1 + sizeof...(Components);
-
-        // Calculate the number of components
-        static constexpr size_t num_components = sizeof...(Components) + !is_first_arg_entity;
-
-        // Calculate the number of filters
-        static constexpr size_t num_filters = (std::is_pointer_v<FirstComponent> + ... + std::is_pointer_v<Components>);
-        static_assert(num_filters < num_components, "systems must have at least one non-filter component");
-
-        // Component names
-        static constexpr std::array<std::string_view, num_arguments> argument_names = {
-            get_type_name<FirstComponent>(), get_type_name<Components>()...};
-
-        // Hashes of stripped types used by this system ('int' instead of 'int const&')
-        static constexpr std::array<detail::type_hash, num_components> type_hashes =
-            get_type_hashes_array<is_first_arg_entity, std::remove_cvref_t<FirstComponent>, 
-                std::remove_cvref_t<Components>...>();
-
-        // Contains true if a type is read-only
-        static constexpr std::array<bool, num_components> type_read_only =
-            get_type_read_only<is_first_arg_entity, FirstComponent, Components...>();
-
-
-    private:
-        using type_argument = std::remove_pointer_t<decltype(argument_selector<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>())>;
+        using type_argument = argument_selector<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>;
         type_argument arguments;
 
     public:
@@ -335,7 +289,7 @@ namespace ecs::detail {
             arguments.run();
 
             // Notify pools if data was written to them
-            if constexpr (!is_first_arg_entity) {
+            if constexpr (!is_entity<FirstComponent>()) {
                 notify_pool_modifed<FirstComponent>();
             }
             (notify_pool_modifed<Components>(), ...);
@@ -343,8 +297,8 @@ namespace ecs::detail {
 
         template<typename T>
         void notify_pool_modifed() {
-            if constexpr (!is_read_only<T>()) {
-                std::get<pool<T>>(arguments.pools)->notify_components_modified();
+            if constexpr (!is_read_only<T>() && !std::is_pointer_v<T>) {
+                get_pool<std::remove_cvref_t<T>>().notify_components_modified();
             }
         }
 
@@ -408,7 +362,7 @@ namespace ecs::detail {
         }
 
         constexpr bool writes_to_any_components() const noexcept override {
-            if constexpr (!is_first_arg_entity && !std::is_const_v<std::remove_reference_t<FirstComponent>>)
+            if constexpr (!is_entity<FirstComponent>() && !std::is_const_v<std::remove_reference_t<FirstComponent>>)
                 return true;
             else {
                 return ((!std::is_const_v<std::remove_reference_t<Components>>) &&...);
@@ -438,7 +392,7 @@ namespace ecs::detail {
             auto constexpr are_pools_modified = [](auto... pools) {
                 return (pools->has_component_count_changed() || ...);
             };
-            bool const modified = std::apply(are_pools_modified, arguments.pools);
+            bool const modified = std::apply(are_pools_modified, arguments.get_pools());
 
             if (modified) {
                 build_args();
@@ -448,45 +402,14 @@ namespace ecs::detail {
         void build_args() {
             if constexpr (num_components == 1) {
                 // Build the arguments
-                entity_range_view const entities = std::get<0>(arguments.pools)->get_entities();
+                entity_range_view const entities = std::get<0>(arguments.get_pools())->get_entities();
                 arguments.build(entities);
             } else {
                 // When there are more than one component required for a system,
                 // find the intersection of the sets of entities that have those components
 
-                // Intersects two ranges of entities
-                auto const intersect_ranges = [](entity_range_view view_a, entity_range_view view_b) {
-                    std::vector<entity_range> result;
-
-                    if (view_a.empty() || view_b.empty()) {
-                        return result;
-                    }
-
-                    auto it_a = view_a.begin();
-                    auto it_b = view_b.begin();
-
-                    while (it_a != view_a.end() && it_b != view_b.end()) {
-                        if (it_a->overlaps(*it_b)) {
-                            result.push_back(entity_range::intersect(*it_a, *it_b));
-                        }
-
-                        if (it_a->last() < it_b->last()) { // range a is inside range b, move to
-                                                           // the next range in a
-                            ++it_a;
-                        } else if (it_b->last() < it_a->last()) { // range b is inside range a,
-                                                                  // move to the next range in b
-                            ++it_b;
-                        } else { // ranges are equal, move to next ones
-                            ++it_a;
-                            ++it_b;
-                        }
-                    }
-
-                    return result;
-                };
-
                 // The intersector
-                std::optional<std::vector<entity_range>> ranges;
+                std::vector<entity_range> ranges;
                 auto const intersect = [&](auto arg) {
                     using type = std::remove_pointer_t<decltype(arg)>;
                     if constexpr (std::is_pointer_v<type>) {
@@ -495,79 +418,67 @@ namespace ecs::detail {
                     } else {
                         auto const& type_pool = get_pool<type>();
 
-                        if (ranges.has_value()) {
-                            ranges = intersect_ranges(*ranges, type_pool.get_entities());
+                        if (ranges.empty()) {
+                            entity_range_view const span = type_pool.get_entities();
+                            ranges.insert(ranges.end(), span.begin(), span.end());
                         } else {
-                            auto const span = type_pool.get_entities();
-                            ranges.emplace(span.begin(), span.end());
+                            ranges = intersect_ranges(ranges, type_pool.get_entities());
                         }
                     }
                 };
 
                 // Find the intersections
-                auto dummy = decltype(arguments)::argument_tuple{};
+                auto dummy = argument_tuple<FirstComponent, Components...>{};
                 std::apply([&intersect](auto... args) { (..., intersect(args)); }, dummy);
 
                 // Filter out types if needed
                 if constexpr (num_filters > 0) {
-                    auto const difference_ranges = [](entity_range_view view_a,
-                                                    entity_range_view view_b) -> std::vector<entity_range> {
-                        if (view_a.empty())
-                            return {view_b.begin(), view_b.end()};
-                        if (view_b.empty())
-                            return {view_a.begin(), view_a.end()};
-
-                        std::vector<entity_range> result;
-                        auto it_a = view_a.begin();
-                        auto it_b = view_b.begin();
-
-                        while (it_a != view_a.end() && it_b != view_b.end()) {
-                            if (it_a->overlaps(*it_b) && !it_a->equals(*it_b)) {
-                                auto res = entity_range::remove(*it_a, *it_b);
-                                result.push_back(res.first);
-                                if (res.second.has_value())
-                                    result.push_back(res.second.value());
-                            }
-
-                            if (it_a->last() < it_b->last()) { // range a is inside range b, move to
-                                                            // the next range in a
-                                ++it_a;
-                            } else if (it_b->last() < it_a->last()) { // range b is inside range a,
-                                                                    // move to the next range in b
-                                ++it_b;
-                            } else { // ranges are equal, move to next ones
-                                ++it_a;
-                                ++it_b;
-                            }
-                        }
-
-                        return result;
-                    };
-
-                    auto const difference = [&](auto arg) { // arg = std::remove_cvref_t<Components>*
+                    auto const difference = [&](auto arg) {
                         using type = std::remove_pointer_t<decltype(arg)>;
                         if constexpr (std::is_pointer_v<type>) {
                             auto const& type_pool = get_pool<std::remove_pointer_t<type>>();
-                            ranges = difference_ranges(*ranges, type_pool.get_entities());
+                            ranges = difference_ranges(ranges, type_pool.get_entities());
                         }
                     };
 
-                    std::apply([&difference](auto... args) { (..., difference(args)); }, dummy);
+                    if (!ranges.empty())
+                        std::apply([&difference](auto... args) { (..., difference(args)); }, dummy);
                 }
 
                 // Build the arguments
-                if (ranges)
-                    arguments.build(ranges.value());
-                else
-                    arguments.build({});
+                arguments.build(ranges);
             }
         }
 
         template<typename Component>
         [[nodiscard]] component_pool<Component>& get_pool() const {
-            return *std::get<pool<Component>>(arguments.pools);
+            return detail::get_pool<Component>(arguments.get_pools());
         }
-    }; // namespace ecs::detail
+
+    private:
+        // Number of arguments
+        static constexpr size_t num_arguments = 1 + sizeof...(Components);
+
+        // Number of components
+        static constexpr size_t num_components = sizeof...(Components) + !is_entity<FirstComponent>();
+
+        // Number of filters
+        static constexpr size_t num_filters = (std::is_pointer_v<FirstComponent> + ... + std::is_pointer_v<Components>);
+        static_assert(num_filters < num_components, "systems must have at least one non-filter component");
+
+        // Component names
+        static constexpr std::array<std::string_view, num_arguments> argument_names = {
+            get_type_name<FirstComponent>(), get_type_name<Components>()...};
+
+        // Hashes of stripped types used by this system ('int' instead of 'int const&')
+        static constexpr std::array<detail::type_hash, num_components> type_hashes =
+            get_type_hashes_array<is_entity<FirstComponent>(), std::remove_cvref_t<FirstComponent>,
+                std::remove_cvref_t<Components>...>();
+
+        // Contains true if a type is read-only
+        static constexpr std::array<bool, num_components> type_read_only =
+            get_type_read_only<is_entity<FirstComponent>(), FirstComponent, Components...>();
+    };
 } // namespace ecs::detail
 
 #endif // !__SYSTEM
