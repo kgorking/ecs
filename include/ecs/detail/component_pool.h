@@ -12,9 +12,9 @@
 #include "tls/splitter.h"
 
 #include "component_pool_base.h"
-#include "component_specifier.h"
-#include "entity_id.h"
-#include "entity_range.h"
+#include "../component_specifier.h"
+#include "../entity_id.h"
+#include "../entity_range.h"
 
 namespace ecs::detail {
     // For std::visit

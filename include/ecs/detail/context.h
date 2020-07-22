@@ -92,7 +92,7 @@ namespace ecs::detail {
 
                 // Look in the pool for the type
                 auto const it = type_pool_lookup.find(hash);
-                [[unlikely]] if (it == type_pool_lookup.end()) {
+                if (it == type_pool_lookup.end()) {
                     // The pool wasn't found so create it.
                     // create_component_pool takes a unique lock, so unlock the
                     // shared lock during its call
@@ -134,7 +134,7 @@ namespace ecs::detail {
 
             // Create the system instance
             std::unique_ptr<system_base> sys;
-            if constexpr (typed_system::is_first_arg_entity) {
+            if constexpr (is_entity<FirstArg>()) {
                 sys = std::make_unique<typed_system>(update_func, sort_func, &get_component_pool<Args>()...);
             } else {
                 sys = std::make_unique<typed_system>(
