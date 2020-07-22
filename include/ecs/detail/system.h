@@ -307,6 +307,10 @@ namespace ecs::detail {
         }
 
         std::string get_signature() const noexcept override {
+            // Component names
+            constexpr std::array<std::string_view, num_arguments> argument_names{
+                get_type_name<FirstComponent>(), get_type_name<Components>()...};
+
             std::string sig("system(");
             for (size_t i = 0; i < num_arguments - 1; i++) {
                 sig += argument_names[i];
@@ -373,6 +377,10 @@ namespace ecs::detail {
             auto const it = std::find(type_hashes.begin(), type_hashes.end(), hash);
             if (it == type_hashes.end())
                 return false;
+
+            // Contains true if a type is read-only
+            constexpr std::array<bool, num_components> type_read_only =
+                get_type_read_only<is_entity<FirstComponent>(), FirstComponent, Components...>();
 
             return !type_read_only[std::distance(type_hashes.begin(), it)];
         }
@@ -464,18 +472,10 @@ namespace ecs::detail {
         static constexpr size_t num_filters = (std::is_pointer_v<FirstComponent> + ... + std::is_pointer_v<Components>);
         static_assert(num_filters < num_components, "systems must have at least one non-filter component");
 
-        // Component names
-        static constexpr std::array<std::string_view, num_arguments> argument_names = {
-            get_type_name<FirstComponent>(), get_type_name<Components>()...};
-
         // Hashes of stripped types used by this system ('int' instead of 'int const&')
         static constexpr std::array<detail::type_hash, num_components> type_hashes =
             get_type_hashes_array<is_entity<FirstComponent>(), std::remove_cvref_t<FirstComponent>,
                 std::remove_cvref_t<Components>...>();
-
-        // Contains true if a type is read-only
-        static constexpr std::array<bool, num_components> type_read_only =
-            get_type_read_only<is_entity<FirstComponent>(), FirstComponent, Components...>();
     };
 } // namespace ecs::detail
 
