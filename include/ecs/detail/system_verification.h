@@ -4,7 +4,7 @@
 #include <concepts>
 #include <type_traits>
 
-#include "component_specifier.h"
+#include "../component_specifier.h"
 
 namespace ecs::detail {
     // Given a type T, if it is callable with an entity argument,
