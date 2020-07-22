@@ -156,8 +156,8 @@ namespace ecs::detail {
         std::vector<range_argument> arguments;
     };
 
-    // Manages sorted arguments. Neither cache nor storage space friendly, but arguments
-    // will be passed to the user supplied lambda in a sorted
+    // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
+    // will be passed to the user supplied lambda in a sorted manner
     template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     struct sorted_argument_builder {
         sorted_argument_builder(UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool, pool<Components>... pools)
