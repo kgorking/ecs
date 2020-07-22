@@ -144,6 +144,72 @@ namespace ecs {
     };
 
     using entity_range_view = std::span<entity_range const>;
+
+    // Find the intersectsions between two sets of ranges
+    inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
+        std::vector<entity_range> result;
+
+        if (view_a.empty() || view_b.empty()) {
+            return result;
+        }
+
+        auto it_a = view_a.begin();
+        auto it_b = view_b.begin();
+
+        while (it_a != view_a.end() && it_b != view_b.end()) {
+            if (it_a->overlaps(*it_b)) {
+                result.push_back(entity_range::intersect(*it_a, *it_b));
+            }
+
+            if (it_a->last() < it_b->last()) { // range a is inside range b, move to
+                                               // the next range in a
+                ++it_a;
+            } else if (it_b->last() < it_a->last()) { // range b is inside range a,
+                                                      // move to the next range in b
+                ++it_b;
+            } else { // ranges are equal, move to next ones
+                ++it_a;
+                ++it_b;
+            }
+        }
+
+        return result;
+    }
+
+    // Find the difference between two sets of ranges
+    inline std::vector<entity_range> difference_ranges(entity_range_view view_a, entity_range_view view_b) {
+        if (view_a.empty())
+            return {view_b.begin(), view_b.end()};
+        if (view_b.empty())
+            return {view_a.begin(), view_a.end()};
+
+        std::vector<entity_range> result;
+        auto it_a = view_a.begin();
+        auto it_b = view_b.begin();
+
+        while (it_a != view_a.end() && it_b != view_b.end()) {
+            if (it_a->overlaps(*it_b) && !it_a->equals(*it_b)) {
+                auto res = entity_range::remove(*it_a, *it_b);
+                result.push_back(res.first);
+                if (res.second.has_value())
+                    result.push_back(res.second.value());
+            }
+
+            if (it_a->last() < it_b->last()) { // range a is inside range b, move to
+                                               // the next range in a
+                ++it_a;
+            } else if (it_b->last() < it_a->last()) { // range b is inside range a,
+                                                      // move to the next range in b
+                ++it_b;
+            } else { // ranges are equal, move to next ones
+                ++it_a;
+                ++it_b;
+            }
+        }
+
+        return result;
+    }
+
 } // namespace ecs
 
 #endif // !__ENTITTY_RANGE
