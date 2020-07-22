@@ -255,11 +255,18 @@ namespace ecs::detail {
         bool needs_sorting = false;
     };
 
-    // Select the argument manager based on wheter a sorting function is supplied or not
+    // Chooses an argument builder and returns a nullptr to it
     template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    using builder_selector = std::conditional_t<std::is_same_v<SortFn, std::nullptr_t>,
-        ranged_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>,
-        sorted_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>>;
+    constexpr auto get_ptr_builder() {
+        if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
+            return (sorted_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
+        } else {
+            return (ranged_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
+        }
+    }
+
+    template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
+    using builder_selector = std::remove_pointer_t<decltype(get_ptr_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>())>;
 
     // The implementation of a system specialized on its components
     template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
