@@ -112,7 +112,8 @@ namespace ecs {
 
             if (range.contains(other)) {
                 // Remove from the middle
-                return {entity_range{range.first(), other.first() - 1}, entity_range{other.last() + 1, range.last()}};
+                return {entity_range{range.first(), other.first() - 1},
+                    entity_range{other.last() + 1, range.last()}};
             } else {
                 // Remove overlaps
                 Expects(range.overlaps(other));
@@ -126,14 +127,16 @@ namespace ecs {
 
         // Combines two ranges into one
         // Pre: r1 and r2 must be adjacent ranges, r1 < r2
-        [[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
+        [[nodiscard]] constexpr static entity_range merge(
+            entity_range const& r1, entity_range const& r2) {
             Expects(r1.can_merge(r2));
             return entity_range{r1.first(), r2.last()};
         }
 
         // Returns the intersection of two ranges
         // Pre: The ranges must overlap, the resulting ranges can not have zero-length
-        [[nodiscard]] constexpr static entity_range intersect(entity_range const& range, entity_range const& other) {
+        [[nodiscard]] constexpr static entity_range intersect(
+            entity_range const& range, entity_range const& other) {
             Expects(range.overlaps(other));
 
             entity_id const first{std::max(range.first(), other.first())};
@@ -146,7 +149,8 @@ namespace ecs {
     using entity_range_view = std::span<entity_range const>;
 
     // Find the intersectsions between two sets of ranges
-    inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
+    inline std::vector<entity_range> intersect_ranges(
+        entity_range_view view_a, entity_range_view view_b) {
         std::vector<entity_range> result;
 
         if (view_a.empty() || view_b.empty()) {
@@ -177,7 +181,8 @@ namespace ecs {
     }
 
     // Find the difference between two sets of ranges
-    inline std::vector<entity_range> difference_ranges(entity_range_view view_a, entity_range_view view_b) {
+    inline std::vector<entity_range> difference_ranges(
+        entity_range_view view_a, entity_range_view view_b) {
         if (view_a.empty())
             return {view_b.begin(), view_b.end()};
         if (view_b.empty())

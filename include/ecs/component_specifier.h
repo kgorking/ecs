@@ -40,7 +40,7 @@ namespace ecs {
 // 	ecs_flags(ecs::tag, ecs::transient);
 // 	// component data
 // };
-#define ecs_flags(...)                                                                                                 \
+#define ecs_flags(...)                                                                             \
     struct _ecs_flags : __VA_ARGS__ {};
 
     // Some helpers

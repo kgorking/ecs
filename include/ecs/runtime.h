@@ -13,25 +13,29 @@
 #include "entity_id.h"
 
 namespace ecs {
-    // Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
-    // Initializers can be used with the function signature 'T(ecs::entity_id)'
+    // Add several components to a range of entities. Will not be added until 'commit_changes()' is
+    // called. Initializers can be used with the function signature 'T(ecs::entity_id)'
     //   where T is the component type returned by the function.
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
     void add_component(entity_range const range, First&& first_val, T&&... vals) {
-        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+        static_assert(
+            detail::unique<First, T...>, "the same component was specified more than once");
 
         auto const adder = []<class Type>(entity_range const range, Type&& val) {
             if constexpr (std::invocable<Type, entity_id>) {
                 // Return type of 'func'
                 using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
-                static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
+                static_assert(!std::is_same_v<ComponentType, void>,
+                    "Initializer functions must return a component");
 
                 // Add it to the component pool
-                detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
+                detail::component_pool<ComponentType>& pool =
+                    detail::_context.get_component_pool<ComponentType>();
                 pool.add_init(range, std::forward<Type>(val));
             } else {
-                static_assert(!std::is_reference_v<Type>, "can not store references; pass a copy instead");
+                static_assert(
+                    !std::is_reference_v<Type>, "can not store references; pass a copy instead");
                 static_assert(std::copyable<Type>, "Type must be copyable");
 
                 // Add it to the component pool
@@ -48,7 +52,8 @@ namespace ecs {
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
     void add_component(entity_id const id, First&& first_val, T&&... vals) {
-        add_component(entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
+        add_component(
+            entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
     }
 
     // Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
@@ -159,18 +164,20 @@ namespace ecs {
         run_systems();
     }
 
-    // Make a new system with a sort function attached
+    // Make a new system
     template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn, SortFn>(
-            update_func, sort_func, &UpdateFn::operator());
+        return detail::_context
+            .create_system<Group, std::execution::sequenced_policy, UpdateFn, SortFn>(
+                update_func, sort_func, &UpdateFn::operator());
     }
 
-    // Make a new system. It will process components in parallel.
+    // Make a new parallel system
     template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_parallel_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn, SortFn>(
-            update_func, sort_func, &UpdateFn::operator());
+        return detail::_context
+            .create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn, SortFn>(
+                update_func, sort_func, &UpdateFn::operator());
     }
 } // namespace ecs
 
