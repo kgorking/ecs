@@ -136,9 +136,6 @@ namespace ecs::detail {
 
         // Arguments must be of same type
         requires std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
-
-        // Most obey strict ordering
-        requires std::totally_ordered_with<T, U>;
     };
 
     // A small bridge to allow the Lambda concept to activate the sorter concept
