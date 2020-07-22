@@ -4,7 +4,7 @@
 #include <concepts>
 #include <type_traits>
 
-#include "component_specifier.h"
+#include "../component_specifier.h"
 
 namespace ecs::detail {
     // Given a type T, if it is callable with an entity argument,
@@ -44,7 +44,7 @@ namespace ecs::detail {
 
     template<class T>
     concept entity_type =
-        std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
+        std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
     // Implement the requirements for immutable components
     template<typename C>
@@ -136,9 +136,6 @@ namespace ecs::detail {
 
         // Arguments must be of same type
         requires std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
-
-        // Most obey strict ordering
-        requires std::totally_ordered_with<T, U>;
     };
 
     // A small bridge to allow the Lambda concept to activate the sorter concept

@@ -21,22 +21,22 @@ namespace ecs {
     void add_component(entity_range const range, First&& first_val, T&&... vals) {
         static_assert(detail::unique<First, T...>, "the same component was specified more than once");
 
-        auto const adder = []<class T>(entity_range const range, T&& val) {
-            if constexpr (std::invocable<T, entity_id>) {
+        auto const adder = []<class Type>(entity_range const range, Type&& val) {
+            if constexpr (std::invocable<Type, entity_id>) {
                 // Return type of 'func'
-                using ComponentType = decltype(std::declval<T>()(entity_id{0}));
+                using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
                 static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
 
                 // Add it to the component pool
                 detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
-                pool.add_init(range, std::forward<T>(val));
+                pool.add_init(range, std::forward<Type>(val));
             } else {
-                static_assert(!std::is_reference_v<T>, "can not store references; pass a copy instead");
-                static_assert(std::copyable<T>, "T must be copyable");
+                static_assert(!std::is_reference_v<Type>, "can not store references; pass a copy instead");
+                static_assert(std::copyable<Type>, "Type must be copyable");
 
                 // Add it to the component pool
-                detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-                pool.add(range, std::forward<T>(val));
+                detail::component_pool<Type>& pool = detail::_context.get_component_pool<Type>();
+                pool.add(range, std::forward<Type>(val));
             }
         };
 
