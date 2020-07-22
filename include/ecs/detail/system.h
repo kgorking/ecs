@@ -82,14 +82,13 @@ namespace ecs::detail {
 
     // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
     template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    struct ranged_arguments {
-        ranged_arguments(
-            UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
+    struct ranged_argument_builder {
+        ranged_argument_builder(UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}
             , update_func{update_func} {
         }
 
-        ranged_arguments(UpdateFn update_func, SortFn /*sort*/, pool<Components>... pools)
+        ranged_argument_builder(UpdateFn update_func, SortFn /*sort*/, pool<Components>... pools)
             : pools{pools...}
             , update_func{update_func} {
         }
@@ -160,14 +159,14 @@ namespace ecs::detail {
     // Manages sorted arguments. Neither cache nor storage space friendly, but arguments
     // will be passed to the user supplied lambda in a sorted
     template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    struct sorted_arguments {
-        sorted_arguments(UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool, pool<Components>... pools)
+    struct sorted_argument_builder {
+        sorted_argument_builder(UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}
             , update_func{update_func}
             , sort_func{sort} {
         }
 
-        sorted_arguments(UpdateFn update_func, SortFn sort, pool<Components>... pools)
+        sorted_argument_builder(UpdateFn update_func, SortFn sort, pool<Components>... pools)
             : pools{pools...}
             , update_func{update_func}
             , sort_func{sort} {
@@ -258,27 +257,27 @@ namespace ecs::detail {
 
     // Select the argument manager based on wheter a sorting function is supplied or not
     template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    using argument_selector = std::conditional_t<std::is_same_v<SortFn, std::nullptr_t>,
-        ranged_arguments<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>,
-        sorted_arguments<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>>;
+    using builder_selector = std::conditional_t<std::is_same_v<SortFn, std::nullptr_t>,
+        ranged_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>,
+        sorted_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>>;
 
     // The implementation of a system specialized on its components
     template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     class system final : public system_base {
-        using type_argument = argument_selector<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>;
-        type_argument arguments;
+        using argument_builder = builder_selector<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>;
+        argument_builder arguments;
 
     public:
         // Constructor for when the first argument to the system is _not_ an entity
         system(UpdateFn update_func, SortFn sort_func, pool<FirstComponent> first_pool, pool<Components>... pools)
             : arguments{update_func, sort_func, first_pool, pools...} {
-            build_args();
+            find_entities();
         }
 
         // Constructor for when the first argument to the system _is_ an entity
         system(UpdateFn update_func, SortFn sort_func, pool<Components>... pools)
             : arguments{update_func, sort_func, pools...} {
-            build_args();
+            find_entities();
         }
 
         void run() override {
@@ -385,7 +384,7 @@ namespace ecs::detail {
         // Handle changes when the component pools change
         void process_changes(bool force_rebuild) override {
             if (force_rebuild) {
-                build_args();
+                find_entities();
                 return;
             }
 
@@ -397,11 +396,13 @@ namespace ecs::detail {
                 [](auto... pools) { return (pools->has_component_count_changed() || ...); }, arguments.get_pools());
 
             if (modified) {
-                build_args();
+                find_entities();
             }
         }
 
-        void build_args() {
+        // Locate all the entities affected by this system
+        // and send them to the argument builder
+        void find_entities() {
             if constexpr (num_components == 1) {
                 // Build the arguments
                 entity_range_view const entities = std::get<0>(arguments.get_pools())->get_entities();
