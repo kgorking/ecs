@@ -8,9 +8,9 @@
 
 #include "detail/component_pool.h"
 #include "detail/context.h"
-#include "entity_id.h"
 #include "detail/system.h"
 #include "detail/system_verification.h"
+#include "entity_id.h"
 
 namespace ecs {
     // Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
@@ -40,7 +40,6 @@ namespace ecs {
             }
         };
 
-        //add_component(range, std::forward<First>(first_val));
         adder(range, std::forward<First>(first_val));
         (adder(range, std::forward<T>(vals)), ...);
     }
@@ -144,10 +143,14 @@ namespace ecs {
     }
 
     // Commits the changes to the entities.
-    inline void commit_changes() { detail::_context.commit_changes(); }
+    inline void commit_changes() {
+        detail::_context.commit_changes();
+    }
 
     // Calls the 'update' function on all the systems in the order they were added.
-    inline void run_systems() { detail::_context.run_systems(); }
+    inline void run_systems() {
+        detail::_context.run_systems();
+    }
 
     // Commits all changes and calls the 'update' function on all the systems in the order they were
     // added. Same as calling commit_changes() and run_systems().
