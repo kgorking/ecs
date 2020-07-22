@@ -326,10 +326,6 @@ namespace ecs::detail {
         }
 
         constexpr bool has_component(detail::type_hash hash) const noexcept override {
-            return static_has_component(hash);
-        }
-
-        static constexpr bool static_has_component(detail::type_hash hash) noexcept {
             return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
         }
 
