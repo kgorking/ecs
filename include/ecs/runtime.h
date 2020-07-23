@@ -8,39 +8,43 @@
 
 #include "detail/component_pool.h"
 #include "detail/context.h"
-#include "entity_id.h"
 #include "detail/system.h"
 #include "detail/system_verification.h"
+#include "entity_id.h"
+#include "options.h"
 
 namespace ecs {
-    // Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
-    // Initializers can be used with the function signature 'T(ecs::entity_id)'
+    // Add several components to a range of entities. Will not be added until 'commit_changes()' is
+    // called. Initializers can be used with the function signature 'T(ecs::entity_id)'
     //   where T is the component type returned by the function.
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
     void add_component(entity_range const range, First&& first_val, T&&... vals) {
-        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+        static_assert(
+            detail::unique<First, T...>, "the same component was specified more than once");
 
-        auto const adder = []<class T>(entity_range const range, T&& val) {
-            if constexpr (std::invocable<T, entity_id>) {
+        auto const adder = []<class Type>(entity_range const range, Type&& val) {
+            if constexpr (std::invocable<Type, entity_id>) {
                 // Return type of 'func'
-                using ComponentType = decltype(std::declval<T>()(entity_id{0}));
-                static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
+                using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
+                static_assert(!std::is_same_v<ComponentType, void>,
+                    "Initializer functions must return a component");
 
                 // Add it to the component pool
-                detail::component_pool<ComponentType>& pool = detail::_context.get_component_pool<ComponentType>();
-                pool.add_init(range, std::forward<T>(val));
+                detail::component_pool<ComponentType>& pool =
+                    detail::_context.get_component_pool<ComponentType>();
+                pool.add_init(range, std::forward<Type>(val));
             } else {
-                static_assert(!std::is_reference_v<T>, "can not store references; pass a copy instead");
-                static_assert(std::copyable<T>, "T must be copyable");
+                static_assert(
+                    !std::is_reference_v<Type>, "can not store references; pass a copy instead");
+                static_assert(std::copyable<Type>, "Type must be copyable");
 
                 // Add it to the component pool
-                detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-                pool.add(range, std::forward<T>(val));
+                detail::component_pool<Type>& pool = detail::_context.get_component_pool<Type>();
+                pool.add(range, std::forward<Type>(val));
             }
         };
 
-        //add_component(range, std::forward<First>(first_val));
         adder(range, std::forward<First>(first_val));
         (adder(range, std::forward<T>(vals)), ...);
     }
@@ -49,7 +53,8 @@ namespace ecs {
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
     void add_component(entity_id const id, First&& first_val, T&&... vals) {
-        add_component(entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
+        add_component(
+            entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
     }
 
     // Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
@@ -144,10 +149,14 @@ namespace ecs {
     }
 
     // Commits the changes to the entities.
-    inline void commit_changes() { detail::_context.commit_changes(); }
+    inline void commit_changes() {
+        detail::_context.commit_changes();
+    }
 
     // Calls the 'update' function on all the systems in the order they were added.
-    inline void run_systems() { detail::_context.run_systems(); }
+    inline void run_systems() {
+        detail::_context.run_systems();
+    }
 
     // Commits all changes and calls the 'update' function on all the systems in the order they were
     // added. Same as calling commit_changes() and run_systems().
@@ -156,17 +165,20 @@ namespace ecs {
         run_systems();
     }
 
-    // Make a new system with a sort function attached
+    // Make a new system
     template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        return detail::_context.create_system<Group, std::execution::sequenced_policy, UpdateFn, SortFn>(
+        using opts = std::tuple<ecs::opts::group<Group>, std::execution::sequenced_policy>;
+        return detail::_context.create_system<opts, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());
     }
 
-    // Make a new system. It will process components in parallel.
+    // Make a new parallel system
     template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_parallel_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        return detail::_context.create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn, SortFn>(
+        using opts =
+            std::tuple<ecs::opts::group<Group>, std::execution::parallel_unsequenced_policy>;
+        return detail::_context.create_system<opts, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());
     }
 } // namespace ecs
