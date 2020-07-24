@@ -168,7 +168,7 @@ namespace ecs {
     // Make a new system
     template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        using opts = std::tuple<ecs::opts::group<Group>, std::execution::sequenced_policy>;
+        using opts = std::tuple<ecs::opts::group<Group>, ecs::opts::not_parallel>;
         return detail::_context.create_system<opts, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());
     }
@@ -176,8 +176,7 @@ namespace ecs {
     // Make a new parallel system
     template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_parallel_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        using opts =
-            std::tuple<ecs::opts::group<Group>, std::execution::parallel_unsequenced_policy>;
+        using opts = std::tuple<ecs::opts::group<Group>>;
         return detail::_context.create_system<opts, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());
     }

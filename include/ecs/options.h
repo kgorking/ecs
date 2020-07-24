@@ -6,13 +6,14 @@ namespace ecs::opts {
         static constexpr int group_id = I;
     };
 
-    template<size_t I>
+    /*template<size_t I>
     struct interval {
         static constexpr size_t hz = I;
-    };
+    };*/
 
-    struct manual_update {};
+    //struct manual_update {};
 
-    struct never_concurrent {};
+    struct not_parallel {};
+    //struct not_concurrent {};
 
 } // namespace ecs::opts
