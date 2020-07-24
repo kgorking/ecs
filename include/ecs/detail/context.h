@@ -137,7 +137,7 @@ namespace ecs::detail {
 
             // Create the system instance
             std::unique_ptr<system_base> sys;
-            if constexpr (typed_system::is_first_arg_entity) {
+            if constexpr (std::is_same_v<FirstArg, entity_id>) {
                 sys = std::make_unique<typed_system>(update_func, sort_func, &get_component_pool<Args>()...);
             } else {
                 sys = std::make_unique<typed_system>(
