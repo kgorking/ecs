@@ -11,6 +11,7 @@
 #include "detail/system.h"
 #include "detail/system_verification.h"
 #include "entity_id.h"
+#include "options.h"
 
 namespace ecs {
     // Add several components to a range of entities. Will not be added until 'commit_changes()' is
@@ -165,19 +166,11 @@ namespace ecs {
     }
 
     // Make a new system
-    template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
+    template<typename... Options, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        return detail::_context
-            .create_system<Group, std::execution::sequenced_policy, UpdateFn, SortFn>(
-                update_func, sort_func, &UpdateFn::operator());
-    }
-
-    // Make a new parallel system
-    template<int Group = 0, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
-    auto& make_parallel_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        return detail::_context
-            .create_system<Group, std::execution::parallel_unsequenced_policy, UpdateFn, SortFn>(
-                update_func, sort_func, &UpdateFn::operator());
+        using opts = std::tuple<Options...>;
+        return detail::_context.create_system<opts, UpdateFn, SortFn>(
+            update_func, sort_func, &UpdateFn::operator());
     }
 } // namespace ecs
 

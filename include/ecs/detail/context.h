@@ -108,21 +108,24 @@ namespace ecs::detail {
         }
 
         // Const lambda with sort
-        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C,
             typename FirstArg, typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
-            return create_system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
+            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(
+                update_func, sort_func);
         }
 
         // Mutable lambda with sort
-        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C,
             typename FirstArg, typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...)) {
-            return create_system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
+            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(
+                update_func, sort_func);
         }
 
     private:
-        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename FirstArg, typename... Args>
+        template<typename Options, typename UpdateFn, typename SortFn, typename FirstArg,
+            typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
             // Make sure we have a valid sort function
             if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
@@ -130,7 +133,7 @@ namespace ecs::detail {
             }
 
             // Set up the implementation
-            using typed_system = system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>;
+            using typed_system = system<Options, UpdateFn, SortFn, FirstArg, Args...>;
 
             // Create the system instance
             std::unique_ptr<system_base> sys;
@@ -146,7 +149,8 @@ namespace ecs::detail {
             system_base* ptr_system = systems.back().get();
             Ensures(ptr_system != nullptr);
 
-            sched.insert(ptr_system);
+            if constexpr (!has_option<opts::manual_update, Options>())
+                sched.insert(ptr_system);
 
             return *ptr_system;
         }

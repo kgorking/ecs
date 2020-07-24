@@ -11,7 +11,7 @@ TEST_CASE("Sorting") {
     ecs::commit_changes();
 
     int test = std::numeric_limits<int>::min();
-    auto& asc = ecs::make_system(
+    auto& asc = ecs::make_system<ecs::opts::not_parallel>(
         [&test](int const& i) {
             CHECK(test <= i);
             test = i;
@@ -20,7 +20,7 @@ TEST_CASE("Sorting") {
     asc.run();
 
     test = std::numeric_limits<int>::max();
-    auto& dec = ecs::make_system(
+    auto& dec = ecs::make_system<ecs::opts::not_parallel>(
         [&test](int const& i) {
             CHECK(test >= i);
             test = i;

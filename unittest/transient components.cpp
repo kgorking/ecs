@@ -7,13 +7,13 @@ struct _dummy {
 };
 
 TEST_CASE("Transient components", "[component][transient]") {
+    ecs::detail::_context.reset();
+
     struct foo {};
     struct test_t {
         ecs_flags(ecs::transient);
     };
     static_assert(ecs::detail::transient<test_t>);
-
-    ecs::detail::_context.reset();
 
     int counter = 0;
     ecs::make_system([&counter](foo const& /*f*/, test_t const& /*t*/) { counter++; });

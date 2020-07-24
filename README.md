@@ -22,11 +22,11 @@ struct greeting {
 int main() {
     // The system
     ecs::make_system([](greeting const& g) {
-        std::cout << g.msg << ' ';
+        std::cout << g.msg;
     });
 
     // The entities
-    ecs::add_component({0, 2}, greeting{"alright"});
+    ecs::add_component({0, 2}, greeting{"alright "});
 
     // Run it
     ecs::update();
@@ -41,7 +41,7 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 * **Non-instrusive interface** No need for components to inherit from a library type, and no need for systems to inherit from a library class and override some member function.
 * **Simple interface** As shown in the example, you can get up and running with just 3 function calls;
 * **Fast** This library is built to be as fast as absolutely possible. The mandelbrot [benchmark](https://github.com/kgorking/ecs/blob/master/benchmark/system.cpp#L51) shows it running as fast a raw hand-written loop.
-* **Automatic concurrency (Experimental)** Implements a scheduler that safely runs systems concurrently, to take maximum advantage of multi-core machines.
+* **Automatic concurrency (Experimental)** Implements a scheduler that safely runs systems concurrently to take maximum advantage of multi-core machines.
 
 
 # Building (checked july 20. 2020)
@@ -67,9 +67,12 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
   * [The current entity](#The-current-entity)
   * [Sorting](#Sorting)
   * [Filtering](#Filtering)
-  * [Parallel systems](#Parallel-systems)
+  * [Parallel-by-default systems](#Parallel-by-default-systems)
   * [Automatic concurrency](#Automatic-concurrency)
-  * [Groups](#Groups)
+  * [Options](#Options)
+    * [`opts::group<int>`](#optsgroupint)
+    * [`opts::manual_update`](#optsmanual_update)
+    * [`opts::not_parallel`](#optsnot_parallel)
 
 
 # Entities
@@ -208,7 +211,7 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 # Systems
-Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the functions `ecs::make_(parallel_)system`. Systems can operate on as many components as you need; there is no limit.
+Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the function `ecs::make_system`. Systems can operate on as many components as you need; there is no limit.
 
 Accessing components in systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you.
 
@@ -224,7 +227,7 @@ There are a few requirements and restrictions put on the lambdas:
 
 
 ## The current entity
-If you need access to the entity currently being processed by a system, make the first parameter type either an `ecs::entity_id` or `ecs::entity`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
+If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
 
 ```cpp
 ecs::make_system([](ecs::entity_id ent, greeting const& g) {
@@ -234,7 +237,7 @@ ecs::make_system([](ecs::entity_id ent, greeting const& g) {
 
 
 ## Sorting
-An additional function object can be passed along to `ecs::make_(parallel_)system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
+An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
 // sort ascending
@@ -274,7 +277,7 @@ More than one filter can be present; there is no limit.
 **Note** `nullptr` is always passed to filtered components, so don't try to read from them.
 
 
-## Parallel systems
+## Parallel-by-default systems
 Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up loosing performance instead. A good profiler can often help with this determination.
 
 The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code.
@@ -289,28 +292,51 @@ Dependencies are determined based on the components a system operate on.
 
 If a component is written to, the system that previously read from or wrote to that component becomes a dependency, which means that the system must be run to completion before the new system can execute. This ensures that no data-races occur.
 
-If a component is read from, the system that previously wrote to it becomes a dependency. Multiple systems that read from the same component can safely run concurrently.
+If a component is read from, the system that previously wrote to it becomes a dependency.
 
-## Groups
-Systems can be segmented into groups by passing along a compile-time integer as a template parameter to `ecs::make_(parallel_)system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
+Multiple systems that read from the same component can safely run concurrently.
+
+## Options
+The following options can be provide to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
+
+### `opts::group<int>`
+Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
 
 ```cpp
-ecs::make_system<1>([](int&) {
+ecs::make_system<ecs::opts::group<1>>([](int const&) {
     std::cout << "hello from group one\n";
 });
-ecs::make_system<-1>([](int&) {
+ecs::make_system<ecs::opts::group<-1>>([](int const&) {
     std::cout << "hello from group negative one\n";
 });
-ecs::make_system([](int&) {
+ecs::make_system([](int const&) {
     std::cout << "hello from group whatever\n";
 });
 // ...
 ecs::add_component(0, int{});
 ecs::update();
 ```
+
 Running the above code will print out
 > hello from group negative one\
 > hello from group whatever\
 > hello from group one
 
 **Note:** systems from different groups are never executed concurrently, and all systems in one group will run to completion before the next group is run.
+
+
+### `opts::manual_update`
+Systems marked as being manually updated will not be added to scheduler, and will thus require the user to call the `system::run()` function themselves.
+Calls to `ecs::commit_changes)` will still cause the system to respond to changes in components.
+
+```cpp
+ecs::make_system<ecs::opts::manual_update>([](int const&) { /* ... */ });
+// ...
+ecs::add_component(0, int{});
+ecs::update(); // will not run the system
+```
+
+### `opts::not_parallel`
+This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
+
+It should not be used just because the system writes to a shared variable. Use atomics or [`tls::splitter`](tls/include/tls/splitter.h) in these cases, if possible.

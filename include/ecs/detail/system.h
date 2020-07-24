@@ -101,9 +101,13 @@ namespace ecs::detail {
         std::tuple<pool<Components>...>, std::tuple<pool<FirstComponent>, pool<Components>...>>;
 
     // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-    template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent,
+    template<class Options, typename UpdateFn, typename SortFn, class FirstComponent,
         class... Components>
     struct ranged_argument_builder {
+        // Determine the execution policy from the options (or lack thereof)
+        using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
+            std::execution::sequenced_policy, std::execution::parallel_unsequenced_policy>;
+
         ranged_argument_builder(UpdateFn update_func, SortFn /*sort*/,
             pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}
@@ -123,7 +127,7 @@ namespace ecs::detail {
             // Call the system for all the components that match the system signature
             for (auto const& argument : arguments) {
                 auto const& range = std::get<entity_range>(argument);
-                std::for_each(ExePolicy{}, range.begin(), range.end(),
+                std::for_each(execution_policy{}, range.begin(), range.end(),
                     [this, &argument, first_id = range.first()](auto ent) {
                         auto const offset = ent - first_id;
                         if constexpr (is_entity<FirstComponent>()) {
@@ -169,10 +173,15 @@ namespace ecs::detail {
 
     // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
     // will be passed to the user supplied lambda in a sorted manner
-    template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent,
+    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent,
         class... Components>
     struct sorted_argument_builder {
-        sorted_argument_builder(UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool,
+        // Determine the execution policy from the options (or lack thereof)
+        using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
+            std::execution::sequenced_policy, std::execution::parallel_unsequenced_policy>;
+
+        sorted_argument_builder(
+            UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool,
             pool<Components>... pools)
             : pools{first_pool, pools...}
             , update_func{update_func}
@@ -192,7 +201,7 @@ namespace ecs::detail {
         void run() {
             // Sort the arguments if the component data has been modified
             if (needs_sorting || std::get<pool<sort_type>>(pools)->has_components_been_modified()) {
-                std::sort(ExePolicy{}, arguments.begin(), arguments.end(),
+                std::sort(execution_policy{}, arguments.begin(), arguments.end(),
                     [this](auto const& l, auto const& r) {
                         sort_type* t_l = std::get<sort_type*>(l);
                         sort_type* t_r = std::get<sort_type*>(r);
@@ -202,7 +211,7 @@ namespace ecs::detail {
                 needs_sorting = false;
             }
 
-            std::for_each(ExePolicy{}, arguments.begin(), arguments.end(), [this](auto packed_arg) {
+            std::for_each(execution_policy{}, arguments.begin(), arguments.end(), [this](auto packed_arg) {
                 if constexpr (is_entity<FirstComponent>()) {
                     update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                 } else {
@@ -270,29 +279,29 @@ namespace ecs::detail {
     };
 
     // Chooses an argument builder and returns a nullptr to it
-    template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent,
+    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent,
         class... Components>
     constexpr auto get_ptr_builder() {
         if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
-            return (sorted_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent,
+            return (sorted_argument_builder<Options, UpdateFn, SortFn, FirstComponent,
                 Components...>*) nullptr;
         } else {
-            return (ranged_argument_builder<ExePolicy, UpdateFn, SortFn, FirstComponent,
+            return (ranged_argument_builder<Options, UpdateFn, SortFn, FirstComponent,
                 Components...>*) nullptr;
         }
     }
 
-    template<class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent,
+    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent,
         class... Components>
     using builder_selector = std::remove_pointer_t<decltype(
-        get_ptr_builder<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>())>;
+        get_ptr_builder<Options, UpdateFn, SortFn, FirstComponent, Components...>())>;
 
     // The implementation of a system specialized on its components
-    template<int Group, class ExePolicy, typename UpdateFn, typename SortFn, class FirstComponent,
+    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent,
         class... Components>
     class system final : public system_base {
         using argument_builder =
-            builder_selector<ExePolicy, UpdateFn, SortFn, FirstComponent, Components...>;
+            builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
         argument_builder arguments;
 
     public:
@@ -331,7 +340,8 @@ namespace ecs::detail {
         }
 
         constexpr int get_group() const noexcept override {
-            return Group;
+            using group = test_option_type_or<is_group, Options, opts::group<0>>;
+            return group::group_id;
         }
 
         std::string get_signature() const noexcept override {

@@ -56,7 +56,7 @@ void system_update(benchmark::State& state) {
 	
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
-		ecs::make_system(benchmark_system);
+        ecs::make_system<ecs::opts::not_parallel>(benchmark_system);
 
 		ecs::add_component({0, nentities}, int{}, shared_s{});
 		ecs::update();
@@ -70,7 +70,7 @@ void system_update_parallel(benchmark::State& state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
 
-		ecs::make_parallel_system(benchmark_system);
+		ecs::make_system(benchmark_system);
 		ecs::get_shared_component<shared_s>().dimension = nentities;
 
 		ecs::add_component({ 0, nentities }, int{}, shared_s{});

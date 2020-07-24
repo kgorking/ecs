@@ -1,18 +1,19 @@
 #pragma once
 
 namespace ecs::opts {
-    template<size_t I>
+    template<int I>
     struct group {
-        static constexpr size_t group_id = I;
+        static constexpr int group_id = I;
     };
 
-    template<size_t I>
+    /*template<size_t I>
     struct interval {
         static constexpr size_t hz = I;
-    };
+    };*/
 
     struct manual_update {};
 
-    struct never_concurrent {};
+    struct not_parallel {};
+    //struct not_concurrent {};
 
 } // namespace ecs::opts

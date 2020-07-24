@@ -3,6 +3,8 @@
 
 
 TEST_CASE("Global component", "[component][global]") {
+    ecs::detail::_context.reset();
+
     struct test_s {
         ecs_flags(ecs::global);
         int i = 0;
