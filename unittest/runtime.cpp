@@ -43,6 +43,7 @@ TEST_CASE("The runtime interface") {
     }
 
     SECTION("Allocates storage as needed") {
+        ecs::detail::_context.reset();
         // Use a local struct to avoid it possibly
         // already existing from another unittest
         struct S {
@@ -55,7 +56,8 @@ TEST_CASE("The runtime interface") {
         REQUIRE(ecs::get_component_count<S>() == 1);
     }
 
-    SECTION("Supportsd mutable lambdas") {
+    SECTION("Supports mutable lambdas") {
+        ecs::detail::_context.reset();
         struct mut_lambda {
             int i;
         };
@@ -75,6 +77,7 @@ TEST_CASE("The runtime interface") {
         };
 
         SECTION("of components works") {
+            ecs::detail::_context.reset();
             ecs::add_component({0, 5}, range_add{5});
             ecs::entity_range const ents{6, 9};
             ecs::add_component(ents, range_add{5});
@@ -87,6 +90,7 @@ TEST_CASE("The runtime interface") {
         }
 
         SECTION("of components with initializer works") {
+            ecs::detail::_context.reset();
             auto const init = [](auto ent) -> range_add { return {ent * 2}; };
 
             ecs::add_component({10, 15}, init);

@@ -4,6 +4,7 @@
 
 TEST_CASE("Shared components", "[component][shared]") {
     SECTION("Only allocs 1 component") {
+        ecs::detail::_context.reset();
         struct test_s {
             ecs_flags(ecs::share);
             int i = 0;
@@ -31,6 +32,7 @@ TEST_CASE("Shared components", "[component][shared]") {
     }
 
     SECTION("Multiple shared components do not interact") {
+        ecs::detail::_context.reset();
         struct shared1 {
             ecs_flags(ecs::share);
         };

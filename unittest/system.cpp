@@ -3,6 +3,8 @@
 
 TEST_CASE("System specification", "[system]") {
     SECTION("Running a system works") {
+        ecs::detail::_context.reset();
+
         struct local1 {
             int c;
         };
@@ -24,6 +26,8 @@ TEST_CASE("System specification", "[system]") {
     }
 
     SECTION("Verify enable/disable functions") {
+        ecs::detail::_context.reset();
+
         struct local2 {};
         auto& sys = ecs::make_system([](local2 const& /*c*/) {});
 
@@ -37,6 +41,8 @@ TEST_CASE("System specification", "[system]") {
     }
 
     SECTION("Disabling systems prevents them from running") {
+        ecs::detail::_context.reset();
+
         struct local3 {
             int c;
         };
@@ -62,6 +68,8 @@ TEST_CASE("System specification", "[system]") {
     }
 
     SECTION("Re-enabling systems forces a rebuild") {
+        ecs::detail::_context.reset();
+
         struct local4 {
             int c;
         };
@@ -77,35 +85,6 @@ TEST_CASE("System specification", "[system]") {
         sys.enable();
         sys.run();
         REQUIRE(1 == ecs::get_component<local4>(0)->c);
-    }
-
-    SECTION("Groups order systems correctly") {
-        struct S1 {};
-        struct S2 {};
-        struct S3 {};
-        struct Sx {};
-
-        // Add systems in reverse order, they should execute in correct order
-        int counter = 0;
-        ecs::make_system<ecs::opts::group<3>>([&counter](S3&) {
-            REQUIRE(counter == 3);
-            counter++;
-        });
-        ecs::make_system<ecs::opts::group<2>>([&counter](S2&) {
-            REQUIRE(counter == 2);
-            counter++;
-        });
-        ecs::make_system<ecs::opts::group<1>>([&counter](S1&) {
-            REQUIRE(counter == 1);
-            counter++;
-        });
-        ecs::make_system<ecs::opts::group<0>>([&counter](Sx&) {
-            REQUIRE(counter == 0);
-            counter++;
-        });
-
-        ecs::add_component(0, S1{}, S3{}, Sx{}, S2{});
-        ecs::update();
     }
 
     SECTION("Components are passed in the correct order to the system") {
@@ -128,6 +107,8 @@ TEST_CASE("System specification", "[system]") {
     }
 
     SECTION("Read/write info on systems is correct") {
+        ecs::detail::_context.reset();
+
         auto const& sys1 = ecs::make_system([](int const&, float const&) {});
         CHECK(false == sys1.writes_to_any_components());
         CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<int>()));
