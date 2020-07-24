@@ -22,7 +22,7 @@ endif ()
 
 if (MSVC)
     # warning level 4
-    target_compile_options(ecs INTERFACE /W4)
+    target_compile_options(ecs INTERFACE /W4 /wo4648)
 
     # Disable C++ exceptions.
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
