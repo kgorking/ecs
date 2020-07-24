@@ -13,7 +13,7 @@ add_executable (unittests
 	"global_component.cpp"
 	"sorting.cpp"
 	"filtering.cpp"
-	"scheduler.cpp")
+	"scheduler.cpp" "system_options.cpp")
 target_link_libraries(unittests ecs)
 
 add_test(unittests unittests)
