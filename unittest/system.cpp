@@ -87,19 +87,19 @@ TEST_CASE("System specification", "[system]") {
 
         // Add systems in reverse order, they should execute in correct order
         int counter = 0;
-        ecs::make_system<3>([&counter](S3&) {
+        ecs::make_system<ecs::opts::group<3>>([&counter](S3&) {
             REQUIRE(counter == 3);
             counter++;
         });
-        ecs::make_system<2>([&counter](S2&) {
+        ecs::make_system<ecs::opts::group<2>>([&counter](S2&) {
             REQUIRE(counter == 2);
             counter++;
         });
-        ecs::make_system<1>([&counter](S1&) {
+        ecs::make_system<ecs::opts::group<1>>([&counter](S1&) {
             REQUIRE(counter == 1);
             counter++;
         });
-        ecs::make_system<std::numeric_limits<int>::min()>([&counter](Sx&) {
+        ecs::make_system<ecs::opts::group<0>>([&counter](Sx&) {
             REQUIRE(counter == 0);
             counter++;
         });
