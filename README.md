@@ -69,7 +69,9 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
   * [Filtering](#Filtering)
   * [Parallel systems](#Parallel-systems)
   * [Automatic concurrency](#Automatic-concurrency)
-  * [Groups](#Groups)
+  * [Options](#Options)
+    * [`opts::group<int>`](#optsgroupint)
+    * [`opts::manual_update`](#optsmanual_update)
 
 
 # Entities
@@ -224,7 +226,7 @@ There are a few requirements and restrictions put on the lambdas:
 
 
 ## The current entity
-If you need access to the entity currently being processed by a system, make the first parameter type either an `ecs::entity_id` or `ecs::entity`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
+If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
 
 ```cpp
 ecs::make_system([](ecs::entity_id ent, greeting const& g) {
@@ -289,28 +291,45 @@ Dependencies are determined based on the components a system operate on.
 
 If a component is written to, the system that previously read from or wrote to that component becomes a dependency, which means that the system must be run to completion before the new system can execute. This ensures that no data-races occur.
 
-If a component is read from, the system that previously wrote to it becomes a dependency. Multiple systems that read from the same component can safely run concurrently.
+If a component is read from, the system that previously wrote to it becomes a dependency.
 
-## Groups
-Systems can be segmented into groups by passing along a compile-time integer as a template parameter to `ecs::make_(parallel_)system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
+Multiple systems that read from the same component can safely run concurrently.
+
+## Options
+
+### `opts::group<int>`
+Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_(parallel_)system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
 
 ```cpp
-ecs::make_system<1>([](int&) {
+ecs::make_system<ecs::opts::group<1>>([](int const&) {
     std::cout << "hello from group one\n";
 });
-ecs::make_system<-1>([](int&) {
+ecs::make_system<ecs::opts::group<-1>>([](int const&) {
     std::cout << "hello from group negative one\n";
 });
-ecs::make_system([](int&) {
+ecs::make_system([](int const&) {
     std::cout << "hello from group whatever\n";
 });
 // ...
 ecs::add_component(0, int{});
 ecs::update();
 ```
+
 Running the above code will print out
 > hello from group negative one\
 > hello from group whatever\
 > hello from group one
 
 **Note:** systems from different groups are never executed concurrently, and all systems in one group will run to completion before the next group is run.
+
+
+### `opts::manual_update`
+Systems marked as being manually updated will not be added to scheduler, and will thus require the user to call the `system::run()` function themselves.
+Calls to `ecs::commit_changes)` will still cause the system to respond to changes in components.
+
+```cpp
+ecs::make_system<ecs::opts::manual_update>([](int const&) { /* ... */ });
+// ...
+ecs::add_component(0, int{});
+ecs::update(); // will not run the system
+```
