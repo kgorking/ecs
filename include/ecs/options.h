@@ -11,7 +11,7 @@ namespace ecs::opts {
         static constexpr size_t hz = I;
     };*/
 
-    //struct manual_update {};
+    struct manual_update {};
 
     struct not_parallel {};
     //struct not_concurrent {};

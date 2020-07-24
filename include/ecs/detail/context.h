@@ -149,7 +149,8 @@ namespace ecs::detail {
             system_base* ptr_system = systems.back().get();
             Ensures(ptr_system != nullptr);
 
-            sched.insert(ptr_system);
+            if constexpr (!has_option<opts::manual_update, Options>())
+                sched.insert(ptr_system);
 
             return *ptr_system;
         }
