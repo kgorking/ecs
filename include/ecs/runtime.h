@@ -168,14 +168,6 @@ namespace ecs {
     // Make a new system
     template<typename... Options, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
-        using opts = std::tuple<Options..., ecs::opts::not_parallel>;
-        return detail::_context.create_system<opts, UpdateFn, SortFn>(
-            update_func, sort_func, &UpdateFn::operator());
-    }
-
-    // Make a new parallel system
-    template<typename... Options, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
-    auto& make_parallel_system(UpdateFn update_func, SortFn sort_func = nullptr) {
         using opts = std::tuple<Options...>;
         return detail::_context.create_system<opts, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());

@@ -11,8 +11,8 @@ int main() {
     auto constexpr sys_sleep = [](short const&) { std::this_thread::sleep_for(10ms); };
 
     // Make the systems
-    auto& serial_sys = ecs::make_system(sys_sleep);
-    auto& parallel_sys = ecs::make_parallel_system(sys_sleep);
+    auto& serial_sys = ecs::make_system<ecs::opts::not_parallel>(sys_sleep);
+    auto& parallel_sys = ecs::make_system(sys_sleep);
 
     // Create a range of entities that would
     // take 5 seconds to process serially

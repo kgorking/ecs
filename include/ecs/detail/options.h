@@ -16,12 +16,7 @@ namespace ecs::detail {
         static constexpr bool value = true;
     };
 
-    //
-    // Check if the options has an execution policy
-
     // Contains detectors for the options
-
-
     namespace detect {
         // A detector that applies Tester to each option.
         template<template<class O> class Tester, class TupleOptions, class NotFoundType = void>
@@ -72,9 +67,6 @@ namespace ecs::detail {
             constexpr int option_index = std::apply(option_index_finder, TupleOptions{});
             return option_index != -1;
         }
-
-        template<class Opt>
-        static constexpr bool is_valid_option_type = !std::is_same_v<void*, Opt>;
     } // namespace detect
 
     // Use a tester to check the options. Takes a tester structure and a tuple of options to test against.

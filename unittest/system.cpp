@@ -151,7 +151,7 @@ TEST_CASE("System specification", "[system]") {
 
         int last = -100'000'000;
         int run_counter = 0;
-        ecs::make_system(
+        ecs::make_system<ecs::opts::not_parallel>(
             [&](vanilla const& v, tagged, shared const&, transient const&, immutable const&, global const&, short*) {
                 CHECK(last <= v.x);
                 last = v.x;
