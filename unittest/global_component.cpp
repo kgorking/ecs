@@ -16,7 +16,7 @@ TEST_CASE("Global component", "[component][global]") {
     pst.i = 42;
 
     std::int64_t counter = 0;
-    ecs::make_system([&counter](test_s const& st, int const&) {
+    ecs::make_system<ecs::opts::not_parallel>([&counter](test_s const& st, int const&) {
         CHECK(42 == st.i);
         counter++;
     });

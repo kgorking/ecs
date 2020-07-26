@@ -16,7 +16,7 @@ TEST_CASE("Transient components", "[component][transient]") {
     static_assert(ecs::detail::transient<test_t>);
 
     int counter = 0;
-    ecs::make_system([&counter](foo const& /*f*/, test_t const& /*t*/) { counter++; });
+    ecs::make_system<ecs::opts::not_parallel>([&counter](foo const& /*f*/, test_t const& /*t*/) { counter++; });
 
     ecs::add_component(0, test_t{});
     ecs::add_component(0, foo{});

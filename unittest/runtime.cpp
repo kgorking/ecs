@@ -63,7 +63,7 @@ TEST_CASE("The runtime interface") {
         };
 
         // Add some systems to test
-        ecs::make_system([counter = 0](mut_lambda& ml) mutable { ml.i = counter++; });
+        ecs::make_system<ecs::opts::not_parallel>([counter = 0](mut_lambda& ml) mutable { ml.i = counter++; });
         ecs::make_system([](ecs::entity_id ent, mut_lambda const& ml) { CHECK(ent == ml.i); });
 
         // Create 100 entities and add stuff to them

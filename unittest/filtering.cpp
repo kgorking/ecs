@@ -31,7 +31,7 @@ TEST_CASE("Filtering", "[component][system]") {
 
     // Filtering on non-existant component should run normally
     int no_shorts = 0;
-    ecs::make_system([&no_shorts](int&, short*) {
+    ecs::make_system<ecs::opts::not_parallel>([&no_shorts](int&, short*) {
         no_shorts++;
     });
 
