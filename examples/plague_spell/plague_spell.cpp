@@ -58,7 +58,7 @@ void do_spread_logic(ecs::entity_id self, plague& p) {
                 // Add a copy of the plague component if the entity doesn't already have it.
                 // This means that newly infected entities are only affected for
                 // the remaing duration of this plague component
-                ecs::add_component(ent, plague{p});     // entity 1 and 2 survives (barely)
+                ecs::add_component(ent, p);             // entity 1 and 2 survives (barely)
                 // ecs::add_component(ent, plague{});   // start a fresh plague instead. Entity 1 and 2 dies as well
 
                 std::cout << "entity " << self << " infected entity " << ent << '\n';
