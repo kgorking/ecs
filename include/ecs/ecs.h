@@ -13,7 +13,7 @@
 #include "detail/component_pool_base.h"
 
 #include "detail/system.h"
-#include "detail/system_verification.h"
+#include "detail/verification.h"
 #include "system_base.h"
 
 #include "detail/context.h"

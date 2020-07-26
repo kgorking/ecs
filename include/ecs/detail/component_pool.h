@@ -16,15 +16,28 @@
 #include "../entity_id.h"
 #include "../entity_range.h"
 
-namespace ecs::detail {
-    // For std::visit
-    template<class... Ts>
-    struct overloaded : Ts... {
-        using Ts::operator()...;
-    };
-    template<class... Ts>
-    overloaded(Ts...) -> overloaded<Ts...>;
+template<class ForwardIt, class BinaryPredicate>
+ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) {
+    if (first == last)
+        return last;
 
+    ForwardIt result = first;
+    while (++first != last) {
+        auto const pred_res = p(*result, *first);
+        if (!pred_res && ++result != first) {
+            *result = std::move(*first);
+        }
+    }
+    return ++result;
+}
+
+template<class Cont, class BinaryPredicate>
+void combine_erase(Cont& cont, BinaryPredicate p) {
+    auto const end = std_combine_erase(cont.begin(), cont.end(), p);
+    cont.erase(end, cont.end());
+}
+
+namespace ecs::detail {
     template<std::copyable T>
     class component_pool final : public component_pool_base {
     private:
@@ -49,8 +62,8 @@ namespace ecs::detail {
         // Add a component to a range of entities, initialized by the supplied user function
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.
-        template<typename Fn>
-        requires(!unbound<T>) void add_init(entity_range const range, Fn&& init) {
+        template<typename Fn> requires(!unbound<T>)
+        void add_init(entity_range const range, Fn&& init) {
             // Add the range and function to a temp storage
             deferred_adds.local().emplace_back(range, std::forward<Fn>(init));
         }
@@ -308,9 +321,7 @@ namespace ecs::detail {
             deferred_adds.clear();
 
             // Sort the input
-            /*if (!std::is_sorted(adds.begin(), adds.end(), comparator))*/ {
-                std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
-            }
+            std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
 
             // Check the 'add*' functions precondition.
             // An entity can not have more than one of the same component
@@ -320,18 +331,58 @@ namespace ecs::detail {
             };
             Expects(false == has_duplicate_entities(adds));
 
-            // Small helper function for combining ranges
-            auto const add_range = [](std::vector<entity_range>& dest, entity_range const& range) {
-                // Merge the range or add it
-                if (!dest.empty() && dest.back().can_merge(range)) {
-                    dest.back() = entity_range::merge(dest.back(), range);
-                } else {
-                    dest.push_back(range);
-                }
-            };
+            // Merge adjacent ranges
+            if (adds.size() > 1) {
+                combine_erase(adds, [](entity_data& a, entity_data const& b) {
+                    if constexpr (!detail::unbound<T>) { // contains data
+                        auto & [a_rng, a_data] = a;
+                        auto const& [b_rng, b_data] = b;
+
+                        auto constexpr variants_equal = [](auto* var1, auto* var2) {
+                            if (var1->index() != var2->index())
+                                return false;
+
+                            if (var1->index() == 0) {
+                                // Types may not have '==' operator, so compare mem directly.
+                                // The worst that can happen here is some false negatives,
+                                // see 'Notes' at https://en.cppreference.com/w/cpp/string/byte/memcmp
+                                return 0 == std::memcmp(&std::get<0>(*var1), &std::get<0>(*var2), sizeof(T));
+                                // return std::get<0>(*var1) == std::get<0>(*var2);
+                            } else {
+                                return std::get_if<1>(var1)->target<T(entity_id)>() ==
+                                       *std::get_if<1>(var2)->target<T(entity_id)>();
+                            }
+                        };
+
+                        if (a_rng.can_merge(b_rng) && variants_equal(&a_data, &b_data)) {
+                            a_rng = entity_range::merge(a_rng, b_rng);
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    } else { // does not contain data
+                        auto& [a_rng] = a;
+                        auto const& [b_rng] = b;
+
+                        if (a_rng.can_merge(b_rng)) {
+                            a_rng = entity_range::merge(a_rng, b_rng);
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    }
+                });
+            }
+
+            // Count the total number of inserts
+            auto const num_ents = std::accumulate(adds.begin(), adds.end(), size_t{0},
+                [](size_t val, auto const& rng) { return val + std::get<0>(rng).count() - 1; });
 
             // Add the new entities/components
             std::vector<entity_range> new_ranges;
+            new_ranges.reserve(ranges.size() + adds.size());
+            components.reserve(components.size() + num_ents);
+
             auto ranges_it = ranges.cbegin();
             [[maybe_unused]] auto component_it = components.cbegin();
             for (auto& add : adds) {
@@ -345,7 +396,7 @@ namespace ecs::detail {
                         component_it += ranges_it->count();
                     }
 
-                    add_range(new_ranges, *ranges_it++);
+                    new_ranges.push_back(*ranges_it++);
                 }
 
                 // New range must not already exist in the pool
@@ -353,22 +404,23 @@ namespace ecs::detail {
                     Expects(false == ranges_it->overlaps(range));
 
                 // Add the new range
-                add_range(new_ranges, range);
+                new_ranges.push_back(range);
 
+                // Add the new data
                 if constexpr (!detail::unbound<T>) {
-                    auto const add_val = [this, &component_it, range](T&& val) {
-                        component_it = components.insert(component_it, range.count(), std::forward<T>(val));
+                    auto& variant = std::get<1>(add);
+                    if (variant.index() == 0) { // it's a type
+                        component_it =
+                            components.insert(component_it, range.count(), std::move(std::get<0>(variant)));
                         component_it = std::next(component_it, range.count());
-                    };
-                    auto const add_init = [this, &component_it, range](std::function<T(entity_id)> init) {
+                    }
+                    else { // it's an intializer
                         for (entity_id ent = range.first(); ent <= range.last(); ++ent) {
+                            auto const& init = std::get<1>(variant);
                             component_it = components.emplace(component_it, init(ent));
                             component_it = std::next(component_it);
                         }
-                    };
-
-                    // Add the new components
-                    std::visit(overloaded{add_val, add_init}, std::move(std::get<1>(add)));
+                    }
                 }
             }
 

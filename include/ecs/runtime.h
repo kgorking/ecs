@@ -9,7 +9,7 @@
 #include "detail/component_pool.h"
 #include "detail/context.h"
 #include "detail/system.h"
-#include "detail/system_verification.h"
+#include "detail/verification.h"
 #include "entity_id.h"
 #include "options.h"
 
@@ -20,8 +20,8 @@ namespace ecs {
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
     void add_component(entity_range const range, First&& first_val, T&&... vals) {
-        static_assert(
-            detail::unique<First, T...>, "the same component was specified more than once");
+        static_assert(detail::unique<First, T...>,
+                      "the same component was specified more than once");
 
         auto const adder = []<class Type>(entity_range const range, Type&& val) {
             if constexpr (std::invocable<Type, entity_id>) {
@@ -35,13 +35,16 @@ namespace ecs {
                     detail::_context.get_component_pool<ComponentType>();
                 pool.add_init(range, std::forward<Type>(val));
             } else {
-                static_assert(
-                    !std::is_reference_v<Type>, "can not store references; pass a copy instead");
-                static_assert(std::copyable<Type>, "Type must be copyable");
-
                 // Add it to the component pool
-                detail::component_pool<Type>& pool = detail::_context.get_component_pool<Type>();
-                pool.add(range, std::forward<Type>(val));
+                if constexpr (std::is_reference_v<Type>) {
+                    using T = std::remove_reference_t<Type>;
+                    static_assert(std::copyable<T>, "Type must be copyable");
+                    detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
+                    pool.add(range, std::forward<T>(val));
+                } else {
+                    detail::component_pool<Type>& pool = detail::_context.get_component_pool<Type>();
+                    pool.add(range, std::forward<Type>(val));
+                }
             }
         };
 
