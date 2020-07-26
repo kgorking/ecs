@@ -152,113 +152,107 @@ TEST_CASE("entity_range ", "[entity]") {
         SECTION("Ranges in B are contained in ranges in A") {
             /// a: ***** ***** *****
             /// b:  ---   ---   ---
-            std::vector<ecs::entity_range> vec_a{{0, 4}, {5, 9}, {10, 14}};
-            std::vector<ecs::entity_range> vec_b{{1, 3}, {6, 8}, {11, 13}};
+            std::vector<ecs::entity_range> vec_a{{0 , 4}, {5 , 9}, {10 , 14}};
+            std::vector<ecs::entity_range> vec_b{ {1,3},   {6,8},   {11,13} };
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
-            REQUIRE(3 == result.size());
-            CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
-            CHECK(ecs::entity_range{6, 8}.equals(result.at(1)));
-            CHECK(ecs::entity_range{11, 13}.equals(result.at(2)));
+            REQUIRE(4 == result.size());
+            CHECK(ecs::entity_range{0, 0}.equals(result.at(0)));
+            CHECK(ecs::entity_range{4, 5}.equals(result.at(1)));
+            CHECK(ecs::entity_range{9, 10}.equals(result.at(2)));
+            CHECK(ecs::entity_range{14, 14}.equals(result.at(3)));
         }
 
         SECTION("Ranges in A are contained in ranges in B") {
             /// a:  ---   ---   ---
-            /// b: ***** ***** *****
+            /// b: ***** ***** *****8
             std::vector<ecs::entity_range> vec_a{{1, 3}, {6, 8}, {11, 13}};
             std::vector<ecs::entity_range> vec_b{{0, 4}, {5, 9}, {10, 14}};
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
-            REQUIRE(3 == result.size());
-            CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
-            CHECK(ecs::entity_range{6, 8}.equals(result.at(1)));
-            CHECK(ecs::entity_range{11, 13}.equals(result.at(2)));
+            REQUIRE(0 == result.size());
         }
 
         SECTION("Ranges in A overlap ranges in B") {
             /// a: *****  *****  *****
             /// b:     ---    ---    ---
-            std::vector<ecs::entity_range> vec_a{{0, 4}, {7, 11}, {14, 18}};
-            std::vector<ecs::entity_range> vec_b{{4, 6}, {11, 13}, {18, 20}};
+            std::vector<ecs::entity_range> vec_a{{0, 4},  {7, 11}, {14, 18}};
+            std::vector<ecs::entity_range> vec_b{   {4, 6},  {11, 13}, {18, 20}};
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
-            CHECK(ecs::entity_range{4, 4} == result.at(0));
-            CHECK(ecs::entity_range{11, 11} == result.at(1));
-            CHECK(ecs::entity_range{18, 18} == result.at(2));
+            CHECK(ecs::entity_range{0, 3} == result.at(0));
+            CHECK(ecs::entity_range{7, 10} == result.at(1));
+            CHECK(ecs::entity_range{14, 17} == result.at(2));
         }
 
         SECTION("Ranges in B overlap ranges in A") {
             /// a:     ---    ---    ---
             /// b: *****  *****  *****
-            std::vector<ecs::entity_range> vec_a{{4, 6}, {11, 13}, {18, 20}};
-            std::vector<ecs::entity_range> vec_b{{0, 4}, {7, 11}, {14, 18}};
+            std::vector<ecs::entity_range> vec_a{   {4, 6}, {11, 13},  {18, 20}};
+            std::vector<ecs::entity_range> vec_b{{0, 4}, {7, 11},  {14, 18}};
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
-            CHECK(ecs::entity_range{4, 4} == result.at(0));
-            CHECK(ecs::entity_range{11, 11} == result.at(1));
-            CHECK(ecs::entity_range{18, 18} == result.at(2));
+            CHECK(ecs::entity_range{5, 6} == result.at(0));
+            CHECK(ecs::entity_range{12, 13} == result.at(1));
+            CHECK(ecs::entity_range{19, 20} == result.at(2));
         }
 
         SECTION("Ranges in A overlap multiple ranges in B") {
             /// a: ********* *********
             /// b:  --- ---   --- ---
-            std::vector<ecs::entity_range> vec_a{{0, 8}, {9, 17}};
-            std::vector<ecs::entity_range> vec_b{{1, 3}, {5, 7}, {10, 12}, {14, 16}};
+            std::vector<ecs::entity_range> vec_a{{0,           8}, {9,                 17}};
+            std::vector<ecs::entity_range> vec_b{ {1, 3}, {5, 7},    {10, 12}, {14, 16}};
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
-            REQUIRE(4 == result.size());
-            CHECK(ecs::entity_range{1, 3} == result.at(0));
-            CHECK(ecs::entity_range{5, 7} == result.at(1));
-            CHECK(ecs::entity_range{10, 12} == result.at(2));
-            CHECK(ecs::entity_range{14, 16} == result.at(3));
+            REQUIRE(5 == result.size());
+            CHECK(ecs::entity_range{0, 0} == result.at(0));
+            CHECK(ecs::entity_range{4, 4} == result.at(1));
+            CHECK(ecs::entity_range{8, 9} == result.at(2));
+            CHECK(ecs::entity_range{13, 13} == result.at(3));
+            CHECK(ecs::entity_range{17, 17} == result.at(4));
         }
 
         SECTION("Ranges in B overlap multiple ranges in A") {
             /// a:  --- ---   --- ---
             /// b: ********* *********
-            std::vector<ecs::entity_range> vec_a{{1, 3}, {5, 7}, {10, 12}, {14, 16}};
-            std::vector<ecs::entity_range> vec_b{{0, 8}, {9, 17}};
+            std::vector<ecs::entity_range> vec_a{  {1, 3}, {5, 7},      {10, 12}, {14, 16}};
+            std::vector<ecs::entity_range> vec_b{{0,             8}, {9,                  17}};
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
-            REQUIRE(4 == result.size());
-            CHECK(ecs::entity_range{1, 3} == result.at(0));
-            CHECK(ecs::entity_range{5, 7} == result.at(1));
-            CHECK(ecs::entity_range{10, 12} == result.at(2));
-            CHECK(ecs::entity_range{14, 16} == result.at(3));
+            REQUIRE(0 == result.size());
         }
 
         SECTION("One range in B overlaps two ranges in A") {
             /// a: *** ***
             /// b:  -----
-            std::vector<ecs::entity_range> vec_a{{1, 3}, {5, 7}};
-            std::vector<ecs::entity_range> vec_b{{2, 6}};
+            std::vector<ecs::entity_range> vec_a{{1 , 3}, {5 , 7}};
+            std::vector<ecs::entity_range> vec_b{  {2,       6}};
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
             REQUIRE(2 == result.size());
-            CHECK(ecs::entity_range{2, 3} == result.at(0));
-            CHECK(ecs::entity_range{5, 6} == result.at(1));
+            CHECK(ecs::entity_range{1, 1} == result.at(0));
+            CHECK(ecs::entity_range{7, 7} == result.at(1));
         }
 
         SECTION("One range in A overlaps two ranges in B") {
             /// a:  -----
             /// b: *** ***
-            std::vector<ecs::entity_range> vec_a{{2, 6}};
+            std::vector<ecs::entity_range> vec_a{  {2  ,   6}};
             std::vector<ecs::entity_range> vec_b{{1, 3}, {5, 7}};
 
-            auto result = ecs::intersect_ranges(vec_a, vec_b);
+            auto result = ecs::difference_ranges(vec_a, vec_b);
 
-            REQUIRE(2 == result.size());
-            CHECK(ecs::entity_range{2, 3} == result.at(0));
-            CHECK(ecs::entity_range{5, 6} == result.at(1));
+            REQUIRE(1 == result.size());
+            CHECK(ecs::entity_range{4, 4} == result.at(0));
         }
     }
 
