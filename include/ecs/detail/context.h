@@ -4,9 +4,9 @@
 #include <map>
 #include <memory>
 #include <shared_mutex>
-#include <tls/cache.h>
 #include <vector>
 
+#include "tls/cache.h"
 #include "component_pool.h"
 #include "scheduler.h"
 #include "system.h"
@@ -32,14 +32,18 @@ namespace ecs::detail {
             //  adding new systems
             std::shared_lock lock(mutex);
 
+            auto constexpr process_changes = [](auto const& inst) { inst->process_changes(); };
+
             // Let the component pools handle pending add/remove requests for components
-            for (auto const& pool : component_pools) { pool->process_changes(); }
+            std::for_each(std::execution::par, component_pools.begin(), component_pools.end(), process_changes);
 
             // Let the systems respond to any changes in the component pools
-            for (auto const& sys : systems) { sys->process_changes(); }
+            std::for_each(std::execution::par, systems.begin(), systems.end(), process_changes);
 
             // Reset any dirty flags on pools
-            for (auto const& pool : component_pools) { pool->clear_flags(); }
+            for (auto const& pool : component_pools) {
+                pool->clear_flags();
+            }
         }
 
         // Calls the 'update' function on all the systems in the order they were added.
@@ -69,7 +73,9 @@ namespace ecs::detail {
             sched = scheduler();
             // context::component_pools.clear(); // this will cause an exception in
             // get_component_pool() due to the cache
-            for (auto& pool : component_pools) { pool->clear(); }
+            for (auto& pool : component_pools) {
+                pool->clear();
+            }
         }
 
         // Returns a reference to a components pool.
@@ -86,7 +92,7 @@ namespace ecs::detail {
 
                 // Look in the pool for the type
                 auto const it = type_pool_lookup.find(hash);
-                [[unlikely]] if (it == type_pool_lookup.end()) {
+                if (it == type_pool_lookup.end()) {
                     // The pool wasn't found so create it.
                     // create_component_pool takes a unique lock, so unlock the
                     // shared lock during its call
@@ -101,45 +107,37 @@ namespace ecs::detail {
             return *static_cast<component_pool<NakedType>*>(pool);
         }
 
-        // Const lambda
-        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename... Args>
-        auto& create_system(UpdateFn update_func, R (C::*)(Args...) const) {
-            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, Args...>(update_func, nullptr);
-        }
-
         // Const lambda with sort
-        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
-            typename... Args>
-        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(Args...) const) {
-            return create_system<Group, ExePolicy, UpdateFn, SortFn, Args...>(update_func, sort_func);
-        }
-
-        // Mutable lambda
-        template<int Group, typename ExePolicy, typename UpdateFn, typename R, typename C, typename... Args>
-        auto& create_system(UpdateFn update_func, R (C::*)(Args...)) {
-            return create_system<Group, ExePolicy, UpdateFn, nullptr_t, Args...>(update_func, nullptr);
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C,
+            typename FirstArg, typename... Args>
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
+            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(
+                update_func, sort_func);
         }
 
         // Mutable lambda with sort
-        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename R, typename C,
-            typename... Args>
-        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(Args...)) {
-            return create_system<Group, ExePolicy, UpdateFn, SortFn, Args...>(update_func, sort_func);
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C,
+            typename FirstArg, typename... Args>
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...)) {
+            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(
+                update_func, sort_func);
         }
 
     private:
-        template<int Group, typename ExePolicy, typename UpdateFn, typename SortFn, typename FirstArg,
+        template<typename Options, typename UpdateFn, typename SortFn, typename FirstArg,
             typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
-            // Set up the implementation
-            using typed_system = system<Group, ExePolicy, UpdateFn, SortFn, FirstArg, Args...>;
+            // Make sure we have a valid sort function
+            if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
+                static_assert(detail::sorter<SortFn>, "Invalid sort-function supplied, should be 'bool(T const&, T const&)'");
+            }
 
-            // Is the first argument an entity of sorts?
-            bool constexpr has_entity = std::is_same_v<FirstArg, entity_id> || std::is_same_v<FirstArg, entity>;
+            // Set up the implementation
+            using typed_system = system<Options, UpdateFn, SortFn, FirstArg, Args...>;
 
             // Create the system instance
             std::unique_ptr<system_base> sys;
-            if constexpr (has_entity) {
+            if constexpr (is_entity<FirstArg>()) {
                 sys = std::make_unique<typed_system>(update_func, sort_func, &get_component_pool<Args>()...);
             } else {
                 sys = std::make_unique<typed_system>(
@@ -151,7 +149,8 @@ namespace ecs::detail {
             system_base* ptr_system = systems.back().get();
             Ensures(ptr_system != nullptr);
 
-            sched.insert(ptr_system);
+            if constexpr (!has_option<opts::manual_update, Options>())
+                sched.insert(ptr_system);
 
             return *ptr_system;
         }

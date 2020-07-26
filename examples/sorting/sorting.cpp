@@ -22,14 +22,14 @@ int main() {
     auto& sys_sort_des = ecs::make_system(printer, sort_des);
     auto& sys_sort_eo = ecs::make_system(printer, sort_even_odd);
 
-    ecs::add_components({0, 9}, generator);
+    ecs::add_component({0, 9}, generator);
     ecs::commit_changes();
 
-    sys_no_sort.update();
+    sys_no_sort.run();
     std::cout << '\n';
-    sys_sort_asc.update();
+    sys_sort_asc.run();
     std::cout << '\n';
-    sys_sort_des.update();
+    sys_sort_des.run();
     std::cout << '\n';
-    sys_sort_eo.update();
+    sys_sort_eo.run();
 }

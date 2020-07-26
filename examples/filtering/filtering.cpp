@@ -2,9 +2,9 @@
 #include <iostream>
 
 int main() {
-    ecs::add_components({0, 6}, int());
-    ecs::add_components({3, 9}, float());
-    ecs::add_components({2, 3}, short());
+    ecs::add_component({0, 6}, int());
+    ecs::add_component({3, 9}, float());
+    ecs::add_component({2, 3}, short());
     ecs::commit_changes();
 
     auto& i        = ecs::make_system([](ecs::entity_id id, int&          ) { std::cout << id << ' '; });
@@ -17,34 +17,34 @@ int main() {
     auto& i_no_f_s = ecs::make_system([](ecs::entity_id id, int&, float*, short*) { std::cout << id << ' '; });
 
     std::cout << "ints:\n";
-    i.update();
+    i.run();
     std::cout << "\n\n";
 
     std::cout << "floats:\n";
-    f.update();
+    f.run();
     std::cout << "\n\n";
 
     std::cout << "shorts:\n";
-    s.update();
+    s.run();
     std::cout << "\n\n";
 
     std::cout << "ints, no floats:\n";
-    i_no_f.update();
+    i_no_f.run();
     std::cout << "\n\n";
 
     std::cout << "floats, no ints:\n";
-    f_no_i.update();
+    f_no_i.run();
     std::cout << "\n\n";
 
     std::cout << "ints & floats:\n";
-    i_f.update();
+    i_f.run();
     std::cout << "\n\n";
 
     std::cout << "ints, no shorts:\n";
-    i_no_s.update();
+    i_no_s.run();
     std::cout << "\n\n";
 
     std::cout << "ints, no floats, no shorts:\n";
-    i_no_f_s.update();
+    i_no_f_s.run();
     std::cout << "\n\n";
 }

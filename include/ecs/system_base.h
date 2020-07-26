@@ -4,7 +4,7 @@
 #include <span>
 #include <string>
 
-#include "type_hash.h"
+#include "detail/type_hash.h"
 
 namespace ecs::detail {
     class context;
@@ -21,13 +21,17 @@ namespace ecs {
         system_base& operator=(system_base&&) = default;
 
         // Run this system on all of its associated components
-        virtual void update() = 0;
+        virtual void run() = 0;
 
         // Enables this system for updates and runs
-        void enable() { set_enable(true); }
+        void enable() {
+            set_enable(true);
+        }
 
         // Prevent this system from being updated or run
-        void disable() { set_enable(false); }
+        void disable() {
+            set_enable(false);
+        }
 
         // Sets wheter the system is enabled or disabled
         void set_enable(bool is_enabled) {
@@ -38,7 +42,9 @@ namespace ecs {
         }
 
         // Returns true if this system is enabled
-        [[nodiscard]] bool is_enabled() const { return enabled; }
+        [[nodiscard]] bool is_enabled() const {
+            return enabled;
+        }
 
         // Returns the group this system belongs to
         [[nodiscard]] virtual int get_group() const noexcept = 0;

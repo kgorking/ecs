@@ -34,7 +34,7 @@ TEST_CASE("Component pool specification", "[component]") {
             ecs::detail::component_pool<int> pool;
             CHECK(pool.num_entities() == 0);
             CHECK(pool.num_components() == 0);
-            CHECK(pool.is_data_modified() == false);
+            CHECK(pool.has_component_count_changed() == false);
         }
     }
 
@@ -53,7 +53,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
             CHECK(pool.num_entities() == 5);
             CHECK(pool.num_components() == 5);
-            CHECK(pool.is_data_added());
+            CHECK(pool.has_more_components());
         }
     }
 
@@ -154,14 +154,14 @@ TEST_CASE("Component pool specification", "[component]") {
 
             REQUIRE(pool.num_entities() == 9);
             REQUIRE(pool.num_components() == 9);
-            REQUIRE(pool.is_data_removed());
+            REQUIRE(pool.has_less_components());
         }
         SECTION("becomes empty after clear") {
             pool.clear();
             REQUIRE(pool.num_entities() == 0);
             REQUIRE(pool.num_components() == 0);
-            REQUIRE(pool.is_data_added() == false);
-            REQUIRE(pool.is_data_removed() == true);
+            REQUIRE(pool.has_more_components() == false);
+            REQUIRE(pool.has_less_components() == true);
         }
         SECTION("remains valid after internal growth") {
             int const* org_p = pool.find_component_data(0);

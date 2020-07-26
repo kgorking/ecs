@@ -18,16 +18,19 @@ TEST_CASE("Component removal", "[component][transient]") {
     };
 
     int run_counter_idle = 0;
-    ecs::make_system([&](state_idle const& /*idle*/, ev_connect const& /*ev*/) { run_counter_idle++; });
+    ecs::make_system<ecs::opts::not_parallel>(
+        [&](state_idle const& /*idle*/, ev_connect const& /*ev*/) { run_counter_idle++; });
 
-    ecs::entity fsm{0, state_idle{}};
+    ecs::entity_id const fsm{0};
+    ecs::add_component(fsm, state_idle{});
+
     ecs::commit_changes();
 
-    fsm.add<ev_connect>();
-    ecs::update_systems();
+    ecs::add_component(fsm, ev_connect{});
+    ecs::update();
     CHECK(run_counter_idle == 1);
 
-    fsm.add<ev_timeout>();
-    ecs::update_systems();
+    ecs::add_component(fsm, ev_timeout{});
+    ecs::update();
     CHECK(run_counter_idle == 1);
 }

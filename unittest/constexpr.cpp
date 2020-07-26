@@ -18,14 +18,13 @@ TEST_CASE("constexpr", "[constexpr]") {
     SECTION("system") {
         auto lm = [](int&) {};
         /*constexpr*/ auto& sys = ecs::make_system(lm);
-        sys.update();
+        sys.run();
     }
 
     SECTION("context") { /*constexpr*/ ecs::detail::context ctx; }
 
     SECTION("entity") {
-        constexpr ecs::entity ent{0};
-        // constexpr ecs::entity ent2{ 1, 3.14f };
+        constexpr ecs::entity_id ent{0};
     }
 
     SECTION("entity_range") {

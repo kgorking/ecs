@@ -4,7 +4,7 @@
 #include <concepts>
 #include <type_traits>
 
-#include "component_specifier.h"
+#include "../component_specifier.h"
 
 namespace ecs::detail {
     // Given a type T, if it is callable with an entity argument,
@@ -35,16 +35,16 @@ namespace ecs::detail {
         }
     }
 
-    template<typename... T>
-    constexpr static bool unique_types_v = unique_types<get_type_t<T>...>();
+    template<typename First, typename... T>
+    constexpr static bool unique_types_v = unique_types<get_type<First>, get_type_t<T>...>();
 
     // Ensure that any type in the parameter pack T is only present once.
-    template<typename... T>
-    concept unique = unique_types_v<T...>;
+    template<typename First, typename... T>
+    concept unique = unique_types_v<First, T...>;
 
     template<class T>
     concept entity_type =
-        std::is_same_v<std::remove_cvref_t<T>, entity_id> || std::is_same_v<std::remove_cvref_t<T>, entity>;
+        std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
     // Implement the requirements for immutable components
     template<typename C>
@@ -107,26 +107,24 @@ namespace ecs::detail {
         requires(entity_type<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
         // Component types can only be specified once
-        requires unique<FirstArg, Args...>;
+        // requires unique<FirstArg, Args...>; // ICE's gcc 10.1
+        requires unique_types_v<FirstArg, Args...>;
 
         // Verify components
         requires Component<FirstArg> && (Component<Args> && ...);
     };
 
     // A small bridge to allow the Lambda concept to activate the system concept
-    template<class R, class C, class... Args>
-    requires(sizeof...(Args) > 0 && checked_system<R, Args...>) struct lambda_to_system_bridge {
-        lambda_to_system_bridge(R (C::*)(Args...)){};
-        lambda_to_system_bridge(R (C::*)(Args...) const){};
-        lambda_to_system_bridge(R (C::*)(Args...) noexcept){};
-        lambda_to_system_bridge(R (C::*)(Args...) const noexcept){};
+    template<class R, class C, class FirstArg, class... Args>
+    requires(checked_system<R, FirstArg, Args...>) struct lambda_to_system_bridge {
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...)){};
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) const){};
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) noexcept){};
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) const noexcept){};
     };
 
     template<typename T>
     concept lambda = requires {
-        // Must have the call operator
-        &T::operator();
-
         // Check all the system requirements
         lambda_to_system_bridge(&T::operator());
     };
@@ -138,25 +136,19 @@ namespace ecs::detail {
 
         // Arguments must be of same type
         requires std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
-
-        // Most obey strict ordering
-        requires std::totally_ordered_with<T, U>;
     };
 
     // A small bridge to allow the Lambda concept to activate the sorter concept
-    template<class R, class C, class... Args>
-    requires(sizeof...(Args) == 2 && checked_sorter<R, Args...>) struct lambda_to_sorter_bridge {
-        lambda_to_sorter_bridge(R (C::*)(Args...)){};
-        lambda_to_sorter_bridge(R (C::*)(Args...) const){};
-        lambda_to_sorter_bridge(R (C::*)(Args...) noexcept){};
-        lambda_to_sorter_bridge(R (C::*)(Args...) const noexcept){};
+    template<class R, class C, class T, class U>
+    requires(checked_sorter<R, T, U>) struct lambda_to_sorter_bridge {
+        lambda_to_sorter_bridge(R (C::*)(T, U)){};
+        lambda_to_sorter_bridge(R (C::*)(T, U) const){};
+        lambda_to_sorter_bridge(R (C::*)(T, U) noexcept){};
+        lambda_to_sorter_bridge(R (C::*)(T, U) const noexcept){};
     };
 
     template<typename T>
     concept sorter = requires {
-        // Must have the call operator
-        &T::operator();
-
         // Check all the sorter requirements
         lambda_to_sorter_bridge(&T::operator());
     };

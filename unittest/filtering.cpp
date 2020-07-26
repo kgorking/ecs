@@ -4,8 +4,8 @@
 TEST_CASE("Filtering", "[component][system]") {
     ecs::detail::_context.reset();
 
-    ecs::add_components({0, 6}, int());
-    ecs::add_components({3, 9}, float());
+    ecs::add_component({0, 6}, int());
+    ecs::add_component({3, 9}, float());
     ecs::commit_changes();
 
     ecs::make_system([](ecs::entity_id id, int&) {
@@ -29,5 +29,13 @@ TEST_CASE("Filtering", "[component][system]") {
         CHECK(id <= 6);
     });
 
+    // Filtering on non-existant component should run normally
+    int no_shorts = 0;
+    ecs::make_system<ecs::opts::not_parallel>([&no_shorts](int&, short*) {
+        no_shorts++;
+    });
+
     ecs::run_systems();
+
+    CHECK(no_shorts == ecs::get_entity_count<int>());
 }

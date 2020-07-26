@@ -43,6 +43,7 @@ TEST_CASE("The runtime interface") {
     }
 
     SECTION("Allocates storage as needed") {
+        ecs::detail::_context.reset();
         // Use a local struct to avoid it possibly
         // already existing from another unittest
         struct S {
@@ -55,18 +56,19 @@ TEST_CASE("The runtime interface") {
         REQUIRE(ecs::get_component_count<S>() == 1);
     }
 
-    SECTION("Supportsd mutable lambdas") {
+    SECTION("Supports mutable lambdas") {
+        ecs::detail::_context.reset();
         struct mut_lambda {
             int i;
         };
 
         // Add some systems to test
-        ecs::make_system([counter = 0](mut_lambda& ml) mutable { ml.i = counter++; });
+        ecs::make_system<ecs::opts::not_parallel>([counter = 0](mut_lambda& ml) mutable { ml.i = counter++; });
         ecs::make_system([](ecs::entity_id ent, mut_lambda const& ml) { CHECK(ent == ml.i); });
 
         // Create 100 entities and add stuff to them
         ecs::add_component({0, 3}, mut_lambda{0});
-        ecs::update_systems();
+        ecs::update();
     }
 
     SECTION("Ranged add") {
@@ -75,8 +77,10 @@ TEST_CASE("The runtime interface") {
         };
 
         SECTION("of components works") {
+            ecs::detail::_context.reset();
             ecs::add_component({0, 5}, range_add{5});
-            ecs::entity_range const ents{6, 9, range_add{5}};
+            ecs::entity_range const ents{6, 9};
+            ecs::add_component(ents, range_add{5});
             ecs::commit_changes();
 
             for (ecs::entity_id i = 0; i <= 9; ++i) {
@@ -86,10 +90,12 @@ TEST_CASE("The runtime interface") {
         }
 
         SECTION("of components with initializer works") {
+            ecs::detail::_context.reset();
             auto const init = [](auto ent) -> range_add { return {ent * 2}; };
 
             ecs::add_component({10, 15}, init);
-            ecs::entity_range const ents{16, 20, init};
+            ecs::entity_range const ents{16, 20};
+            ecs::add_component(ents, init);
 
             ecs::commit_changes();
 
