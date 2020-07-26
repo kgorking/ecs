@@ -138,6 +138,28 @@ TEST_CASE("entity_range ", "[entity]") {
         }
     }
     SECTION("intersection difference") {
+        SECTION("Empty range A") {
+            /// a:
+            /// b:      ---     ---     ---
+            std::vector<ecs::entity_range> vec_a{};
+            std::vector<ecs::entity_range> vec_b{{5, 7}, {13, 15}, {21, 23}};
+
+            auto result = ecs::difference_ranges(vec_a, vec_b);
+
+            CHECK(result.empty());
+        }
+
+        SECTION("Empty range B") {
+            /// a: *****   *****   *****
+            /// b:
+            std::vector<ecs::entity_range> vec_a{{0, 4}, {8, 12}, {16, 20}};
+            std::vector<ecs::entity_range> vec_b{};
+
+            auto result = ecs::difference_ranges(vec_a, vec_b);
+
+            CHECK(result == vec_a);
+        }
+
         SECTION("No overlaps between ranges") {
             /// a: *****   *****   *****
             /// b:      ---     ---     ---

@@ -185,7 +185,7 @@ namespace ecs {
     inline std::vector<entity_range> difference_ranges(
         entity_range_view view_a, entity_range_view view_b) {
         if (view_a.empty())
-            return {view_b.begin(), view_b.end()};
+            return {};
         if (view_b.empty())
             return {view_a.begin(), view_a.end()};
 
