@@ -376,12 +376,12 @@ namespace ecs::detail {
 
             // Count the total number of inserts
             auto const num_ents = std::accumulate(adds.begin(), adds.end(), size_t{0},
-                [](size_t val, auto const& rng) { return val + std::get<0>(rng).count() - 1; });
+                [](size_t val, auto const& rng) { return val + std::get<0>(rng).count(); });
 
             // Add the new entities/components
             std::vector<entity_range> new_ranges;
-            new_ranges.reserve(ranges.size() + adds.size());
-            components.reserve(components.size() + num_ents);
+            //new_ranges.reserve(ranges.size() + adds.size());  // results in
+            //components.reserve(components.size() + num_ents); // excesive copies
 
             auto ranges_it = ranges.cbegin();
             [[maybe_unused]] auto component_it = components.cbegin();
