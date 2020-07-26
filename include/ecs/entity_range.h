@@ -180,7 +180,8 @@ namespace ecs {
         return result;
     }
 
-    // Find the difference between two sets of ranges
+    // Find the difference between two sets of ranges.
+    // Removes ranges in b from a.
     inline std::vector<entity_range> difference_ranges(
         entity_range_view view_a, entity_range_view view_b) {
         if (view_a.empty())
