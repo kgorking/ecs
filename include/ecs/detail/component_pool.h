@@ -302,6 +302,7 @@ namespace ecs::detail {
         }
 
         // Compare two variants
+        template <typename U = T>
         static bool variants_equal(variant const* var1, variant const* var2) {
             if (var1->index() != var2->index())
                 return false;
@@ -310,10 +311,10 @@ namespace ecs::detail {
                 // Types may not have '==' operator, so compare mem directly.
                 // The worst that can happen here is some false negatives,
                 // see 'Notes' at https://en.cppreference.com/w/cpp/string/byte/memcmp
-                return 0 == std::memcmp(&std::get<0>(*var1), &std::get<0>(*var2), sizeof(T));
+                return 0 == std::memcmp(&std::get<0>(*var1), &std::get<0>(*var2), sizeof(U));
                 // return std::get<0>(*var1) == std::get<0>(*var2);
             } else {
-                return std::get<1>(*var1).target<T(entity_id)>() == std::get<1>(*var2).target<T(entity_id)>();
+                return std::get<1>(*var1).target<U(entity_id)>() == std::get<1>(*var2).target<U(entity_id)>();
             }
         };
 
