@@ -101,7 +101,7 @@ namespace ecs::detail {
     struct ranged_argument_builder {
         // Determine the execution policy from the options (or lack thereof)
         using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
-            std::execution::sequenced_policy, std::execution::parallel_unsequenced_policy>;
+            std::execution::sequenced_policy, std::execution::parallel_policy>;
 
         ranged_argument_builder(UpdateFn update_func, SortFn /*sort*/,
             pool<FirstComponent> first_pool, pool<Components>... pools)
@@ -173,7 +173,7 @@ namespace ecs::detail {
     struct sorted_argument_builder {
         // Determine the execution policy from the options (or lack thereof)
         using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
-            std::execution::sequenced_policy, std::execution::parallel_unsequenced_policy>;
+            std::execution::sequenced_policy, std::execution::parallel_policy>;
 
         sorted_argument_builder(
             UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool,
