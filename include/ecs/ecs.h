@@ -12,6 +12,9 @@
 #include "detail/component_pool.h"
 #include "detail/component_pool_base.h"
 
+#include "options.h"
+#include "detail/options.h"
+
 #include "detail/system.h"
 #include "detail/verification.h"
 #include "system_base.h"
