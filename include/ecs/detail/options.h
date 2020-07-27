@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __DETAIL_OPTIONS_H
+#define __DETAIL_OPTIONS_H
+
 #include <execution>
 
 namespace ecs::detail {
@@ -87,3 +89,5 @@ namespace ecs::detail {
         return detect::has_option<Option, TupleOptions>();
     }
 } // namespace ecs::detail
+
+#endif // !__DETAIL_OPTIONS_H

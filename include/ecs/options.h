@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __OPTIONS_H
+#define __OPTIONS_H
 
 namespace ecs::opts {
     template<int I>
@@ -17,3 +18,5 @@ namespace ecs::opts {
     //struct not_concurrent {};
 
 } // namespace ecs::opts
+
+#endif // !__OPTIONS_H
