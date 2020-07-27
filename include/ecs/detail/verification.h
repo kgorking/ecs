@@ -108,8 +108,9 @@ namespace ecs::detail {
         requires std::is_same_v<R, void>;
 
         // systems must take at least one component argument
-        requires check_component_count<FirstArg, Args...>();
-         //(is_entity<FirstArg> ? (sizeof...(Args)) > 0 : true);
+        //requires (is_entity<FirstArg> ? (sizeof...(Args)) > 0 : true);
+        //requires check_component_count<FirstArg, Args...>();
+        requires(sizeof...(Args) >= is_entity<FirstArg>);
 
         // Make sure the first entity is not passed as a reference
         requires check_firstarg_not_ref<FirstArg, Args...>();
