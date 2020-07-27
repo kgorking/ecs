@@ -194,6 +194,54 @@ TEST_CASE("entity_range ", "[entity]") {
             REQUIRE(result == vec_a);
         }
 
+        SECTION("Remove 1 entity from front of A") {
+            /// a: ----
+            /// b: |
+            std::vector<ecs::entity_range> const vec_a{{0, 3}};
+            std::vector<ecs::entity_range> const vec_b{{0, 0}};
+
+            auto const result = ecs::difference_ranges(vec_a, vec_b);
+
+            REQUIRE(1 == result.size());
+            CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
+        }
+
+        SECTION("Remove 1 entity from back of A") {
+            /// a: ----
+            /// b:    |
+            std::vector<ecs::entity_range> const vec_a{{0, 3}};
+            std::vector<ecs::entity_range> const vec_b{{3, 3}};
+
+            auto const result = ecs::difference_ranges(vec_a, vec_b);
+
+            REQUIRE(1 == result.size());
+            CHECK(ecs::entity_range{0, 2}.equals(result.at(0)));
+        }
+
+        SECTION("Remove 3 entities from front of A") {
+            /// a: ----
+            /// b: |||
+            std::vector<ecs::entity_range> const vec_a{{0, 3}};
+            std::vector<ecs::entity_range> const vec_b{{0, 0}, {1, 1}, {2, 2}};
+
+            auto const result = ecs::difference_ranges(vec_a, vec_b);
+
+            REQUIRE(1 == result.size());
+            CHECK(ecs::entity_range{3, 3}.equals(result.at(0)));
+        }
+
+        SECTION("Remove 3 entities from back of A") {
+            /// a: ----
+            /// b:  |||
+            std::vector<ecs::entity_range> const vec_a{{0, 3}};
+            std::vector<ecs::entity_range> const vec_b{{1, 1}, {2, 2}, {3, 3}};
+
+            auto const result = ecs::difference_ranges(vec_a, vec_b);
+
+            REQUIRE(1 == result.size());
+            CHECK(ecs::entity_range{0, 0}.equals(result.at(0)));
+        }
+
         SECTION("Ranges in B are contained in ranges in A") {
             /// a: ***** ***** *****
             /// b:  ---   ---   ---
