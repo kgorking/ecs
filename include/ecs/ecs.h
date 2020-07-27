@@ -9,8 +9,8 @@
 #include "entity_range.h"
 
 #include "component_specifier.h"
-#include "detail/component_pool.h"
 #include "detail/component_pool_base.h"
+#include "detail/component_pool.h"
 
 #include "options.h"
 #include "detail/options.h"
