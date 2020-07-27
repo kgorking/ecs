@@ -33,15 +33,7 @@ int main() {
 }
 ```
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
-
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
-
-
-# Highlights
-* **Non-instrusive interface** No need for components to inherit from a library type, and no need for systems to inherit from a library class and override some member function.
-* **Simple interface** As shown in the example, you can get up and running with just 3 function calls;
-* **Fast** This library is built to be as fast as absolutely possible. The mandelbrot [benchmark](https://github.com/kgorking/ecs/blob/master/benchmark/system.cpp#L51) shows it running as fast a raw hand-written loop.
-* **Automatic concurrency (Experimental)** Implements a scheduler that safely runs systems concurrently to take maximum advantage of multi-core machines.
 
 
 # Building (checked july 20. 2020)
