@@ -7,15 +7,15 @@
 // https://docs.unrealengine.com/en-US/Resources/ContentExamples/EffectsGallery/2_D/index.html
 // https://docs.unrealengine.com/en-US/Resources/ContentExamples/EffectsGallery/2_E/index.html
 
-constexpr float delta_time = 1.0f / 6.0f;
+constexpr float delta_time = 1.0f / 60.0f;
 constexpr int num_frames = 100;
-constexpr int max_num_particles = 50'000;
+constexpr int max_num_particles = 5'000;
 
 struct particle { float x, y; };
 struct color    { float r, g, b; };
 struct velocity { float x, y; };
 struct life     { float val; };
-struct dead     { ecs_flags(ecs::tag); };
+struct dead_tag { ecs_flags(ecs::tag, ecs::transient); };
 struct gravity  { ecs_flags(ecs::global); float g = 0.2f; };
 
 // Helper lambda to initialize a particle
@@ -48,7 +48,6 @@ auto constexpr life_init = [](ecs::entity_id) -> life {
 	return {0.2f + x*2}; // [0.2, 0.4]
 };
 
-inline std::atomic_int deads = 0;
 void make_systems() {
     // Apply gravity to the velocity
     ecs::make_system([](velocity& vel, gravity const& grav) { vel.y -= grav.g * delta_time; });
@@ -95,29 +94,29 @@ void make_systems() {
     });
 
     // Decrease life of live particles
-    ecs::make_system([&](ecs::entity_id ent, life& l, dead*) {
+    ecs::make_system([](ecs::entity_id ent, life& l, dead_tag*) {
         l.val -= delta_time;
         if (l.val < 0) {
-            ecs::add_component(ent, dead{});
-            deads++;
+            ecs::add_component(ent, dead_tag{});
         }
+    });
+
+    // Necromance dead particles
+    ecs::make_system([](ecs::entity_id ent, dead_tag, particle& par, velocity& vel, color& col, life& l) {
+        par = particle_init(ent);
+        vel = velocity_init(ent);
+        col = color_init(ent);
+        l = life_init(ent);
     });
 }
 
 void particles(benchmark::State& state) {
-	for ([[maybe_unused]] auto const _ : state) {
-		ecs::detail::_context.reset();
+    ecs::detail::_context.reset();
+    make_systems();
+    ecs::add_component({0, max_num_particles}, particle_init, velocity_init, color_init, life_init);
+    ecs::commit_changes();
 
-        //state.PauseTiming();
-		    make_systems();
-		    ecs::add_component({0, max_num_particles},
-			    particle_init,
-			    velocity_init,
-			    color_init,
-			    life_init);
-		    ecs::commit_changes();
-        //state.ResumeTiming();
-
+    for ([[maybe_unused]] auto const _ : state) {
         for (int i = 0; i < num_frames; i++) {
 			ecs::update();
 		}
