@@ -40,6 +40,12 @@ namespace ecs /*::detail*/ {
             return entity_iterator{step(ent_, diff)};
         }
 
+        // Operator exclusively for GCC. This operator is called by GCC's parallel implementation
+        // for some goddamn reason. When has this ever been a thing?
+        constexpr value_type operator[](int index) const {
+            return step(ent_, index);
+        }
+
         constexpr value_type operator-(entity_iterator other) const {
             return step(ent_, -other.ent_);
         }
