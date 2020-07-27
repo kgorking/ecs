@@ -122,7 +122,8 @@ namespace ecs::detail {
             // Call the system for all the components that match the system signature
             for (auto const& argument : arguments) {
                 auto const& range = std::get<entity_range>(argument);
-                std::for_each(execution_policy{}, range.begin(), range.end(),
+                constexpr execution_policy ep{}; // this nonsense is needed to not break GCC -_-
+                std::for_each(ep, range.begin(), range.end(),
                     [this, &argument, first_id = range.first()](auto ent) {
                         auto const offset = ent - first_id;
                         if constexpr (is_entity<FirstComponent>) {
@@ -206,7 +207,8 @@ namespace ecs::detail {
                 needs_sorting = false;
             }
 
-            std::for_each(execution_policy{}, arguments.begin(), arguments.end(), [this](auto packed_arg) {
+            constexpr execution_policy ep{}; // this nonsense is needed to not break GCC -_-
+            std::for_each(ep, arguments.begin(), arguments.end(), [this](auto packed_arg) {
                 if constexpr (is_entity<FirstComponent>) {
                     update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                 } else {
