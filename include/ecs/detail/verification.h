@@ -91,16 +91,29 @@ namespace ecs::detail {
         requires(req_immutable<C>() && req_tagged<C>() && req_shared<C>() && req_global<C>());
     };
 
+
+    template<class FirstArg, class... Args>
+    constexpr bool check_component_count() {
+        return is_entity<FirstArg> ? (sizeof...(Args)) > 0 : true;
+    }
+
+    template<class FirstArg, class... Args>
+    constexpr bool check_firstarg_not_ref() {
+        return is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true;
+    }
+
     template<class R, class FirstArg, class... Args>
     concept checked_system = requires {
         // systems can not return values
         requires std::is_same_v<R, void>;
 
         // systems must take at least one component argument
-        requires (is_entity<FirstArg> ? (sizeof...(Args)) >= 1 : true);
+        requires check_component_count<FirstArg, Args...>();
+         //(is_entity<FirstArg> ? (sizeof...(Args)) > 0 : true);
 
         // Make sure the first entity is not passed as a reference
-        requires (is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true);
+        requires check_firstarg_not_ref<FirstArg, Args...>();
+        //requires (is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
         // Component types can only be specified once
         // requires unique<FirstArg, Args...>; // ICE's gcc 10.1
