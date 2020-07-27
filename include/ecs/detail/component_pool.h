@@ -313,7 +313,7 @@ namespace ecs::detail {
                 return 0 == std::memcmp(&std::get<0>(*var1), &std::get<0>(*var2), sizeof(T));
                 // return std::get<0>(*var1) == std::get<0>(*var2);
             } else {
-                return std::get_if<1>(var1)->target<T(entity_id)>() == *std::get_if<1>(var2)->target<T(entity_id)>();
+                return std::get<1>(*var1).target<T(entity_id)>() == std::get<1>(*var2).target<T(entity_id)>();
             }
         };
 
