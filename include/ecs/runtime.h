@@ -24,7 +24,7 @@ namespace ecs {
                       "the same component was specified more than once");
 
         auto const adder = []<class Type>(entity_range const range, Type&& val) {
-            if constexpr (std::invocable<Type, entity_id>) {
+            if constexpr (std::is_invocable_v<Type, entity_id>) {
                 // Return type of 'func'
                 using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
                 static_assert(!std::is_same_v<ComponentType, void>,
