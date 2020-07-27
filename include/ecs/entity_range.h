@@ -193,7 +193,7 @@ namespace ecs {
         auto it_a = view_a.begin();
         auto it_b = view_b.begin();
 
-        auto constexpr add = [&result](entity_range r) {
+        auto const add = [&result](entity_range r) {
             if (!result.empty() && result.back().can_merge(r))
                 result.back() = entity_range::merge(result.back(), r);
             else
