@@ -113,12 +113,12 @@ namespace ecs::detail {
 
     // A small bridge to allow the Lambda concept to activate the system concept
     template<class R, class C, class FirstArg, class... Args>
+    requires(checked_system<R, FirstArg, Args...>)
     struct lambda_to_system_bridge {
-        lambda_to_system_bridge(R (C::*)(FirstArg, Args...)) requires(checked_system<R, FirstArg, Args...>){};
-        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) const) requires(checked_system<R, FirstArg, Args...>){};
-        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) noexcept) requires(checked_system<R, FirstArg, Args...>){};
-        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) const noexcept) requires(
-            checked_system<R, FirstArg, Args...>){};
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...)) {};
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) const) {};
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) noexcept) {};
+        lambda_to_system_bridge(R (C::*)(FirstArg, Args...) const noexcept) {};
     };
 
     template<typename T>
