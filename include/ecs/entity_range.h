@@ -232,7 +232,7 @@ namespace ecs {
                 } else {
                     // Range 'b' removes some of range 'a'
 
-                    if (range_a.first() > it_b->first()) {
+                    if (range_a.first() >= it_b->first()) {
                         // The result is an endpiece, so update the range
                         range_a = res.first;
 
