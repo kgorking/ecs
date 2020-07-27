@@ -15,9 +15,9 @@
 #include "options.h"
 #include "detail/options.h"
 
+#include "detail/verification.h"
 #include "system_base.h"
 #include "detail/system.h"
-#include "detail/verification.h"
 
 #include "detail/scheduler.h"
 #include "detail/context.h"

@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_VERIFICATION
-#define __SYSTEM_VERIFICATION
+#ifndef __VERIFICATION
+#define __VERIFICATION
 
 #include <concepts>
 #include <type_traits>
@@ -43,8 +43,7 @@ namespace ecs::detail {
     concept unique = unique_types_v<First, T...>;
 
     template<class T>
-    concept entity_type =
-        std::is_same_v<std::remove_cvref_t<T>, entity_id>;
+    constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
     // Implement the requirements for immutable components
     template<typename C>
@@ -101,10 +100,10 @@ namespace ecs::detail {
         // requires !std::is_pointer_v<FirstArg> && (!std::is_pointer_v<Args> && ...);
 
         // systems must take at least one component argument
-        requires(entity_type<FirstArg> ? sizeof...(Args) >= 1 : true);
+        requires(is_entity<FirstArg> ? sizeof...(Args) >= 1 : true);
 
         // Make sure the first entity is not passed as a reference
-        requires(entity_type<FirstArg> ? !std::is_reference_v<FirstArg> : true);
+        requires(is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
         // Component types can only be specified once
         // requires unique<FirstArg, Args...>; // ICE's gcc 10.1
@@ -154,4 +153,4 @@ namespace ecs::detail {
     };
 } // namespace ecs::detail
 
-#endif // !__SYSTEM_VERIFICATION
+#endif // !__VERIFICATION

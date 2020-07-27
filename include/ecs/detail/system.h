@@ -45,11 +45,6 @@ namespace ecs::detail {
     template<class F>
     using sort_func_type = typename decltype(get_sort_func_type_impl(&F::operator()))::type;
 
-    // Returns true if the type is an entity_id
-    template<class T>
-    constexpr bool is_entity() {
-        return std::is_same_v<T, entity_id>;
-    }
 
     // Alias for stored pools
     template<class T>
@@ -91,13 +86,13 @@ namespace ecs::detail {
 
     // Holds a pointer to the first component from each pool
     template<class FirstComponent, class... Components>
-    using argument_tuple = std::conditional_t<is_entity<FirstComponent>(),
+    using argument_tuple = std::conditional_t<is_entity<FirstComponent>,
         std::tuple<std::remove_cvref_t<Components>*...>,
         std::tuple<std::remove_cvref_t<FirstComponent>*, std::remove_cvref_t<Components>*...>>;
 
     // Tuple holding component pools
     template<class FirstComponent, class... Components>
-    using tup_pools = std::conditional_t<is_entity<FirstComponent>(),
+    using tup_pools = std::conditional_t<is_entity<FirstComponent>,
         std::tuple<pool<Components>...>, std::tuple<pool<FirstComponent>, pool<Components>...>>;
 
     // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
@@ -130,7 +125,7 @@ namespace ecs::detail {
                 std::for_each(execution_policy{}, range.begin(), range.end(),
                     [this, &argument, first_id = range.first()](auto ent) {
                         auto const offset = ent - first_id;
-                        if constexpr (is_entity<FirstComponent>()) {
+                        if constexpr (is_entity<FirstComponent>) {
                             update_func(ent, extract_arg<Components>(argument, offset)...);
                         } else {
                             update_func(extract_arg<FirstComponent>(argument, offset),
@@ -145,7 +140,7 @@ namespace ecs::detail {
             // Build the arguments for the ranges
             arguments.clear();
             for (auto const& range : entities) {
-                if constexpr (is_entity<FirstComponent>()) {
+                if constexpr (is_entity<FirstComponent>) {
                     arguments.emplace_back(
                         range, get_component<Components>(range.first(), pools)...);
                 } else {
@@ -212,7 +207,7 @@ namespace ecs::detail {
             }
 
             std::for_each(execution_policy{}, arguments.begin(), arguments.end(), [this](auto packed_arg) {
-                if constexpr (is_entity<FirstComponent>()) {
+                if constexpr (is_entity<FirstComponent>) {
                     update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                 } else {
                     update_func(extract_arg<FirstComponent>(packed_arg, 0),
@@ -241,7 +236,7 @@ namespace ecs::detail {
             // Build the arguments for the ranges
             for (auto const& range : entities) {
                 for (entity_id const& entity : range) {
-                    if constexpr (is_entity<FirstComponent>()) {
+                    if constexpr (is_entity<FirstComponent>) {
                         arguments.emplace_back(entity, get_component<Components>(entity, pools)...);
                     } else {
                         arguments.emplace_back(entity, get_component<FirstComponent>(entity, pools),
@@ -326,7 +321,7 @@ namespace ecs::detail {
             arguments.run();
 
             // Notify pools if data was written to them
-            if constexpr (!is_entity<FirstComponent>()) {
+            if constexpr (!is_entity<FirstComponent>) {
                 notify_pool_modifed<FirstComponent>();
             }
             (notify_pool_modifed<Components>(), ...);
@@ -400,7 +395,7 @@ namespace ecs::detail {
         }
 
         constexpr bool writes_to_any_components() const noexcept override {
-            if constexpr (!is_entity<FirstComponent>() &&
+            if constexpr (!is_entity<FirstComponent> &&
                           !std::is_const_v<std::remove_reference_t<FirstComponent>>)
                 return true;
             else {
@@ -415,7 +410,7 @@ namespace ecs::detail {
 
             // Contains true if a type is read-only
             constexpr std::array<bool, num_components> type_read_only =
-                get_type_read_only<is_entity<FirstComponent>(), FirstComponent, Components...>();
+                get_type_read_only<is_entity<FirstComponent>, FirstComponent, Components...>();
 
             return !type_read_only[std::distance(type_hashes.begin(), it)];
         }
@@ -508,7 +503,7 @@ namespace ecs::detail {
 
         // Number of components
         static constexpr size_t num_components =
-            sizeof...(Components) + !is_entity<FirstComponent>();
+            sizeof...(Components) + !is_entity<FirstComponent>;
 
         // Number of filters
         static constexpr size_t num_filters =
@@ -518,7 +513,7 @@ namespace ecs::detail {
 
         // Hashes of stripped types used by this system ('int' instead of 'int const&')
         static constexpr std::array<detail::type_hash, num_components> type_hashes =
-            get_type_hashes_array<is_entity<FirstComponent>(), std::remove_cvref_t<FirstComponent>,
+            get_type_hashes_array<is_entity<FirstComponent>, std::remove_cvref_t<FirstComponent>,
                 std::remove_cvref_t<Components>...>();
     };
 } // namespace ecs::detail
