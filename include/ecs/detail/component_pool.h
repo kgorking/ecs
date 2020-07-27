@@ -301,6 +301,22 @@ namespace ecs::detail {
             return {};
         }
 
+        // Compare two variants
+        static bool variants_equal(variant const* var1, variant const* var2) {
+            if (var1->index() != var2->index())
+                return false;
+
+            if (var1->index() == 0) {
+                // Types may not have '==' operator, so compare mem directly.
+                // The worst that can happen here is some false negatives,
+                // see 'Notes' at https://en.cppreference.com/w/cpp/string/byte/memcmp
+                return 0 == std::memcmp(&std::get<0>(*var1), &std::get<0>(*var2), sizeof(T));
+                // return std::get<0>(*var1) == std::get<0>(*var2);
+            } else {
+                return std::get_if<1>(var1)->target<T(entity_id)>() == *std::get_if<1>(var2)->target<T(entity_id)>();
+            }
+        };
+
         // Add new queued entities and components to the main storage
         void process_add_components() {
             // Comparator used for sorting
@@ -338,22 +354,6 @@ namespace ecs::detail {
                     if constexpr (!detail::unbound<T>) { // contains data
                         auto & [a_rng, a_data] = a;
                         auto const& [b_rng, b_data] = b;
-
-                        auto constexpr variants_equal = [](auto* var1, auto* var2) {
-                            if (var1->index() != var2->index())
-                                return false;
-
-                            if (var1->index() == 0) {
-                                // Types may not have '==' operator, so compare mem directly.
-                                // The worst that can happen here is some false negatives,
-                                // see 'Notes' at https://en.cppreference.com/w/cpp/string/byte/memcmp
-                                return 0 == std::memcmp(&std::get<0>(*var1), &std::get<0>(*var2), sizeof(T));
-                                // return std::get<0>(*var1) == std::get<0>(*var2);
-                            } else {
-                                return std::get_if<1>(var1)->target<T(entity_id)>() ==
-                                       *std::get_if<1>(var2)->target<T(entity_id)>();
-                            }
-                        };
 
                         if (a_rng.can_merge(b_rng) && variants_equal(&a_data, &b_data)) {
                             a_rng = entity_range::merge(a_rng, b_rng);
