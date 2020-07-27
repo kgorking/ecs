@@ -19,6 +19,6 @@
 #include "detail/system.h"
 #include "detail/verification.h"
 
-#include "detail/context.h"
 #include "detail/scheduler.h"
+#include "detail/context.h"
 #include "runtime.h"
