@@ -8,6 +8,7 @@
 #include <variant>
 #include <vector>
 #include <execution>
+#include <cstring> // for memcmp
 
 #include "tls/splitter.h"
 
