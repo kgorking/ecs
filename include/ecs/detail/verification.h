@@ -96,14 +96,11 @@ namespace ecs::detail {
         // systems can not return values
         requires std::is_same_v<R, void>;
 
-        // no pointers allowed
-        // requires !std::is_pointer_v<FirstArg> && (!std::is_pointer_v<Args> && ...);
-
         // systems must take at least one component argument
-        requires(is_entity<FirstArg> ? sizeof...(Args) >= 1 : true);
+        requires (is_entity<FirstArg> ? (sizeof...(Args)) >= 1 : true);
 
         // Make sure the first entity is not passed as a reference
-        requires(is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true);
+        requires (is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true);
 
         // Component types can only be specified once
         // requires unique<FirstArg, Args...>; // ICE's gcc 10.1
