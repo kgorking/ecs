@@ -1,7 +1,7 @@
 #include "../../tls/include/tls/cache.h"
 #include "../../tls/include/tls/splitter.h"
 
-#include "contract.h"
+#include "detail/contract.h"
 #include "detail/type_hash.h"
 
 #include "entity_id.h"

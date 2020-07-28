@@ -6,7 +6,7 @@
 #include <optional>
 #include <span>
 
-#include "contract.h"
+#include "detail/contract.h"
 #include "entity_id.h"
 #include "detail/entity_iterator.h"
 

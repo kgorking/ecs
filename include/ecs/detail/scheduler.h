@@ -6,7 +6,7 @@
 #include <execution>
 #include <vector>
 
-#include "../contract.h"
+#include "contract.h"
 #include "system_base.h"
 
 namespace ecs::detail {
