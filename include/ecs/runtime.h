@@ -20,8 +20,8 @@ namespace ecs {
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
     void add_component(entity_range const range, First&& first_val, T&&... vals) {
-        static_assert(detail::unique<First, T...>,
-                      "the same component was specified more than once");
+        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+        static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
 
         auto const adder = []<class Type>(entity_range const range, Type&& val) {
             if constexpr (std::is_invocable_v<Type, entity_id>) {

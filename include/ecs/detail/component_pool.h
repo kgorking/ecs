@@ -62,7 +62,7 @@ namespace ecs::detail {
         // Add a component to a range of entities, initialized by the supplied user function
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.
-        template<typename Fn> requires(!unbound<T>)
+        template<typename Fn>// requires(!unbound<T>)
         void add_init(entity_range const range, Fn&& init) {
             // Add the range and function to a temp storage
             deferred_adds.local().emplace_back(range, std::forward<Fn>(init));
@@ -71,19 +71,12 @@ namespace ecs::detail {
         // Add a component to a range of entity.
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.
-        void add(entity_range const range, T&& component) requires(!global<T>) {
+        void add(entity_range const range, T&& component) {
             if constexpr (shared<T> || tagged<T>) {
                 deferred_adds.local().push_back(range);
             } else {
                 deferred_adds.local().emplace_back(range, std::forward<T>(component));
             }
-        }
-
-        // Add a component to an entity.
-        // Pre: entity has not already been added, or is in queue to be added.
-        //      This condition will not be checked until 'process_changes' is called.
-        void add(entity_id const id, T&& component) requires(!global<T>) {
-            add({id, id}, std::forward<T>(component));
         }
 
         // Return the shared component

@@ -85,16 +85,16 @@ TEST_CASE("Component pool specification", "[component]") {
         }
         SECTION("keeps them sorted by entity id") {
             ecs::detail::component_pool<int> pool;
-            pool.add(4, 4);
-            pool.add(1, 1);
-            pool.add(2, 2);
+            pool.add({4,4}, 4);
+            pool.add({1,1}, 1);
+            pool.add({2,2}, 2);
             pool.process_changes();
             CHECK(pool.find_component_data(1) < pool.find_component_data(2));
             CHECK(pool.find_component_data(2) < pool.find_component_data(4));
 
-            pool.add(9, 9);
-            pool.add(3, 3);
-            pool.add(7, 7);
+            pool.add({9,9}, 9);
+            pool.add({3,3}, 3);
+            pool.add({7,7}, 7);
             pool.process_changes();
 
             CHECK(pool.find_component_data(1) < pool.find_component_data(2));
@@ -167,7 +167,7 @@ TEST_CASE("Component pool specification", "[component]") {
             int const* org_p = pool.find_component_data(0);
 
             for (int i = 10; i < 32; i++) {
-                pool.add(i, std::move(i));
+                pool.add({i,i}, std::move(i));
                 pool.process_changes();
             }
 
@@ -209,9 +209,9 @@ TEST_CASE("Component pool specification", "[component]") {
                 ecs_flags(ecs::flag::share);
             };
             ecs::detail::component_pool<test> pool;
-            pool.add(0, {});
+            pool.add({0, 0}, {});
             pool.process_changes();
-            pool.add(-2, {});
+            pool.add({-2, -2}, {});
             pool.process_changes();
 
             auto const ev = pool.get_entities();
