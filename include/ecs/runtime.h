@@ -39,9 +39,12 @@ namespace ecs {
                 if constexpr (std::is_reference_v<Type>) {
                     using DerefT = std::remove_reference_t<Type>;
                     static_assert(std::copyable<DerefT>, "Type must be copyable");
+
                     detail::component_pool<DerefT>& pool = detail::_context.get_component_pool<DerefT>();
                     pool.add(range, std::forward<DerefT>(val));
                 } else {
+                    static_assert(std::copyable<Type>, "Type must be copyable");
+
                     detail::component_pool<Type>& pool = detail::_context.get_component_pool<Type>();
                     pool.add(range, std::forward<Type>(val));
                 }

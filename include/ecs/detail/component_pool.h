@@ -1,7 +1,6 @@
 #ifndef __COMPONENT_POOL
 #define __COMPONENT_POOL
 
-#include <concepts>
 #include <functional>
 #include <tuple>
 #include <type_traits>
@@ -39,7 +38,7 @@ void combine_erase(Cont& cont, BinaryPredicate p) {
 }
 
 namespace ecs::detail {
-    template<std::copyable T>
+    template<typename T>
     class component_pool final : public component_pool_base {
     private:
         // The components
