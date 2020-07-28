@@ -5,7 +5,7 @@
 struct A {};
 struct B {};
 struct state_s {
-    ecs_flags(ecs::share);
+    ecs_flags(ecs::flag::share);
     int a = 0;
     int b = 0;
     int total = 0;

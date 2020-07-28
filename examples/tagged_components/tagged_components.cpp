@@ -4,13 +4,13 @@
 
 
 struct flameable_t {
-    ecs_flags(ecs::tag);
+    ecs_flags(ecs::flag::tag);
 };
 struct freezeable_t {
-    ecs_flags(ecs::tag);
+    ecs_flags(ecs::flag::tag);
 };
 struct shockable_t {
-    ecs_flags(ecs::tag);
+    ecs_flags(ecs::flag::tag);
 };
 
 struct Name : std::string {};

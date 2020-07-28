@@ -4,13 +4,11 @@
 #include <span>
 #include <string>
 
-#include "detail/type_hash.h"
+#include "type_hash.h"
 
 namespace ecs::detail {
     class context;
-}
 
-namespace ecs {
     class system_base {
     public:
         system_base() = default;

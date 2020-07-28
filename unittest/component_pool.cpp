@@ -189,7 +189,7 @@ TEST_CASE("Component pool specification", "[component]") {
     SECTION("Transient components") {
         SECTION("are automatically removed in process_changes()") {
             struct tr_test {
-                ecs_flags(ecs::transient);
+                ecs_flags(ecs::flag::transient);
             };
             ecs::detail::component_pool<tr_test> pool;
             pool.add({0, 9}, tr_test{});
@@ -206,7 +206,7 @@ TEST_CASE("Component pool specification", "[component]") {
         // TODO
         SECTION("maintains sorting of entities") { // test case is response to a found bug
             struct test {
-                ecs_flags(ecs::share);
+                ecs_flags(ecs::flag::share);
             };
             ecs::detail::component_pool<test> pool;
             pool.add(0, {});

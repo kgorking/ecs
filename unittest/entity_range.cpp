@@ -5,7 +5,7 @@
 
 TEST_CASE("entity_range ", "[entity]") {
     SECTION("iterator overflow test") {
-        constexpr auto max = std::numeric_limits<ecs::entity_type>::max();
+        constexpr auto max = std::numeric_limits<ecs::detail::entity_type>::max();
         ecs::entity_range r{max - 1, max};
         int64_t counter = 0;
         for (auto const ent : r)
@@ -21,7 +21,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{};
             std::vector<ecs::entity_range> const vec_b{{5, 7}, {13, 15}, {21, 23}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             CHECK(result.empty());
         }
@@ -32,7 +32,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 4}, {8, 12}, {16, 20}};
             std::vector<ecs::entity_range> const vec_b{};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             CHECK(result.empty());
         }
@@ -43,7 +43,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 4}, {8, 12}, {16, 20}};
             std::vector<ecs::entity_range> const vec_b{{5, 7}, {13, 15}, {21, 23}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(result.empty());
         }
@@ -54,7 +54,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 4}, {5, 9}, {10, 14}};
             std::vector<ecs::entity_range> const vec_b{{1, 3}, {6, 8}, {11, 13}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
             CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
@@ -68,7 +68,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{1, 3}, {6, 8}, {11, 13}};
             std::vector<ecs::entity_range> const vec_b{{0, 4}, {5, 9}, {10, 14}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
             CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
@@ -82,7 +82,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 4}, {7, 11}, {14, 18}};
             std::vector<ecs::entity_range> const vec_b{{4, 6}, {11, 13}, {18, 20}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
             CHECK(ecs::entity_range{4, 4} == result.at(0));
@@ -96,7 +96,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{4, 6}, {11, 13}, {18, 20}};
             std::vector<ecs::entity_range> const vec_b{{0, 4}, {7, 11}, {14, 18}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
             CHECK(ecs::entity_range{4, 4} == result.at(0));
@@ -110,7 +110,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 8}, {9, 17}};
             std::vector<ecs::entity_range> const vec_b{{1, 3}, {5, 7}, {10, 12}, {14, 16}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(4 == result.size());
             CHECK(ecs::entity_range{1, 3} == result.at(0));
@@ -125,7 +125,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{1, 3}, {5, 7}, {10, 12}, {14, 16}};
             std::vector<ecs::entity_range> const vec_b{{0, 8}, {9, 17}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(4 == result.size());
             CHECK(ecs::entity_range{1, 3} == result.at(0));
@@ -140,7 +140,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{1, 3}, {5, 7}};
             std::vector<ecs::entity_range> const vec_b{{2, 6}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(2 == result.size());
             CHECK(ecs::entity_range{2, 3} == result.at(0));
@@ -153,7 +153,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{2, 6}};
             std::vector<ecs::entity_range> const vec_b{{1, 3}, {5, 7}};
 
-            auto const result = ecs::intersect_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::intersect_ranges(vec_a, vec_b);
 
             REQUIRE(2 == result.size());
             CHECK(ecs::entity_range{2, 3} == result.at(0));
@@ -167,7 +167,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{};
             std::vector<ecs::entity_range> const vec_b{{5, 7}, {13, 15}, {21, 23}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             CHECK(result.empty());
         }
@@ -178,7 +178,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 4}, {8, 12}, {16, 20}};
             std::vector<ecs::entity_range> const vec_b{};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             CHECK(result == vec_a);
         }
@@ -189,7 +189,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 4},     {8, 12},       {16, 20}};
             std::vector<ecs::entity_range> const vec_b{      {5, 7},      {13, 15},       {21, 23}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(result == vec_a);
         }
@@ -200,7 +200,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 3}};
             std::vector<ecs::entity_range> const vec_b{{0, 0}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(1 == result.size());
             CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
@@ -212,7 +212,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 3}};
             std::vector<ecs::entity_range> const vec_b{{3, 3}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(1 == result.size());
             CHECK(ecs::entity_range{0, 2}.equals(result.at(0)));
@@ -224,7 +224,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 3}};
             std::vector<ecs::entity_range> const vec_b{{0, 0}, {1, 1}, {2, 2}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(1 == result.size());
             CHECK(ecs::entity_range{3, 3}.equals(result.at(0)));
@@ -236,7 +236,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 3}};
             std::vector<ecs::entity_range> const vec_b{{1, 1}, {2, 2}, {3, 3}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(1 == result.size());
             CHECK(ecs::entity_range{0, 0}.equals(result.at(0)));
@@ -248,7 +248,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0 , 4}, {5 , 9}, {10 , 14}};
             std::vector<ecs::entity_range> const vec_b{ {1,3},   {6,8},   {11,13} };
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(4 == result.size());
             CHECK(ecs::entity_range{0, 0}.equals(result.at(0)));
@@ -263,7 +263,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{ {1,3},   {6,8},   {11,13} };
             std::vector<ecs::entity_range> const vec_b{{0 , 4}, {5 , 9}, {10 , 14}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(0 == result.size());
         }
@@ -274,7 +274,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0, 4},  {7, 11}, {14, 18}};
             std::vector<ecs::entity_range> const vec_b{   {4, 6},  {11, 13}, {18, 20}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
             CHECK(ecs::entity_range{0, 3} == result.at(0));
@@ -288,7 +288,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{   {4, 6}, {11, 13},  {18, 20}};
             std::vector<ecs::entity_range> const vec_b{{0, 4}, {7, 11},  {14, 18}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(3 == result.size());
             CHECK(ecs::entity_range{5, 6} == result.at(0));
@@ -302,7 +302,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{0,           8}, {9,                 17}};
             std::vector<ecs::entity_range> const vec_b{ {1, 3}, {5, 7},    {10, 12}, {14, 16}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(5 == result.size());
             CHECK(ecs::entity_range{0, 0} == result.at(0));
@@ -318,7 +318,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{  {1, 3}, {5, 7},      {10, 12}, {14, 16}};
             std::vector<ecs::entity_range> const vec_b{{0,             8}, {9,                  17}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(0 == result.size());
         }
@@ -329,7 +329,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{{1 , 3}, {5 , 7}};
             std::vector<ecs::entity_range> const vec_b{  {2,       6}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(2 == result.size());
             CHECK(ecs::entity_range{1, 1} == result.at(0));
@@ -342,7 +342,7 @@ TEST_CASE("entity_range ", "[entity]") {
             std::vector<ecs::entity_range> const vec_a{  {2  ,   6}};
             std::vector<ecs::entity_range> const vec_b{{1, 3}, {5, 7}};
 
-            auto const result = ecs::difference_ranges(vec_a, vec_b);
+            auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
             REQUIRE(1 == result.size());
             CHECK(ecs::entity_range{4, 4} == result.at(0));

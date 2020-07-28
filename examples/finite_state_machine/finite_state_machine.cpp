@@ -15,16 +15,16 @@ struct state_connecting {
 
 // Events. Marked as transient so they are automatically removed
 struct ev_connect_t {
-    ecs_flags(ecs::transient);
+    ecs_flags(ecs::flag::transient);
 };
 struct ev_timeout_t {
-    ecs_flags(ecs::transient);
+    ecs_flags(ecs::flag::transient);
 };
 struct ev_connected_t {
-    ecs_flags(ecs::transient);
+    ecs_flags(ecs::flag::transient);
 };
 struct ev_disconnect_t {
-    ecs_flags(ecs::transient);
+    ecs_flags(ecs::flag::transient);
 };
 
 // Add the systems that handle state/event interactions

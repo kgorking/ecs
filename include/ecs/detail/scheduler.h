@@ -7,14 +7,14 @@
 #include <vector>
 
 #include "../contract.h"
-#include "../system_base.h"
+#include "system_base.h"
 
 namespace ecs::detail {
     // Describes a node in the scheduler execution graph
     struct scheduler_node final {
         // Construct a node from a system.
         // The system can not be null
-        scheduler_node(system_base* sys)
+        scheduler_node(detail::system_base* sys)
             : sys(sys)
             , dependants{}
             , dependencies{0}
@@ -29,7 +29,7 @@ namespace ecs::detail {
             unfinished_dependencies = other.unfinished_dependencies.load();
         }
 
-        system_base* get_system() const noexcept {
+        detail::system_base* get_system() const noexcept {
             return sys;
         }
 
@@ -80,7 +80,7 @@ namespace ecs::detail {
 
     private:
         // The system to execute
-        system_base* sys{};
+        detail::system_base* sys{};
 
         // The systems that depend on this
         std::vector<size_t> dependants{};
@@ -125,7 +125,7 @@ namespace ecs::detail {
         }
 
     public:
-        void insert(system_base* sys) {
+        void insert(detail::system_base* sys) {
             // Find the group
             auto& group = find_group(sys->get_group());
 

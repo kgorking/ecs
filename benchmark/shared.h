@@ -11,7 +11,7 @@ size_t constexpr num_components = 256'000;
 //size_t constexpr num_components = 1'000'000'000;
 
 struct shared_s {
-	ecs_flags(ecs::share);
+	ecs_flags(ecs::flag::share);
 	size_t dimension;
 };
 

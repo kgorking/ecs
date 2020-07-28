@@ -31,7 +31,7 @@ auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, shared_s co
 };
 
 void raw_update(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	auto & shared = ecs::get_shared_component<shared_s>();
 	shared.dimension = nentities;
@@ -49,7 +49,7 @@ void raw_update(benchmark::State& state) {
 BENCHMARK(raw_update)->Arg(num_components);
 
 void system_update(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	ecs::detail::get_context().get_component_pool<int>();
 	ecs::get_shared_component<shared_s>().dimension = nentities;
@@ -65,7 +65,7 @@ void system_update(benchmark::State& state) {
 BENCHMARK(system_update)->Arg(num_components);
 
 void system_update_parallel(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
@@ -80,7 +80,7 @@ void system_update_parallel(benchmark::State& state) {
 BENCHMARK(system_update_parallel)->Arg(num_components);
 
 void system_register(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
@@ -93,7 +93,7 @@ void system_register(benchmark::State& state) {
 BENCHMARK(system_register)->Arg(num_components);
 
 void system_register_and_unregister(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
@@ -110,7 +110,7 @@ void system_register_and_unregister(benchmark::State& state) {
 BENCHMARK(system_register_and_unregister)->Arg(num_components);
 
 void system_register_and_unregister_half_middle(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
