@@ -5,7 +5,7 @@
 #include "shared.h"
 
 void component_add(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
@@ -17,7 +17,7 @@ void component_add(benchmark::State& state) {
 BENCHMARK(component_add)->Arg(num_components);
 
 void component_add_half_front(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
@@ -32,7 +32,7 @@ void component_add_half_front(benchmark::State& state) {
 BENCHMARK(component_add_half_front)->Arg(num_components);
 
 void component_add_half_back(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
@@ -47,7 +47,7 @@ void component_add_half_back(benchmark::State& state) {
 BENCHMARK(component_add_half_back)->Arg(num_components);
 
 void component_remove_all(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
@@ -62,7 +62,7 @@ void component_remove_all(benchmark::State& state) {
 BENCHMARK(component_remove_all)->Arg(num_components);
 
 void component_remove_half_front(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
@@ -77,7 +77,7 @@ void component_remove_half_front(benchmark::State& state) {
 BENCHMARK(component_remove_half_front)->Arg(num_components);
 
 void component_remove_half_back(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
@@ -92,7 +92,7 @@ void component_remove_half_back(benchmark::State& state) {
 BENCHMARK(component_remove_half_back)->Arg(num_components);
 
 void component_remove_half_middle(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
@@ -107,7 +107,7 @@ void component_remove_half_middle(benchmark::State& state) {
 BENCHMARK(component_remove_half_middle)->Arg(num_components);
 
 void component_randomized_add(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     std::vector<ecs::entity_id> ids;
     ids.reserve(nentities);
@@ -128,7 +128,7 @@ void component_randomized_add(benchmark::State& state) {
 BENCHMARK(component_randomized_add)->Arg(num_components);
 
 void component_randomized_remove(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::entity_type>(state.range(0));
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     std::vector<ecs::entity_id> ids;
     ids.reserve(nentities);

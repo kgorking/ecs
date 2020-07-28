@@ -76,7 +76,7 @@ namespace ecs {
         remove_component<T>({id, id});
     }
 
-    // Returns a shared component. Can be called before a system for it has been added
+    // Returns a shared component.
     template<detail::shared T>
     T& get_shared_component() {
         return detail::_context.get_component_pool<T>().get_shared_component();
@@ -109,7 +109,7 @@ namespace ecs {
         return {pool.find_component_data(range.first()), range.count()};
     }
 
-    // Returns the number of active components
+    // Returns the number of active components for a specific type of components
     template<typename T>
     size_t get_component_count() {
         if (!detail::_context.has_component_pool<T>())

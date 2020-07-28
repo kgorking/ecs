@@ -9,7 +9,8 @@
 
 #include "../entity_id.h"
 #include "../entity_range.h"
-#include "../system_base.h"
+#include "entity_range.h"
+#include "system_base.h"
 #include "component_pool.h"
 #include "type_hash.h"
 

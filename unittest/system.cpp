@@ -132,19 +132,19 @@ TEST_CASE("System specification", "[system]") {
             int x;
         };
         struct tagged {
-            ecs_flags(ecs::tag);
+            ecs_flags(ecs::flag::tag);
         };
         struct shared {
-            ecs_flags(ecs::share);
+            ecs_flags(ecs::flag::share);
         };
         struct transient {
-            ecs_flags(ecs::transient);
+            ecs_flags(ecs::flag::transient);
         };
         struct immutable {
-            ecs_flags(ecs::immutable);
+            ecs_flags(ecs::flag::immutable);
         };
         struct global {
-            ecs_flags(ecs::global);
+            ecs_flags(ecs::flag::global);
         };
 
         auto constexpr vanilla_sort = [](vanilla l, vanilla r) { return l.x < r.x; };

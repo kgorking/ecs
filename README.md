@@ -134,7 +134,7 @@ take up any memory. For instance, you could use it to tag certain entities as ha
 like a 'freezable' tag to mark stuff that can be frozen.
 
 ```cpp
-struct freezable { ecs_flags(ecs::tag);
+struct freezable { ecs_flags(ecs::flag::tag);
 };
 ```
 
@@ -156,7 +156,7 @@ If tag components are marked as anything other than pass-by-value, the compiler 
 Marking a component as *shared* is used for components that hold data that is shared between all entities the component is added to.
 
 ```cpp
-struct frame_data { ecs_flags(ecs::share);
+struct frame_data { ecs_flags(ecs::flag::share);
     double delta_time = 0.0;
 };
 // ...
@@ -168,7 +168,7 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 **Note!** Beware of using mutable shared components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
-to disallow systems modifying the shared component, using `ecs_flags(ecs::share|ecs::immutable);`
+to disallow systems modifying the shared component, using `ecs_flags(ecs::flag::share, ecs::flag::immutable);`
 
 ### `immutable`
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
@@ -178,7 +178,7 @@ This is used for passing read-only data to systems. If a component is marked as 
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
-struct damage { ecs_flags(ecs::transient);
+struct damage { ecs_flags(ecs::flag::transient);
     double value;
 };
 // ...
@@ -191,7 +191,7 @@ ecs::commit_changes(); // removes the 100 damage components
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
-struct frame_data { ecs_flags(ecs::global);
+struct frame_data { ecs_flags(ecs::flag::global);
     double delta_time = 0.0;
 };
 // ...

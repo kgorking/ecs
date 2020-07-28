@@ -15,8 +15,8 @@ struct particle { float x, y; };
 struct color    { float r, g, b; };
 struct velocity { float x, y; };
 struct life     { float val; };
-struct dead_tag { ecs_flags(ecs::tag, ecs::transient); };
-struct gravity  { ecs_flags(ecs::global); float g = 0.2f; };
+struct dead_tag { ecs_flags(ecs::flag::tag, ecs::flag::transient); };
+struct gravity  { ecs_flags(ecs::flag::global); float g = 0.2f; };
 
 // Helper lambda to initialize a particle
 auto constexpr particle_init = [](ecs::entity_id) -> particle {

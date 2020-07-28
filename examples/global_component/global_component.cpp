@@ -8,7 +8,7 @@
 struct A {};
 struct B {};
 struct state_s {
-    ecs_flags(ecs::global);
+    ecs_flags(ecs::flag::global);
     int a = 0;
     int b = 0;
     int total = 0;

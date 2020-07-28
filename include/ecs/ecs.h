@@ -5,8 +5,8 @@
 #include "detail/type_hash.h"
 
 #include "entity_id.h"
-#include "entity_iterator.h"
 #include "entity_range.h"
+#include "detail/entity_iterator.h"
 
 #include "component_specifier.h"
 #include "detail/component_pool_base.h"
@@ -16,7 +16,7 @@
 #include "detail/options.h"
 
 #include "detail/verification.h"
-#include "system_base.h"
+#include "detail/system_base.h"
 #include "detail/system.h"
 
 #include "detail/scheduler.h"

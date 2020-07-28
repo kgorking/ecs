@@ -6,7 +6,7 @@
 #include <iterator>
 #include <limits>
 
-namespace ecs /*::detail*/ {
+namespace ecs::detail {
 
     // Iterator support
     class entity_iterator {

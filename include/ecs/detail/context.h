@@ -146,7 +146,7 @@ namespace ecs::detail {
 
             std::unique_lock lock(mutex);
             systems.push_back(std::move(sys));
-            system_base* ptr_system = systems.back().get();
+            detail::system_base* ptr_system = systems.back().get();
             Ensures(ptr_system != nullptr);
 
             if constexpr (!has_option<opts::manual_update, Options>())
