@@ -168,7 +168,7 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 **Note!** Beware of using mutable shared components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
-to disallow systems modifying the shared component, using `ecs_flags(ecs::flag::share|ecs::flag::immutable);`
+to disallow systems modifying the shared component, using `ecs_flags(ecs::flag::share, ecs::flag::immutable);`
 
 ### `immutable`
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
