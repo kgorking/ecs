@@ -1,7 +1,6 @@
 #ifndef __COMPONENT_POOL
 #define __COMPONENT_POOL
 
-#include <concepts>
 #include <functional>
 #include <tuple>
 #include <type_traits>
@@ -39,7 +38,7 @@ void combine_erase(Cont& cont, BinaryPredicate p) {
 }
 
 namespace ecs::detail {
-    template<std::copyable T>
+    template<typename T>
     class component_pool final : public component_pool_base {
     private:
         // The components
@@ -63,7 +62,7 @@ namespace ecs::detail {
         // Add a component to a range of entities, initialized by the supplied user function
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.
-        template<typename Fn> requires(!unbound<T>)
+        template<typename Fn>
         void add_init(entity_range const range, Fn&& init) {
             // Add the range and function to a temp storage
             deferred_adds.local().emplace_back(range, std::forward<Fn>(init));
@@ -72,19 +71,12 @@ namespace ecs::detail {
         // Add a component to a range of entity.
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.
-        void add(entity_range const range, T&& component) requires(!global<T>) {
+        void add(entity_range const range, T&& component) {
             if constexpr (shared<T> || tagged<T>) {
                 deferred_adds.local().push_back(range);
             } else {
                 deferred_adds.local().emplace_back(range, std::forward<T>(component));
             }
-        }
-
-        // Add a component to an entity.
-        // Pre: entity has not already been added, or is in queue to be added.
-        //      This condition will not be checked until 'process_changes' is called.
-        void add(entity_id const id, T&& component) requires(!global<T>) {
-            add({id, id}, std::forward<T>(component));
         }
 
         // Return the shared component
@@ -95,13 +87,13 @@ namespace ecs::detail {
 
         // Remove an entity from the component pool. This logically removes the component from the
         // entity.
-        void remove(entity_id const id) requires(!global<T>) {
+        void remove(entity_id const id) {
             remove_range({id, id});
         }
 
         // Remove an entity from the component pool. This logically removes the component from the
         // entity.
-        void remove_range(entity_range const range) requires(!global<T>) {
+        void remove_range(entity_range const range) {
             if (!has_entity(range)) {
                 return;
             }
@@ -112,11 +104,6 @@ namespace ecs::detail {
             } else {
                 rem.push_back(range);
             }
-        }
-
-        // Returns the shared component
-        T* find_component_data(entity_id const /*id*/) requires unbound<T> {
-            return &get_shared_component();
         }
 
         // Returns an entities component.
@@ -190,12 +177,12 @@ namespace ecs::detail {
         }
 
         // Returns true if an entity has a component in this pool
-        bool has_entity(entity_id const id) const requires(!global<T>) {
+        bool has_entity(entity_id const id) const {
             return has_entity({id, id});
         }
 
         // Returns true if an entity range has components in this pool
-        bool has_entity(entity_range const& range) const requires(!global<T>) {
+        bool has_entity(entity_range const& range) const {
             if (ranges.empty()) {
                 return false;
             }
@@ -210,12 +197,12 @@ namespace ecs::detail {
         }
 
         // Checks the current threads queue for the entity
-        bool is_queued_add(entity_id const id) requires(!global<T>) {
+        bool is_queued_add(entity_id const id) {
             return is_queued_add({id, id});
         }
 
         // Checks the current threads queue for the entity
-        bool is_queued_add(entity_range const& range) requires(!global<T>) {
+        bool is_queued_add(entity_range const& range) {
             if (deferred_adds.local().empty()) {
                 return false;
             }
@@ -230,12 +217,12 @@ namespace ecs::detail {
         }
 
         // Checks the current threads queue for the entity
-        bool is_queued_remove(entity_id const id) requires(!global<T>) {
+        bool is_queued_remove(entity_id const id) {
             return is_queued_remove({id, id});
         }
 
         // Checks the current threads queue for the entity
-        bool is_queued_remove(entity_range const& range) requires(!global<T>) {
+        bool is_queued_remove(entity_range const& range) {
             if (deferred_removes.local().empty())
                 return false;
 

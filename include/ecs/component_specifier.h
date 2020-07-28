@@ -67,7 +67,7 @@ namespace ecs {
         concept global = std::is_base_of_v<ecs::flag::global, flags<T>>;
 
         template<typename T>
-        concept local = !global<T>;
+        concept local = !global<T> && !shared<T>;
 
         template<typename T>
         concept persistent = !transient<T>;

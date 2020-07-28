@@ -59,12 +59,18 @@ namespace ecs::detail {
 
     // Get an entities component from a component pool
     template<typename Component, typename Pools>
-    [[nodiscard]] std::remove_cvref_t<Component>* get_component(
-        entity_id const entity, Pools const& pools) {
+    [[nodiscard]]
+    std::remove_cvref_t<Component>* get_component(entity_id const entity, Pools const& pools) {
         using T = std::remove_cvref_t<Component>;
+
         if constexpr (std::is_pointer_v<T>) {
             static_cast<void>(entity);
             return nullptr;
+        } else if constexpr (tagged<T>) {
+            static char dummy_arr[sizeof(T)];
+            return reinterpret_cast<T*>(dummy_arr);
+        } else if constexpr (shared<T> || global<T>) {
+            return &get_pool<T>(pools).get_shared_component();
         } else {
             return get_pool<T>(pools).find_component_data(entity);
         }

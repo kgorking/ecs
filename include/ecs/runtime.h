@@ -20,8 +20,9 @@ namespace ecs {
     // Pre: entity does not already have the component, or have it in queue to be added
     template<typename First, typename... T>
     void add_component(entity_range const range, First&& first_val, T&&... vals) {
-        static_assert(detail::unique<First, T...>,
-                      "the same component was specified more than once");
+        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+        static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
+        static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
 
         auto const adder = []<class Type>(entity_range const range, Type&& val) {
             if constexpr (std::is_invocable_v<Type, entity_id>) {
@@ -39,9 +40,12 @@ namespace ecs {
                 if constexpr (std::is_reference_v<Type>) {
                     using DerefT = std::remove_reference_t<Type>;
                     static_assert(std::copyable<DerefT>, "Type must be copyable");
+
                     detail::component_pool<DerefT>& pool = detail::_context.get_component_pool<DerefT>();
                     pool.add(range, std::forward<DerefT>(val));
                 } else {
+                    static_assert(std::copyable<Type>, "Type must be copyable");
+
                     detail::component_pool<Type>& pool = detail::_context.get_component_pool<Type>();
                     pool.add(range, std::forward<Type>(val));
                 }
@@ -64,6 +68,8 @@ namespace ecs {
     // called. Pre: entity has the component
     template<detail::persistent T>
     void remove_component(entity_range const range, T const& = T{}) {
+        static_assert(!detail::global<T>, "can not remove or add global components to entities");
+
         // Remove the entities from the components pool
         detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
         pool.remove_range(range);
