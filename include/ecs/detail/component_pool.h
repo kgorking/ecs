@@ -169,7 +169,7 @@ namespace ecs::detail {
             if constexpr (detail::global<T>) {
                 // globals are accessible to all entities
                 static constexpr entity_range global_range{
-                    std::numeric_limits<ecs::entity_type>::min(), std::numeric_limits<ecs::entity_type>::max()};
+                    std::numeric_limits<ecs::detail::entity_type>::min(), std::numeric_limits<ecs::detail::entity_type>::max()};
                 return entity_range_view{&global_range, 1};
             } else {
                 return ranges;
