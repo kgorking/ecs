@@ -11,10 +11,20 @@ namespace ecs::detail {
         static constexpr bool value = false;
     };
     template<typename T>
-    requires requires {
-        T::group_id;
-    }
+    requires requires { T::group_id; }
     struct is_group<T> {
+        static constexpr bool value = true;
+    };
+
+    //
+    // Check if type is a frequency
+    template<typename T>
+    struct is_frequency {
+        static constexpr bool value = false;
+    };
+    template<typename T>
+    requires requires { T::hz; }
+    struct is_frequency<T> {
         static constexpr bool value = true;
     };
 

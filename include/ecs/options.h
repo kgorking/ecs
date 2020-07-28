@@ -7,10 +7,10 @@ namespace ecs::opts {
         static constexpr int group_id = I;
     };
 
-    /*template<size_t I>
-    struct interval {
+    template<size_t I>
+    struct frequency {
         static constexpr size_t hz = I;
-    };*/
+    };
 
     struct manual_update {};
 
