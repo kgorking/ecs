@@ -1,5 +1,5 @@
 
-# ECS: An entity/component/system library.
+# ECS: An entity/component/system library. {ignore=true}
 This is a small project I created to better familiarize myself with the features of c++ 17/20, and to test out
 some stuff I had been reading about [data oriented design](http://www.dataorienteddesign.com/dodbook/).
 An ecs library seemed like a good fit for both objectives.
@@ -7,7 +7,7 @@ An ecs library seemed like a good fit for both objectives.
 More detail on what ecs is can be found [here](http://gameprogrammingpatterns.com/component.html) and
 [here](https://github.com/EngineArchitectureClub/TalkSlides/blob/master/2012/05-Components-SeanMiddleditch/ComponentDesign.pdf).
 
-# An example
+# An example {ignore=true}
 The following example shows the basics of the library.
 
 ```cpp
@@ -36,36 +36,42 @@ Running this will do a Matthew McConaughey impression and print 'alright alright
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
 
-# Building (checked july 20. 2020)
+# Building (checked july 20. 2020) {ignore=true}
 [Compiler explorer test link](https://godbolt.org/z/fehd1W)
 * MSVC 16.6+ (v14.26) will compile this library with no problems.
 * GCC 11 keeps ICEing on simple concepts. Seems to strugle immensely with parameter packs.
 * Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` header and 'std::shift_right'.
 
-# Table of Contents
-* [Entities](#Entities)
-* [Components](#Components)
-  * [Adding components to entities](#Adding-components-to-entities)
-  * [Committing component changes](#Committing-component-changes)
-  * [Generators](#Generators)
-  * [Flags](#Flags)
-    * [`tag`](#tag)
-    * [`share`](#share)
-    * [`transient`](#transient)
-    * [`immutable`](#immutable)
-    * [`global`](#global)
-* [Systems](#Systems)
-  * [Requirements and rules](#Requirements-and-rules)
-  * [The current entity](#The-current-entity)
-  * [Sorting](#Sorting)
-  * [Filtering](#Filtering)
-  * [Parallel-by-default systems](#Parallel-by-default-systems)
-  * [Automatic concurrency](#Automatic-concurrency)
-  * [Options](#Options)
-    * [`opts::group<int>`](#optsgroupint)
-    * [`opts::manual_update`](#optsmanual_update)
-    * [`opts::not_parallel`](#optsnot_parallel)
+# Table of Contents {ignore=true}
+<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
+<!-- code_chunk_output -->
+
+- [Entities](#entities)
+- [Components](#components)
+  - [Adding components to entities](#adding-components-to-entities)
+  - [Committing component changes](#committing-component-changes)
+  - [Generators](#generators)
+  - [Flags](#flags)
+    - [`tag`](#tag)
+    - [`share`](#share)
+    - [`immutable`](#immutable)
+    - [`transient`](#transient)
+    - [`global`](#global)
+- [Systems](#systems)
+  - [Requirements and rules](#requirements-and-rules)
+  - [The current entity](#the-current-entity)
+  - [Sorting](#sorting)
+  - [Filtering](#filtering)
+  - [Parallel-by-default systems](#parallel-by-default-systems)
+  - [Automatic concurrency](#automatic-concurrency)
+  - [Options](#options)
+    - [`opts::frequency<hz>`](#optsfrequencyhz)
+    - [`opts::group<group number>`](#optsgroupgroup-number)
+    - [`opts::manual_update`](#optsmanual_update)
+    - [`opts::not_parallel`](#optsnot_parallel)
+
+<!-- /code_chunk_output -->
 
 # Entities
 Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
@@ -107,6 +113,7 @@ if you need the individual components to have different initial states. Generato
 of `T(ecs::entity_id)`, where `T` is the component type that the generator makes.
 In the [mandelbrot](https://github.com/kgorking/ecs/blob/master/examples/mandelbrot/mandelbrot.cpp) example,
 a generator is used to create the (x,y) coordinates of the individual pixels from the entity id:
+
 ```cpp
 constexpr int dimension = 500;
 struct pos {
@@ -134,7 +141,8 @@ take up any memory. For instance, you could use it to tag certain entities as ha
 like a 'freezable' tag to mark stuff that can be frozen.
 
 ```cpp
-struct freezable { ecs_flags(ecs::flag::tag);
+struct freezable {
+    ecs_flags(ecs::flag::tag);
 };
 ```
 
@@ -156,7 +164,8 @@ If tag components are marked as anything other than pass-by-value, the compiler 
 Marking a component as *shared* is used for components that hold data that is shared between all entities the component is added to.
 
 ```cpp
-struct frame_data { ecs_flags(ecs::flag::share);
+struct frame_data {
+    ecs_flags(ecs::flag::share);
     double delta_time = 0.0;
 };
 // ...
@@ -178,7 +187,8 @@ This is used for passing read-only data to systems. If a component is marked as 
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
-struct damage { ecs_flags(ecs::flag::transient);
+struct damage {
+    ecs_flags(ecs::flag::transient);
     double value;
 };
 // ...
@@ -191,7 +201,8 @@ ecs::commit_changes(); // removes the 100 damage components
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
-struct frame_data { ecs_flags(ecs::flag::global);
+struct frame_data {
+    ecs_flags(ecs::flag::global);
     double delta_time = 0.0;
 };
 // ...
@@ -289,9 +300,28 @@ If a component is read from, the system that previously wrote to it becomes a de
 Multiple systems that read from the same component can safely run concurrently.
 
 ## Options
-The following options can be provide to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
+The following options can be passed along to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
 
-### `opts::group<int>`
+### `opts::frequency<hz>`
+`opts::frequency` is used to limit the number of times per second a system will run. The number of times the system is run may be lower than the frequency passed, but it will never be higher.
+
+```cpp
+#include <chrono>
+// ...
+ecs::make_system<ecs::opts::frequency<10>>([](int const&) {
+    std::cout << "at least 100ms has passed\n";
+});
+// ...
+ecs::add_component(0, int{});
+
+// Run the system for 1 second (include <chrono>)
+auto const start = std::chrono::high_resolution_clock::now();
+while (std::chrono::high_resolution_clock::now() - start < 1s)
+    ecs::run_systems();
+```
+
+
+### `opts::group<group number>`
 Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
 
 ```cpp
@@ -301,7 +331,7 @@ ecs::make_system<ecs::opts::group<1>>([](int const&) {
 ecs::make_system<ecs::opts::group<-1>>([](int const&) {
     std::cout << "hello from group negative one\n";
 });
-ecs::make_system([](int const&) {
+ecs::make_system([](int const&) { // same as 'ecs::opts::group<0>'
     std::cout << "hello from group whatever\n";
 });
 // ...
@@ -319,16 +349,17 @@ Running the above code will print out
 
 ### `opts::manual_update`
 Systems marked as being manually updated will not be added to scheduler, and will thus require the user to call the `system::run()` function themselves.
-Calls to `ecs::commit_changes)` will still cause the system to respond to changes in components.
+Calls to `ecs::commit_changes()` will still cause the system to respond to changes in components.
 
 ```cpp
-ecs::make_system<ecs::opts::manual_update>([](int const&) { /* ... */ });
+auto& manual_sys = ecs::make_system<ecs::opts::manual_update>([](int const&) { /* ... */ });
 // ...
 ecs::add_component(0, int{});
-ecs::update(); // will not run the system
+ecs::update(); // will not run 'manual_sys'
+manual_sys.run(); // required to run the system
 ```
 
 ### `opts::not_parallel`
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
-It should not be used just because the system writes to a shared variable. Use atomics or [`tls::splitter`](tls/include/tls/splitter.h) in these cases, if possible.
+It should not be used to avoid data races when writing to a shared variable. Use atomics or [`tls::splitter`](tls/include/tls/splitter.h) in these cases, if possible.
