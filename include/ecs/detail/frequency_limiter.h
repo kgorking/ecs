@@ -7,14 +7,14 @@ namespace ecs::detail {
     // microsecond precision
 	template<size_t hz>
 	struct frequency_limiter {
-        using clock = std::chrono::high_resolution_clock;
-
         bool can_run() {
-            using namespace std::chrono_literals;
-
             if constexpr (hz == 0)
                 return true;
             else {
+                using namespace std::chrono_literals;
+                using clock = std::chrono::high_resolution_clock;
+                static clock::time_point time = clock::now();
+
                 auto const now = clock::now();
                 auto const diff = now - time;
                 if (diff >= (1'000'000us / hz)) {
@@ -25,9 +25,6 @@ namespace ecs::detail {
                 }
             }
 		}
-
-	private:
-        clock::time_point time = clock::now();
 	};
 }
 
