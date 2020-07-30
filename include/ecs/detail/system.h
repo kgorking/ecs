@@ -38,16 +38,6 @@ namespace ecs::detail {
         }
     }
 
-    // Gets the type a sorting functions operates on
-    template<class R, class C, class T1, class T2>
-    struct get_sort_func_type_impl {
-        get_sort_func_type_impl(R (C::*)(T1, T2) const) {
-        }
-        using type = std::remove_cvref_t<T1>;
-    };
-    template<class F>
-    using sort_func_type = typename decltype(get_sort_func_type_impl(&F::operator()))::type;
-
 
     // Alias for stored pools
     template<class T>
@@ -264,6 +254,16 @@ namespace ecs::detail {
         // Holds a single entity id and its arguments
         using single_argument = decltype(std::tuple_cat(
             std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
+
+        // Gets the type a sorting functions operates on
+        template<class R, class C, class T1, class T2>
+        struct get_sort_func_type_impl {
+            get_sort_func_type_impl(R (C::*)(T1, T2) const) {
+            }
+            using type = std::remove_cvref_t<T1>;
+        };
+        template<class F>
+        using sort_func_type = typename decltype(get_sort_func_type_impl(&F::operator()))::type;
 
         using sort_type = sort_func_type<SortFn>;
         static_assert(
