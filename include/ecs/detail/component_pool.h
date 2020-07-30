@@ -400,7 +400,7 @@ namespace ecs::detail {
                     auto& [a_rng, a_data] = a;
                     auto const& [b_rng, b_data] = b;
 
-                    if (a_rng.can_merge(b_rng) && (a_data.target<T(entity_id)>() ==  b_data.target<T(entity_id)>())) {
+                    if (a_rng.can_merge(b_rng) && (a_data.template target<T(entity_id)>() ==  b_data.template target<T(entity_id)>())) {
                         a_rng = entity_range::merge(a_rng, b_rng);
                         return true;
                     } else {
