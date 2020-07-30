@@ -93,23 +93,22 @@ namespace ecs::detail {
 
 
     template<class R, class FirstArg, class... Args>
-    concept checked_system = requires {
-        // systems can not return values
-        requires std::is_same_v<R, void>;
+    concept checked_system = 
+            // systems can not return values
+            std::is_same_v<R, void> &&
 
-        // systems must take at least one component argument
-        requires (is_entity<FirstArg> ? (sizeof...(Args)) > 0 : true);
+            // systems must take at least one component argument
+            (is_entity<FirstArg> ? (sizeof...(Args)) > 0 : true) &&
 
-        // Make sure the first entity is not passed as a reference
-        requires (is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true);
+            // Make sure the first entity is not passed as a reference
+            (is_entity<FirstArg> ? !std::is_reference_v<FirstArg> : true) &&
 
-        // Component types can only be specified once
-        // requires unique<FirstArg, Args...>; // ICE's gcc 10.1
-        requires unique_types_v<FirstArg, Args...>;
+            // Component types can only be specified once
+            // requires unique<FirstArg, Args...>; // ICE's gcc 10.1
+            unique_types_v<FirstArg, Args...> &&
 
-        // Verify components
-        requires Component<FirstArg> && (Component<Args> && ...);
-    };
+            // Verify components
+            (Component<FirstArg> && (Component<Args> && ...));
 
     // A small bridge to allow the Lambda concept to activate the system concept
     template<class R, class C, class FirstArg, class... Args>
@@ -128,13 +127,12 @@ namespace ecs::detail {
     };
 
     template<class R, class T, class U>
-    concept checked_sorter = requires {
+    concept checked_sorter =
         // sorter must return boolean
-        requires std::is_same_v<R, bool>;
+        std::is_same_v<R, bool> &&
 
         // Arguments must be of same type
-        requires std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
-    };
+        std::is_same_v<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
 
     // A small bridge to allow the Lambda concept to activate the sorter concept
     template<class R, class C, class T, class U>
