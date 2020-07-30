@@ -1,5 +1,5 @@
 
-# ECS: An entity/component/system library. {ignore=true}
+# ECS: An entity/component/system library.
 This is a small project I created to better familiarize myself with the features of c++ 17/20, and to test out
 some stuff I had been reading about [data oriented design](http://www.dataorienteddesign.com/dodbook/).
 An ecs library seemed like a good fit for both objectives.
@@ -7,7 +7,7 @@ An ecs library seemed like a good fit for both objectives.
 More detail on what ecs is can be found [here](http://gameprogrammingpatterns.com/component.html) and
 [here](https://github.com/EngineArchitectureClub/TalkSlides/blob/master/2012/05-Components-SeanMiddleditch/ComponentDesign.pdf).
 
-# An example {ignore=true}
+# An example
 The following example shows the basics of the library.
 
 ```cpp
@@ -36,17 +36,13 @@ Running this will do a Matthew McConaughey impression and print 'alright alright
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
 
-# Building (checked july 30. 2020) {ignore=true}
+# Building (checked july 30. 2020)
 [Compiler explorer test link](https://godbolt.org/z/q81E5z)
 * MSVC 16.6+ (v14.26) will compile this library with no problems.
 * GCC 10.2 compiles it, after much tweaking.
 * Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` and `<span>` header.
 
-# Table of Contents {ignore=true}
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
-
-<!-- code_chunk_output -->
-
+# Table of Contents
 - [Entities](#entities)
 - [Components](#components)
   - [Adding components to entities](#adding-components-to-entities)
@@ -71,7 +67,6 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
     - [`opts::manual_update`](#optsmanual_update)
     - [`opts::not_parallel`](#optsnot_parallel)
 
-<!-- /code_chunk_output -->
 
 # Entities
 Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
