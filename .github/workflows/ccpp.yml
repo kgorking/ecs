@@ -13,8 +13,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Create build dir
-      run: cmake -S . -B build -G Ninja
-    - name: Run ninja
-      run: cd build
-      run: ninja
+    - name: Update submodules
+      run: git submodule update --init --recursive
+    - name: Run cmake
+      run: cmake -S . -B build
+    - name: Run make
+      run: cd build && make
