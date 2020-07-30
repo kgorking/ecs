@@ -131,7 +131,7 @@ namespace ecs::detail {
             // Call the system for all the components that match the system signature
             for (auto const& argument : arguments) {
                 auto const& range = std::get<entity_range>(argument);
-                auto const e_p = execution_policy{};
+            auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
                 std::for_each(e_p, range.begin(), range.end(),
                     [this, &argument, first_id = range.first()](auto ent) {
                         auto const offset = ent - first_id;
@@ -206,7 +206,8 @@ namespace ecs::detail {
         void run() {
             // Sort the arguments if the component data has been modified
             if (needs_sorting || std::get<pool<sort_type>>(pools)->has_components_been_modified()) {
-                std::sort(execution_policy{}, arguments.begin(), arguments.end(),
+                auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+                std::sort(e_p, arguments.begin(), arguments.end(),
                     [this](auto const& l, auto const& r) {
                         sort_type* t_l = std::get<sort_type*>(l);
                         sort_type* t_r = std::get<sort_type*>(r);
@@ -216,7 +217,8 @@ namespace ecs::detail {
                 needs_sorting = false;
             }
 
-            std::for_each(execution_policy{}, arguments.begin(), arguments.end(), [this](auto packed_arg) {
+            auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+            std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
                 if constexpr (is_entity<FirstComponent>) {
                     update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                 } else {
