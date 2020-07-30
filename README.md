@@ -36,11 +36,11 @@ Running this will do a Matthew McConaughey impression and print 'alright alright
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
 
-# Building (checked july 20. 2020) {ignore=true}
-[Compiler explorer test link](https://godbolt.org/z/fehd1W)
+# Building (checked july 30. 2020) {ignore=true}
+[Compiler explorer test link](https://godbolt.org/z/q81E5z)
 * MSVC 16.6+ (v14.26) will compile this library with no problems.
-* GCC 11 keeps ICEing on simple concepts. Seems to strugle immensely with parameter packs.
-* Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` header and 'std::shift_right'.
+* GCC 10.2 compiles it, after much tweaking.
+* Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` and `<span>` header.
 
 # Table of Contents {ignore=true}
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
