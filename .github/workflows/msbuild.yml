@@ -21,7 +21,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        fetch-depth: 0
+        fetch-depth: 1
 
     # Pull the submodules
     - name: Checkout submodules
@@ -29,13 +29,13 @@ jobs:
 
     # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
     - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@2008f912f56e61277eefaac6d1888b750582aa16
+      uses: microsoft/setup-msbuild@v1.0.1
 
-    # Genrate the build files
+    # Generate the build files
     - name: Generate build files
       run: cmake -S . -B build
       
-    # Restore the WPF application to populate the obj folder with RuntimeIdentifiers
+    # Build the lib
     - name: Build the library
       run: msbuild -verbosity:minimal -m build/ecs.sln /p:Configuration=$env:Configuration /p:Platform=x64
       env:
@@ -44,4 +44,3 @@ jobs:
     # Execute all unit tests in the solution
     - name: Execute unit tests
       run: build/x64-$env:Configuration/unittests.exe
-
