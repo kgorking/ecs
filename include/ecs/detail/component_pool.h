@@ -398,7 +398,7 @@ namespace ecs::detail {
                 });
                 combine_erase(inits, [](entity_init& a, entity_init const& b) {
                     auto a_rng = std::get<0>(a);
-                    auto b_rng = std::get<0>(b);
+                    auto const b_rng = std::get<0>(b);
 
                     auto const a_func = std::get<1>(a);
                     auto const b_func = std::get<1>(b);
