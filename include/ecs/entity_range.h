@@ -5,6 +5,7 @@
 #include <limits>
 #include <optional>
 #include <span>
+#include <concepts>
 
 #include "detail/contract.h"
 #include "entity_id.h"
