@@ -398,7 +398,7 @@ namespace ecs::detail {
                 });
                 combine_erase(inits, [](entity_init& a, entity_init const& b) {
                     auto& [a_rng, a_data] = a;
-                    auto const& [b_rng, b_data] = b;
+                    auto& [b_rng, b_data] = b;
 
                     if (a_rng.can_merge(b_rng) && (a_data.template target<T(entity_id)>() ==  b_data.template target<T(entity_id)>())) {
                         a_rng = entity_range::merge(a_rng, b_rng);
