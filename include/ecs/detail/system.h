@@ -20,24 +20,6 @@
 #include "frequency_limiter.h"
 
 namespace ecs::detail {
-    template<typename T>
-    constexpr bool is_read_only() {
-        return detail::immutable<T> || detail::tagged<T> ||
-               std::is_const_v<std::remove_reference_t<T>>;
-    }
-
-    template<bool ignore_first_arg, typename First, typename... Types>
-    constexpr auto get_type_read_only() {
-        if constexpr (!ignore_first_arg) {
-            std::array<bool, 1 + sizeof...(Types)> arr{
-                is_read_only<First>(), is_read_only<Types>()...};
-            return arr;
-        } else {
-            std::array<bool, sizeof...(Types)> arr{is_read_only<Types>()...};
-            return arr;
-        }
-    }
-
 
     // Alias for stored pools
     template<class T>
@@ -434,6 +416,20 @@ namespace ecs::detail {
             return !type_read_only[std::distance(type_hashes.begin(), it)];
         }
 
+        template<bool ignore_first_arg, typename First, typename... Types>
+        static constexpr auto get_type_read_only() {
+            if constexpr (!ignore_first_arg) {
+                return std::array<bool, 1 + sizeof...(Types)> {is_read_only<First>(), is_read_only<Types>()...};
+            } else {
+                return std::array<bool, sizeof...(Types)> {is_read_only<Types>()...};
+            }
+        }
+
+        template<typename T>
+        static constexpr bool is_read_only() {
+            return detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
+        }
+
     private:
         // Handle changes when the component pools change
         void process_changes(bool force_rebuild) override {
@@ -489,7 +485,7 @@ namespace ecs::detail {
                 };
 
                 // Find the intersections
-                auto dummy = argument_tuple<FirstComponent, Components...>{};
+                constexpr auto dummy = argument_tuple<FirstComponent, Components...>{};
                 std::apply([&intersect](auto... args) { (..., intersect(args)); }, dummy);
 
                 // Filter out types if needed
