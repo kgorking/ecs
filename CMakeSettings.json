@@ -12,18 +12,7 @@
       "ctestCommandArgs": "",
       "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "intelliSenseMode": "windows-msvc-x64",
-      "variables": [
-        {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
-          "value": "False",
-          "type": "BOOL"
-        }
-      ]
+      "variables": []
     },
     {
       "name": "x64-Release",
@@ -36,18 +25,7 @@
       "ctestCommandArgs": "",
       "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": [
-        {
-          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "BENCHMARK_ENABLE_INSTALL",
-          "value": "False",
-          "type": "BOOL"
-        }
-      ],
+      "variables": [],
       "intelliSenseMode": "windows-msvc-x64"
     },
     {

@@ -11,87 +11,95 @@ More detail on what ecs is can be found [here](http://gameprogrammingpatterns.co
 The following example shows the basics of the library.
 
 ```cpp
-#include <ecs/ecs.h>
 #include <iostream>
+#include <ecs/ecs.h>
 
 // The component
 struct greeting {
-    char const* msg = "alright";
+    char const* msg;
 };
 
-int main()
-{
+int main() {
     // The system
     ecs::make_system([](greeting const& g) {
-        std::cout << g.msg << ' ';
+        std::cout << g.msg;
     });
 
     // The entities
-    ecs::add_components({0, 2}, greeting{});
+    ecs::add_component({0, 2}, greeting{"alright "});
 
     // Run it
-    ecs::update_systems();
+    ecs::update();
 }
 ```
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
+This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
-This is pretty basic, but there are plenty of ways to extend this example to do cooler things, as explained below.
+
+# Building (checked july 30. 2020)
+[Compiler explorer test link](https://godbolt.org/z/q81E5z)
+* MSVC 16.6+ (v14.26) will compile this library with no problems.
+* GCC 10.2 compiles it, after much tweaking.
+* Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` and `<span>` header.
 
 # Table of Contents
-* [Entities](#Entities)
-* [Components](#Components)
-  * [Adding components to entities](#Adding-components-to-entities)
-  * [Committing component changes](#Committing-component-changes)
-  * [Generators](#Generators)
-  * [Flags](#Flags)
-    * [`tag`](#tag)
-    * [`share`](#share)
-    * [`transient`](#transient)
-    * [`immutable`](#immutable)
-    * [`global`](#global)
-* [Systems](#Systems)
-  * [Current entity](#Current-entity)
-  * [Requirements and rules](#Requirements-and-rules)
-  * [Parallel systems](#Parallel-systems)
-  * [Groups](#Groups)
+- [Entities](#entities)
+- [Components](#components)
+  - [Adding components to entities](#adding-components-to-entities)
+  - [Committing component changes](#committing-component-changes)
+  - [Generators](#generators)
+  - [Flags](#flags)
+    - [`tag`](#tag)
+    - [`share`](#share)
+    - [`immutable`](#immutable)
+    - [`transient`](#transient)
+    - [`global`](#global)
+- [Systems](#systems)
+  - [Requirements and rules](#requirements-and-rules)
+  - [The current entity](#the-current-entity)
+  - [Sorting](#sorting)
+  - [Filtering](#filtering)
+  - [Parallel-by-default systems](#parallel-by-default-systems)
+  - [Automatic concurrency](#automatic-concurrency)
+  - [Options](#options)
+    - [`opts::frequency<hz>`](#optsfrequencyhz)
+    - [`opts::group<group number>`](#optsgroupgroup-number)
+    - [`opts::manual_update`](#optsmanual_update)
+    - [`opts::not_parallel`](#optsnot_parallel)
 
 
 # Entities
 Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
 
-* [`ecs::entity_id`](#https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
-* [`ecs::entity`](#https://github.com/kgorking/ecs/blob/master/include/ecs/entity.h) is a slightly more useful wrapper for `ecs::entity_id` which adds some helper-functions to ease to usage of entity-component interactions.
-* [`ecs::entity_range`](#https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` has a range of 101 entities.
+* [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
+* [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
 
 The management of entity id's is left to user.
 
 # Components
-There are very few restrictions on what a component can be, but it does have to obey the requirements of
-[std::copyable](https://en.cppreference.com/w/cpp/concepts/copyable). In the example above you could
-have used a `std::string` instead of creating a custom component, and it would work just fine.
+Components hold the data and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [CopyConstructible](https://en.cppreference.com/w/cpp/named_req/CopyConstructible). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
 
-You can add as many components to an entity as you need; there is no upper limit.
+You can add as many different components to an entity as you need; there is no upper limit. You can not add more than one of the same type.
 
 ## Adding components to entities
-The simplest way to add components to entities is thought the helper-functions on `ecs::entity_range` and `ecs::entity`. Components can also be added using the free-standing functions `ecs::add_component`.
+Adding components is done with the function `ecs::add_component()`.
 
 ```cpp
-ecs::entity ent{0};         // entity helper-class working on id 0
-ent.add<int>();             // add a default-initialized integer to entity 0
-ent.add(2L);                // add a long with value 2 to entity 0 (deduces type from the argument)
-ent.add(4UL, 3.14f, 6.28);  // add an unsigned long, a float, and a double to entity 0
-ecs::add_component(0, 6LL); // add a long long to entity 0
+ecs::add_component(0, 4UL, 3.14f, 6.28); // add an unsigned long, a float, and a double to entity 0
 
-ecs::entity_range more_ents{1,100};  // entity helper-class working on ids from 1 to (and including) 100
-more_ents.add(3, 0.1f);              // add 100 ints with value 3 and 100 floats with value 0.1f
-ecs::add_component({1,50}, 6LL);     // add a long long to 50 entities
+ecs::entity_id ent{1};
+ecs::add_component(ent, "hello");        // add const char* to entity 1
+
+ecs::entity_range more_ents{1,100};      // entity range of ids from 1 to (and including) 100
+ecs::add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 floats with value 0.1f
+ecs::add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entities
 // etc..
 ```
 
 ## Committing component changes
-All calls to add or remove components from entities are defered, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update_systems()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
+Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
 
-By defering the components changes to entites, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
+By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
 
 
 ## Generators
@@ -100,6 +108,7 @@ if you need the individual components to have different initial states. Generato
 of `T(ecs::entity_id)`, where `T` is the component type that the generator makes.
 In the [mandelbrot](https://github.com/kgorking/ecs/blob/master/examples/mandelbrot/mandelbrot.cpp) example,
 a generator is used to create the (x,y) coordinates of the individual pixels from the entity id:
+
 ```cpp
 constexpr int dimension = 500;
 struct pos {
@@ -108,7 +117,7 @@ struct pos {
 
 // ...
 
-ecs::add_components({ 0, dimension * dimension},
+ecs::add_component({ 0, dimension * dimension},
     [](ecs::entity_id ent) -> pos {
         int const x = ent % dimension;
         int const y = ent / dimension;
@@ -118,7 +127,7 @@ ecs::add_components({ 0, dimension * dimension},
 ```
 
 ## Flags
-The behaviour of components can be changed by using component flags, which can change how they are managed
+The behavior of components can be changed by using component flags, which can change how they are managed
 internally and can offer performance and memory benefits. Flags can be added to components using the `ecs_flags()` macro:
 
 ### `tag`
@@ -127,7 +136,8 @@ take up any memory. For instance, you could use it to tag certain entities as ha
 like a 'freezable' tag to mark stuff that can be frozen.
 
 ```cpp
-struct freezable { ecs_flags(ecs::tag);
+struct freezable {
+    ecs_flags(ecs::flag::tag);
 };
 ```
 
@@ -149,11 +159,12 @@ If tag components are marked as anything other than pass-by-value, the compiler 
 Marking a component as *shared* is used for components that hold data that is shared between all entities the component is added to.
 
 ```cpp
-struct frame_data { ecs_flags(ecs::share);
+struct frame_data {
+    ecs_flags(ecs::flag::share);
     double delta_time = 0.0;
 };
 // ...
-ecs::add_components<position, velocity, frame_data>({0, 100});
+ecs::add_component({0, 100}, position{}, velocity{}, frame_data{});
 // ...
 ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
@@ -161,7 +172,7 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 **Note!** Beware of using mutable shared components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
-to disallow systems modifying the shared component, using `ecs_flags(ecs::share|ecs::immutable);`
+to disallow systems modifying the shared component, using `ecs_flags(ecs::flag::share, ecs::flag::immutable);`
 
 ### `immutable`
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
@@ -171,11 +182,12 @@ This is used for passing read-only data to systems. If a component is marked as 
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
-struct damage { ecs_flags(ecs::transient);
+struct damage {
+    ecs_flags(ecs::flag::transient);
     double value;
 };
 // ...
-ecs::add_components({0,99}, damage{9001});
+ecs::add_component({0,99}, damage{9001});
 ecs::commit_changes(); // adds the 100 damage components
 ecs::commit_changes(); // removes the 100 damage components
 ```
@@ -184,11 +196,12 @@ ecs::commit_changes(); // removes the 100 damage components
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
-struct frame_data { ecs_flags(ecs::global);
+struct frame_data {
+    ecs_flags(ecs::flag::global);
     double delta_time = 0.0;
 };
 // ...
-ecs::add_components<position, velocity>({0, 100});
+ecs::add_component({0, 100}, position{}, velocity{});
 // ...
 ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
@@ -196,17 +209,23 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 
 # Systems
-Systems are where the code that operates on one or more components is located. A system is built from a
-user-provided lambda using the functions `ecs::make_system` or `ecs::make_parallel_system`. 
-Systems can operate on as many components as you need; there is no limit.
+Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the function `ecs::make_system`. Systems can operate on as many components as you need; there is no limit.
 
-Accessing components from systems is done through *references*. If you forget to do so, you will get a compile-time
-error to remind you. Remember to mark components you don't intend to change in a system as a `const` reference.
+Accessing components in systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you.
+
+Remember to mark components you don't intend to change in a system as `const`, as this will help the sceduler by allowing the system to run concurrently with other systems that also only reads from the component. There is more information available in the [automatic concurrency](#Automatic-concurrency) section.
+
+
+## Requirements and rules
+There are a few requirements and restrictions put on the lambdas:
+
+* **No return values.** Systems are not permitted to have return values, because it logically does not make any sense. Systems with return types other than `void` will result in a compile time error.
+* **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
+* **No duplicate components.** Having the same component more than once in the parameter list is likely an error on the programmers side, so a compile time error will be raised. 
 
 
 ## The current entity
-If you need access to the entity currently being processed by a system, make the first parameter type either
-an `ecs::entity_id` or `ecs::entity`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
+If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
 
 ```cpp
 ecs::make_system([](ecs::entity_id ent, greeting const& g) {
@@ -214,41 +233,128 @@ ecs::make_system([](ecs::entity_id ent, greeting const& g) {
 });
 ```
 
-## Requirements and rules
-There are a few requirements and restrictions put on the provided lambdas to ensure that the runtime
-works as expected and the internal state makes sense.
 
-* **No return values.** Systems are not permitted to have return values, because it logically does not make any sense.
-  Systems with return types other than `void` will result in a compile time error.
-* **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
-* **No duplicate components.** Having the same component more than once in the parameter list is likely an error on
-  the programmers side, so a compile time error will be raised if it occurs. 
+## Sorting
+An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
-## Parallel systems
+```cpp
+// sort ascending
+auto &sys_dec = ecs::make_system(
+    [](int const&) { /* ... */ },
+    std::less<int>());
+
+// sort descending
+auto & sys_asc = ecs::make_system(
+    [](int const&) { /* ... */ },
+    std::greater<int>());
+
+// sort length
+auto &sys_pos = ecs::make_system(
+    [](position& pos, some_component const&) { /* ... */ },
+    [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
+```
+
+* Integers passed to `sys_dec` will arrive in descending order, from highest to lowest.
+* Integers passed to `sys_asc` will arrive in ascending order.
+* Positions passed to `sys_pos` will be sorted according to their length. You could also have sorted on the `some_component`.
+
+Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
+
+**Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
+
+
+## Filtering
+Components can be filtered by marking the component you wish to filter as a pointer argument:
+```cpp
+ecs::make_system([](int&, float*) { /* ... */ });
+```
+This system will run on all entities that has an `int` component and no `float` component.
+
+More than one filter can be present; there is no limit.
+
+**Note** `nullptr` is always passed to filtered components, so don't try to read from them.
+
+
+## Parallel-by-default systems
 Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up loosing performance instead. A good profiler can often help with this determination.
 
 The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code.
 
-Adding and removing components from an entity in a parallel system is a thread-safe operation-
+Adding and removing components from entities in parallel systems is a thread-safe operation.
 
-## Groups
-Systems can be roughly segmented in to groups by passing along a compile-time integer as a template paramater to `ecs::make_system`. Systems are executed in the order they are made, but are stable-sorted on their group id. Systems with no group id specified are put in group 0.
+
+## Automatic concurrency
+Whenever a system is made, it will internally be scheduled for execution concurrently with other systems, if the systems dependencies permit it. Systems are always scheduled so they don't interfere with each other, and the order in which they are made is respected.
+
+Dependencies are determined based on the components a system operate on.
+
+If a component is written to, the system that previously read from or wrote to that component becomes a dependency, which means that the system must be run to completion before the new system can execute. This ensures that no data-races occur.
+
+If a component is read from, the system that previously wrote to it becomes a dependency.
+
+Multiple systems that read from the same component can safely run concurrently.
+
+## Options
+The following options can be passed along to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
+
+### `opts::frequency<hz>`
+`opts::frequency` is used to limit the number of times per second a system will run. The number of times the system is run may be lower than the frequency passed, but it will never be higher.
 
 ```cpp
-ecs::make_system<1>([](int&) {
+#include <chrono>
+// ...
+ecs::make_system<ecs::opts::frequency<10>>([](int const&) {
+    std::cout << "at least 100ms has passed\n";
+});
+// ...
+ecs::add_component(0, int{});
+
+// Run the system for 1 second (include <chrono>)
+auto const start = std::chrono::high_resolution_clock::now();
+while (std::chrono::high_resolution_clock::now() - start < 1s)
+    ecs::run_systems();
+```
+
+
+### `opts::group<group number>`
+Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
+
+```cpp
+ecs::make_system<ecs::opts::group<1>>([](int const&) {
     std::cout << "hello from group one\n";
 });
-ecs::make_system<-1>([](int&) {
+ecs::make_system<ecs::opts::group<-1>>([](int const&) {
     std::cout << "hello from group negative one\n";
 });
-ecs::make_system([](int&) {
+ecs::make_system([](int const&) { // same as 'ecs::opts::group<0>'
     std::cout << "hello from group whatever\n";
 });
 // ...
-ecs::update_systems();
+ecs::add_component(0, int{});
+ecs::update();
 ```
+
 Running the above code will print out
 > hello from group negative one\
 > hello from group whatever\
 > hello from group one
 
+**Note:** systems from different groups are never executed concurrently, and all systems in one group will run to completion before the next group is run.
+
+
+### `opts::manual_update`
+Systems marked as being manually updated will not be added to scheduler, and will thus require the user to call the `system::run()` function themselves.
+Calls to `ecs::commit_changes()` will still cause the system to respond to changes in components.
+
+```cpp
+auto& manual_sys = ecs::make_system<ecs::opts::manual_update>([](int const&) { /* ... */ });
+// ...
+ecs::add_component(0, int{});
+ecs::update(); // will not run 'manual_sys'
+manual_sys.run(); // required to run the system
+```
+
+### `opts::not_parallel`
+This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
+
+It should not be used to avoid data races when writing to a shared variable. Use atomics or [`tls::splitter`](tls/include/tls/splitter.h) in these cases, if possible.
