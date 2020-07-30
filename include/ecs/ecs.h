@@ -15,6 +15,8 @@
 #include "options.h"
 #include "detail/options.h"
 
+#include "detail/frequency_limiter.h"
+
 #include "detail/verification.h"
 #include "detail/system_base.h"
 #include "detail/system.h"
