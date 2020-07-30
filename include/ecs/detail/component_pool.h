@@ -537,7 +537,6 @@ namespace ecs::detail {
                 auto curr_range = ranges.begin();
                 for (auto const& remove : removes) {
                     // Step forward until a candidate range is found
-                    //while (!curr_range->contains(remove) && curr_range != ranges.end()) {
                     while (*curr_range < remove && curr_range != ranges.end()) {
                         ++curr_range;
                     }
