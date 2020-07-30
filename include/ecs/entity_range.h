@@ -5,7 +5,6 @@
 #include <limits>
 #include <optional>
 #include <span>
-#include <concepts>
 
 #include "detail/contract.h"
 #include "entity_id.h"
@@ -27,7 +26,7 @@ namespace ecs {
             Expects(first <= last);
         }
 
-        template<std::copyable Component>
+        template<typename Component>
         [[nodiscard]] std::span<Component> get() const {
             return std::span(get_component<Component>(first_), count());
         }
