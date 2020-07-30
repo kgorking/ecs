@@ -6,7 +6,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <chrono>
 
 #include "../entity_id.h"
 #include "../entity_range.h"
@@ -18,6 +17,7 @@
 #include "../options.h"
 #include "options.h"
 
+#include "frequency_limiter.h"
 
 namespace ecs::detail {
     template<typename T>
@@ -103,32 +103,6 @@ namespace ecs::detail {
     template<class FirstComponent, class... Components>
     using tup_pools = std::conditional_t<is_entity<FirstComponent>,
         std::tuple<pool<Components>...>, std::tuple<pool<FirstComponent>, pool<Components>...>>;
-
-    // microsecond precision
-	template<size_t hz>
-	struct frequency_tester {
-        using clock = std::chrono::high_resolution_clock;
-
-        bool can_run() {
-            using namespace std::chrono_literals;
-
-            if constexpr (hz == 0)
-                return true;
-            else {
-                auto const now = clock::now();
-                auto const diff = now - time;
-                if (diff >= (1'000'000us / hz)) {
-                    time = now;
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-		}
-
-	private:
-        clock::time_point time = clock::now();
-	};
 
     // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
     template<class Options, typename UpdateFn, typename SortFn, class FirstComponent,
@@ -335,7 +309,7 @@ namespace ecs::detail {
         argument_builder arguments;
 
         using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
-        frequency_tester<user_freq::hz> frequency;
+        frequency_limiter<user_freq::hz> frequency;
 
     public:
         // Constructor for when the first argument to the system is _not_ an entity
