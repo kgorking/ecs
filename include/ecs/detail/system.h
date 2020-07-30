@@ -131,7 +131,8 @@ namespace ecs::detail {
             // Call the system for all the components that match the system signature
             for (auto const& argument : arguments) {
                 auto const& range = std::get<entity_range>(argument);
-                std::for_each(execution_policy{}, range.begin(), range.end(),
+                auto const e_p = execution_policy{};
+                std::for_each(e_p, range.begin(), range.end(),
                     [this, &argument, first_id = range.first()](auto ent) {
                         auto const offset = ent - first_id;
                         if constexpr (is_entity<FirstComponent>) {
