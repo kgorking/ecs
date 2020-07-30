@@ -25,7 +25,7 @@ namespace ecs {
         static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
 
         auto const adder = []<class Type>(entity_range const range, Type&& val) {
-            if constexpr (std::is_invocable_v<Type, entity_id>) {
+            if constexpr (std::is_invocable_v<Type, entity_id> && !detail::unbound<Type>) {
                 // Return type of 'func'
                 using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
                 static_assert(!std::is_same_v<ComponentType, void>,

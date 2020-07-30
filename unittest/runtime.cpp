@@ -53,7 +53,7 @@ TEST_CASE("The runtime interface") {
         // Add a system-less component to an entity
         ecs::add_component(0, S{0});
         ecs::commit_changes();
-        REQUIRE(ecs::get_component_count<S>() == 1);
+        CHECK(ecs::get_component_count<S>() == 1);
     }
 
     SECTION("Supports mutable lambdas") {
