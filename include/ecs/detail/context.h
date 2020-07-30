@@ -84,9 +84,7 @@ namespace ecs::detail {
         auto& get_component_pool() {
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
-            using NakedType = std::remove_pointer_t<std::remove_cvref_t<T>>;
-
-            constexpr auto hash = get_type_hash<NakedType>();
+            constexpr auto hash = get_type_hash<std::remove_pointer_t<std::remove_cvref_t<T>>>();
             auto pool = cache.get_or(hash, [this](type_hash hash) {
                 std::shared_lock lock(mutex);
 
@@ -97,14 +95,14 @@ namespace ecs::detail {
                     // create_component_pool takes a unique lock, so unlock the
                     // shared lock during its call
                     lock.unlock();
-                    return create_component_pool<NakedType>();
+                    return create_component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>();
                 }
                 else {
                     return it->second;
                 }
             });
 
-            return *static_cast<component_pool<NakedType>*>(pool);
+            return *static_cast<component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>*>(pool);
         }
 
         // Const lambda with sort
