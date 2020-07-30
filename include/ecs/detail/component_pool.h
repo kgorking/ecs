@@ -397,10 +397,13 @@ namespace ecs::detail {
                     }
                 });
                 combine_erase(inits, [](entity_init& a, entity_init const& b) {
-                    auto& [a_rng, a_data] = a;
-                    auto& [b_rng, b_data] = b;
+                    auto a_rng = std::get<0>(a);
+                    auto b_rng = std::get<0>(b);
 
-                    if (a_rng.can_merge(b_rng) && (a_data.template target<T(entity_id)>() ==  b_data.template target<T(entity_id)>())) {
+                    auto const a_func = std::get<1>(a);
+                    auto const b_func = std::get<1>(b);
+
+                    if (a_rng.can_merge(b_rng) && (a_func.template target<T(entity_id)>() ==  b_func.template target<T(entity_id)>())) {
                         a_rng = entity_range::merge(a_rng, b_rng);
                         return true;
                     } else {
