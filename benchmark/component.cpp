@@ -139,8 +139,11 @@ void component_randomized_remove(benchmark::State& state) {
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::detail::_context.reset();
-        ecs::add_component({0, nentities}, int{});
+
+        state.PauseTiming();
+        ecs::add_component({0, nentities-1}, int{});
         ecs::commit_changes();
+        state.ResumeTiming();
 
         for (auto id : ids) {
             ecs::remove_component<int>(id);

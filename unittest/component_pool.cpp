@@ -41,12 +41,15 @@ TEST_CASE("Component pool specification", "[component]") {
     SECTION("An empty pool") {
         ecs::detail::component_pool<int> pool;
 
-        SECTION("does not throw on bad remove") {
+        // It won't throw, it will terminate
+        /*SECTION("does not throw on bad remove") {
             pool.remove(0);
             pool.process_changes();
             SUCCEED();
+        }*/
+        SECTION("does not throw on bad component access") {
+            CHECK(nullptr == pool.find_component_data(0));
         }
-        SECTION("does not throw on bad component access") { CHECK(nullptr == pool.find_component_data(0)); }
         SECTION("grows when data is added to it") {
             pool.add({0, 4}, 0);
             pool.process_changes();
@@ -131,6 +134,15 @@ TEST_CASE("Component pool specification", "[component]") {
             REQUIRE(pool.num_components() == 9);
             for (int i = 0; i <= 3; i++) { REQUIRE(i == *pool.find_component_data(i)); }
             for (int i = 6; i <= 10; i++) { REQUIRE(i == *pool.find_component_data(i)); }
+        }
+
+        SECTION("piecewise does not invalidate other components") {
+            pool.remove_range({10, 10});
+            pool.remove_range({9, 9});
+            pool.process_changes();
+
+            REQUIRE(pool.num_components() == 9);
+            for (int i = 0; i <= 8; i++) { REQUIRE(i == *pool.find_component_data(i)); }
         }
     }
 

@@ -94,16 +94,7 @@ namespace ecs::detail {
         // Remove an entity from the component pool. This logically removes the component from the
         // entity.
         void remove_range(entity_range const range) {
-            if (!has_entity(range)) {
-                return;
-            }
-
-            auto& rem = deferred_removes.local();
-            if (!rem.empty() && rem.back().can_merge(range)) {
-                rem.back() = entity_range::merge(rem.back(), range);
-            } else {
-                rem.push_back(range);
-            }
+            deferred_removes.local().push_back(range);
         }
 
         // Returns an entities component.
@@ -488,15 +479,25 @@ namespace ecs::detail {
                 deferred_removes.clear();
 
                 // Sort it if needed
-                if (!std::is_sorted(removes.begin(), removes.end())) {
+                if (!std::is_sorted(removes.begin(), removes.end()))
                     std::sort(removes.begin(), removes.end());
-                }
 
                 // An entity can not have more than one of the same component
                 auto const has_duplicate_entities = [](auto const& vec) {
                     return vec.end() != std::adjacent_find(vec.begin(), vec.end());
                 };
                 Expects(false == has_duplicate_entities(removes));
+
+                // Merge adjacent ranges
+                auto const combiner = [](auto& a, auto const& b) {
+                    if (a.can_merge(b)) {
+                        a = entity_range::merge(a, b);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                };
+                combine_erase(removes, combiner);
 
                 // Remove the components
                 if constexpr (!unbound<T>) {
@@ -509,10 +510,9 @@ namespace ecs::detail {
                     if (dest_it == components.begin() && from_it == components.end()) {
                         components.clear();
                     } else {
-                        // Move components between the ranges
+                        // Move components inbetween the ranges
                         for (auto it = removes.cbegin() + 1; it != removes.cend(); ++it) {
                             index = find_entity_index(it->first());
-                            Expects(index.has_value());
 
                             auto const last_it = components.begin() + index.value();
                             auto const dist = std::distance(from_it, last_it);
@@ -523,10 +523,13 @@ namespace ecs::detail {
                         // Move rest of components
                         auto const dist = std::distance(from_it, components.end());
                         std::move(from_it, components.end(), dest_it);
-                        dest_it += dist;
 
                         // Erase the unused space
-                        components.erase(dest_it, components.end());
+                        if (dest_it + dist != components.end()) {
+                            components.erase(dest_it + dist, components.end());
+                        } else {
+                            components.erase(dest_it, components.end());
+                        }
                     }
                 }
 
@@ -534,13 +537,16 @@ namespace ecs::detail {
                 auto curr_range = ranges.begin();
                 for (auto const& remove : removes) {
                     // Step forward until a candidate range is found
-                    while (!curr_range->contains(remove) && curr_range != ranges.end()) {
+                    //while (!curr_range->contains(remove) && curr_range != ranges.end()) {
+                    while (*curr_range < remove && curr_range != ranges.end()) {
                         ++curr_range;
                     }
 
                     if (curr_range == ranges.end()) {
                         break;
                     }
+
+                    Expects(curr_range->contains(remove));
 
                     // Erase the current range if it equals the range to be removed
                     if (curr_range->equals(remove)) {
