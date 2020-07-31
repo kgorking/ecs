@@ -13,30 +13,35 @@ jobs:
         - {
             name: "Windows Latest MSVC",
             os: windows-latest,
-            build_type: "Release", cc: "cl", cxx: "cl",
+            build_type: "Release",
+            cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
         - {
             name: "Windows using clang",
             os: windows-latest,
-            build_type: "Release", cc: "clang-cl", cxx: "clang-cl",
+            build_type: "Release",
+            cc: "clang_cl", cxx: "clang_cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
-        - {
-            name: "Windows Latest MinGW",
-            os: windows-latest,
-            build_type: "Release", cc: "gcc", cxx: "g++"
-          }
-        - {
-            name: "Ubuntu Latest GCC",
-            os: ubuntu-latest,
-            build_type: "Release", cc: "gcc", cxx: "g++"
-          }
-        - {
-            name: "macOS Latest Clang",
-            os: macos-latest,
-            build_type: "Release", cc: "clang", cxx: "clang++"
-          }
+#        - {
+#            name: "Windows Latest MinGW",
+#            os: windows-latest,
+#            build_type: "Release",
+#            cc: "gcc", cxx: "g++"
+#          }
+#        - {
+#            name: "Ubuntu Latest GCC",
+#            os: ubuntu-latest,
+#            build_type: "Release",
+#            cc: "gcc", cxx: "g++"
+#          }
+#        - {
+#            name: "macOS Latest Clang",
+#            os: macos-latest,
+#            build_type: "Release",
+#            cc: "clang", cxx: "clang++"
+#          }
 
     steps:
     - uses: actions/checkout@v1
