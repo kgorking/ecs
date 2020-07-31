@@ -35,6 +35,9 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
+    - name: Checkout submodules
+      run: git submodule update --init --recursive --remote
+      
     - name: Download Ninja and CMake
       id: cmake_and_ninja
       shell: cmake -P {0}
