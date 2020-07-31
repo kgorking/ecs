@@ -25,7 +25,7 @@ jobs:
 
     # Pull the submodules
     - name: Checkout submodules
-      run: git submodule update --init --recursive
+      uses: textbook/git-checkout-submodule-action@2.1.1
 
     # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
     - name: Setup MSBuild.exe
