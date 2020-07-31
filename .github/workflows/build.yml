@@ -21,7 +21,7 @@ jobs:
             name: "Windows using clang",
             os: windows-latest,
             build_type: "Release",
-            cc: "clang", cxx: "clang",
+            cc: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe", cxx: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
 #        - {
@@ -79,12 +79,6 @@ jobs:
         set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-${cmake_suffix}")
         file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
         execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./cmake.zip)
-
-        if ("${{ runner.os }}" STREQUAL "Windows" AND NOT "${{ runner.cc }}" STREQUAL "cl")
-            set(llvm_url "https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/LLVM-10.0.0-win64.exe")
-            file(DOWNLOAD "${llvm_url}" ./llvm.exe SHOW_PROGRESS)
-            execute_process(COMMAND ./llvm.exe /S)
-        endif()
 
         # Save the path for other steps
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)
