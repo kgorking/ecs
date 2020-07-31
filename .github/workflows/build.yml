@@ -21,7 +21,7 @@ jobs:
             name: "Windows using clang",
             os: windows-latest,
             build_type: "Release",
-            cc: "clang_cl", cxx: "clang_cl",
+            cc: "clang-cl.exe", cxx: "clang-cl.exe",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
 #        - {
