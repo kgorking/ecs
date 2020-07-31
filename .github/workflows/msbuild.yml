@@ -44,3 +44,5 @@ jobs:
     # Execute all unit tests in the solution
     - name: Execute unit tests
       run: ./build/unittest/$env:Configuration/unittests.exe
+      env:
+        Configuration: ${{ matrix.configuration }}
