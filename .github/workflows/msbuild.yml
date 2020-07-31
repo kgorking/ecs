@@ -43,4 +43,4 @@ jobs:
 
     # Execute all unit tests in the solution
     - name: Execute unit tests
-      run: build/unittests/$env:Configuration/unittests.exe
+      run: ./build/unittest/$env:Configuration/unittests.exe
