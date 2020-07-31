@@ -2,7 +2,7 @@
 #define __ENTITY_ITERATOR
 
 #include "contract.h"
-#include "entity_id.h"
+#include "../entity_id.h"
 #include <iterator>
 #include <limits>
 
