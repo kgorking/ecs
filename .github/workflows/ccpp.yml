@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Build ecs for linux
 
 on:
   push:
@@ -13,9 +13,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Update submodules
-      run: git submodule update --init --recursive
+      run: git submodule update --init --recursive --remote
+
     - name: Run cmake
       run: cmake -S . -B build
+
     - name: Run make
       run: cd build && make
+
+    - name: Run unittests
+      run: cd build && unittests
