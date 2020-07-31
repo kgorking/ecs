@@ -18,7 +18,7 @@ jobs:
       run: git submodule update --init --recursive --remote
 
     - name: Run cmake
-      run: cmake -D CMAKE_CXX_COMPILER=g++-10.1 -S . -B build
+      run: cmake -D CMAKE_CXX_COMPILER=/usr/bin/g++-10.1 -S . -B build
 
     - name: Run make
       run: cd build && make
