@@ -21,7 +21,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        fetch-depth: 1
+        fetch-depth: 0
 
     # Pull the submodules
     - name: Checkout submodules
@@ -43,6 +43,6 @@ jobs:
 
     # Execute all unit tests in the solution
     - name: Execute unit tests
-      run: ./build/unittest/$env:Configuration/unittests.exe
+      run: cd build/unittest/$env:Configuration && unittests.exe
       env:
         Configuration: ${{ matrix.configuration }}
