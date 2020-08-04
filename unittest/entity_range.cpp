@@ -10,6 +10,7 @@ TEST_CASE("entity_range ", "[entity]") {
         int64_t counter = 0;
         for (auto const ent : r)
             // end iterator becomes max+1, which is the same as std::numeric_limits<ecs::entity_type>::min()
+            (void) ent;
             counter++;
         REQUIRE(counter == 2);
     }
