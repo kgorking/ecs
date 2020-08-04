@@ -95,7 +95,7 @@ jobs:
     - name: Update MingW
       shell: cmake -P {0}
       run: |
-        if ("${{ runner.os }}" STREQUAL "windows-latest" AND "${{ runner.cc }}" STREQUAL "gcc")
+        if ("${{ runner.name }}" STREQUAL "Windows - GCC")
           execute_process(COMMAND ${CMAKE_COMMAND} -E choco upgrade mingw)
         endif()
 
