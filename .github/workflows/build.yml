@@ -93,11 +93,7 @@ jobs:
         endif()
 
     - name: Update MingW
-      shell: cmake -P {0}
-      run: |
-        if ("${{ runner.name }}" STREQUAL "Windows - GCC")
-          execute_process(COMMAND ${CMAKE_COMMAND} -E choco upgrade mingw)
-        endif()
+      run: choco upgrade mingw
 
     - name: Configure
       shell: cmake -P {0}
