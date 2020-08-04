@@ -47,13 +47,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: Update MingW
-      shell: cmake -P {0}
-      run: |
-        if ("${{ runner.os }}" STREQUAL "Windows" AND "${{ runner.cc }}" STREQUAL "gcc")
-          execute_process(COMMAND ${CMAKE_COMMAND} -E choco upgrade mingw)
-        endif()
-
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
 
@@ -97,6 +90,13 @@ jobs:
             COMMAND chmod +x ninja
             COMMAND chmod +x ${cmake_dir}/cmake
           )
+        endif()
+
+    - name: Update MingW
+      shell: cmake -P {0}
+      run: |
+        if ("${{ runner.os }}" STREQUAL "windows-latest" AND "${{ runner.cc }}" STREQUAL "gcc")
+          execute_process(COMMAND ${CMAKE_COMMAND} -E choco upgrade mingw)
         endif()
 
     - name: Configure
