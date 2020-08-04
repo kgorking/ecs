@@ -45,6 +45,9 @@ jobs:
 #          }
 
     steps:
+    - name: Update MingW
+      run: Mingw-w64 update && mingw-get upgrade
+
     - uses: actions/checkout@v1
 
     - name: Checkout submodules
@@ -91,9 +94,6 @@ jobs:
             COMMAND chmod +x ${cmake_dir}/cmake
           )
         endif()
-
-    - name: Update MingW
-      run: choco upgrade mingw
 
     - name: Configure
       shell: cmake -P {0}
