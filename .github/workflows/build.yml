@@ -4,6 +4,14 @@ on: [push]
 
 jobs:
   build:
+    runs-on: [ubuntu-latest]
+    steps:
+    - name: gcc
+      run: |
+        gcc --version
+      shell: bash
+      
+  build:
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
     strategy:
@@ -45,6 +53,8 @@ jobs:
 #          }
 
     steps:
+    - name: update
+      
     - uses: actions/checkout@v1
 
     - name: Checkout submodules
@@ -75,11 +85,11 @@ jobs:
 
         set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-${ninja_suffix}")
         file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ninja.zip)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
 
         set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-${cmake_suffix}")
         file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./cmake.zip)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./cmake.zip)
 
         # Save the path for other steps
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)
