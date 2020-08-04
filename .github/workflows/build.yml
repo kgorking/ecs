@@ -46,9 +46,8 @@ jobs:
 
     steps:
     - name: gcc
-      if: ${{ runner.os == 'Linux' }}
+      if: ${{ matrix.config.os == 'Linux' }}
       run: gcc --version
-      shell: bash
       
     - uses: actions/checkout@v1
 
