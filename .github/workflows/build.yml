@@ -45,7 +45,7 @@ jobs:
 #          }
 
     steps:
-    - name: Update gcc
+    - name: Update to gcc 10
       if: ${{ runner.os == 'Linux' }}
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
