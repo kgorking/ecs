@@ -46,7 +46,7 @@ jobs:
 
     steps:
     - name: Update MingW
-      run: Mingw-w64 update && mingw-get upgrade
+      run: mingw-get update && mingw-get upgrade
 
     - uses: actions/checkout@v1
 
