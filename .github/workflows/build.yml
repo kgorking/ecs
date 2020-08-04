@@ -47,15 +47,15 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: git mingw-w64-x86_64-toolchain
+    - name: Update MingW
+      run: |
+        if ("${{ runner.os }}" STREQUAL "Windows" AND "${{ runner.cc }}" STREQUAL "gcc")
+          execute_process(COMMAND ${CMAKE_COMMAND} -E choco upgrade mingw)
+        endif()
 
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
-      
+
     - name: Download Ninja and CMake
       id: cmake_and_ninja
       shell: cmake -P {0}
