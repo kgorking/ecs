@@ -25,12 +25,12 @@ jobs:
             cxx: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
-#        - {
-#            name: "Windows Latest MinGW",
-#            os: windows-latest,
-#            build_type: "Release",
-#            cc: "gcc", cxx: "g++"
-#          }
+        - {
+            name: "Windows Latest MinGW",
+            os: windows-latest,
+            build_type: "Release",
+            cc: "gcc", cxx: "g++"
+          }
 #        - {
 #            name: "Ubuntu Latest GCC",
 #            os: ubuntu-latest,
@@ -91,6 +91,13 @@ jobs:
             COMMAND chmod +x ${cmake_dir}/cmake
           )
         endif()
+
+        # Update MingW
+        #if ("${{ runner.os }}" STREQUAL "Windows" AND NOT "x${{ matrix.config.environment_script }}" STREQUAL "x")
+        #  set(mingw_url "https://netix.dl.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-release/mingw-w64-v7.0.0.zip")
+        #  file(DOWNLOAD "${mingw_url}" ./mingw.zip SHOW_PROGRESS)
+        #  execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./mingw.zip)
+        #endif()
 
     - name: Configure
       shell: cmake -P {0}
