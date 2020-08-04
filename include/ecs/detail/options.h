@@ -34,19 +34,23 @@ namespace ecs::detail {
         template<template<class O> class Tester, class TupleOptions, class NotFoundType = void>
         constexpr auto test_option() {
             auto constexpr option_index_finder = [](auto... options) -> int {
-                int index = -1;
-                int counter = 0;
+                if constexpr (sizeof...(options) == 0) {
+                    return -1;
+                } else {
+                    int index = -1;
+                    int counter = 0;
 
-                auto x = [&](auto opt) {
-                    if (index == -1 && Tester<decltype(opt)>::value)
-                        index = counter;
-                    else
-                        counter += 1;
-                };
+                    auto x = [&](auto opt) {
+                        if (index == -1 && Tester<decltype(opt)>::value)
+                            index = counter;
+                        else
+                            counter += 1;
+                    };
 
-                (..., x(options));
+                    (..., x(options));
 
-                return index;
+                    return index;
+                }
             };
 
             constexpr int option_index = std::apply(option_index_finder, TupleOptions{});
