@@ -569,6 +569,6 @@ namespace ecs::detail {
             }
         }
     };
-}; // namespace ecs::detail
+} // namespace ecs::detail
 
 #endif // !__COMPONENT_POOL
