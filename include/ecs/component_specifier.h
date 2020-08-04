@@ -43,7 +43,7 @@ namespace ecs {
 // 	// component data
 // };
 #define ecs_flags(...)                                                                                                 \
-    struct _ecs_flags : __VA_ARGS__ {};
+    struct _ecs_flags : __VA_ARGS__ {}
 
     namespace detail {
         // Some helpers
