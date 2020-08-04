@@ -62,7 +62,7 @@ namespace ecs::detail {
             T* ptr = std::get<T*>(tuple);
             return *(ptr + offset);
         }
-    };
+    }
 
     // Gets the type a sorting functions operates on.
     // Has to be outside of system or clang craps itself
