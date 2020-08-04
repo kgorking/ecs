@@ -38,16 +38,13 @@ namespace ecs::detail {
             } else {
                 auto constexpr option_index_finder = [](auto... options) -> int {
                     int index = -1;
-                    int counter = 0;
 
-                    auto x = [&](auto opt) {
+                    (..., [&, counter = 0](auto opt) mutable {
                         if (index == -1 && Tester<decltype(opt)>::value)
                             index = counter;
                         else
                             counter += 1;
-                    };
-
-                    (..., x(options));
+                    }(options));
 
                     return index;
                 };
