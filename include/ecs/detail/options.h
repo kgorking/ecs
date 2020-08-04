@@ -34,7 +34,7 @@ namespace ecs::detail {
         template<template<class O> class Tester, class TupleOptions, class NotFoundType = void>
         constexpr auto test_option() {
             if constexpr (std::tuple_size_v<TupleOptions> == 0) {
-                return false;
+                return (NotFoundType*) 0;
             } else {
                 auto constexpr option_index_finder = [](auto... options) -> int {
                     int index = -1;
