@@ -4,14 +4,6 @@ on: [push]
 
 jobs:
   build:
-    runs-on: [ubuntu-latest]
-    steps:
-    - name: gcc
-      run: |
-        gcc --version
-      shell: bash
-      
-  build:
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
     strategy:
@@ -53,7 +45,10 @@ jobs:
 #          }
 
     steps:
-    - name: update
+    - name: gcc
+      if: ${{ runner.os == 'Linux' }}
+      run: gcc --version
+      shell: bash
       
     - uses: actions/checkout@v1
 
