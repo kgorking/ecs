@@ -35,7 +35,7 @@ jobs:
             name: "Linux - GCC 10.1",
             os: ubuntu-latest,
             build_type: "Release",
-            cc: "/usr/bin/gcc-10.1", cxx: "/usr/bin/g++-10.1"
+            cc: "/usr/bin/gcc-10", cxx: "/usr/bin/g++-10"
           }
 #        - {
 #            name: "macOS Latest Clang",
@@ -50,7 +50,7 @@ jobs:
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt install gcc-10 g++-10
-        /usr/bin/g++-10.1 --version
+        /usr/bin/g++-10 --version
       shell: bash
       
     - uses: actions/checkout@v1
