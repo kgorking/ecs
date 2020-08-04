@@ -10,26 +10,26 @@ jobs:
       fail-fast: false
       matrix:
         config:
+#        - {
+#            name: "Windows - MSVC",
+#            os: windows-latest,
+#            build_type: "Release",
+#            cc: "cl", cxx: "cl",
+#            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+#          }
+#        - {
+#            name: "Windows - Clang",
+#            os: windows-latest,
+#            build_type: "Release",
+#            cc: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
+#            cxx: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
+#            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+#          }
         - {
-            name: "Windows Latest MSVC",
+            name: "Windows - GCC",
             os: windows-latest,
             build_type: "Release",
-            cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
-          }
-        - {
-            name: "Windows using clang",
-            os: windows-latest,
-            build_type: "Release",
-            cc: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
-            cxx: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
-          }
-        - {
-            name: "Windows Latest MinGW",
-            os: windows-latest,
-            build_type: "Release",
-            cc: "gcc", cxx: "g++"
+            cc: "gcc-10.1", cxx: "g++-10.1"
           }
 #        - {
 #            name: "Ubuntu Latest GCC",
