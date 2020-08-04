@@ -32,10 +32,10 @@ jobs:
 #            cc: "gcc", cxx: "g++"
 #          }
         - {
-            name: "Linux - GCC",
+            name: "Linux - GCC 10.1",
             os: ubuntu-latest,
             build_type: "Release",
-            cc: "gcc", cxx: "g++"
+            cc: "/usr/bin/gcc-10.1", cxx: "/usr/bin/g++-10.1"
           }
 #        - {
 #            name: "macOS Latest Clang",
@@ -45,9 +45,14 @@ jobs:
 #          }
 
     steps:
-    - name: gcc
+    - name: Update gcc
       if: ${{ runner.os == 'Linux' }}
-      run: gcc --version
+      run: |
+        sudo apt install software-properties-common
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt install gcc-10.1 g++-10.1
+        /usr/bin/g++-10.1 --version
+      shell: bash
       
     - uses: actions/checkout@v1
 
