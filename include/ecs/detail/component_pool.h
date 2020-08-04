@@ -334,8 +334,13 @@ namespace ecs::detail {
                     auto a_rng = std::get<0>(a);
                     auto const b_rng = std::get<0>(b);
 
+                    #ifdef __clang__
                     auto a_func = std::get<1>(a);
                     auto b_func = std::get<1>(b);
+                    #else
+                    auto const a_func = std::get<1>(a);
+                    auto const b_func = std::get<1>(b);
+                    #endif
 
                     if (a_rng.can_merge(b_rng) && (a_func.template target<T(entity_id)>() ==  b_func.template target<T(entity_id)>())) {
                         a_rng = entity_range::merge(a_rng, b_rng);
