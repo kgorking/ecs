@@ -48,6 +48,7 @@ jobs:
     - uses: actions/checkout@v1
 
     - name: Update MingW
+      shell: cmake -P {0}
       run: |
         if ("${{ runner.os }}" STREQUAL "Windows" AND "${{ runner.cc }}" STREQUAL "gcc")
           execute_process(COMMAND ${CMAKE_COMMAND} -E choco upgrade mingw)
