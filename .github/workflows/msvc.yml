@@ -21,6 +21,8 @@ jobs:
         set(cmake_version "3.16.2")
         
         message(STATUS "Using host CMake version: ${CMAKE_VERSION}")
+        message(STATUS "Host ninja version: ")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E ninja --version)
 
         set(cmake_dir "cmake-${cmake_version}-win64-x64/bin")
 
