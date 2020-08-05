@@ -25,12 +25,12 @@ jobs:
             cxx: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
-        - {
-            name: "Windows Latest MinGW",
-            os: windows-latest,
-            build_type: "Release",
-            cc: "gcc", cxx: "g++"
-          }
+#        - {
+#            name: "Windows Latest MinGW",
+#            os: windows-latest,
+#            build_type: "Release",
+#            cc: "gcc", cxx: "g++"
+#          }
         - {
             name: "Linux - GCC 10.1",
             os: ubuntu-latest,

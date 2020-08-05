@@ -37,9 +37,9 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 
 # Building (checked july 30. 2020)
-![Windows - MSVC](https://github.com/kgorking/ecs/workflows/Windows%20-%20MSVC/badge.svg)
-![Windows - Clang](https://github.com/kgorking/ecs/workflows/Windows%20-%20Clang/badge.svg)
-![Linux - GCC 10.1](https://github.com/kgorking/ecs/workflows/Linux%20-%20GCC%2010.1/badge.svg)
+The CI build status for msvc, clang 12, and gcc 10.1 is currently:
+
+![build status](https://github.com/kgorking/ecs/workflows/CMake%20Build%20Matrix/badge.svg)
 
 [Compiler explorer test link](https://godbolt.org/z/q81E5z)
 * MSVC 16.6+ (v14.26) will compile this library with no problems.
