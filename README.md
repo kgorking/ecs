@@ -37,9 +37,13 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 
 # Building (checked july 30. 2020)
+![Windows - MSVC](https://github.com/kgorking/ecs/workflows/Windows%20-%20MSVC/badge.svg)
+![Windows - Clang](https://github.com/kgorking/ecs/workflows/Windows%20-%20Clang/badge.svg)
+![Linux - GCC 10.1](https://github.com/kgorking/ecs/workflows/Linux%20-%20GCC%2010.1/badge.svg)
+
 [Compiler explorer test link](https://godbolt.org/z/q81E5z)
 * MSVC 16.6+ (v14.26) will compile this library with no problems.
-* GCC 10.2 compiles it, after much tweaking.
+* GCC 10.1 compiles it, after much tweaking.
 * Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` and `<span>` header.
 
 # Table of Contents
