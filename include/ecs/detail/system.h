@@ -62,7 +62,7 @@ namespace ecs::detail {
             T* ptr = std::get<T*>(tuple);
             return *(ptr + offset);
         }
-    };
+    }
 
     // Gets the type a sorting functions operates on.
     // Has to be outside of system or clang craps itself
@@ -238,10 +238,7 @@ namespace ecs::detail {
         using single_argument =
             decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
 
-        template<class F>
-        using sort_func_type = typename decltype(get_sort_func_type_impl(&F::operator()))::type;
-
-        using sort_type = sort_func_type<SortFn>;
+        using sort_type = typename decltype(get_sort_func_type_impl(&SortFn::operator()))::type;
         static_assert(std::predicate<SortFn, sort_type, sort_type>, "Sorting function is not a predicate");
 
         // A tuple of the fully typed component pools used by this system
