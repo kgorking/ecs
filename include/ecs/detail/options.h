@@ -33,51 +33,56 @@ namespace ecs::detail {
         // A detector that applies Tester to each option.
         template<template<class O> class Tester, class TupleOptions, class NotFoundType = void>
         constexpr auto test_option() {
-            auto constexpr option_index_finder = [](auto... options) -> int {
-                int index = -1;
-                int counter = 0;
+            if constexpr (std::tuple_size_v<TupleOptions> == 0) {
+                return (NotFoundType*) 0;
+            } else {
+                auto constexpr option_index_finder = [](auto... options) -> int {
+                    int index = -1;
 
-                auto x = [&](auto opt) {
-                    if (index == -1 && Tester<decltype(opt)>::value)
-                        index = counter;
-                    else
-                        counter += 1;
+                    (..., [&, counter = 0](auto opt) mutable {
+                        if (index == -1 && Tester<decltype(opt)>::value)
+                            index = counter;
+                        else
+                            counter += 1;
+                    }(options));
+
+                    return index;
                 };
 
-                (..., x(options));
-
-                return index;
-            };
-
-            constexpr int option_index = std::apply(option_index_finder, TupleOptions{});
-            if constexpr (option_index != -1) {
-                using opt_type = std::tuple_element_t<option_index, TupleOptions>;
-                return (opt_type*) 0;
-            } else {
-                return (NotFoundType*) 0;
+                constexpr int option_index = std::apply(option_index_finder, TupleOptions{});
+                if constexpr (option_index != -1) {
+                    using opt_type = std::tuple_element_t<option_index, TupleOptions>;
+                    return (opt_type*) 0;
+                } else {
+                    return (NotFoundType*) 0;
+                }
             }
         }
 
-        template<class Option, class TupleOptions, class NotFoundType = void>
+        template<class Option, class TupleOptions>
         constexpr bool has_option() {
-            auto constexpr option_index_finder = [](auto... options) -> int {
-                int index = -1;
-                int counter = 0;
+            if constexpr (std::tuple_size_v<TupleOptions> == 0) {
+                return false;
+            } else {
+                auto constexpr option_index_finder = [](auto... options) -> int {
+                    int index = -1;
+                    int counter = 0;
 
-                auto x = [&](auto opt) {
-                    if (index == -1 && std::is_same_v<Option, decltype(opt)>)
-                        index = counter;
-                    else
-                        counter += 1;
+                    auto x = [&](auto opt) {
+                        if (index == -1 && std::is_same_v<Option, decltype(opt)>)
+                            index = counter;
+                        else
+                            counter += 1;
+                    };
+
+                    (..., x(options));
+
+                    return index;
                 };
 
-                (..., x(options));
-
-                return index;
-            };
-
-            constexpr int option_index = std::apply(option_index_finder, TupleOptions{});
-            return option_index != -1;
+                constexpr int option_index = std::apply(option_index_finder, TupleOptions{});
+                return option_index != -1;
+            }
         }
     } // namespace detect
 

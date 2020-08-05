@@ -34,7 +34,7 @@ namespace ecs {
         // Uses O(1) memory instead of O(n).
         // Mutually exclusive with 'tag', 'share', and 'transient'
         struct global{};
-    };
+    }
 
 // Add flags to a component to change its behaviour and memory usage.
 // Example:
@@ -43,7 +43,7 @@ namespace ecs {
 // 	// component data
 // };
 #define ecs_flags(...)                                                                                                 \
-    struct _ecs_flags : __VA_ARGS__ {};
+    struct _ecs_flags : __VA_ARGS__ {}
 
     namespace detail {
         // Some helpers

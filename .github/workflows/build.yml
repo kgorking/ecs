@@ -10,33 +10,33 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {
-            name: "Windows Latest MSVC",
-            os: windows-latest,
-            build_type: "Release",
-            cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
-          }
-        - {
-            name: "Windows using clang",
-            os: windows-latest,
-            build_type: "Release",
-            cc: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
-            cxx: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
-          }
+#        - {
+#            name: "Windows - MSVC",
+#            os: windows-latest,
+#            build_type: "Release",
+#            cc: "cl", cxx: "cl",
+#            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+#          }
+#        - {
+#            name: "Windows - Clang",
+#            os: windows-latest,
+#            build_type: "Release",
+#            cc: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
+#            cxx: "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"",
+#            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+#          }
 #        - {
 #            name: "Windows Latest MinGW",
 #            os: windows-latest,
 #            build_type: "Release",
 #            cc: "gcc", cxx: "g++"
 #          }
-#        - {
-#            name: "Ubuntu Latest GCC",
-#            os: ubuntu-latest,
-#            build_type: "Release",
-#            cc: "gcc", cxx: "g++"
-#          }
+        - {
+            name: "Linux - GCC 10.1",
+            os: ubuntu-latest,
+            build_type: "Release",
+            cc: "/usr/bin/gcc-10", cxx: "/usr/bin/g++-10"
+          }
 #        - {
 #            name: "macOS Latest Clang",
 #            os: macos-latest,
@@ -45,6 +45,14 @@ jobs:
 #          }
 
     steps:
+    - name: Update to gcc 10
+      if: ${{ runner.os == 'Linux' }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt install gcc-10 g++-10
+        /usr/bin/g++-10 --version
+      shell: bash
+      
     - uses: actions/checkout@v1
 
     - name: Checkout submodules
@@ -75,11 +83,11 @@ jobs:
 
         set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-${ninja_suffix}")
         file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ninja.zip)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
 
         set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-${cmake_suffix}")
         file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./cmake.zip)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./cmake.zip)
 
         # Save the path for other steps
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)

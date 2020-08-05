@@ -2,7 +2,7 @@
 #include <ecs/ecs.h>
 #include <functional>
 
-int generator(ecs::entity_id) { return rand() % 9; };
+int generator(ecs::entity_id) { return rand() % 9; }
 
 TEST_CASE("Sorting") {
     ecs::detail::_context.reset();
