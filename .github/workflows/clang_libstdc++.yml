@@ -33,10 +33,12 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/clang-10 -stdlib=libstdc++")
-        set(ENV{CXX} "/usr/bin/clang++-10 -stdlib=libstdc++")
+        set(ENV{CC} "/usr/bin/clang-10")
+        set(ENV{CXX} "/usr/bin/clang++-10")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
+
+        set(STDLIB "-stdlib=libstdc++")
 
         execute_process(
           COMMAND cmake

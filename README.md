@@ -46,9 +46,9 @@ The CI build status for msvc, clang 12, and gcc 10.1 is currently:
 * ![gcc 10.1](https://github.com/kgorking/ecs/workflows/gcc%2010.1/badge.svg?branch=split_ci_builds)
 * ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg?branch=split_ci_builds)
 * ![clang 10 libc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libc++/badge.svg?branch=split_ci_builds)
-  * `libc++` still has no parallel stl implementation.
+  * `libc++` is missing `<concepts>` and the parallel stl implementation.
 * ![clang 10 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libstdc++/badge.svg?branch=split_ci_builds)
-  * `libstdc++` is missing the `<concepts>` and `<span>` header.
+  * `libstdc++` is missing the `<span>` header.
 
 # Table of Contents
 - [Entities](#entities)
