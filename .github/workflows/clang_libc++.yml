@@ -7,12 +7,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install clang 10 and update libc++
+    - name: Install clang 10
       run: |
-        sudo apt remove libc++
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt install clang-10
-        sudo apt install libc++
         /usr/bin/clang++-10 --version
       shell: bash
       
