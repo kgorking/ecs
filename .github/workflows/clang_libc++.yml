@@ -9,7 +9,6 @@ jobs:
     steps:
     - name: Install clang 10 and update libc++
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt install clang-10
         sudo apt upgrade libc++
         /usr/bin/clang++-10 --version
