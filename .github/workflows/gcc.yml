@@ -19,8 +19,7 @@ jobs:
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
       
-    - name: Download Ninja and CMake
-      id: cmake_and_ninja
+    - name: Download Ninja
       shell: cmake -P {0}
       run: |
         set(ninja_version "1.9.0")
@@ -31,13 +30,13 @@ jobs:
 
         execute_process(COMMAND chmod +x ninja)
 
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
+
     - name: Configure
       shell: cmake -P {0}
       run: |
         set(ENV{CC} "/usr/bin/gcc-10")
         set(ENV{CXX} "/usr/bin/g++-10")
-
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
         execute_process(
           COMMAND cmake
@@ -56,7 +55,7 @@ jobs:
     - name: Build
       shell: cmake -P {0}
       run: |
-        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
+        set(ENV{NINJA_STATUS} "[%f/%t %e sec] ")
 
         execute_process(
           COMMAND cmake --build build
