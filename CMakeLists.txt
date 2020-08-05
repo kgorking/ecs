@@ -34,7 +34,7 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 else()
     # lots of warnings
-    target_compile_options(ecs INTERFACE -Wall -Wextra -pedantic "${STDLIB}")
+    target_compile_options(ecs INTERFACE -Wall -Wextra -pedantic ${STDLIB})
 
     # Disable C++ exceptions.
     # - fails to compile on gcc 10
