@@ -46,7 +46,7 @@ jobs:
             -D CMAKE_BUILD_TYPE=Release
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
-            -D STDLIB="-stdlib=libc++"
+            -D STDLIB=-stdlib=libc++
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
