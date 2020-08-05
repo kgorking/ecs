@@ -42,9 +42,13 @@ The CI build status for msvc, clang 12, and gcc 10.1 is currently:
 ![build status](https://github.com/kgorking/ecs/workflows/CMake%20Build%20Matrix/badge.svg)
 
 [Compiler explorer test link](https://godbolt.org/z/q81E5z)
-* MSVC 16.6+ (v14.26) will compile this library with no problems.
-* GCC 10.1 compiles it, after much tweaking.
-* Clang 12 works if it uses the msvc STL. Otherwise it does not work, because it is missing the `<concepts>` and `<span>` header.
+
+#### Tested compilers
+* MSVC 16.6+ (v19.26)
+* GCC 10.1
+* Clang 10 works, if it uses the msvc STL.
+  * `libc++` still has no parallel stl implementation.
+  * `libstdc++` is missing the `<concepts>` and `<span>` header.
 
 # Table of Contents
 - [Entities](#entities)
