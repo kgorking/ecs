@@ -7,10 +7,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Update to clang 10
+    - name: Install clang 10 and libstdc++
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install clang-10
+        sudo apt install clang-10 libstdc++
         /usr/bin/clang++-10 --version
       shell: bash
       
