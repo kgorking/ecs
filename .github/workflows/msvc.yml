@@ -8,37 +8,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Print versions
-      run: |
-        cmake --version
-        ninja --version
-      
     - uses: actions/checkout@v1
 
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
       
-    - name: Download Ninja and CMake
-      id: cmake_and_ninja
-      shell: cmake -P {0}
-      run: |
-        set(ninja_version "1.9.0")
-        set(cmake_version "3.16.2")
-        
-        set(cmake_dir "cmake-${cmake_version}-win64-x64/bin")
-
-        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-win.zip")
-        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
-
-        set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-win64-x64.zip")
-        file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./cmake.zip)
-
-        # Save the path for other steps
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)
-        message("::set-output name=cmake_dir::${cmake_dir}")
-
     - name: Configure
       shell: cmake -P {0}
       run: |
@@ -56,10 +30,8 @@ jobs:
           endif()
         endforeach()
 
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
-
         execute_process(
-          COMMAND ${{ steps.cmake_and_ninja.outputs.cmake_dir }}/cmake
+          COMMAND cmake
             -S .
             -B build
             -D CMAKE_BUILD_TYPE=Release
@@ -85,7 +57,7 @@ jobs:
         endforeach()
 
         execute_process(
-          COMMAND ${{ steps.cmake_and_ninja.outputs.cmake_dir }}/cmake --build build
+          COMMAND cmake --build build
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
@@ -100,7 +72,7 @@ jobs:
         ProcessorCount(N)
 
         execute_process(
-          COMMAND ${{ steps.cmake_and_ninja.outputs.cmake_dir }}/ctest -j ${N}
+          COMMAND ctest -j ${N}
           WORKING_DIRECTORY build
           RESULT_VARIABLE result
         )
