@@ -8,6 +8,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    - name: Print versions
+      run: |
+        cmake --version
+        ninja --version
+      
     - uses: actions/checkout@v1
 
     - name: Checkout submodules
@@ -20,10 +25,6 @@ jobs:
         set(ninja_version "1.9.0")
         set(cmake_version "3.16.2")
         
-        message(STATUS "Using host CMake version: ${CMAKE_VERSION}")
-        message(STATUS "Host ninja version: ")
-        execute_process(COMMAND ${CMAKE_COMMAND} -E ninja --version)
-
         set(cmake_dir "cmake-${cmake_version}-win64-x64/bin")
 
         set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-win.zip")
