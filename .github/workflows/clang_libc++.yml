@@ -35,7 +35,6 @@ jobs:
       run: |
         set(ENV{CC} "/usr/bin/clang-10")
         set(ENV{CXX} "/usr/bin/clang++-10")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v -stdlib=libc++")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
@@ -46,6 +45,7 @@ jobs:
             -D CMAKE_BUILD_TYPE=Release
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
+            -D CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -v -stdlib=libc++"
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
