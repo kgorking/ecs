@@ -39,12 +39,10 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 # Building (checked july 30. 2020)
 The CI build status for msvc, clang 12, and gcc 10.1 is currently:
 
-![build status](https://github.com/kgorking/ecs/workflows/CMake%20Build%20Matrix/badge.svg)
-
 [Compiler explorer test link](https://godbolt.org/z/q81E5z)
 
 #### Tested compilers
-* MSVC 16.6+ (v19.26)
+* ![msvc 19.26](https://github.com/kgorking/ecs/workflows/msvc%2019.26/badge.svg)
 * GCC 10.1
 * Clang 10 works, if it uses the msvc STL.
   * `libc++` still has no parallel stl implementation.
