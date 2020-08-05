@@ -46,7 +46,7 @@ jobs:
     - name: Build
       shell: cmake -P {0}
       run: |
-        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
+        set(ENV{NINJA_STATUS} "[%f/%t %e sec] ")
 
         file(STRINGS environment_script_output.txt output_lines)
         foreach(line IN LISTS output_lines)
