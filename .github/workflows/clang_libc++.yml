@@ -11,7 +11,7 @@ jobs:
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt install clang-10
-        sudo apt upgrade libc++
+        sudo apt install libc++
         /usr/bin/clang++-10 --version
       shell: bash
       
