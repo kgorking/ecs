@@ -42,10 +42,12 @@ The CI build status for msvc, clang 12, and gcc 10.1 is currently:
 [Compiler explorer test link](https://godbolt.org/z/q81E5z)
 
 #### Tested compilers
-* ![msvc 19.26](https://github.com/kgorking/ecs/workflows/msvc%2019.26/badge.svg)
-* ![gcc 10.1](https://github.com/kgorking/ecs/workflows/gcc%2010.1/badge.svg)
-* ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg)
+* ![msvc 19.26](https://github.com/kgorking/ecs/workflows/msvc%2019.26/badge.svg?branch=split_ci_builds)
+* ![gcc 10.1](https://github.com/kgorking/ecs/workflows/gcc%2010.1/badge.svg?branch=split_ci_builds)
+* ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg?branch=split_ci_builds)
+* ![clang 10 libc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libc++/badge.svg?branch=split_ci_builds)
   * `libc++` still has no parallel stl implementation.
+* ![clang 10 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libstdc++/badge.svg?branch=split_ci_builds)
   * `libstdc++` is missing the `<concepts>` and `<span>` header.
 
 # Table of Contents
