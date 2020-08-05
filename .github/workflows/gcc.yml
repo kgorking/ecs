@@ -1,0 +1,116 @@
+name: gcc 10.1
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config:
+        - {
+            name: "Linux - GCC 10.1",
+            os: ubuntu-latest,
+            build_type: "Release",
+            cc: "/usr/bin/gcc-10", cxx: "/usr/bin/g++-10"
+          }
+
+    steps:
+    - name: Print versions
+      run: |
+        cmake --version
+        ninja --version
+      shell: bash
+
+    - name: Update to gcc 10
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt install gcc-10 g++-10
+        /usr/bin/g++-10 --version
+      shell: bash
+      
+    - uses: actions/checkout@v1
+
+    - name: Checkout submodules
+      run: git submodule update --init --recursive --remote
+      
+    - name: Download Ninja and CMake
+      id: cmake_and_ninja
+      shell: cmake -P {0}
+      run: |
+        set(ninja_version "1.9.0")
+        set(cmake_version "3.16.2")
+        
+        message(STATUS "Using host CMake version: ${CMAKE_VERSION}")
+
+        set(ninja_suffix "linux.zip")
+        set(cmake_suffix "Linux-x86_64.tar.gz")
+        set(cmake_dir "cmake-${cmake_version}-Linux-x86_64/bin")
+
+        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-${ninja_suffix}")
+        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
+
+        set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-${cmake_suffix}")
+        file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./cmake.zip)
+
+        # Save the path for other steps
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)
+        message("::set-output name=cmake_dir::${cmake_dir}")
+
+        execute_process(
+          COMMAND chmod +x ninja
+          COMMAND chmod +x ${cmake_dir}/cmake
+        )
+
+    - name: Configure
+      shell: cmake -P {0}
+      run: |
+        set(ENV{CC} "/usr/bin/gcc-10")
+        set(ENV{CXX} "/usr/bin/g++-10")
+
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
+
+        execute_process(
+          COMMAND ${{ steps.cmake_and_ninja.outputs.cmake_dir }}/cmake
+            -S .
+            -B build
+            -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
+            -G Ninja
+            -D CMAKE_MAKE_PROGRAM=${ninja_program}
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
+        endif()
+
+
+    - name: Build
+      shell: cmake -P {0}
+      run: |
+        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
+
+        execute_process(
+          COMMAND ${{ steps.cmake_and_ninja.outputs.cmake_dir }}/cmake --build build
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
+        endif()
+
+
+    - name: Run tests
+      shell: cmake -P {0}
+      run: |
+        include(ProcessorCount)
+        ProcessorCount(N)
+
+        execute_process(
+          COMMAND ${{ steps.cmake_and_ninja.outputs.cmake_dir }}/ctest -j ${N}
+          WORKING_DIRECTORY build
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Running tests failed!")
+        endif()
