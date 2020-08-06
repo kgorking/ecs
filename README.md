@@ -35,13 +35,12 @@ int main() {
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
+Use this [Compiler explorer test link](https://godbolt.org/z/q81E5z) to try it out for yourself, using the [single-include header](include/ecs/ecs_sh.h).
 
-# Building (checked july 30. 2020)
-The CI build status for msvc, clang 12, and gcc 10.1 is currently:
 
-[Compiler explorer test link](https://godbolt.org/z/q81E5z)
-
+# Building 
 #### Tested compilers
+The CI build status for msvc, clang 10, and gcc 10.1 is currently:
 * ![msvc 19.26](https://github.com/kgorking/ecs/workflows/msvc%2019.26/badge.svg?branch=split_ci_builds)
 * ![gcc 10.1](https://github.com/kgorking/ecs/workflows/gcc%2010.1/badge.svg?branch=split_ci_builds)
 * ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg?branch=split_ci_builds)
