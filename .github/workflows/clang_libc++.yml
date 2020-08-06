@@ -10,8 +10,7 @@ jobs:
     - name: Install clang 10
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install libc++-10-dev
-        sudo apt install clang-10
+        sudo apt install libc++-10-dev clang-10
         /usr/bin/clang++-10 --version
       shell: bash
       
