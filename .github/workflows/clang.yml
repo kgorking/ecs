@@ -1,10 +1,9 @@
-name: msvc 19.26
+name: clang 10 ms-stl
 
 on: [push]
 
 jobs:
   build:
-    #name: "Windows - MSVC"
     runs-on: windows-latest
 
     steps:
@@ -12,12 +11,12 @@ jobs:
 
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
-      
+
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "cl")
-        set(ENV{CXX} "cl")
+        set(ENV{CC} "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"")
+        set(ENV{CXX} "\"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/x64/bin/clang-cl.exe\"")
 
         execute_process(
           COMMAND "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat" && set
@@ -46,7 +45,7 @@ jobs:
     - name: Build
       shell: cmake -P {0}
       run: |
-        set(ENV{NINJA_STATUS} "[%f/%t %e sec] ")
+        set(ENV{NINJA_STATUS} "[%f/%t %es] ")
 
         file(STRINGS environment_script_output.txt output_lines)
         foreach(line IN LISTS output_lines)

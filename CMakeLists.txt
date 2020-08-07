@@ -10,10 +10,6 @@ install(
     DESTINATION include
 )
 
-# Require c++20 and concepts
-set(CMAKE_CXX_STANDARD 20)
-set(CXX_STANDARD_REQUIRED on)
-
 # determine whether this is a standalone project or included by other projects
 set(ECS_STANDALONE_PROJECT OFF)
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -22,7 +18,7 @@ endif ()
 
 if (MSVC)
     # warning level 4
-    target_compile_options(ecs INTERFACE /W4 /wo4648)
+    target_compile_options(ecs INTERFACE /std:c++latest /W4 /wo4648)
 
     # Disable C++ exceptions.
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -34,7 +30,7 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 else()
     # lots of warnings
-    target_compile_options(ecs INTERFACE -Wall -Wextra -pedantic)
+    target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -pedantic ${STDLIB})
 
     # Disable C++ exceptions.
     # - fails to compile on gcc 10

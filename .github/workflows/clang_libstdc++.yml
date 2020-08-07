@@ -1,34 +1,42 @@
-name: msvc 19.26
+name: clang 10 libstdc++
 
-on: [push]
+on: workflow_dispatch
 
 jobs:
   build:
-    #name: "Windows - MSVC"
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
+    - name: Install clang 10
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt install clang-10
+        /usr/bin/clang++-10 --version
+      shell: bash
+      
     - uses: actions/checkout@v1
 
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
       
+    - name: Download Ninja
+      shell: cmake -P {0}
+      run: |
+        set(ninja_version "1.9.0")
+        
+        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-linux.zip")
+        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
+
+        execute_process(COMMAND chmod +x ninja)
+
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "cl")
-        set(ENV{CXX} "cl")
+        set(ENV{CC} "/usr/bin/clang-10")
+        set(ENV{CXX} "/usr/bin/clang++-10")
 
-        execute_process(
-          COMMAND "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat" && set
-          OUTPUT_FILE environment_script_output.txt
-        )
-        file(STRINGS environment_script_output.txt output_lines)
-        foreach(line IN LISTS output_lines)
-          if (line MATCHES "^([a-zA-Z0-9_-]+)=(.*)$")
-            set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
-          endif()
-        endforeach()
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
         execute_process(
           COMMAND cmake
@@ -36,6 +44,8 @@ jobs:
             -B build
             -D CMAKE_BUILD_TYPE=Release
             -G Ninja
+            -D CMAKE_MAKE_PROGRAM=${ninja_program}
+            -D STDLIB=-stdlib=libstdc++
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
@@ -47,13 +57,6 @@ jobs:
       shell: cmake -P {0}
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %e sec] ")
-
-        file(STRINGS environment_script_output.txt output_lines)
-        foreach(line IN LISTS output_lines)
-          if (line MATCHES "^([a-zA-Z0-9_-]+)=(.*)$")
-            set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
-          endif()
-        endforeach()
 
         execute_process(
           COMMAND cmake --build build
