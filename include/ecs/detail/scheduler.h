@@ -42,8 +42,7 @@ namespace ecs::detail {
         // Increase the dependency counter of this system. These dependencies has to
         // run to completion before this system can run.
         void increase_dependency_count() {
-            Expects(dependencies != std::numeric_limits<uint16_t>::max()); // You have 32k dependencies on a single
-                                                                           // system. Just delete your code.
+            Expects(dependencies != std::numeric_limits<int16_t>::max());
             dependencies += 1;
         }
 
@@ -58,14 +57,19 @@ namespace ecs::detail {
         }
 
         void run(std::vector<struct scheduler_node>& nodes) {
-            if (unfinished_dependencies.load(std::memory_order_acquire) > 0) {
+            // If we are not the last node here, leave
+            if (unfinished_dependencies.load(std::memory_order_acquire) != 0)
                 return;
-            }
 
+            // Run the system
             sys->run();
 
-            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](auto node) {
+            // Notify the dependants that we are done
+            for (size_t const node : dependants)
                 nodes[node].dependency_done();
+
+            // Run the dependants in parallel
+            std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](size_t node) {
                 nodes[node].run(nodes);
             });
         }
@@ -86,8 +90,8 @@ namespace ecs::detail {
         std::vector<size_t> dependants{};
 
         // The number of systems this depends on
-        uint16_t dependencies = 0;
-        std::atomic<uint16_t> unfinished_dependencies = 0;
+        int16_t dependencies = 0;
+        std::atomic<int16_t> unfinished_dependencies = 0;
     };
 
     // Schedules systems for concurrent execution based on their components.

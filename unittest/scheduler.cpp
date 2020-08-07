@@ -10,28 +10,44 @@ struct type {};
 
 // Tests to make sure the scheduler works as intended.
 TEST_CASE("Scheduler") {
-
-    SECTION("lots of dependencies") {
+    SECTION("verify wide dependency chains work") {
         ecs::detail::get_context().reset();
 
         struct sched_test {};
 
-        // Create 100 systems that will execute concurrently
-        std::atomic_int lambda_counter = 0;
-        auto const lambda = [&lambda_counter](sched_test const&) { ++lambda_counter; };
+        // The lambda to execute in the 100 systems
+        std::atomic_int counter = 0;
+        auto const incrementor = [&](sched_test const&) { counter++; };
+
+        // The lambda to run after the 100 systems. Has a dependency on 'lambda'
+        std::atomic_int num_checks = 0;
+        auto const checker = [&](sched_test&) {
+            num_checks++;
+        };
+
+        // Create 100 systems that will execute concurrently,
+        // because they have no dependencies on each other.
         for (int i = 0; i < 100; i++) {
-            ecs::make_system(lambda);
+            ecs::make_system(incrementor);
         }
 
-        // Create a system that should only run after the 100 systems,
-        // because it has 100 dependencies
-        auto const dependant = [&lambda_counter](sched_test&) { CHECK(lambda_counter == 100); };
-        ecs::make_system(dependant);
+        // Create a system that will only run after the 100 systems.
+        // It can not run concurrently with the other 100 systems,
+        // because it has a read/write dependency on all 100 systems.
+        ecs::make_system(checker);
 
+        // Add a component to trigger the systems
         ecs::add_component(0, sched_test{});
         ecs::commit_changes();
 
-        ecs::run_systems();
+        // Run it 500 times
+        for (int i = 0; i < 500; i++) {
+            ecs::run_systems();
+            CHECK(100 == counter);
+            CHECK(1 == num_checks);
+            counter = 0;
+            num_checks = 0;
+        }
     }
 
     SECTION("Correct concurrency") {
