@@ -17,7 +17,7 @@ namespace ecs::detail {
 
                 auto const now = clock::now();
                 auto const diff = now - time;
-                if (diff >= (1'000'000us / hz)) {
+                if (diff >= (1'000'000'000ns / hz)) {
                     time = now;
                     return true;
                 } else {
