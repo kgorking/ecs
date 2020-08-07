@@ -5,7 +5,7 @@ TEST_CASE("System frequency") {
     ecs::detail::get_context().reset();
 
     constexpr int num_frequencies = 7;
-    constexpr size_t frequencies[num_frequencies] = {2, 5, 10, 17, 345, 1'619, 33'333};
+    constexpr int frequencies[num_frequencies] = {2, 5, 10, 17, 345, 1'619, 33'333};
 
     int counters[num_frequencies];
     std::fill_n(counters, num_frequencies, 0);
