@@ -1,6 +1,6 @@
 name: clang 10 libc++
 
-on: [push]
+on: workflow_dispatch
 
 jobs:
   build:
