@@ -88,25 +88,6 @@ TEST_CASE("System specification", "[system]") {
         REQUIRE(1 == ecs::get_component<local4>(0)->c);
     }
 
-    SECTION("Components are passed in the correct order to the system") {
-        ecs::detail::_context.reset();
-
-        struct C_Order1 {
-            unsigned i;
-        };
-        struct C_Order2 {
-            unsigned j;
-        };
-
-        // Add a system to check the order
-        ecs::make_system([](C_Order1& o1, C_Order2& o2) { CHECK(o1.i < o2.j); });
-
-        // Add the test components
-        ecs::add_component(0, C_Order1{1}, C_Order2{2});
-
-        ecs::update();
-    }
-
     SECTION("Read/write info on systems is correct") {
         ecs::detail::_context.reset();
 
