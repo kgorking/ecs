@@ -8,7 +8,7 @@ int main() {
     using namespace std::chrono_literals;
 
     // The lambda used by both the serial- and parallel systems
-    auto constexpr sys_sleep = [](short const&) { std::this_thread::sleep_for(10ms); };
+    auto constexpr sys_sleep = [](short const&) { std::this_thread::sleep_for(50ms); };
 
     // Make the systems
     auto& serial_sys = ecs::make_system<ecs::opts::not_parallel>(sys_sleep);
@@ -16,7 +16,7 @@ int main() {
 
     // Create a range of entities that would
     // take 5 seconds to process serially
-    ecs::add_component({0, 500 - 1}, short{0});
+    ecs::add_component({0, 20 - 1}, short{0});
 
     // Commit the components (does not run the systems)
     ecs::commit_changes();
