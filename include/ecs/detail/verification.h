@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "../component_specifier.h"
+#include "../entity_id.h"
 
 namespace ecs::detail {
     // Given a type T, if it is callable with an entity argument,
@@ -14,9 +15,9 @@ namespace ecs::detail {
         using type = T;
     };
 
-    template<std::invocable<int> T>
+    template<std::invocable<entity_type> T>
     struct get_type<T> {
-        using type = std::invoke_result_t<T, int>;
+        using type = std::invoke_result_t<T, entity_type>;
     };
 
     template<typename T>
