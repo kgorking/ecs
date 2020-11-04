@@ -35,7 +35,7 @@ int main() {
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
-Use this [Compiler explorer test link](https://godbolt.org/z/q81E5z) to try it out for yourself, using the [single-include header](include/ecs/ecs_sh.h).
+Use this [Compiler explorer test link](https://godbolt.org/z/jE6MTq) to try it out for yourself, using the [single-include header](include/ecs/ecs_sh.h).
 
 
 # Building 
