@@ -4,7 +4,7 @@
 #include <chrono>
 
 namespace ecs::detail {
-    // microsecond precision
+
 	template<size_t hz>
 	struct frequency_limiter {
         bool can_run() {
