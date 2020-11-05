@@ -1,15 +1,17 @@
 #include <ecs/ecs.h>
+#include <array>
 #include <chrono>
 #include <iostream>
 
 using namespace std::chrono_literals;
 
-int main() {
-    constexpr int num_frequencies = 9;
-    constexpr size_t frequencies[num_frequencies] = {0, 2, 5, 10, 17, 88, 1619, 33333, 450000};
+constexpr int num_frequencies = 9;
+using freq_arr = std::array<int, num_frequencies>;
 
-    int counters[num_frequencies];
-    std::fill_n(counters, num_frequencies, 0);
+int main() {
+    constexpr freq_arr frequencies{0, 2, 5, 10, 17, 88, 1619, 33333, 450000};
+    freq_arr counters;
+    counters.fill(0);
 
     ecs::make_system<ecs::opts::frequency<frequencies[0]>>([&counters](int const&) { ++counters[0]; });
     ecs::make_system<ecs::opts::frequency<frequencies[1]>>([&counters](int const&) { ++counters[1]; });
