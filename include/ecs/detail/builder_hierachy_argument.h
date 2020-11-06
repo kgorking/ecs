@@ -2,12 +2,11 @@
 #define __BUILDER_HIERARCHY_ARGUMENT_H_
 
 // !Only to be included by system.h
+#include <unordered_map>
+#include <unordered_set>
 
 namespace ecs::detail {
     using relation = std::pair<entity_id, parent>; // node, parent
-    auto constexpr hierach_sort = [](relation const& l, relation const& r) {
-        return l.first > r.first;
-    };
 
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     struct builder_hierarchy_argument {
@@ -33,13 +32,7 @@ namespace ecs::detail {
         void run() {
             // Sort the arguments if the component data has been modified
             if (needs_sorting) {
-                auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-                std::sort(e_p, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
-                    relation const left = std::make_pair(std::get<0>(l), *std::get<parent*>(l));
-                    relation const right = std::make_pair(std::get<0>(r), *std::get<parent*>(r));
-                    return hierach_sort(left, right);
-                });
-
+                depth_first_sort();
                 needs_sorting = false;
             }
 
@@ -86,12 +79,67 @@ namespace ecs::detail {
         }
 
     private:
+        void walk_node(entity_type node, std::vector<entity_type>& vec,
+            std::unordered_multimap<entity_type, entity_type> const& node_children) {
+
+            if (node_children.contains(node)) {
+                auto [first, last] = node_children.equal_range(node);
+                while (first != last) {
+                    vec.push_back(first->second);
+                    walk_node(first->second, vec, node_children);
+                    ++first;
+                }
+            }
+        }
+
+        void depth_first_sort() {
+            std::unordered_multimap<entity_type, entity_type> node_parent;
+            std::unordered_multimap<entity_type, entity_type> node_children;
+            node_parent.reserve(arguments.size());
+            node_children.reserve(arguments.size());
+
+            std::for_each(arguments.begin(), arguments.end(), [&, this](auto const& packed_arg) {
+                auto const id = std::get<0>(packed_arg);
+                auto const par = *std::get<parent*>(packed_arg);
+
+                node_parent.emplace(id, par);
+                node_children.emplace(par, id);
+            });
+
+            // find roots
+            std::unordered_set<entity_type> roots;
+            for (auto const [node, parent] : node_parent) {
+                if (!node_parent.contains(parent))
+                    roots.insert(parent);
+            }
+
+            // walk the tree
+            std::vector<entity_type> vec;
+            vec.reserve(arguments.size());
+            for (auto root : roots) {
+                walk_node(root, vec, node_children);
+            }
+
+            // rearrange the arguments
+            std::unordered_map<entity_type, std::ptrdiff_t> node_offset;
+            int offset = 0;
+            for (auto id : vec) {
+                node_offset[id] = offset++;
+            }
+
+            std::sort(arguments.begin(), arguments.end(), [&node_offset, &vec](auto const& l, auto const& r) {
+                return node_offset[std::get<0>(l)] < node_offset[std::get<0>(r)];
+            });
+        }
+
+    private:
         // Holds a single entity id and its arguments
         using single_argument =
             decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
 
         // A tuple of the fully typed component pools used by this system
         tup_pools<FirstComponent, Components...> const pools;
+
 
         // The user supplied system
         UpdateFn update_func;

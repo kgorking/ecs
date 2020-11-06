@@ -4,8 +4,8 @@
 #include "entity_id.h"
 
 namespace ecs {
-    struct parent {
-        entity_id id;
+    struct parent : entity_id {
+        //entity_id id;
     };
 }
 
