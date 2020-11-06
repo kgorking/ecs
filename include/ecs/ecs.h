@@ -7,6 +7,7 @@
 #include "entity_id.h"
 #include "detail/entity_iterator.h"
 #include "entity_range.h"
+#include "parent.h"
 
 #include "component_specifier.h"
 #include "detail/component_pool_base.h"
