@@ -8,7 +8,7 @@ namespace ecs {
     } // namespace detail
 
     // A simple struct that is an entity identifier.
-    struct entity_id final {
+    struct entity_id {
         // Uninitialized entity ids are not allowed, because they make no sense
         entity_id() = delete;
 
