@@ -15,6 +15,8 @@
 #include "type_hash.h"
 
 #include "system_defs.h"
+#include "builder_ranged_argument.h"
+#include "builder_sorted_argument.h"
 
 #include "../options.h"
 #include "options.h"
@@ -23,185 +25,13 @@
 
 namespace ecs::detail {
 
-    // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-    template<class Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    struct ranged_argument_builder {
-        // Determine the execution policy from the options (or lack thereof)
-        using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
-            std::execution::sequenced_policy, std::execution::parallel_policy>;
-
-        ranged_argument_builder(
-            UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
-            : pools{first_pool, pools...}
-            , update_func{update_func} {
-        }
-
-        ranged_argument_builder(UpdateFn update_func, SortFn /*sort*/, pool<Components>... pools)
-            : pools{pools...}
-            , update_func{update_func} {
-        }
-
-        tup_pools<FirstComponent, Components...> get_pools() const {
-            return pools;
-        }
-
-        void run() {
-            // Call the system for all the components that match the system signature
-            for (auto const& argument : arguments) {
-                auto const& range = std::get<entity_range>(argument);
-                auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-                std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
-                    auto const offset = ent - first_id;
-                    if constexpr (is_entity<FirstComponent>) {
-                        update_func(ent, extract_arg<Components>(argument, offset)...);
-                    } else {
-                        update_func(extract_arg<FirstComponent>(argument, offset),
-                            extract_arg<Components>(argument, offset)...);
-                    }
-                });
-            }
-        }
-
-        // Convert a set of entities into arguments that can be passed to the system
-        void build(entity_range_view entities) {
-            // Build the arguments for the ranges
-            arguments.clear();
-            for (auto const& range : entities) {
-                if constexpr (is_entity<FirstComponent>) {
-                    arguments.emplace_back(range, get_component<Components>(range.first(), pools)...);
-                } else {
-                    arguments.emplace_back(range, get_component<FirstComponent>(range.first(), pools),
-                        get_component<Components>(range.first(), pools)...);
-                }
-            }
-        }
-
-    private:
-        // Holds an entity range and its arguments
-        using range_argument =
-            decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, argument_tuple<FirstComponent, Components...>{}));
-
-        // A tuple of the fully typed component pools used by this system
-        tup_pools<FirstComponent, Components...> const pools;
-
-        // The user supplied system
-        UpdateFn update_func;
-
-        // Holds the arguments for a range of entities
-        std::vector<range_argument> arguments;
-    };
-
-    // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
-    // will be passed to the user supplied lambda in a sorted manner
-    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    struct sorted_argument_builder {
-        // Determine the execution policy from the options (or lack thereof)
-        using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
-            std::execution::sequenced_policy, std::execution::parallel_policy>;
-
-        sorted_argument_builder(
-            UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool, pool<Components>... pools)
-            : pools{first_pool, pools...}
-            , update_func{update_func}
-            , sort_func{sort} {
-        }
-
-        sorted_argument_builder(UpdateFn update_func, SortFn sort, pool<Components>... pools)
-            : pools{pools...}
-            , update_func{update_func}
-            , sort_func{sort} {
-        }
-
-        tup_pools<FirstComponent, Components...> get_pools() const {
-            return pools;
-        }
-
-        void run() {
-            // Sort the arguments if the component data has been modified
-            if (needs_sorting || std::get<pool<sort_type>>(pools)->has_components_been_modified()) {
-                auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-                std::sort(e_p, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
-                    sort_type* t_l = std::get<sort_type*>(l);
-                    sort_type* t_r = std::get<sort_type*>(r);
-                    return sort_func(*t_l, *t_r);
-                });
-
-                needs_sorting = false;
-            }
-
-            auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-            std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
-                if constexpr (is_entity<FirstComponent>) {
-                    update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
-                } else {
-                    update_func(extract_arg<FirstComponent>(packed_arg, 0), extract_arg<Components>(packed_arg, 0)...);
-                }
-            });
-        }
-
-        // Convert a set of entities into arguments that can be passed to the system
-        void build(entity_range_view entities) {
-            if (entities.size() == 0) {
-                arguments.clear();
-                return;
-            }
-
-            // Count the total number of arguments
-            size_t arg_count = 0;
-            for (auto const& range : entities) {
-                arg_count += range.count();
-            }
-
-            // Reserve space for the arguments
-            arguments.clear();
-            arguments.reserve(arg_count);
-
-            // Build the arguments for the ranges
-            for (auto const& range : entities) {
-                for (entity_id const& entity : range) {
-                    if constexpr (is_entity<FirstComponent>) {
-                        arguments.emplace_back(entity, get_component<Components>(entity, pools)...);
-                    } else {
-                        arguments.emplace_back(entity, get_component<FirstComponent>(entity, pools),
-                            get_component<Components>(entity, pools)...);
-                    }
-                }
-            }
-
-            needs_sorting = true;
-        }
-
-    private:
-        // Holds a single entity id and its arguments
-        using single_argument =
-            decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
-
-        using sort_type = typename decltype(get_sort_func_type_impl(&SortFn::operator()))::type;
-        static_assert(std::predicate<SortFn, sort_type, sort_type>, "Sorting function is not a predicate");
-
-        // A tuple of the fully typed component pools used by this system
-        tup_pools<FirstComponent, Components...> const pools;
-
-        // The user supplied system
-        UpdateFn update_func;
-
-        // The user supplied sorting function
-        SortFn sort_func;
-
-        // The vector of unrolled arguments, sorted using 'sort_func'
-        std::vector<single_argument> arguments;
-
-        // True if the data needs to be sorted
-        bool needs_sorting = false;
-    };
-
     // Chooses an argument builder and returns a nullptr to it
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     constexpr auto get_ptr_builder() {
         if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
-            return (sorted_argument_builder<Options, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
+            return (builder_sorted_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
         } else {
-            return (ranged_argument_builder<Options, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
+            return (builder_ranged_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
         }
     }
 
