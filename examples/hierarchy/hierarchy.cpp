@@ -14,8 +14,12 @@
 
 using namespace ecs;
 
-auto constexpr print_root = [](entity_id id, int &, parent*) { std::cout << id << '\n'; };
-auto constexpr print_child = [](entity_id id, parent const& parent, int &) { std::cout << id << " has parent " << parent << '\n'; };
+auto constexpr print_root = [](entity_id id, parent*, int &) {
+    std::cout << id << '\n';
+};
+auto constexpr print_child = [](entity_id id, parent parent, int &) {
+    std::cout << id << " has parent " << parent.id << '\n';
+};
 
 int main() {
     // The root

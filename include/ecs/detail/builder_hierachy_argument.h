@@ -4,6 +4,11 @@
 // !Only to be included by system.h
 
 namespace ecs::detail {
+    using relation = std::pair<entity_id, parent>; // node, parent
+    auto constexpr hierach_sort = [](relation const& l, relation const& r) {
+        return l.first > r.first;
+    };
+
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     struct builder_hierarchy_argument {
         // Determine the execution policy from the options (or lack thereof)
@@ -26,6 +31,18 @@ namespace ecs::detail {
         }
 
         void run() {
+            // Sort the arguments if the component data has been modified
+            if (needs_sorting) {
+                auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+                std::sort(e_p, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
+                    relation const left = std::make_pair(std::get<0>(l), *std::get<parent*>(l));
+                    relation const right = std::make_pair(std::get<0>(r), *std::get<parent*>(r));
+                    return hierach_sort(left, right);
+                });
+
+                needs_sorting = false;
+            }
+
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
             std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
                 if constexpr (is_entity<FirstComponent>) {
@@ -64,6 +81,8 @@ namespace ecs::detail {
                     }
                 }
             }
+
+            needs_sorting = true;
         }
 
     private:
@@ -79,6 +98,9 @@ namespace ecs::detail {
 
         // The vector of unrolled arguments, sorted using 'sort_func'
         std::vector<single_argument> arguments;
+
+        // True if the data needs to be sorted
+        bool needs_sorting = false;
     };
 } // namespace ecs::detail
 

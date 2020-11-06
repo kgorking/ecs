@@ -11,8 +11,8 @@ namespace ecs::detail {
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     constexpr auto get_ptr_builder() {
         bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
-        bool constexpr has_parent = std::is_same_v<std::remove_cvref_t<FirstComponent>, ecs::parent> ||
-                                    (std::is_same_v<std::remove_cvref_t<Components>, ecs::parent> || ...);
+        bool constexpr has_parent = std::is_same_v<FirstComponent, ecs::parent> ||
+                                    (std::is_same_v<Components, ecs::parent> || ...);
 
         static_assert(!(has_sort_func == has_parent && has_parent == true),
             "Systems can not both be hierarchial and sorted");
