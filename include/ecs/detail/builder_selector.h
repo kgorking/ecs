@@ -1,6 +1,9 @@
 #ifndef __BUILDER_SELECTOR_H
 #define __BUILDER_SELECTOR_H
 
+#include "builder_ranged_argument.h"
+#include "builder_sorted_argument.h"
+
 namespace ecs::detail {
 
     // Chooses an argument builder and returns a nullptr to it

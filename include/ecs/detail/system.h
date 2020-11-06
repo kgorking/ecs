@@ -15,8 +15,6 @@
 #include "type_hash.h"
 
 #include "system_defs.h"
-#include "builder_ranged_argument.h"
-#include "builder_sorted_argument.h"
 #include "builder_selector.h"
 
 #include "../options.h"
