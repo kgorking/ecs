@@ -4,7 +4,8 @@
 #include "entity_id.h"
 
 namespace ecs {
-    using parent = entity_id;
+    struct parent : entity_id {
+    };
 }
 
 #endif // !__PARENT_H_
