@@ -29,8 +29,8 @@ namespace ecs::detail {
         // The vector of unrolled arguments, sorted using 'sort_func'
         std::vector<single_argument> arguments;
 
-        // True if the data needs to be sorted
-        bool needs_sorting = false;
+        // True if the entities needs to be rearranged
+        bool needs_rebuild = false;
 
     public:
         builder_hierarchy_argument(
@@ -50,9 +50,9 @@ namespace ecs::detail {
 
         void run() {
             // Sort the arguments if the component data has been modified
-            if (needs_sorting) {
-                depth_first_sort();
-                needs_sorting = false;
+            if (needs_rebuild) {
+                rebuild_tree();
+                needs_rebuild = false;
             }
 
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
@@ -94,12 +94,12 @@ namespace ecs::detail {
                 }
             }
 
-            needs_sorting = true;
+            needs_rebuild = true;
         }
 
     private:
-        void walk_node(entity_type ent, std::vector<single_argument>& vec, relation_mmap const& node_children) {
-            auto const [first, last] = node_children.equal_range(ent);
+        void depth_first_search(entity_type ent, std::vector<single_argument>& vec, relation_mmap const& parent_argument) {
+            auto const [first, last] = parent_argument.equal_range(ent);
             auto current = first;
 
             while (current != last) {
@@ -108,13 +108,13 @@ namespace ecs::detail {
                 vec.push_back(argument);
 
                 auto const node = std::get<0>(argument);
-                walk_node(node, vec, node_children);
+                depth_first_search(node, vec, parent_argument);
 
                 ++current;
             }
         }
 
-        void depth_first_sort() {
+        void rebuild_tree() {
             relation_map entity_argument;
             relation_mmap parent_argument;
             entity_argument.reserve(arguments.size());
@@ -142,7 +142,7 @@ namespace ecs::detail {
             std::vector<single_argument> vec;
             vec.reserve(arguments.size());
             for (entity_type const& root : roots) {
-                walk_node(root, vec, parent_argument);
+                depth_first_search(root, vec, parent_argument);
             }
 
             arguments = std::move(vec);
