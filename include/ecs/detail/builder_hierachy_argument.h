@@ -29,9 +29,6 @@ namespace ecs::detail {
         // The vector of unrolled arguments, sorted using 'sort_func'
         std::vector<single_argument> arguments;
 
-        // True if the entities needs to be rearranged
-        bool needs_rebuild = false;
-
     public:
         builder_hierarchy_argument(
             UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
@@ -49,12 +46,6 @@ namespace ecs::detail {
         }
 
         void run() {
-            // Sort the arguments if the component data has been modified
-            if (needs_rebuild) {
-                rebuild_tree();
-                needs_rebuild = false;
-            }
-
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
             std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
                 if constexpr (is_entity<FirstComponent>) {
@@ -94,7 +85,8 @@ namespace ecs::detail {
                 }
             }
 
-            needs_rebuild = true;
+            // Re-arrange the arguments to match a tree
+            rebuild_tree();
         }
 
     private:
