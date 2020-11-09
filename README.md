@@ -364,4 +364,4 @@ manual_sys.run(); // required to run the system
 ### `opts::not_parallel`
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
-It should not be used to avoid data races when writing to a shared variable. Use atomics or [`tls::splitter`](tls/include/tls/splitter.h) in these cases, if possible.
+It should not be used to avoid data races when writing to a shared variable. Use atomics or [`tls::splitter`](https://github.com/kgorking/tls/include/tls/splitter.h) in these cases, if possible.
