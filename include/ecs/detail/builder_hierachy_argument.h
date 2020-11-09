@@ -3,17 +3,36 @@
 
 // !Only to be included by system.h
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ecs::detail {
-    using relation = std::pair<entity_id, parent>; // node, parent
-    using relation_map = std::unordered_multimap<entity_type, entity_type>;
 
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    struct builder_hierarchy_argument {
-        // Determine the execution policy from the options (or lack thereof)
-        using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
-            std::execution::sequenced_policy, std::execution::parallel_policy>;
+    class builder_hierarchy_argument {
+        // Walking the tree in parallel doesn't seem possible
+        using execution_policy = std::execution::sequenced_policy;
 
+        // Holds a single entity id and its arguments
+        using single_argument =
+            decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
+
+        using relation = std::pair<entity_id, parent>; // node, parent
+        using relation_map = std::unordered_map<entity_type, single_argument const*>;
+        using relation_mmap = std::unordered_multimap<entity_type, single_argument const*>;
+
+        // A tuple of the fully typed component pools used by this system
+        tup_pools<FirstComponent, Components...> const pools;
+
+        // The user supplied system
+        UpdateFn update_func;
+
+        // The vector of unrolled arguments, sorted using 'sort_func'
+        std::vector<single_argument> arguments;
+
+        // True if the data needs to be sorted
+        bool needs_sorting = false;
+
+    public:
         builder_hierarchy_argument(
             UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
             : pools{first_pool, pools...}
@@ -79,75 +98,55 @@ namespace ecs::detail {
         }
 
     private:
-        void walk_node(entity_type node, std::vector<entity_type>& vec, relation_map const& node_children) {
+        void walk_node(entity_type ent, std::vector<single_argument>& vec, relation_mmap const& node_children) {
+            auto const [first, last] = node_children.equal_range(ent);
+            auto current = first;
 
-            if (node_children.contains(node)) {
-                auto [first, last] = node_children.equal_range(node);
-                while (first != last) {
-                    vec.push_back(first->second);
-                    walk_node(first->second, vec, node_children);
-                    ++first;
-                }
+            while (current != last) {
+                single_argument const& argument = *current->second;
+
+                vec.push_back(argument);
+
+                auto const node = std::get<0>(argument);
+                walk_node(node, vec, node_children);
+
+                ++current;
             }
         }
 
         void depth_first_sort() {
-            relation_map node_parent;
-            relation_map node_children;
-            node_parent.reserve(arguments.size());
-            node_children.reserve(arguments.size());
+            relation_map entity_argument;
+            relation_mmap parent_argument;
+            entity_argument.reserve(arguments.size());
+            parent_argument.reserve(arguments.size());
 
+            // map entities and their parents to their arguments
             std::for_each(arguments.begin(), arguments.end(), [&, this](auto const& packed_arg) {
-                auto const id = std::get<0>(packed_arg);
-                auto const par = *std::get<parent*>(packed_arg);
+                entity_type const id = std::get<0>(packed_arg);
+                entity_type const par = *std::get<parent*>(packed_arg);
 
-                node_parent.emplace(id, par);
-                node_children.emplace(par, id);
+                entity_argument.emplace(id, &packed_arg);
+                parent_argument.emplace(par, &packed_arg);
             });
 
             // find roots
-            std::vector<entity_type> roots;
-            for (auto const [node, parent] : node_parent) {
-                if (!node_parent.contains(parent))
-                    roots.push_back(parent);
+            std::unordered_set<entity_type> roots;
+            for (auto const& packed_arg : arguments) {
+                entity_type const entity_parent = *std::get<parent*>(packed_arg);
+                if (!entity_argument.contains(entity_parent)) {
+                    roots.insert(entity_parent);
+                }
             }
 
-            // walk the tree
-            std::vector<entity_type> vec;
+            // walk the tree and re-arrange the arguments
+            std::vector<single_argument> vec;
             vec.reserve(arguments.size());
-            for (auto root : roots) {
-                walk_node(root, vec, node_children);
+            for (entity_type const& root : roots) {
+                walk_node(root, vec, parent_argument);
             }
 
-            // rearrange the arguments
-            std::unordered_map<entity_type, std::ptrdiff_t> node_offset;
-            int offset = 0;
-            for (auto id : vec) {
-                node_offset[id] = offset++;
-            }
-
-            std::sort(arguments.begin(), arguments.end(), [&node_offset, &vec](auto const& l, auto const& r) {
-                return node_offset[std::get<0>(l)] < node_offset[std::get<0>(r)];
-            });
+            arguments = std::move(vec);
         }
-
-    private:
-        // Holds a single entity id and its arguments
-        using single_argument =
-            decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
-
-        // A tuple of the fully typed component pools used by this system
-        tup_pools<FirstComponent, Components...> const pools;
-
-
-        // The user supplied system
-        UpdateFn update_func;
-
-        // The vector of unrolled arguments, sorted using 'sort_func'
-        std::vector<single_argument> arguments;
-
-        // True if the data needs to be sorted
-        bool needs_sorting = false;
     };
 } // namespace ecs::detail
 
