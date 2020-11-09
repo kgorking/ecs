@@ -3,24 +3,22 @@
 #include <string>
 
 
-//      _____1________
-//     /     |        \
-//    /      |         \
+//      _____1________                  100
+//     /     |        \                  |
+//    /      |         \                101
 //   4       3          2
 //  /|\     /|\       / | \
 // 5 6 7   8 9 10   11  12 13
 // |         |             |
 // 14        15            16
 //
-// Should print out
-// depth  : 4 5 14 6 7 3 8 9 15 10 2 11 12 13 16
-//          
-// breadth: 4 3 2 5 6 7 8 9 10 11 12 13 14 15 16
+// Depth-first search should print out
+//  4 5 14 6 7 3 8 9 15 10 2 11 12 13 16 101
 
 
 using namespace ecs;
 
-auto constexpr print_child = [](entity_id id, parent parent, int &) {
+auto constexpr print_child = [](entity_id id, parent /*parent*/, int) {
     //std::cout << id << " has parent " << parent << '\n';
     std::cout << id << ' ';
 };
@@ -44,7 +42,12 @@ int main() {
     add_component(15, parent{9}, int{});
     add_component(16, parent{13}, int{});
 
-    make_system<opts::not_parallel>(print_child);
+    // second small tree
+    add_component({100}, int{});
+    add_component({101}, parent{100}, int{});
+
+    // hierarchial systems are implicitly serial, so no need for opts::not_parallel
+    make_system(print_child);
 
     update();
 }
