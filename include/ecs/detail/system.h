@@ -15,8 +15,7 @@
 #include "type_hash.h"
 
 #include "system_defs.h"
-#include "builder_ranged_argument.h"
-#include "builder_sorted_argument.h"
+#include "builder_selector.h"
 
 #include "../options.h"
 #include "options.h"
@@ -24,30 +23,9 @@
 #include "frequency_limiter.h"
 
 namespace ecs::detail {
-
-    // Chooses an argument builder and returns a nullptr to it
-    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    constexpr auto get_ptr_builder() {
-        if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
-            return (builder_sorted_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
-        } else {
-            return (builder_ranged_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>*) nullptr;
-        }
-    }
-
-    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
-    using builder_selector =
-        std::remove_pointer_t<decltype(get_ptr_builder<Options, UpdateFn, SortFn, FirstComponent, Components...>())>;
-
     // The implementation of a system specialized on its components
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     class system final : public system_base {
-        using argument_builder = builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
-        argument_builder arguments;
-
-        using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
-        frequency_limiter<user_freq::hz> frequency;
-
     public:
         // Constructor for when the first argument to the system is _not_ an entity
         system(UpdateFn update_func, SortFn sort_func, pool<FirstComponent> first_pool, pool<Components>... pools)
@@ -261,6 +239,12 @@ namespace ecs::detail {
         }
 
     private:
+        using argument_builder = builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
+        argument_builder arguments;
+
+        using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
+        frequency_limiter<user_freq::hz> frequency;
+
         // Number of arguments
         static constexpr size_t num_arguments = 1 + sizeof...(Components);
 
