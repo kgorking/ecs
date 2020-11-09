@@ -16,7 +16,6 @@ namespace ecs::detail {
         using single_argument =
             decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
 
-        using relation = std::pair<entity_id, parent>; // node, parent
         using relation_map = std::unordered_map<entity_type, single_argument const*>;
         using relation_mmap = std::unordered_multimap<entity_type, single_argument const*>;
 
