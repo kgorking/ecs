@@ -4,8 +4,8 @@
 #include "entity_id.h"
 
 namespace ecs {
+    // Special component that allows parent/child relationships
     struct parent : entity_id {
-        //entity_id id;
     };
 }
 

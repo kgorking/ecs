@@ -302,7 +302,7 @@ namespace ecs::detail {
             deferred_adds.clear();
             deferred_init_adds.clear();
 
-            if constexpr (!std::is_same_v<parent, T>) {
+            if constexpr (!std::is_same_v<parent, T>) { // don't sort hierarchies
                 // Sort the input
                 auto constexpr comparator = [](auto const& l, auto const& r) {
                     return std::get<0>(l).first() < std::get<0>(r).first();
