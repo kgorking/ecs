@@ -14,13 +14,14 @@
 //
 // Should print out
 // depth  : 4 5 14 6 7 3 8 9 15 10 2 11 12 13 16
+//          
 // breadth: 4 3 2 5 6 7 8 9 10 11 12 13 14 15 16
 
 
 using namespace ecs;
 
-auto constexpr print_child = [](entity_id id, parent /*parent*/, int &) {
-    //std::cout << id << " has parent " << parent.id << '\n';
+auto constexpr print_child = [](entity_id id, parent parent, int &) {
+    //std::cout << id << " has parent " << parent << '\n';
     std::cout << id << ' ';
 };
 

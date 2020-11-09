@@ -3,10 +3,10 @@
 
 // !Only to be included by system.h
 #include <unordered_map>
-#include <unordered_set>
 
 namespace ecs::detail {
     using relation = std::pair<entity_id, parent>; // node, parent
+    using relation_map = std::unordered_multimap<entity_type, entity_type>;
 
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     struct builder_hierarchy_argument {
@@ -79,8 +79,7 @@ namespace ecs::detail {
         }
 
     private:
-        void walk_node(entity_type node, std::vector<entity_type>& vec,
-            std::unordered_multimap<entity_type, entity_type> const& node_children) {
+        void walk_node(entity_type node, std::vector<entity_type>& vec, relation_map const& node_children) {
 
             if (node_children.contains(node)) {
                 auto [first, last] = node_children.equal_range(node);
@@ -93,8 +92,8 @@ namespace ecs::detail {
         }
 
         void depth_first_sort() {
-            std::unordered_multimap<entity_type, entity_type> node_parent;
-            std::unordered_multimap<entity_type, entity_type> node_children;
+            relation_map node_parent;
+            relation_map node_children;
             node_parent.reserve(arguments.size());
             node_children.reserve(arguments.size());
 
@@ -107,10 +106,10 @@ namespace ecs::detail {
             });
 
             // find roots
-            std::unordered_set<entity_type> roots;
+            std::vector<entity_type> roots;
             for (auto const [node, parent] : node_parent) {
                 if (!node_parent.contains(parent))
-                    roots.insert(parent);
+                    roots.push_back(parent);
             }
 
             // walk the tree
