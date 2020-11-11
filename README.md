@@ -76,7 +76,7 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
 
 
 # Entities
-Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
+Entities are the scaffolding on which you build your objects, and there are two classes in the library for managing entities.
 
 * [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
 * [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
