@@ -1,8 +1,8 @@
-#ifndef __DETAIL_COMPONENT_FLAGS_H
-#define __DETAIL_COMPONENT_FLAGS_H
+#ifndef __DETAIL_FLAGS_H
+#define __DETAIL_FLAGS_H
 
 #include <type_traits>
-#include "../component_flags.h"
+#include "../flags.h"
 
 // Some helpers concepts to detect flags
 namespace ecs::detail {

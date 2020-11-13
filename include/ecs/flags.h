@@ -1,5 +1,5 @@
-#ifndef __COMPONENT_FLAGS_H
-#define __COMPONENT_FLAGS_H
+#ifndef __FLAGS_H
+#define __FLAGS_H
 
 // Add flags to a component to change its behaviour and memory usage.
 // Example:

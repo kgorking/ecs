@@ -4,7 +4,7 @@
 #include <concepts>
 #include <type_traits>
 
-#include "../component_flags.h"
+#include "../flags.h"
 #include "../entity_id.h"
 
 namespace ecs::detail {
