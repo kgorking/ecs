@@ -30,13 +30,12 @@ namespace ecs::detail {
 
     //
     // Check if type is a parent
-    template<typename T>
-    struct is_parent {
+    template<typename T> struct is_parent {
         static constexpr bool value = false;
     };
     template<typename T>
     requires requires {
-        T::_ecs_parent;
+        typename T::_ecs_parent;
     }
     struct is_parent<T> {
         static constexpr bool value = true;
