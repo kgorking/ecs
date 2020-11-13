@@ -1,5 +1,5 @@
-#ifndef __COMPONENT_FLAGS_H
-#define __COMPONENT_FLAGS_H
+#ifndef __FLAGS_H
+#define __FLAGS_H
 
 // Add flags to a component to change its behaviour and memory usage.
 // Example:
@@ -30,7 +30,7 @@ namespace ecs::flag {
 
     // Add this in a component with 'ecs_flags()' to mark it as constant.
     // A compile-time error will be raised if a system tries to
-    // access the component through a non-const reference.
+    // write to the component through a reference.
     struct immutable{};
 
     // Add this in a component with 'ecs_flags()' to mark it as global.

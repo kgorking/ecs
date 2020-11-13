@@ -11,7 +11,7 @@
 #include "tls/splitter.h"
 
 #include "component_pool_base.h"
-#include "component_flags.h"
+#include "flags.h"
 #include "../entity_id.h"
 #include "../entity_range.h"
 
