@@ -1,6 +1,5 @@
 #include <ecs/ecs.h>
 #include <iostream>
-#include <string>
 
 
 //      _____1________                  100
@@ -18,7 +17,7 @@
 
 using namespace ecs;
 
-auto constexpr print_child = [](entity_id id, parent /*parent*/, int) {
+auto constexpr print_child = [](entity_id id, parent<> p, int) {
     //std::cout << id << " has parent " << parent << '\n';
     std::cout << id << ' ';
 };

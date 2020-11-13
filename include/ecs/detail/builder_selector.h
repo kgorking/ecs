@@ -6,13 +6,11 @@
 #include "builder_hierachy_argument.h"
 
 namespace ecs::detail {
-
     // Chooses an argument builder and returns a nullptr to it
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
     constexpr auto get_ptr_builder() {
         bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
-        bool constexpr has_parent = std::is_same_v<FirstComponent, ecs::parent> ||
-                                    (std::is_same_v<Components, ecs::parent> || ...);
+        bool constexpr has_parent = is_parent<FirstComponent>::value || (is_parent<Components>::value || ...);
 
         static_assert(!(has_sort_func == has_parent && has_parent == true),
             "Systems can not both be hierarchial and sorted");

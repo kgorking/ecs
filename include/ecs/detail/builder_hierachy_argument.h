@@ -12,6 +12,10 @@ namespace ecs::detail {
         // Walking the tree in parallel doesn't seem possible
         using execution_policy = std::execution::sequenced_policy;
 
+        // Find the parent type
+        using parent_type = test_option_type_or<is_parent, std::tuple<FirstComponent, Components...>, void>;
+        static_assert(!std::is_same_v<void, parent_type>);
+
         // Holds a single entity id and its arguments
         using single_argument =
             decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
@@ -114,7 +118,7 @@ namespace ecs::detail {
             // map entities and their parents to their arguments
             std::for_each(arguments.begin(), arguments.end(), [&, this](auto const& packed_arg) {
                 entity_type const id = std::get<0>(packed_arg);
-                entity_type const par = *std::get<parent*>(packed_arg);
+                entity_type const par = *std::get<parent_type*>(packed_arg);
 
                 entity_argument.emplace(id, &packed_arg);
                 parent_argument.emplace(par, &packed_arg);
@@ -123,7 +127,7 @@ namespace ecs::detail {
             // find roots
             std::unordered_set<entity_type> roots;
             for (auto const& packed_arg : arguments) {
-                entity_type const entity_parent = *std::get<parent*>(packed_arg);
+                entity_type const entity_parent = *std::get<parent_type*>(packed_arg);
                 if (!entity_argument.contains(entity_parent)) {
                     roots.insert(entity_parent);
                 }
