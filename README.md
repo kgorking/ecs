@@ -44,9 +44,9 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
 * ![msvc 19.26](https://github.com/kgorking/ecs/workflows/msvc%2019.26/badge.svg?branch=split_ci_builds)
 * ![gcc 10.1](https://github.com/kgorking/ecs/workflows/gcc%2010.1/badge.svg?branch=split_ci_builds)
 * ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg?branch=split_ci_builds)
-* ![clang 11 libc++](https://github.com/kgorking/ecs/workflows/clang%2011%20libc++/badge.svg?branch=split_ci_builds)
+* ![clang 10 libc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libc++/badge.svg?branch=split_ci_builds)
   * `libc++` is missing `<concepts>` and the parallel stl implementation.
-* ![clang 11 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2011%20libstdc++/badge.svg?branch=split_ci_builds)
+* ![clang 10 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libstdc++/badge.svg?branch=split_ci_builds)
   * `libstdc++` is missing the `<span>` header.
 
 # Table of Contents
@@ -76,7 +76,7 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
 
 
 # Entities
-Entities are the scaffolding on which you build your objects. There a three entity classes in the library, each offering increasingly more advanced usage.
+Entities are the scaffolding on which you build your objects, and there are two classes in the library for managing entities.
 
 * [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
 * [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
@@ -364,4 +364,4 @@ manual_sys.run(); // required to run the system
 ### `opts::not_parallel`
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
-It should not be used to avoid data races when writing to a shared variable. Use atomics or [`tls::splitter`](tls/include/tls/splitter.h) in these cases, if possible.
+It should not be used to avoid data races when writing to a shared variable. Use atomics or [`tls::splitter`](https://github.com/kgorking/tls/blob/master/include/tls/splitter.h) in these cases, if possible.
