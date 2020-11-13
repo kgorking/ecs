@@ -30,7 +30,7 @@ namespace ecs::flag {
 
     // Add this in a component with 'ecs_flags()' to mark it as constant.
     // A compile-time error will be raised if a system tries to
-    // access the component through a non-const reference.
+    // write to the component through a reference.
     struct immutable{};
 
     // Add this in a component with 'ecs_flags()' to mark it as global.
