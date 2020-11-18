@@ -9,8 +9,8 @@ namespace ecs::detail {
 
     template<typename T, typename Pools>
     void pool_intersect(std::vector<entity_range>& ranges, Pools const& pools) {
-        // Skip globals
-        if constexpr (detail::global<T>)
+        // Skip globals and parents
+        if constexpr (detail::global<T> /*|| detail::is_parent<T>*/)
             return;
 
         if constexpr (std::is_pointer_v<T>) {
