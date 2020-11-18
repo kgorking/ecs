@@ -14,7 +14,7 @@
 #include "flags.h"
 #include "../entity_id.h"
 #include "../entity_range.h"
-#include "../parent.h"
+#include "options.h"
 
 template<class ForwardIt, class BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) {
