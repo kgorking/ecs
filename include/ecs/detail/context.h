@@ -6,10 +6,10 @@
 #include <shared_mutex>
 #include <vector>
 
-#include "tls/cache.h"
 #include "component_pool.h"
 #include "scheduler.h"
 #include "system.h"
+#include "tls/cache.h"
 #include "type_hash.h"
 
 namespace ecs::detail {
@@ -96,8 +96,7 @@ namespace ecs::detail {
                     // shared lock during its call
                     lock.unlock();
                     return create_component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>();
-                }
-                else {
+                } else {
                     return it->second;
                 }
             });
@@ -106,28 +105,26 @@ namespace ecs::detail {
         }
 
         // Const lambda with sort
-        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C,
-            typename FirstArg, typename... Args>
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg,
+            typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
-            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(
-                update_func, sort_func);
+            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
         }
 
         // Mutable lambda with sort
-        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C,
-            typename FirstArg, typename... Args>
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg,
+            typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...)) {
-            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(
-                update_func, sort_func);
+            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
         }
 
     private:
-        template<typename Options, typename UpdateFn, typename SortFn, typename FirstArg,
-            typename... Args>
+        template<typename Options, typename UpdateFn, typename SortFn, typename FirstArg, typename... Args>
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
             // Make sure we have a valid sort function
             if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
-                static_assert(detail::sorter<SortFn>, "Invalid sort-function supplied, should be 'bool(T const&, T const&)'");
+                static_assert(
+                    detail::sorter<SortFn>, "Invalid sort-function supplied, should be 'bool(T const&, T const&)'");
             }
 
             // Set up the implementation
