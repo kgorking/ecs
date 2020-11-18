@@ -17,9 +17,10 @@ namespace ecs {
             : entity_id(id) {
         }
 
+        // used internally by detectors
         struct _ecs_parent {};
     private:
-        void* test = nullptr;
+        std::tuple<ParentTypes*...> parent_components;
 
         friend class detail::system_base;
     };

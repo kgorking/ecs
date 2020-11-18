@@ -189,46 +189,8 @@ namespace ecs::detail {
                 // When there are more than one component required for a system,
                 // find the intersection of the sets of entities that have those components
 
-                // The intersector
-                std::vector<entity_range> ranges;
-                bool first_component = true;
-                auto const intersect = [&](auto arg) {
-                    using type = std::remove_pointer_t<decltype(arg)>;
-                    if constexpr (std::is_pointer_v<type> || detail::global<type>) {
-                        // Skip pointers and globals
-                        return;
-                    } else {
-                        auto const& type_pool = get_pool<type>();
-
-                        if (first_component) {
-                            entity_range_view const span = type_pool.get_entities();
-                            ranges.insert(ranges.end(), span.begin(), span.end());
-                            first_component = false;
-                        } else {
-                            ranges = intersect_ranges(ranges, type_pool.get_entities());
-                        }
-                    }
-                };
-
-                // Find the intersections
-                constexpr auto dummy = argument_tuple<FirstComponent, Components...>{};
-                std::apply([&intersect](auto... args) { (..., intersect(args)); }, dummy);
-
-                // Filter out types if needed
-                if constexpr (num_filters > 0) {
-                    auto const difference = [&](auto arg) {
-                        using type = std::remove_pointer_t<decltype(arg)>;
-                        if constexpr (std::is_pointer_v<type>) {
-                            auto const& type_pool = get_pool<std::remove_pointer_t<type>>();
-                            ranges = difference_ranges(ranges, type_pool.get_entities());
-                        }
-                    };
-
-                    if (!ranges.empty())
-                        std::apply([&difference](auto... args) { (..., difference(args)); }, dummy);
-                }
-
                 // Build the arguments
+                auto const ranges = find_entity_pool_intersections<FirstComponent, Components...>(arguments.get_pools());
                 arguments.build(ranges);
             }
         }

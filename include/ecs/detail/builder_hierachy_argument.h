@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "find_entity_pool_intersections.h"
+
 namespace ecs::detail {
 
     template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>

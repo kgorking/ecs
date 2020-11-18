@@ -2,6 +2,7 @@
 #define __SYSTEM_DEFS_H_
 
 // Contains definitions that are used by the system- and builder classes
+#include "component_pool.h"
 
 namespace ecs::detail {
     // Alias for stored pools
