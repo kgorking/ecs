@@ -2,13 +2,9 @@
 #define __PARENT_H_
 
 #include "entity_id.h"
-//#include "detail/system_base.h"
+#include <tuple>
 
 namespace ecs {
-    namespace detail {
-        class system_base;
-    }
-
     // Special component that allows parent/child relationships
     template<typename ... ParentTypes>
     struct parent : entity_id {
@@ -21,8 +17,6 @@ namespace ecs {
         struct _ecs_parent {};
     private:
         std::tuple<ParentTypes*...> parent_components;
-
-        friend class detail::system_base;
     };
 } // namespace ecs
 
