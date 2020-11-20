@@ -6,7 +6,7 @@
 #include <unordered_set>
 
 #include "find_entity_pool_intersections.h"
-#include "parent.h"
+#include "../parent.h"
 
 namespace ecs::detail {
     template<typename Options, typename UpdateFn, typename SortFn, typename TuplePools, class FirstComponent, class... Components>
@@ -139,7 +139,7 @@ namespace ecs::detail {
             parent_argument.reserve(arguments.size());
 
             // map entities and their parents to their arguments
-            std::for_each(arguments.begin(), arguments.end(), [&, this](auto const& packed_arg) {
+            std::for_each(arguments.begin(), arguments.end(), [&](auto const& packed_arg) {
                 entity_type const id = std::get<0>(packed_arg);
                 entity_type const par = std::get<parent_type>(packed_arg);
 

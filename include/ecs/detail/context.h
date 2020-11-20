@@ -171,9 +171,11 @@ namespace ecs::detail {
                 using parent_type = test_option_type_or<is_parent, std::tuple<FirstComponent, Components...>, void>;
                 parent_types_tuple_t<parent_type> pt;
 
-                auto const pools = make_tuple_pools<reduce_parent_t<FirstComponent>, reduce_parent_t<Components>...>();
                 auto const all_pools = std::apply(
-                    [&pools, this](auto... parent_types) {
+                    [this](auto... parent_types) {
+                        auto const pools =
+                            make_tuple_pools<reduce_parent_t<FirstComponent>, reduce_parent_t<Components>...>();
+
                         if constexpr (sizeof...(parent_types) > 0) {
                             return tuple_cat_unique(
                                 pools,
