@@ -10,10 +10,12 @@
 
 #include "tls/splitter.h"
 
-#include "component_pool_base.h"
-#include "flags.h"
 #include "../entity_id.h"
 #include "../entity_range.h"
+#include "parent_id.h"
+
+#include "component_pool_base.h"
+#include "flags.h"
 #include "options.h"
 
 template<class ForwardIt, class BinaryPredicate>
@@ -303,7 +305,7 @@ namespace ecs::detail {
             deferred_adds.clear();
             deferred_init_adds.clear();
 
-            if constexpr (!is_parent<T>::value) { // don't sort hierarchies
+            if constexpr (!std::is_same_v<T, parent_id>) { // don't sort hierarchies
                 // Sort the input
                 auto constexpr comparator = [](auto const& l, auto const& r) {
                     return std::get<0>(l).first() < std::get<0>(r).first();

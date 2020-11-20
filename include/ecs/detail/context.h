@@ -154,7 +154,8 @@ namespace ecs::detail {
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
             // Do some checks on the components
             bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
-            bool constexpr has_parent = is_parent<FirstComponent>::value || (is_parent<Components>::value || ...);
+            bool constexpr has_parent = is_parent<std::remove_cvref_t<FirstComponent>>::value ||
+                                        (is_parent<std::remove_cvref_t<Components>>::value || ...);
 
             // Make sure we have a valid sort function
             if constexpr (has_sort_func) {
@@ -168,13 +169,13 @@ namespace ecs::detail {
             // Create the system instance
             std::unique_ptr<system_base> sys;
             if constexpr (has_parent) {
-                using parent_type = test_option_type_or<is_parent, std::tuple<FirstComponent, Components...>, void>;
+                using parent_type = test_option_type_or<is_parent, std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
                 parent_types_tuple_t<parent_type> pt;
 
                 auto const all_pools = std::apply(
                     [this](auto... parent_types) {
-                        auto const pools =
-                            make_tuple_pools<reduce_parent_t<FirstComponent>, reduce_parent_t<Components>...>();
+                        auto const pools = make_tuple_pools<reduce_parent_t<std::remove_cvref_t<FirstComponent>>,
+                            reduce_parent_t<std::remove_cvref_t<Components>>...>();
 
                         if constexpr (sizeof...(parent_types) > 0) {
                             return tuple_cat_unique(

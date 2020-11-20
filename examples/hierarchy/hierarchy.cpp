@@ -1,24 +1,20 @@
 #include <iostream>
 #include <ecs/ecs.h>
 
-//      _____1________                  100
-//     /     |        \                  |
-//    /      |         \                101
-//   4       3          2
+//     ______1_________              100
+//    /      |         \              |
+//   4       3          2            101
 //  /|\     /|\       / | \
 // 5 6 7   8 9 10   11  12 13
 // |         |             |
 // 14        15            16
-//
-// Depth-first search should print out
-//  4 5 14 6 7 3 8 9 15 10 2 11 12 13 16 101
-
 
 using namespace ecs;
 using std::cout;
 
 // Print children, filtered on their parent
-auto constexpr print_all_children = [](entity_id id, parent<> /*p*/, int) { cout << id << ' '; };
+//auto constexpr print_roots = [](entity_id id, parent<>*, int) { cout << id << ' '; };
+auto constexpr print_all_children = [](entity_id id, parent<> /*p*/) { cout << id << ' '; };
 auto constexpr print_short_children = [](entity_id id, parent<short> p) { cout << id << '(' << p.get<short>() << ") "; };
 auto constexpr print_long_children = [](entity_id id, parent<long> p) { cout << id << '(' << p.get<long>() << ") "; };
 auto constexpr print_float_children = [](entity_id id, parent<float> p) { cout << id << '(' << p.get<float>() << ") "; };
@@ -47,6 +43,7 @@ int main() {
     add_component({101}, parent{100}, int{});
 
     // hierarchial systems are implicitly serial, so no need for opts::not_parallel
+    //auto& sys_roots = make_system(print_roots);
     auto& sys_all = make_system(print_all_children);
     auto& sys_short = make_system(print_short_children);
     auto& sys_long = make_system(print_long_children);
@@ -55,7 +52,8 @@ int main() {
     commit_changes();
 
     // Run the systems
-    cout << "All children     : ";   sys_all.run();    cout << '\n';
+    //cout << "All roots        : ";   sys_roots.run();  cout << '\n';
+    cout << "All children     : ";   sys_all.run();    cout << '\n'; // 4 5 14 6 7 3 8 9 15 10 2 11 12 13 16 101
     cout << "short children   : ";   sys_short.run();  cout << '\n'; // 5 6 7
     cout << "long children    : ";   sys_long.run();   cout << '\n'; // 8 9 10
     cout << "floating children: ";   sys_float.run();  cout << '\n'; // 11 12 13

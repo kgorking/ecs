@@ -15,7 +15,7 @@ namespace ecs::detail {
         using execution_policy = std::execution::sequenced_policy;
 
         // Extract the parent type
-        using parent_type = test_option_type_or<is_parent, std::tuple<FirstComponent, Components...>, void>;
+        using parent_type = test_option_type_or<is_parent, std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
         static_assert(!std::is_same_v<void, parent_type>);
 
         // Holds a single entity id and its arguments

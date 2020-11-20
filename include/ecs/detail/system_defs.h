@@ -4,14 +4,12 @@
 // Contains definitions that are used by the system- and builder classes
 #include "component_pool.h"
 #include "verification.h"
+#include "parent_id.h"
 
 namespace ecs::detail {
     // Alias for stored pools
     template<class T>
     using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>* const;
-
-    // The parent type stored internally in component pools
-    struct parent_id : entity_id {};
 
     // If given a parent, convert to detail::parent_id, otherwise do nothing
     template<typename T>
@@ -50,7 +48,7 @@ namespace ecs::detail {
     // Get an entities component from a component pool
     template<typename Component, typename Pools>
     [[nodiscard]] auto get_component(entity_id const entity, Pools const& pools) {
-        using T = std::remove_cvref_t<reduce_parent_t<Component>>;
+        using T = std::remove_cvref_t<Component>;
 
         if constexpr (std::is_pointer_v<T>) {
             static_cast<void>(entity);
@@ -60,7 +58,7 @@ namespace ecs::detail {
             return reinterpret_cast<T*>(dummy_arr);
         } else if constexpr (shared<T> || global<T>) {
             return &get_pool<T>(pools).get_shared_component();
-        } else if constexpr (std::is_same_v<T, parent_id>) {
+        } else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
             using parent_type = std::remove_cvref_t<Component>;
             parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
             
@@ -78,8 +76,9 @@ namespace ecs::detail {
 
     // Extracts a component argument from a tuple
     template<typename Component, typename Tuple>
-    decltype(auto) extract_arg(Tuple const& tuple, [[maybe_unused]] ptrdiff_t offset) {
+    decltype(auto) extract_arg(Tuple& tuple, [[maybe_unused]] ptrdiff_t offset) {
         using T = std::remove_cvref_t<Component>;
+
         if constexpr (std::is_pointer_v<T>) {
             return nullptr;
         } else if constexpr (detail::unbound<T>) {
@@ -105,7 +104,7 @@ namespace ecs::detail {
 
     // The type of a single component argument
     template<typename Component>
-    using component_argument = std::conditional_t<is_parent<Component>::value,
+    using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Component>>::value,
         std::remove_cvref_t<Component>,   // parent components are stored as copies
         std::remove_cvref_t<Component>*>; // rest are pointers
 

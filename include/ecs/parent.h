@@ -20,19 +20,22 @@ namespace ecs {
             : entity_id(id) {
         }
 
+        parent(parent const&) = default;
+        parent& operator=(parent const&) = default;
+
         entity_id id() const {
             return *this;
         }
 
         template<typename T>
         T& get() {
-            static_assert((std::is_same_v<T, ParentTypes> || ...), "Type is not specified in the parent component");
+            static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
             return *std::get<T*>(parent_components);
         }
 
         template<typename T>
         T const& get() const {
-            static_assert((std::is_same_v<T, ParentTypes> || ...), "Type is not specified in the parent component");
+            static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
             return *std::get<T*>(parent_components);
         }
 
