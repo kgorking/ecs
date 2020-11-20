@@ -130,7 +130,7 @@ namespace ecs::detail {
                 std::tuple<pool<R>...> t(&get_component_pool<R>()...);
                 return t;
             }
-        };
+        }
 
         template<typename BF, typename... B, typename... A>
         static auto tuple_cat_unique(std::tuple<A...> const& a, BF *const bf, B... b) {
