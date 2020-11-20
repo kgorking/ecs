@@ -41,13 +41,18 @@ namespace ecs::detail {
     // Find the intersection of the sets of entities in the specified pools
     template<class FirstComponent, class... Components, typename TuplePools>
     std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools) {
-        auto const ent_view = std::get<0>(pools)->get_entities();
-        std::vector<entity_range> ranges{ent_view.begin(), ent_view.end()};
+        std::vector<entity_range> ranges{entity_range::all()};
 
-        (pool_intersect<Components, TuplePools>(ranges, pools), ...);
+        if constexpr (std::is_same_v<entity_id, FirstComponent>) {
+            (pool_intersect<Components, TuplePools>(ranges, pools), ...);
+            (pool_difference<Components, TuplePools>(ranges, pools), ...);
+        } else {
+            pool_intersect<FirstComponent, TuplePools>(ranges, pools);
+            (pool_intersect<Components, TuplePools>(ranges, pools), ...);
 
-        pool_difference<FirstComponent, TuplePools>(ranges, pools);
-        (pool_difference<Components, TuplePools>(ranges, pools), ...);
+            pool_difference<FirstComponent, TuplePools>(ranges, pools);
+            (pool_difference<Components, TuplePools>(ranges, pools), ...);
+        }
 
         return ranges;
     }
