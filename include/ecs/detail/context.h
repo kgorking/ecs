@@ -133,7 +133,7 @@ namespace ecs::detail {
         };
 
         template<typename BF, typename... B, typename... A>
-        auto tuple_cat_unique(std::tuple<A...> const& a, BF *const bf, B... b) {
+        static auto tuple_cat_unique(std::tuple<A...> const& a, BF *const bf, B... b) {
             if constexpr ((std::is_same_v<BF* const, A> || ...)) {
                 // BF exists in tuple a, so skip it
                 if constexpr (sizeof...(B) > 0) {
