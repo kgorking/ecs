@@ -179,7 +179,7 @@ namespace ecs::detail {
                 // find the intersection of the sets of entities that have those components
 
                 // Build the arguments
-                auto const ranges = find_entity_pool_intersections(arguments.get_pools());
+                auto const ranges = find_entity_pool_intersections<FirstComponent, Components...>(arguments.get_pools());
                 arguments.build(ranges);
             }
         }
