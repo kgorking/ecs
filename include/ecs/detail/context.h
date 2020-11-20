@@ -173,7 +173,7 @@ namespace ecs::detail {
 
                 auto const pools = make_tuple_pools<reduce_parent_t<FirstComponent>, reduce_parent_t<Components>...>();
                 auto const all_pools = std::apply(
-                    [&pools](auto... parent_types) {
+                    [&pools, this](auto... parent_types) {
                         if constexpr (sizeof...(parent_types) > 0) {
                             return tuple_cat_unique(
                                 pools,
