@@ -13,29 +13,18 @@
 #include "entity_range.h"
 #include "system_base.h"
 #include "type_hash.h"
-
 #include "system_defs.h"
-#include "builder_selector.h"
-
-#include "../options.h"
 #include "options.h"
-
 #include "frequency_limiter.h"
 
 namespace ecs::detail {
     // The implementation of a system specialized on its components
-    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
+    template<typename Options, typename UpdateFn, typename SortFn, typename ArgumentBuilder, class FirstComponent, class... Components>
     class system final : public system_base {
     public:
-        // Constructor for when the first argument to the system is _not_ an entity
-        system(UpdateFn update_func, SortFn sort_func, pool<FirstComponent> first_pool, pool<Components>... pools)
-            : arguments{update_func, sort_func, first_pool, pools...} {
-            find_entities();
-        }
-
-        // Constructor for when the first argument to the system _is_ an entity
-        system(UpdateFn update_func, SortFn sort_func, pool<Components>... pools)
-            : arguments{update_func, sort_func, pools...} {
+        template<typename ...BuilderArgs>
+        system(UpdateFn update_func, SortFn sort_func, BuilderArgs&& ...args)
+            : arguments{update_func, sort_func, std::forward<BuilderArgs>(args)...} {
             find_entities();
         }
 
@@ -60,7 +49,7 @@ namespace ecs::detail {
         template<typename T>
         void notify_pool_modifed() {
             if constexpr (!is_read_only<T>() && !std::is_pointer_v<T>) {
-                get_pool<std::remove_cvref_t<T>>().notify_components_modified();
+                get_pool<reduce_parent_t<std::remove_cvref_t<T>>>().notify_components_modified();
             }
         }
 
@@ -190,7 +179,7 @@ namespace ecs::detail {
                 // find the intersection of the sets of entities that have those components
 
                 // Build the arguments
-                auto const ranges = find_entity_pool_intersections<FirstComponent, Components...>(arguments.get_pools());
+                auto const ranges = find_entity_pool_intersections(arguments.get_pools());
                 arguments.build(ranges);
             }
         }
@@ -201,8 +190,8 @@ namespace ecs::detail {
         }
 
     private:
-        using argument_builder = builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
-        argument_builder arguments;
+        //using argument_builder = builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
+        ArgumentBuilder arguments;
 
         using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
         frequency_limiter<user_freq::hz> frequency;

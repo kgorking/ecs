@@ -7,30 +7,53 @@
 
 namespace ecs::detail {
 
-    template<typename T, typename Pools>
-    void pool_intersect(std::vector<entity_range>& ranges, Pools const& pools) {
-        // Skip globals and parents
-        if constexpr (detail::global<T> /*|| detail::is_parent<T>*/)
-            return;
+    template<typename T>
+    struct nested_type_detect; // primary template
 
-        if constexpr (std::is_pointer_v<T>) {
-            ranges = difference_ranges(ranges, get_pool<std::remove_pointer_t<T>>(pools).get_entities());
+    template<template<class> class Parent, class Nested> // partial specialization
+    struct nested_type_detect<Parent<Nested>> {
+        using type = Nested;
+    };
+
+    template<typename T>
+    using component_pool_type = typename nested_type_detect<std::remove_pointer_t<T>>::type;
+
+    template<int Index, typename Tuple>
+    void pool_intersect(std::vector<entity_range>& ranges, Tuple const& pools) {
+        if constexpr (Index == std::tuple_size_v<Tuple>) {
+            return;
         } else {
-            ranges = intersect_ranges(ranges, get_pool<T>(pools).get_entities());
+            using PoolType = std::remove_pointer_t<std::tuple_element_t<Index, Tuple>>;
+            using T = component_pool_type<PoolType>;
+
+            // Skip globals and parents
+            if constexpr (detail::global<T> /*|| detail::is_parent<T>*/) {
+                // do nothing
+            } else if constexpr (std::is_pointer_v<T>) {
+                ranges = difference_ranges(ranges, get_pool<std::remove_pointer_t<T>>(pools).get_entities());
+            } else {
+                ranges = intersect_ranges(ranges, get_pool<T>(pools).get_entities());
+            }
+
+            // Go to next type in the tuple
+            pool_intersect<Index + 1>(ranges, pools);
         }
     }
 
 
     // Find the intersection of the sets of entities in the specified pools
-    template<typename FT, typename... RT>
-    std::vector<entity_range> find_entity_pool_intersections(tup_pools<FT, RT...> pools) {
+    template<typename Tuple>
+    std::vector<entity_range> find_entity_pool_intersections(Tuple const& pools) {
+        if constexpr (0 == std::tuple_size_v<Tuple>) {
+            return {};
+        } else {
+            std::vector<entity_range> ranges{
+                entity_range{std::numeric_limits<entity_type>::min(), std::numeric_limits<entity_type>::max()}};
 
-        std::vector<entity_range> ranges{
-            std::get<0>(pools)->get_entities().begin(), std::get<0>(pools)->get_entities().end()};
+            pool_intersect<0>(ranges, pools);
 
-        (..., pool_intersect<std::remove_cvref_t<RT>>(ranges, pools));
-
-        return ranges;
+            return ranges;
+        }
     }
 
 } // namespace ecs::detail

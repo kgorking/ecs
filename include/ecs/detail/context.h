@@ -12,6 +12,8 @@
 #include "tls/cache.h"
 #include "type_hash.h"
 
+#include "builder_selector.h"
+
 namespace ecs::detail {
     // The central class of the ecs implementation. Maintains the state of the system.
     class context final {
@@ -112,31 +114,91 @@ namespace ecs::detail {
         }
 
         // Mutable lambda with sort
-        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg,
-            typename... Args>
-        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...)) {
-            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstComponent,
+            typename... Components>
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
+            return create_system<Options, UpdateFn, SortFn, FirstComponent, Components...>(update_func, sort_func);
         }
 
     private:
-        template<typename Options, typename UpdateFn, typename SortFn, typename FirstArg, typename... Args>
+        template<typename T, typename... R>
+        auto make_tuple_pools() {
+            if constexpr (!is_entity<T>) {
+                std::tuple<pool<T>, pool<R>...> t(&get_component_pool<T>(), &get_component_pool<R>()...);
+                return t;
+            } else {
+                std::tuple<pool<R>...> t(&get_component_pool<R>()...);
+                return t;
+            }
+        };
+
+        template<typename BF, typename... B, typename... A>
+        auto tuple_cat_unique(std::tuple<A...> const& a, BF *const bf, B... b) {
+            if constexpr ((std::is_same_v<BF* const, A> || ...)) {
+                // BF exists in tuple a, so skip it
+                if constexpr (sizeof...(B) > 0) {
+                    return tuple_cat_unique(a, b...);
+                } else {
+                    return a;
+                }
+            } else {
+                if constexpr (sizeof...(B) > 0) {
+                    return tuple_cat_unique(std::tuple_cat(a, std::tuple<BF* const>{bf}), b...);
+                } else {
+                    return std::tuple_cat(a, std::tuple<BF* const>{bf});
+                }
+            }
+        }
+
+        template<typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
+            // Do some checks on the components
+            bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
+            bool constexpr has_parent = is_parent<FirstComponent>::value || (is_parent<Components>::value || ...);
+
             // Make sure we have a valid sort function
-            if constexpr (!std::is_same_v<SortFn, std::nullptr_t>) {
+            if constexpr (has_sort_func) {
                 static_assert(
                     detail::sorter<SortFn>, "Invalid sort-function supplied, should be 'bool(T const&, T const&)'");
             }
 
-            // Set up the implementation
-            using typed_system = system<Options, UpdateFn, SortFn, FirstArg, Args...>;
+            static_assert(
+                !(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
             // Create the system instance
             std::unique_ptr<system_base> sys;
-            if constexpr (is_entity<FirstArg>) {
-                sys = std::make_unique<typed_system>(update_func, sort_func, &get_component_pool<Args>()...);
+            if constexpr (has_parent) {
+                using parent_type = test_option_type_or<is_parent, std::tuple<FirstComponent, Components...>, void>;
+                parent_types_tuple_t<parent_type> pt;
+
+                auto const pools = make_tuple_pools<reduce_parent_t<FirstComponent>, reduce_parent_t<Components>...>();
+                auto const all_pools = std::apply(
+                    [&pools, this](auto... parent_types) {
+                        if constexpr (sizeof...(parent_types) > 0) {
+                            return tuple_cat_unique(
+                                pools,
+                                &get_component_pool<decltype(parent_types)>()...);
+                        } else {
+                            return pools;
+                        }
+                    }, pt);
+
+                using argument_builder = builder_hierarchy_argument<Options, UpdateFn, SortFn, decltype(all_pools), FirstComponent, Components...>;
+                using typed_system = system<Options, UpdateFn, SortFn, argument_builder, FirstComponent, Components...>;
+                sys = std::make_unique<typed_system>(update_func, sort_func, all_pools);
+            }
+            else if constexpr (has_sort_func) {
+                using argument_builder = builder_sorted_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>;
+                using typed_system = system<Options, UpdateFn, SortFn, argument_builder, FirstComponent, Components...>;
+
+                auto pools = make_tuple_pools<FirstComponent, Components...>();
+                sys = std::make_unique<typed_system>(update_func, sort_func, pools);
             } else {
-                sys = std::make_unique<typed_system>(
-                    update_func, sort_func, &get_component_pool<FirstArg>(), &get_component_pool<Args>()...);
+                using argument_builder = builder_ranged_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>;
+                using typed_system = system<Options, UpdateFn, SortFn, argument_builder, FirstComponent, Components...>;
+
+                auto pools = make_tuple_pools<FirstComponent, Components...>();
+                sys = std::make_unique<typed_system>(update_func, sort_func, pools);
             }
 
             std::unique_lock lock(mutex);
@@ -144,7 +206,8 @@ namespace ecs::detail {
             detail::system_base* ptr_system = systems.back().get();
             Ensures(ptr_system != nullptr);
 
-            if constexpr (!has_option<opts::manual_update, Options>())
+            bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
+            if constexpr (!request_manual_update)
                 sched.insert(ptr_system);
 
             return *ptr_system;

@@ -12,15 +12,8 @@ namespace ecs::detail {
         using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
             std::execution::sequenced_policy, std::execution::parallel_policy>;
 
-        builder_sorted_argument(
-            UpdateFn update_func, SortFn sort, pool<FirstComponent> first_pool, pool<Components>... pools)
-            : pools{first_pool, pools...}
-            , update_func{update_func}
-            , sort_func{sort} {
-        }
-
-        builder_sorted_argument(UpdateFn update_func, SortFn sort, pool<Components>... pools)
-            : pools{pools...}
+        builder_sorted_argument(UpdateFn update_func, SortFn sort, tup_pools<FirstComponent, Components...> pools)
+            : pools{pools}
             , update_func{update_func}
             , sort_func{sort} {
         }

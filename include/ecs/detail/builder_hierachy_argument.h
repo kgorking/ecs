@@ -6,27 +6,30 @@
 #include <unordered_set>
 
 #include "find_entity_pool_intersections.h"
+#include "parent.h"
 
 namespace ecs::detail {
-
-    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
+    template<typename Options, typename UpdateFn, typename SortFn, typename TuplePools, class FirstComponent, class... Components>
     class builder_hierarchy_argument {
         // Walking the tree in parallel doesn't seem possible
         using execution_policy = std::execution::sequenced_policy;
 
-        // Find the parent type
+        // Extract the parent type
         using parent_type = test_option_type_or<is_parent, std::tuple<FirstComponent, Components...>, void>;
         static_assert(!std::is_same_v<void, parent_type>);
 
         // Holds a single entity id and its arguments
         using single_argument =
-            decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
+            decltype(std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
 
         using relation_map = std::unordered_map<entity_type, single_argument const*>;
         using relation_mmap = std::unordered_multimap<entity_type, single_argument const*>;
 
         // A tuple of the fully typed component pools used by this system
-        tup_pools<FirstComponent, Components...> const pools;
+        TuplePools const pools;
+
+        // A tuple of the fully typed component pools used the parent component
+        parent_pool_tuple_t<parent_type> const parent_pools;
 
         // The user supplied system
         UpdateFn update_func;
@@ -36,17 +39,17 @@ namespace ecs::detail {
 
     public:
         builder_hierarchy_argument(
-            UpdateFn update_func, SortFn /*sort*/, pool<FirstComponent> first_pool, pool<Components>... pools)
-            : pools{first_pool, pools...}
+            UpdateFn update_func, SortFn /*sort*/, TuplePools const pools)
+            : pools{pools}
+            , parent_pools{std::apply(
+                  [&pools](auto... parent_types) {
+                      return std::make_tuple(&get_pool<decltype(parent_types)>(pools)...);
+                  },
+                  parent_types_tuple_t<parent_type>{})}
             , update_func{update_func} {
         }
 
-        builder_hierarchy_argument(UpdateFn update_func, SortFn /*sort*/, pool<Components>... pools)
-            : pools{pools...}
-            , update_func{update_func} {
-        }
-
-        tup_pools<FirstComponent, Components...> get_pools() const {
+        TuplePools get_pools() const {
             return pools;
         }
 
@@ -74,17 +77,35 @@ namespace ecs::detail {
                 arg_count += range.count();
             }
 
-            // Reserve space for the arguments
+            // Clear the arguments
             arguments.clear();
-            arguments.reserve(arg_count);
+            //arguments.reserve(arg_count);
+
+            // lookup for the parent
+            auto& pool_parent_id = get_pool<parent_id>(pools);
 
             // Build the arguments for the ranges
             for (auto const& range : entities) {
                 for (entity_id const& entity : range) {
+                    if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
+                        // Make sure the parent has the specified types
+                        bool const has_parent_types = std::apply(
+                            [entity, &pool_parent_id](auto... pools) {
+                                parent_id pid = *pool_parent_id.find_component_data(entity);
+                                return (pools->has_entity(pid) || ...);
+                            },
+                            parent_pools);
+
+                        if (!has_parent_types)
+                            continue;
+                    }
+
                     if constexpr (is_entity<FirstComponent>) {
-                        arguments.emplace_back(entity, get_component<Components>(entity, pools)...);
+                        arguments.emplace_back(entity,
+                            get_component<Components>(entity, pools)...);
                     } else {
-                        arguments.emplace_back(entity, get_component<FirstComponent>(entity, pools),
+                        arguments.emplace_back(entity,
+                            get_component<FirstComponent>(entity, pools),
                             get_component<Components>(entity, pools)...);
                     }
                 }
@@ -120,7 +141,7 @@ namespace ecs::detail {
             // map entities and their parents to their arguments
             std::for_each(arguments.begin(), arguments.end(), [&, this](auto const& packed_arg) {
                 entity_type const id = std::get<0>(packed_arg);
-                entity_type const par = *std::get<parent_type*>(packed_arg);
+                entity_type const par = std::get<parent_type>(packed_arg);
 
                 entity_argument.emplace(id, &packed_arg);
                 parent_argument.emplace(par, &packed_arg);
@@ -129,7 +150,7 @@ namespace ecs::detail {
             // find roots
             std::unordered_set<entity_type> roots;
             for (auto const& packed_arg : arguments) {
-                entity_type const entity_parent = *std::get<parent_type*>(packed_arg);
+                entity_type const entity_parent = std::get<parent_type>(packed_arg);
                 if (!entity_argument.contains(entity_parent)) {
                     roots.insert(entity_parent);
                 }

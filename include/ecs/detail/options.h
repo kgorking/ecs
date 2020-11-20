@@ -1,7 +1,7 @@
 #ifndef __DETAIL_OPTIONS_H
 #define __DETAIL_OPTIONS_H
 
-#include <execution>
+#include "../options.h"
 
 namespace ecs::detail {
     //
