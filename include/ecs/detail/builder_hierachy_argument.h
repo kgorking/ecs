@@ -15,7 +15,8 @@ namespace ecs::detail {
         using execution_policy = std::execution::sequenced_policy;
 
         // Extract the parent type
-        using parent_type = test_option_type_or<is_parent, std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
+        using parent_type = test_option_type_or<is_parent,
+            std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
         static_assert(!std::is_same_v<void, parent_type>);
 
         // Holds a single entity id and its arguments
@@ -38,14 +39,14 @@ namespace ecs::detail {
         std::vector<single_argument> arguments;
 
     public:
-        builder_hierarchy_argument(
-            UpdateFn update_func, SortFn /*sort*/, TuplePools const pools)
+        builder_hierarchy_argument(UpdateFn update_func, SortFn /*sort*/, TuplePools const pools)
             : pools{pools}
-            , parent_pools{std::apply(
-                  [&pools](auto... parent_types) {
-                      return std::make_tuple(&get_pool<decltype(parent_types)>(pools)...);
-                  },
-                  parent_types_tuple_t<parent_type>{})}
+            , parent_pools{
+                std::apply([&pools](auto... parent_types) {
+                    return std::make_tuple(&get_pool<decltype(parent_types)>(pools)...);
+                },
+                parent_types_tuple_t<parent_type>{})
+            }
             , update_func{update_func} {
         }
 
@@ -87,14 +88,34 @@ namespace ecs::detail {
             // Build the arguments for the ranges
             for (auto const& range : entities) {
                 for (entity_id const& entity : range) {
+
+                    // If the parent has sub-components specified, verify them
                     if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
-                        // Make sure the parent has the specified types
+
+                        // Does tests on the parent sub-components to see they satisfy the constraints
+                        // ie. a 'parent<int*, float>' will return false if the parent does not have a float or
+                        // has an int.
+                        constexpr parent_types_tuple_t<parent_type> ptt{};
                         bool const has_parent_types = std::apply(
-                            [entity, &pool_parent_id](auto... pools) {
-                                parent_id pid = *pool_parent_id.find_component_data(entity);
-                                return (pools->has_entity(pid) || ...);
-                            },
-                            parent_pools);
+                            [&](auto... parent_types) {
+                                auto const check_parent = [&](auto parent_type) {
+                                    // Get the parent components id
+                                    parent_id const pid = *pool_parent_id.find_component_data(entity);
+
+                                    // Get the pool of the parent sub-component
+                                    auto& sub_pool = get_pool<decltype(parent_type)>(pools);
+
+                                    if constexpr (std::is_pointer_v<decltype(parent_type)>) {
+                                        // The type is a filter, so the parent is _not_ allowed to have this component
+                                        return !sub_pool.has_entity(pid);
+                                    } else {
+                                        // The parent must have this component
+                                        return sub_pool.has_entity(pid);
+                                    }
+                                };
+
+                                return (check_parent(parent_types) && ...);
+                        }, ptt);
 
                         if (!has_parent_types)
                             continue;

@@ -10,8 +10,16 @@ void reset() {
 }
 
 TEST_CASE("Hierarchies") {
-    SECTION("are traversed correctly") {
+   SECTION("are traversed correctly") {
         reset();
+
+        //     ______1_________
+        //    /      |         \
+        //   4       3          2
+        //  /|\     /|\       / | \
+        // 5 6 7   8 9 10   11  12 13
+        // |         |             |
+        // 14        15            16
 
         // The root
         add_component({1}, int{});
@@ -33,9 +41,8 @@ TEST_CASE("Hierarchies") {
 
         // The system to verify the traversal order
         std::vector<int> actual_traversal_order;
-        make_system<opts::not_parallel>([&actual_traversal_order](entity_id id, parent<> /*p*/) {
-            actual_traversal_order.push_back(id);
-        });
+        make_system<opts::not_parallel>(
+            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
 
         update();
 
@@ -64,8 +71,8 @@ TEST_CASE("Hierarchies") {
         // verify parent types
         std::atomic_int count_short = 0, count_long = 0, count_float = 0;
         make_system([&count_short](entity_id id, parent<short> p_s) {
-            REQUIRE((id >= 5 && id <= 7));      // check id value
-            REQUIRE(p_s.get<short>() == 10);    // check parent value
+            REQUIRE((id >= 5 && id <= 7));   // check id value
+            REQUIRE(p_s.get<short>() == 10); // check parent value
             count_short++;
         });
         make_system([&count_long](entity_id id, parent<long> p_s) {
@@ -84,5 +91,41 @@ TEST_CASE("Hierarchies") {
         REQUIRE(count_short == 3);
         REQUIRE(count_long == 3);
         REQUIRE(count_float == 3);
+    }
+
+    SECTION("can filter on parents") {
+        reset();
+
+        add_component({0}, int{});
+        add_component({1}, int{}, parent{0});
+
+        // This system is not a hierarchy
+        bool filter_works = false;
+        make_system([&filter_works](entity_id id, int, parent<>*) { // run on entities with an int and no parent
+            REQUIRE(id == 0);
+            filter_works = true;
+        });
+
+        update();
+
+        REQUIRE(filter_works);
+    }
+
+    SECTION("can filter on parent subtypes") { // parent<int, float*>
+        reset();
+
+        add_component({0}, int{11}, float{});
+        add_component({1}, int{22}, parent{0});
+        add_component({2}, int{33}, float{}, parent{1});
+
+        // run on entities with an int and a parent with an int and no float
+        make_system([](entity_id id, int i, parent<int, float*> p) {
+            CHECK(id == 2);
+            CHECK(i == 33);
+            CHECK(p.id() == 1);
+            CHECK(p.get<int>() == 22);
+        });
+
+        update();
     }
 }

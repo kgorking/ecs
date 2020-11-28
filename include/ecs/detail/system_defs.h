@@ -13,7 +13,11 @@ namespace ecs::detail {
 
     // If given a parent, convert to detail::parent_id, otherwise do nothing
     template<typename T>
-    using reduce_parent_t = std::conditional_t<is_parent<T>::value, parent_id, T>;
+    using reduce_parent_t = 
+        std::conditional_t<std::is_pointer_v<T>,
+            std::conditional_t<is_parent<std::remove_pointer_t<T>>::value, parent_id*, T>,
+            std::conditional_t<is_parent<T>::value, parent_id, T>
+        >;
 
     // Helper to extract the parent types
     template<typename T>
@@ -39,11 +43,27 @@ namespace ecs::detail {
     using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
 
 
-    // Get a component pool from a component pool tuple
+    // Get a component pool from a component pool tuple.
+    // Removes cvref and pointer from Component
     template<typename Component, typename Pools>
-    component_pool<Component>& get_pool(Pools const& pools) {
-        return *std::get<pool<Component>>(pools);
+    auto& get_pool(Pools const& pools) {
+        using T = std::remove_pointer_t<std::remove_cvref_t<Component>>;
+        return *std::get<pool<T>>(pools);
     }
+
+    // Get a pointer to an entities component data from a component pool tuple.
+    // If the component type is a pointer, return nullptr
+    template<typename Component, typename Pools>
+    Component* get_entity_data([[maybe_unused]] entity_id id, [[maybe_unused]] Pools const& pools) {
+        // If the component type is a pointer, return a nullptr
+        if constexpr (std::is_pointer_v<Component>) {
+            return nullptr;
+        } else {
+            component_pool<Component>& pool = get_pool<Component>(pools);
+            return pool.find_component_data(id);
+        }
+    }
+
 
     // Get an entities component from a component pool
     template<typename Component, typename Pools>
@@ -64,8 +84,9 @@ namespace ecs::detail {
             
             parent_types_tuple_t<parent_type> pt;
             auto const tup_parent_ptrs = std::apply(
-                [&](auto... parent_types) { 
-                    return std::make_tuple(get_pool<decltype(parent_types)>(pools).find_component_data(pid)...);
+                [&](auto... parent_types) {
+                    //return std::make_tuple(get_pool<std::remove_pointer_t<decltype(parent_types)>>(pools).find_component_data(pid)...);
+                    return std::make_tuple(get_entity_data<decltype(parent_types)>(pid, pools)...);
             }, pt);
 
             return parent_type{pid, tup_parent_ptrs};
