@@ -2,6 +2,7 @@
 #define __BUILDER_HIERARCHY_ARGUMENT_H_
 
 // !Only to be included by system.h
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -24,7 +25,7 @@ namespace ecs::detail {
             decltype(std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
 
         using relation_map = std::unordered_map<entity_type, single_argument const*>;
-        using relation_mmap = std::unordered_multimap<entity_type, single_argument const*>;
+        using relation_mmap = std::multimap<entity_type, single_argument const*>;
 
         // A tuple of the fully typed component pools used by this system
         TuplePools const pools;
@@ -157,7 +158,7 @@ namespace ecs::detail {
             relation_map entity_argument;
             relation_mmap parent_argument;
             entity_argument.reserve(arguments.size());
-            parent_argument.reserve(arguments.size());
+            //parent_argument.reserve(arguments.size());
 
             // map entities and their parents to their arguments
             std::for_each(arguments.begin(), arguments.end(), [&](auto const& packed_arg) {
