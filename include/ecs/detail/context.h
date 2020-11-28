@@ -178,6 +178,7 @@ namespace ecs::detail {
             if constexpr (has_parent) {
                 parent_types_tuple_t<parent_type> pt;
 
+                // Find the component pools
                 auto const all_pools = std::apply(
                     [this](auto... parent_types) {
                         // The pools for the regular components

@@ -25,6 +25,7 @@ namespace ecs::detail {
 
     template<template<class...> class Parent, class... ParentComponents> // partial specialization
     struct parent_type_detect<Parent<ParentComponents...>> {
+        static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
         using type = std::tuple<ParentComponents...>;
     };
 
@@ -34,6 +35,7 @@ namespace ecs::detail {
 
     template<template<class...> class Parent, class... ParentComponents> // partial specialization
     struct parent_pool_detect<Parent<ParentComponents...>> {
+        static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
         using type = std::tuple<pool<ParentComponents>...>;
     };
 

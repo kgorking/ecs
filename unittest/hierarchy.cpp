@@ -127,4 +127,14 @@ TEST_CASE("Hierarchies") {
 
         update();
     }
+
+    /*SECTION("parents can't") { // parent<int, float*>
+        reset();
+
+        // run on entities with an int and a parent with no float
+        make_system([](entity_id id, int i, parent<parent<int>> p) {
+        });
+
+        update();
+    }*/
 }
