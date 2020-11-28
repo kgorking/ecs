@@ -118,12 +118,11 @@ TEST_CASE("Hierarchies") {
         add_component({1}, int{22}, parent{0});
         add_component({2}, int{33}, float{}, parent{1});
 
-        // run on entities with an int and a parent with an int and no float
-        make_system([](entity_id id, int i, parent<int, float*> p) {
+        // run on entities with an int and a parent with no float
+        make_system([](entity_id id, int i, parent<float*> p) {
             CHECK(id == 2);
             CHECK(i == 33);
             CHECK(p.id() == 1);
-            CHECK(p.get<int>() == 22);
         });
 
         update();
