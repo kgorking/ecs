@@ -10,7 +10,7 @@ void reset() {
 }
 
 TEST_CASE("Hierarchies") {
-   SECTION("are traversed correctly") {
+    SECTION("are traversed correctly") {
         reset();
 
         //     ______1_________
@@ -47,9 +47,9 @@ TEST_CASE("Hierarchies") {
         update();
 
         std::vector<int> const expected_traversal_order{4, 5, 14, 6, 7, 3, 8, 9, 15, 10, 2, 11, 12, 13, 16};
-        bool const orders_match = (expected_traversal_order == actual_traversal_order);
-
-        REQUIRE(orders_match);
+        //bool const orders_match = (expected_traversal_order == actual_traversal_order);
+        //REQUIRE(orders_match);
+        REQUIRE(expected_traversal_order == actual_traversal_order);
     }
 
     SECTION("can extract parent info") {
