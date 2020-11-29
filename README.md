@@ -66,6 +66,7 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
   - [The current entity](#the-current-entity)
   - [Sorting](#sorting)
   - [Filtering](#filtering)
+  - [Hierarchies](#hierarchies)
   - [Parallel-by-default systems](#parallel-by-default-systems)
   - [Automatic concurrency](#automatic-concurrency)
   - [Options](#options)
@@ -280,6 +281,44 @@ This system will run on all entities that has an `int` component and no `float` 
 More than one filter can be present; there is no limit.
 
 **Note** `nullptr` is always passed to filtered components, so don't try to read from them.
+
+
+## Hierarchies
+Hierarchies can be created by adding the special component `ecs::parent` to an entity:
+```cpp
+ecs::add_component({1}, ecs::parent{0});
+```
+This alone does not create a hierarchy as such, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter. The angular brackets are needed because `ecs::parent` is a templated component, which allows you to access the parents components in an efficient manner.
+
+```cpp
+make_system([](entity_id id, parent<> p) {
+  // id == 1, p.id() == 0
+});
+```
+
+### Accessing parent components
+A parents components can be accessed by specifying them in a systems parent component. More than one parent component can be specified; there is no upper limit.
+```cpp
+add_component(2, short{10});
+add_component(3, long{20});
+add_component(4, float{30});
+
+add_component({5, 7}, parent{2});   // short children, parent 2 has a short
+add_component({8, 10}, parent{3});  // long children, parent 3 has a long
+add_component({11, 13}, parent{4}); // float children, parent 4 has a float
+
+// Systems that only runs on entities that has a parent with a specific component,
+make_system([](parent<short> p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
+make_system([](parent<long>  p) { /* 20 == p.get<long>() */ });   // runs on entities 8-10
+make_system([](parent<float> p) { /* 30 == p.get<float>() */ });  // runs on entities 11-13
+```
+
+### Filtering on parents components
+
+
+### Traversal
+Hierarchies are, by default, traversed in a depth-first order. In the future this will be configurable to fx breath-first, no-order, etc..
+
 
 
 ## Parallel-by-default systems
