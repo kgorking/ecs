@@ -70,19 +70,19 @@ TEST_CASE("Hierarchies") {
 
         // verify parent types
         std::atomic_int count_short = 0, count_long = 0, count_float = 0;
-        make_system([&count_short](entity_id id, parent<short> p_s) {
+        make_system([&count_short](entity_id id, parent<short> const& p) {
             REQUIRE((id >= 5 && id <= 7));   // check id value
-            REQUIRE(p_s.get<short>() == 10); // check parent value
+            REQUIRE(p.get<short>() == 10); // check parent value
             count_short++;
         });
-        make_system([&count_long](entity_id id, parent<long> p_s) {
+        make_system([&count_long](entity_id id, parent<long> const& p) {
             REQUIRE((id >= 8 && id <= 10));
-            REQUIRE(p_s.get<long>() == 20);
+            REQUIRE(p.get<long>() == 20);
             count_long++;
         });
-        make_system([&count_float](entity_id id, parent<float> p_s) {
+        make_system([&count_float](entity_id id, parent<float> const& p) {
             REQUIRE((id >= 11 && id <= 13));
-            REQUIRE(p_s.get<float>() == 30);
+            REQUIRE(p.get<float>() == 30);
             count_float++;
         });
 

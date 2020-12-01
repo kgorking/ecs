@@ -106,6 +106,10 @@ namespace ecs::detail {
     using test_option_type_or =
         std::remove_pointer_t<decltype(detect::test_option<Tester, TupleOptions, NotFoundType>())>;
 
+    // Use a tester to find the index of a type in the tuple. Results in -1 if not found
+    template<template<class O> class Tester, class TupleOptions>
+    static constexpr int test_option_index = detect::find_tester_index<0, Tester, TupleOptions>();
+
     template<class Option, class TupleOptions>
     constexpr bool has_option() {
         return detect::has_option<Option, TupleOptions>();

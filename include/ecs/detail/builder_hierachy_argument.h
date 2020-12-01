@@ -10,15 +10,41 @@
 #include "../parent.h"
 
 namespace ecs::detail {
-    template<typename Options, typename UpdateFn, typename SortFn, typename TuplePools, class FirstComponent, class... Components>
+    template<int Index, class Tuple>
+    constexpr int count_ptrs_in_tuple() {
+        if constexpr (Index == std::tuple_size_v<Tuple>) {
+            return 0;
+        } else if constexpr (std::is_pointer_v<std::tuple_element_t<Index, Tuple>>) {
+            return 1 + count_ptrs_in_tuple<Index + 1, Tuple>();
+        } else {
+            return count_ptrs_in_tuple<Index + 1, Tuple>();
+        }
+    }
+
+    template<typename Options, typename UpdateFn, typename SortFn, typename TuplePools, class FirstComponent,
+        class... Components>
     class builder_hierarchy_argument {
         // Walking the tree in parallel doesn't seem possible
         using execution_policy = std::execution::sequenced_policy;
 
+
         // Extract the parent type
-        using parent_type = test_option_type_or<is_parent,
-            std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
-        static_assert(!std::is_same_v<void, parent_type>);
+        static constexpr int ParentIndex = test_option_index<is_parent,
+            std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
+        static_assert(-1 != ParentIndex, "no parent component found");
+
+        using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
+        using parent_type = std::remove_cvref_t<full_parent_type>;
+
+        // If there is one-or-more sub-components then the parent
+        // must be passed as a reference
+        static constexpr size_t num_parent_subtype_filters =
+            count_ptrs_in_tuple<0, parent_types_tuple_t<parent_type>>();
+        static constexpr size_t num_parent_subtypes =
+            std::tuple_size_v<parent_types_tuple_t<parent_type>> - num_parent_subtype_filters;
+        static_assert((num_parent_subtypes > 0) ? std::is_reference_v<full_parent_type> : true,
+            "parents with non-filter sub-components must be passed as references");
+
 
         // Holds a single entity id and its arguments
         using single_argument =

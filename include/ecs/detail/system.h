@@ -50,7 +50,7 @@ namespace ecs::detail {
         void notify_pool_modifed() {
             if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
                 // Recurse into the parent types
-                constexpr parent_types_tuple_t<std::remove_cvref_t<T>> ptt;
+                constexpr parent_types_tuple_t<T> ptt;
                 std::apply([this](auto... parent_types) {
                     (this->notify_pool_modifed<decltype(parent_types)>(), ...);
                 }, ptt);

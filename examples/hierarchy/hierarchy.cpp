@@ -14,10 +14,10 @@ using std::cout;
 
 // Print children, filtered on their parent
 //auto constexpr print_roots = [](entity_id id, parent<>*, int) { cout << id << ' '; };
-auto constexpr print_all_children = [](entity_id id, parent<> /*p*/) { cout << id << ' '; };
-auto constexpr print_short_children = [](entity_id id, parent<short> p) { cout << id << '(' << p.get<short>() << ") "; };
-auto constexpr print_long_children = [](entity_id id, parent<long> p) { cout << id << '(' << p.get<long>() << ") "; };
-auto constexpr print_float_children = [](entity_id id, parent<float> p) { cout << id << '(' << p.get<float>() << ") "; };
+auto constexpr print_all_children   = [](entity_id id, parent<> /*p*/) { cout << id << ' '; };
+auto constexpr print_short_children = [](entity_id id, parent<short> const& p) { cout << id << '(' << p.get<short>() << ") "; };
+auto constexpr print_long_children  = [](entity_id id, parent<long> const& p) { cout << id << '(' << p.get<long>() << ") "; };
+auto constexpr print_float_children = [](entity_id id, parent<float> const& p) { cout << id << '(' << p.get<float>() << ") "; };
 
 int main() {
     // The root
