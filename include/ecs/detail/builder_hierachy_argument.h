@@ -67,14 +67,14 @@ namespace ecs::detail {
 
     public:
         builder_hierarchy_argument(UpdateFn update_func, SortFn /*sort*/, TuplePools const pools)
-            : pools{pools}
+            : update_func{update_func} 
+            , pools{pools}
             , parent_pools{
                 std::apply([&pools](auto... parent_types) {
                     return std::make_tuple(&get_pool<decltype(parent_types)>(pools)...);
                 },
                 parent_types_tuple_t<parent_type>{})
-            }
-            , update_func{update_func} {
+            } {
         }
 
         TuplePools get_pools() const {
