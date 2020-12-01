@@ -24,7 +24,7 @@ namespace ecs {
         parent& operator=(parent const&) = default;
 
         entity_id id() const {
-            return *this;
+            return (detail::entity_type)*this;
         }
 
         template<typename T>
