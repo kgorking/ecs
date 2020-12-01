@@ -53,17 +53,17 @@ namespace ecs::detail {
         using relation_map = std::unordered_map<entity_type, single_argument const*>;
         using relation_mmap = std::multimap<entity_type, single_argument const*>;
 
+        // The vector of unrolled arguments, sorted using 'sort_func'
+        std::vector<single_argument> arguments;
+
+        // The user supplied system
+        UpdateFn update_func;
+
         // A tuple of the fully typed component pools used by this system
         TuplePools const pools;
 
         // A tuple of the fully typed component pools used the parent component
         parent_pool_tuple_t<parent_type> const parent_pools;
-
-        // The user supplied system
-        UpdateFn update_func;
-
-        // The vector of unrolled arguments, sorted using 'sort_func'
-        std::vector<single_argument> arguments;
 
     public:
         builder_hierarchy_argument(UpdateFn update_func, SortFn /*sort*/, TuplePools const pools)
