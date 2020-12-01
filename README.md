@@ -60,8 +60,8 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
 - [Entities](#entities)
 - [Components](#components)
   - [Adding components to entities](#adding-components-to-entities)
-  - [Committing component changes](#committing-component-changes)
   - [Generators](#generators)
+  - [Committing component changes](#committing-component-changes)
 - [Systems](#systems)
   - [Requirements and rules](#requirements-and-rules)
   - [Parallel-by-default systems](#parallel-by-default-systems)
@@ -89,6 +89,8 @@ Entities are the scaffolding on which you build your objects, and there are two 
 * [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
 * [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
 
+There is no such thing as creating or detroying entities in this library; all entities implicitly exists, and this library only tracks which of those entities have components attached to them.
+
 The management of entity id's is left to user.
 
 # Components
@@ -110,12 +112,6 @@ ecs::add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 fl
 ecs::add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entities
 // etc..
 ```
-
-## Committing component changes
-Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
-
-By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
-
 
 ## Generators
 When adding components to entities, you can specify a generator instead of a default constructed component
@@ -140,6 +136,12 @@ ecs::add_component({ 0, dimension * dimension},
     }
 );
 ```
+
+## Committing component changes
+Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
+
+By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
+
 
 # Systems
 Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the function `ecs::make_system`. Systems can operate on as many components as you need; there is no limit.
