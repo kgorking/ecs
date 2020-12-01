@@ -94,9 +94,13 @@ There is no such thing as creating or detroying entities in this library; all en
 The management of entity id's is left to user.
 
 # Components
-Components hold the data and are added to entities. There are very few restrictions on what components can be, but they do have to obey the requirements of [CopyConstructible](https://en.cppreference.com/w/cpp/named_req/CopyConstructible). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
+Components hold the data that is added to entities.
+
+There are very few restrictions on what components can be, but they do have to obey the requirements of [CopyConstructible](https://en.cppreference.com/w/cpp/named_req/CopyConstructible). In the example above you could have used a `std::string` instead of creating a custom component, and it would work just fine.
 
 You can add as many different components to an entity as you need; there is no upper limit. You can not add more than one of the same type.
+
+<br>
 
 ## Adding components to entities
 Adding components is done with the function `ecs::add_component()`.
@@ -112,6 +116,8 @@ ecs::add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 fl
 ecs::add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entities
 // etc..
 ```
+
+<br>
 
 ## Generators
 When adding components to entities, you can specify a generator instead of a default constructed component
@@ -137,6 +143,8 @@ ecs::add_component({ 0, dimension * dimension},
 );
 ```
 
+<br>
+
 ## Committing component changes
 Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
 
@@ -144,7 +152,9 @@ By deferring the components changes to entities, it is possible to safely add an
 
 
 # Systems
-Systems are where the code that operates on an entities components is located. A system is built from a user-provided lambda using the function `ecs::make_system`. Systems can operate on as many components as you need; there is no limit.
+Systems holds the logic that operates on components that are attached to entities.
+
+A system is built from a user-provided lambda using the function `ecs::make_system`. Systems can operate on as many components as you need; there is no limit.
 
 Accessing components in systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you.
 
@@ -234,7 +244,7 @@ Hierarchies can be created by adding the special component `ecs::parent` to an e
 ```cpp
 add_component({1}, parent{0});
 ```
-This alone does not create a hierarchy as such, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter:
+This alone does not create a hierarchy, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter:
 
 ```cpp
 make_system([](entity_id id, parent<> const& p) {
