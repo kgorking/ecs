@@ -2,19 +2,21 @@
 #include <iostream>
 
 int main() {
+    using serial = ecs::opts::not_parallel;
+
     ecs::add_component({0, 6}, int());
     ecs::add_component({3, 9}, float());
     ecs::add_component({2, 3}, short());
     ecs::commit_changes();
 
-    auto& i        = ecs::make_system([](ecs::entity_id id, int&          ) { std::cout << id << ' '; });
-    auto& f        = ecs::make_system([](ecs::entity_id id, float&        ) { std::cout << id << ' '; });
-    auto& s        = ecs::make_system([](ecs::entity_id id, short&        ) { std::cout << id << ' '; });
-    auto& i_no_f   = ecs::make_system([](ecs::entity_id id, int&,   float*) { std::cout << id << ' '; });
-    auto& f_no_i   = ecs::make_system([](ecs::entity_id id, int*,   float&) { std::cout << id << ' '; });
-    auto& i_f      = ecs::make_system([](ecs::entity_id id, int&,   float&) { std::cout << id << ' '; });
-    auto& i_no_s   = ecs::make_system([](ecs::entity_id id, int&,   short*) { std::cout << id << ' '; });
-    auto& i_no_f_s = ecs::make_system([](ecs::entity_id id, int&, float*, short*) { std::cout << id << ' '; });
+    auto& i        = ecs::make_system<serial>([](ecs::entity_id id, int&) { std::cout << id << ' '; });
+    auto& f        = ecs::make_system<serial>([](ecs::entity_id id, float&        )       { std::cout << id << ' '; });
+    auto& s        = ecs::make_system<serial>([](ecs::entity_id id, short&        )       { std::cout << id << ' '; });
+    auto& i_no_f   = ecs::make_system<serial>([](ecs::entity_id id, int&,   float*)       { std::cout << id << ' '; });
+    auto& f_no_i   = ecs::make_system<serial>([](ecs::entity_id id, int*,   float&)       { std::cout << id << ' '; });
+    auto& i_f      = ecs::make_system<serial>([](ecs::entity_id id, int&,   float&)       { std::cout << id << ' '; });
+    auto& i_no_s   = ecs::make_system<serial>([](ecs::entity_id id, int&,   short*)       { std::cout << id << ' '; });
+    auto& i_no_f_s = ecs::make_system<serial>([](ecs::entity_id id, int&, float*, short*) { std::cout << id << ' '; });
 
     std::cout << "ints:\n";
     i.run();
