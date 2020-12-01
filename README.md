@@ -37,6 +37,13 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 Use this [Compiler explorer test link](https://godbolt.org/z/jE6MTq) to try it out for yourself, using the [single-include header](include/ecs/ecs_sh.h).
 
+# Getting the Source
+
+1. Clone this project
+2. `git submodule update --init --recursive --remote`
+
+The latter command will fetch the submodules required to build this library.
+
 
 # Building 
 #### Tested compilers
