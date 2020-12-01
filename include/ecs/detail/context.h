@@ -136,8 +136,8 @@ namespace ecs::detail {
         static auto tuple_cat_unique(std::tuple<A...> const& a, BF *const bf, B... b) {
             if constexpr ((std::is_same_v<BF* const, A> || ...)) {
                 // BF exists in tuple a, so skip it
+                (void) bf;
                 if constexpr (sizeof...(B) > 0) {
-                    (void) bf;
                     return tuple_cat_unique(a, b...);
                 } else {
                     return a;
