@@ -48,7 +48,14 @@ namespace ecs::detail {
 
         template<typename T>
         void notify_pool_modifed() {
-            if constexpr (!is_read_only<T>() && !std::is_pointer_v<T>) {
+            if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
+                // Recurse into the parent types
+                constexpr parent_types_tuple_t<std::remove_cvref_t<T>> ptt;
+                std::apply([this](auto... parent_types) {
+                    (this->notify_pool_modifed<decltype(parent_types)>(), ...);
+                }, ptt);
+            }
+            else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
                 get_pool<reduce_parent_t<std::remove_cvref_t<T>>>().notify_components_modified();
             }
         }
