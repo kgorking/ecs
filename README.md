@@ -286,18 +286,23 @@ More than one filter can be present; there is no limit.
 ## Hierarchies
 Hierarchies can be created by adding the special component `ecs::parent` to an entity:
 ```cpp
-ecs::add_component({1}, ecs::parent{0});
+add_component({1}, parent{0});
 ```
-This alone does not create a hierarchy as such, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter. The angular brackets are needed because `ecs::parent` is a templated component, which allows you to access the parents components in an efficient manner.
+This alone does not create a hierarchy as such, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter:
 
 ```cpp
-make_system([](entity_id id, parent<> p) {
+make_system([](entity_id id, parent<> const& p) {
   // id == 1, p.id() == 0
 });
 ```
+The angular brackets are needed because `ecs::parent` is a templated component which allows you to specify which, if any, of the parents components you would like access to.
+
+`ecs::parent` must always be taken as a reference in systems, or an error will be reported.
 
 ### Accessing parent components
-A parents components can be accessed by specifying them in a systems parent component. More than one parent component can be specified; there is no upper limit.
+A parents sub-components can be accessed by specifying them in a systems parent parameter. It can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to accesss. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
+
+ More than one sub-component can be specified; there is no upper limit.
 ```cpp
 add_component(2, short{10});
 add_component(3, long{20});
@@ -308,13 +313,24 @@ add_component({8, 10}, parent{3});  // long children, parent 3 has a long
 add_component({11, 13}, parent{4}); // float children, parent 4 has a float
 
 // Systems that only runs on entities that has a parent with a specific component,
-make_system([](parent<short> p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
-make_system([](parent<long>  p) { /* 20 == p.get<long>() */ });   // runs on entities 8-10
-make_system([](parent<float> p) { /* 30 == p.get<float>() */ });  // runs on entities 11-13
+make_system([](parent<short> const& p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
+make_system([](parent<long>  const& p) { /* 20 == p.get<long>() */ });   // runs on entities 8-10
+make_system([](parent<float> const& p) { /* 30 == p.get<float>() */ });  // runs on entities 11-13
+
+// Fails
+//make_system([](parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
 ```
 
 ### Filtering on parents components
+Filters work like regular system filters, and can be specified on a parents sub-components:
+```cpp
+make_system([](parent<short*> const& p) { });  // runs on entities 8-13
+```
 
+Marking the parent itself as a filter means that any entity with a parent component on it will be ignored. Any sub-components specified are ignored.
+```cpp
+make_system([](parent<> *p) { });  // runs on entities 2-4
+```
 
 ### Traversal
 Hierarchies are, by default, traversed in a depth-first order. In the future this will be configurable to fx breath-first, no-order, etc..
