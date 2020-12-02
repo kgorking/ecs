@@ -13,29 +13,18 @@
 #include "entity_range.h"
 #include "system_base.h"
 #include "type_hash.h"
-
 #include "system_defs.h"
-#include "builder_selector.h"
-
-#include "../options.h"
 #include "options.h"
-
 #include "frequency_limiter.h"
 
 namespace ecs::detail {
     // The implementation of a system specialized on its components
-    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
+    template<typename Options, typename UpdateFn, typename SortFn, typename ArgumentBuilder, class FirstComponent, class... Components>
     class system final : public system_base {
     public:
-        // Constructor for when the first argument to the system is _not_ an entity
-        system(UpdateFn update_func, SortFn sort_func, pool<FirstComponent> first_pool, pool<Components>... pools)
-            : arguments{update_func, sort_func, first_pool, pools...} {
-            find_entities();
-        }
-
-        // Constructor for when the first argument to the system _is_ an entity
-        system(UpdateFn update_func, SortFn sort_func, pool<Components>... pools)
-            : arguments{update_func, sort_func, pools...} {
+        template<typename ...BuilderArgs>
+        system(UpdateFn update_func, SortFn sort_func, BuilderArgs&& ...args)
+            : arguments{update_func, sort_func, std::forward<BuilderArgs>(args)...} {
             find_entities();
         }
 
@@ -59,8 +48,15 @@ namespace ecs::detail {
 
         template<typename T>
         void notify_pool_modifed() {
-            if constexpr (!is_read_only<T>() && !std::is_pointer_v<T>) {
-                get_pool<std::remove_cvref_t<T>>().notify_components_modified();
+            if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
+                // Recurse into the parent types
+                constexpr parent_types_tuple_t<T> ptt;
+                std::apply([this](auto... parent_types) {
+                    (this->notify_pool_modifed<decltype(parent_types)>(), ...);
+                }, ptt);
+            }
+            else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
+                get_pool<reduce_parent_t<std::remove_cvref_t<T>>>().notify_components_modified();
             }
         }
 
@@ -189,46 +185,8 @@ namespace ecs::detail {
                 // When there are more than one component required for a system,
                 // find the intersection of the sets of entities that have those components
 
-                // The intersector
-                std::vector<entity_range> ranges;
-                bool first_component = true;
-                auto const intersect = [&](auto arg) {
-                    using type = std::remove_pointer_t<decltype(arg)>;
-                    if constexpr (std::is_pointer_v<type> || detail::global<type>) {
-                        // Skip pointers and globals
-                        return;
-                    } else {
-                        auto const& type_pool = get_pool<type>();
-
-                        if (first_component) {
-                            entity_range_view const span = type_pool.get_entities();
-                            ranges.insert(ranges.end(), span.begin(), span.end());
-                            first_component = false;
-                        } else {
-                            ranges = intersect_ranges(ranges, type_pool.get_entities());
-                        }
-                    }
-                };
-
-                // Find the intersections
-                constexpr auto dummy = argument_tuple<FirstComponent, Components...>{};
-                std::apply([&intersect](auto... args) { (..., intersect(args)); }, dummy);
-
-                // Filter out types if needed
-                if constexpr (num_filters > 0) {
-                    auto const difference = [&](auto arg) {
-                        using type = std::remove_pointer_t<decltype(arg)>;
-                        if constexpr (std::is_pointer_v<type>) {
-                            auto const& type_pool = get_pool<std::remove_pointer_t<type>>();
-                            ranges = difference_ranges(ranges, type_pool.get_entities());
-                        }
-                    };
-
-                    if (!ranges.empty())
-                        std::apply([&difference](auto... args) { (..., difference(args)); }, dummy);
-                }
-
                 // Build the arguments
+                auto const ranges = find_entity_pool_intersections<FirstComponent, Components...>(arguments.get_pools());
                 arguments.build(ranges);
             }
         }
@@ -239,8 +197,8 @@ namespace ecs::detail {
         }
 
     private:
-        using argument_builder = builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
-        argument_builder arguments;
+        //using argument_builder = builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
+        ArgumentBuilder arguments;
 
         using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
         frequency_limiter<user_freq::hz> frequency;

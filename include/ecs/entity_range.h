@@ -26,6 +26,10 @@ namespace ecs {
             Expects(first <= last);
         }
 
+        static entity_range all() {
+            return {std::numeric_limits<detail::entity_type>::min(), std::numeric_limits<detail::entity_type>::max()};
+        }
+
         template<typename Component>
         [[nodiscard]] std::span<Component> get() const {
             return std::span(get_component<Component>(first_), count());

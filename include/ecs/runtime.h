@@ -37,7 +37,10 @@ namespace ecs {
                 pool.add_init(range, std::forward<Type>(val));
             } else {
                 // Add it to the component pool
-                if constexpr (std::is_reference_v<Type>) {
+                if constexpr (detail::is_parent<Type>::value) {
+                    auto& pool = detail::_context.get_component_pool<detail::parent_id>();
+                    pool.add(range, detail::parent_id{val.id()});
+                } else if constexpr (std::is_reference_v<Type>) {
                     using DerefT = std::remove_reference_t<Type>;
                     static_assert(std::copyable<DerefT>, "Type must be copyable");
 

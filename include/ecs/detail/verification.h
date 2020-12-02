@@ -6,6 +6,7 @@
 
 #include "../flags.h"
 #include "../entity_id.h"
+#include "options.h"
 
 namespace ecs::detail {
     // Given a type T, if it is callable with an entity argument,
@@ -87,10 +88,20 @@ namespace ecs::detail {
             return true;
     }
 
+    // Implement the requirements for ecs::parent components
+    template<typename C>
+    constexpr bool req_parent() {
+        // Parent components must always be passed as references
+        /*if constexpr (detail::is_parent<C>::value) {
+            return std::is_reference_v<C>;
+        }
+        else*/
+            return true;
+    }
+
+
     template<class C>
-    concept Component = requires {
-        requires(req_immutable<C>() && req_tagged<C>() && req_shared<C>() && req_global<C>());
-    };
+    concept Component = req_parent<C>() && req_immutable<C>() && req_tagged<C>() && req_shared<C>() && req_global<C>();
 
 
     template<class R, class FirstArg, class... Args>
