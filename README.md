@@ -70,6 +70,9 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
   - [Sorting](#sorting)
   - [Filtering](#filtering)
   - [Hierarchies](#hierarchies)
+    - [Accessing parent components](#Accessing-parent-components)
+    - [Filtering on parents components](#Filtering-on-parents-components)
+    - [Traversal and layout](#Traversal-and-layout)
 - [System options](#system-options)
   - [`opts::frequency<hz>`](#optsfrequencyhz)
   - [`opts::group<group number>`](#optsgroupgroup-number)
@@ -236,7 +239,7 @@ This system will run on all entities that has an `int` component and no `float` 
 
 More than one filter can be present; there is no limit.
 
-**Note** `nullptr` is always passed to filtered components, so don't try to read from them.
+**Note** `nullptr` is always passed to filtered components, so do not try and read from them.
 
 
 ## Hierarchies
@@ -294,8 +297,10 @@ Marking the parent itself as a filter means that any entity with a parent compon
 make_system([](int, parent<> *p) { });  // runs on entities with an int and no parents
 ```
 
-### Traversal
-Hierarchies are, by default, traversed in a depth-first order. In the future this will be configurable to fx breath-first, no-order, etc..
+### Traversal and layout
+Hiearchies in this library are depth-first-search order. Nodes are visited from lowest-to-highest entity id; see the [hierarchy unittest](unittest/hierarchy.cpp) for the expected order of traversal.
+
+Due to the nature of ecs, a child in a hiearchy can not have more than one parent, because an entity can not have more one of the same type of `ecs::parent` component. This could be remedied in the future with someting like an `ecs::multi_parent` component, if the need arises.
 
 
 
