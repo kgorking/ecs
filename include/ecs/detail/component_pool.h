@@ -75,7 +75,7 @@ namespace ecs::detail {
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.
         void add(entity_range const range, T&& component) {
-            if constexpr (shared<T> || tagged<T>) {
+            if constexpr (tagged<T>) {
                 deferred_adds.local().push_back(range);
             } else {
                 deferred_adds.local().emplace_back(range, std::forward<T>(component));

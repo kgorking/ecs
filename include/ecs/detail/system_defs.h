@@ -78,7 +78,7 @@ namespace ecs::detail {
         } else if constexpr (tagged<T>) {
             static char dummy_arr[sizeof(T)];
             return reinterpret_cast<T*>(dummy_arr);
-        } else if constexpr (shared<T> || global<T>) {
+        } else if constexpr (global<T>) {
             return &get_pool<T>(pools).get_shared_component();
         } else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
             using parent_type = std::remove_cvref_t<Component>;
