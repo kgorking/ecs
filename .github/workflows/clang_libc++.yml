@@ -1,4 +1,4 @@
-name: clang 10 libc++
+name: clang 11 libc++
 
 on: workflow_dispatch
 
@@ -7,11 +7,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install clang 10
+    - name: Install clang 11
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install libc++-10-dev clang-10
-        /usr/bin/clang++-10 --version
+        sudo apt install libc++-11-dev clang-11
+        /usr/bin/clang++-11 --version
       shell: bash
       
     - uses: actions/checkout@v1
@@ -33,8 +33,8 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/clang-10")
-        set(ENV{CXX} "/usr/bin/clang++-10")
+        set(ENV{CC} "/usr/bin/clang-11")
+        set(ENV{CXX} "/usr/bin/clang++-11")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
@@ -50,7 +50,7 @@ jobs:
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Bad exit status")
+          message(FATAL_ERROR "CMake build failed")
         endif()
 
 
@@ -75,7 +75,7 @@ jobs:
         ProcessorCount(N)
 
         execute_process(
-          COMMAND ctest -j ${N}
+          COMMAND ctest --output-on-failure -j ${N}
           WORKING_DIRECTORY build
           RESULT_VARIABLE result
         )

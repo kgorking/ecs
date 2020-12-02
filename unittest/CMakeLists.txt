@@ -51,3 +51,7 @@ add_test(test_system_options test_system_options)
 add_executable (test_frequency "frequency.cpp")
 target_link_libraries(test_frequency ecs)
 add_test(test_frequency test_frequency)
+
+add_executable (test_hierarchy "hierarchy.cpp")
+target_link_libraries(test_hierarchy ecs)
+add_test(test_hierarchy test_hierarchy)
