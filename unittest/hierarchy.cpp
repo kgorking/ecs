@@ -46,10 +46,10 @@ TEST_CASE("Hierarchies") {
 
         update();
 
-        std::vector<int> const expected_traversal_order{4, 5, 14, 6, 7, 3, 8, 9, 15, 10, 2, 11, 12, 13, 16};
+        std::vector<int> const expected_traversal_order{2, 11, 12, 13, 16, 3, 8, 9, 15, 10, 4, 5, 14, 6, 7};
         //bool const orders_match = (expected_traversal_order == actual_traversal_order);
         //REQUIRE(orders_match);
-        REQUIRE(expected_traversal_order == actual_traversal_order);
+        CHECK(expected_traversal_order == actual_traversal_order);
     }
 
     SECTION("can extract parent info") {
@@ -71,26 +71,26 @@ TEST_CASE("Hierarchies") {
         // verify parent types
         std::atomic_int count_short = 0, count_long = 0, count_float = 0;
         make_system([&count_short](entity_id id, parent<short> const& p) {
-            REQUIRE((id >= 5 && id <= 7));   // check id value
-            REQUIRE(p.get<short>() == 10); // check parent value
+            CHECK((id >= 5 && id <= 7));   // check id value
+            CHECK(p.get<short>() == 10); // check parent value
             count_short++;
         });
         make_system([&count_long](entity_id id, parent<long> const& p) {
-            REQUIRE((id >= 8 && id <= 10));
-            REQUIRE(p.get<long>() == 20);
+            CHECK((id >= 8 && id <= 10));
+            CHECK(p.get<long>() == 20);
             count_long++;
         });
         make_system([&count_float](entity_id id, parent<float> const& p) {
-            REQUIRE((id >= 11 && id <= 13));
-            REQUIRE(p.get<float>() == 30);
+            CHECK((id >= 11 && id <= 13));
+            CHECK(p.get<float>() == 30);
             count_float++;
         });
 
         update();
 
-        REQUIRE(count_short == 3);
-        REQUIRE(count_long == 3);
-        REQUIRE(count_float == 3);
+        CHECK(count_short == 3);
+        CHECK(count_long == 3);
+        CHECK(count_float == 3);
     }
 
     SECTION("can filter on parents") {
@@ -102,13 +102,13 @@ TEST_CASE("Hierarchies") {
         // This system is not a hierarchy
         bool filter_works = false;
         make_system([&filter_works](entity_id id, int, parent<>*) { // run on entities with an int and no parent
-            REQUIRE(id == 0);
+            CHECK(id == 0);
             filter_works = true;
         });
 
         update();
 
-        REQUIRE(filter_works);
+        CHECK(filter_works);
     }
 
     SECTION("can filter on parent subtypes") { // parent<int, float*>
@@ -127,14 +127,4 @@ TEST_CASE("Hierarchies") {
 
         update();
     }
-
-    /*SECTION("parents can't") { // parent<int, float*>
-        reset();
-
-        // run on entities with an int and a parent with no float
-        make_system([](entity_id id, int i, parent<parent<int>> p) {
-        });
-
-        update();
-    }*/
 }
