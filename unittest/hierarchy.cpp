@@ -47,8 +47,6 @@ TEST_CASE("Hierarchies") {
         update();
 
         std::vector<int> const expected_traversal_order{2, 11, 12, 13, 16, 3, 8, 9, 15, 10, 4, 5, 14, 6, 7};
-        //bool const orders_match = (expected_traversal_order == actual_traversal_order);
-        //REQUIRE(orders_match);
         CHECK(expected_traversal_order == actual_traversal_order);
     }
 
