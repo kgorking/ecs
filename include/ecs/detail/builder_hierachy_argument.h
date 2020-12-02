@@ -107,7 +107,6 @@ namespace ecs::detail {
 
             // Clear the arguments
             arguments.clear();
-            //arguments.reserve(arg_count);
 
             // lookup for the parent
             auto& pool_parent_id = get_pool<parent_id>(pools);
@@ -115,7 +114,6 @@ namespace ecs::detail {
             // Build the arguments for the ranges
             for (auto const& range : entities) {
                 for (entity_id const& entity : range) {
-
                     // If the parent has sub-components specified, verify them
                     if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
 
@@ -198,45 +196,45 @@ namespace ecs::detail {
             });
 
             // Find roots
-            std::unordered_set<entity_type> roots;
+            std::vector<entity_type> roots;
+            std::unordered_set<entity_type> visited;
+            visited.reserve(arguments.size());
             for (auto const& packed_arg : arguments) {
-                entity_type const entity_parent = std::get<parent_type>(packed_arg);
+                // Get the current entity id
+                entity_type const id = std::get<0>(packed_arg);
 
-                // If the parent points to an entity which itself does not have a parent,
-                // then it is definitely a root
-                if (!entity_argument.contains(entity_parent)) {
-                    roots.insert(entity_parent);
-                } else {
-                    // cyclical trees
+                // If we have already been here, move on
+                if (visited.contains(id))
+                    continue;
+
+                // Mark the entity as visited
+                visited.insert(id);
+
+                // Climb up the tree to find the top-most parent of this entity.
+                // If 'id_parent' is not contained in 'entity_argument' it measn
+                // that it does not have a 'parent' components, and is
+                // therefore automatically a root.
+                entity_type id_parent = std::get<parent_type>(packed_arg);
+                while (entity_argument.contains(id_parent)) {
+                    // Break out if were in a cyclical graph
+                    if (visited.contains(id_parent)) {
+                        break;
+                    }
+
+                    // Mark the parent as visited, and continue to its parent
+                    visited.insert(id_parent);
+                    id_parent = std::get<parent_type>(*entity_argument.at(id_parent));
                 }
+
+                // Mark the parent as a root
+                roots.push_back(id_parent);
             }
 
-            // Do the depth-first search
+            // Do the depth-first search on the roots
             std::vector<single_argument> rearranged_args;
             rearranged_args.reserve(arguments.size());
-            if (roots.size() == 0) {
-                // If no roots were found, it's most likely a cyclical graph,
-                // so just use the first argument as the root
-                auto const root = std::get<0>(arguments[0]);
+            for (entity_type const& root : roots) {
                 depth_first_search(root, rearranged_args, parent_argument);
-            } else {
-                // Traverse the roots and re-arrange the arguments
-                for (entity_type const& root : roots) {
-                    depth_first_search(root, rearranged_args, parent_argument);
-                }
-            }
-
-            if (rearranged_args.size() != arguments.size()) {
-                // Remove the processed arguments from the map
-                auto const is_arg_processed = [](auto const& arg) { return arg.second == nullptr; };
-                std::erase_if(parent_argument, is_arg_processed);
-
-                while (parent_argument.size() > 0) {
-                    auto const root = parent_argument.begin()->first;
-                    depth_first_search(root, rearranged_args, parent_argument);
-
-                    std::erase_if(parent_argument, is_arg_processed);
-                }
             }
 
             Expects(rearranged_args.size() == arguments.size());
