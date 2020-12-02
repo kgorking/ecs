@@ -50,6 +50,86 @@ TEST_CASE("Hierarchies") {
         CHECK(expected_traversal_order == actual_traversal_order);
     }
 
+    SECTION("can be built bottoms-up") {
+        reset();
+
+        // 14        15            16
+        // |         |             |
+        // 5 6 7   8 9 10   11  12 13
+        //  \|/     \|/       \ | /
+        //   4       3          2
+        //    \______|_________/
+        //           1
+
+        // The great-grandchildren
+        add_component(14, parent{5});
+        add_component(15, parent{9});
+        add_component(16, parent{13});
+
+        // The grandchildren
+        add_component({5, 7}, parent{4});
+        add_component({8, 10}, parent{3});
+        add_component({11, 13}, parent{2});
+
+        // The children
+        add_component(4, parent{1});
+        add_component(3, parent{1});
+        add_component(2, parent{1});
+
+        // The root
+        add_component({1}, int{});
+
+        // The system to verify the traversal order
+        std::vector<int> actual_traversal_order;
+        make_system<opts::not_parallel>(
+            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
+
+        update();
+
+        std::vector<int> const expected_traversal_order{2, 11, 12, 13, 16, 3, 8, 9, 15, 10, 4, 5, 14, 6, 7};
+        CHECK(expected_traversal_order == actual_traversal_order);
+    }
+
+    SECTION("can be built in reverse") {
+        reset();
+
+        //      ______16________
+        //     /      |         \
+        //    13      14        15
+        //   /| \    /|\        /|\
+        // 10 11 12 7 8 9      4 5 6
+        //  |         |            |
+        //  3         2            1
+
+        // The root
+        add_component({16}, int{});
+
+        // The children
+        add_component(15, parent{16});
+        add_component(14, parent{16});
+        add_component(13, parent{16});
+
+        // The grandchildren
+        add_component({10, 12}, parent{13});
+        add_component({7, 9}, parent{14});
+        add_component({4, 6}, parent{15});
+
+        // The great-grandchildren
+        add_component(3, parent{10});
+        add_component(2, parent{8});
+        add_component(1, parent{6});
+
+        // The system to verify the traversal order
+        std::vector<int> actual_traversal_order;
+        make_system<opts::not_parallel>(
+            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
+
+        update();
+
+        std::vector<int> const expected_traversal_order{13, 10, 3, 11, 12, 14, 7, 8, 2, 9, 15, 4, 5, 6, 1};
+        CHECK(expected_traversal_order == actual_traversal_order);
+    }
+
     SECTION("can extract parent info") {
         reset();
 
@@ -124,5 +204,41 @@ TEST_CASE("Hierarchies") {
         });
 
         update();
+    }
+
+    SECTION("handles cyclical graphs") {
+        reset();
+
+        add_component({0}, int{}, parent{3});
+        add_component({1}, int{}, parent{0});
+        add_component({2}, int{}, parent{1});
+        add_component({3}, int{}, parent{2});
+
+        add_component({4}, int{}, parent{7});
+        add_component({5}, int{}, parent{4});
+        add_component({6}, int{}, parent{5});
+        add_component({7}, int{}, parent{6});
+
+        std::atomic_int counter = 0;
+        make_system([&counter](entity_id id, int, parent<int> const& p) {
+            switch (id) {
+            case 0: CHECK(p.id() == 3); counter++; break;
+            case 1: CHECK(p.id() == 0); counter++; break;
+            case 2: CHECK(p.id() == 1); counter++; break;
+            case 3: CHECK(p.id() == 2); counter++; break;
+
+            case 4: CHECK(p.id() == 7); counter++; break;
+            case 5: CHECK(p.id() == 4); counter++; break;
+            case 6: CHECK(p.id() == 5); counter++; break;
+            case 7: CHECK(p.id() == 6); counter++; break;
+
+            default:
+                FAIL();
+            }
+        });
+
+        update();
+
+        CHECK(counter == 8);
     }
 }

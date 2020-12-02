@@ -164,17 +164,20 @@ namespace ecs::detail {
         }
 
     private:
-        void depth_first_search(entity_type ent, std::vector<single_argument>& vec, relation_mmap const& parent_argument) {
+        void depth_first_search(entity_type ent, std::vector<single_argument>& vec, relation_mmap& parent_argument) {
             auto const [first, last] = parent_argument.equal_range(ent);
             auto current = first;
 
             while (current != last) {
-                single_argument const& argument = *current->second;
+                if (current->second != nullptr) {
+                    single_argument const& argument = *current->second;
+                    current->second = nullptr; // mark the node as visited
 
-                vec.push_back(argument);
+                    vec.push_back(argument);
 
-                auto const node = std::get<0>(argument);
-                depth_first_search(node, vec, parent_argument);
+                    auto const node = std::get<0>(argument);
+                    depth_first_search(node, vec, parent_argument);
+                }
 
                 ++current;
             }
@@ -184,9 +187,8 @@ namespace ecs::detail {
             relation_map entity_argument;
             relation_mmap parent_argument;
             entity_argument.reserve(arguments.size());
-            //parent_argument.reserve(arguments.size());
 
-            // map entities and their parents to their arguments
+            // Map entities and their parents to their arguments
             std::for_each(arguments.begin(), arguments.end(), [&](auto const& packed_arg) {
                 entity_type const id = std::get<0>(packed_arg);
                 entity_type const par = std::get<parent_type>(packed_arg);
@@ -195,23 +197,50 @@ namespace ecs::detail {
                 parent_argument.emplace(par, &packed_arg);
             });
 
-            // find roots
+            // Find roots
             std::unordered_set<entity_type> roots;
             for (auto const& packed_arg : arguments) {
                 entity_type const entity_parent = std::get<parent_type>(packed_arg);
+
+                // If the parent points to an entity which itself does not have a parent,
+                // then it is definitely a root
                 if (!entity_argument.contains(entity_parent)) {
                     roots.insert(entity_parent);
+                } else {
+                    // cyclical trees
                 }
             }
 
-            // walk the tree and re-arrange the arguments
-            std::vector<single_argument> vec;
-            vec.reserve(arguments.size());
-            for (entity_type const& root : roots) {
-                depth_first_search(root, vec, parent_argument);
+            // Do the depth-first search
+            std::vector<single_argument> rearranged_args;
+            rearranged_args.reserve(arguments.size());
+            if (roots.size() == 0) {
+                // If no roots were found, it's most likely a cyclical graph,
+                // so just use the first argument as the root
+                auto const root = std::get<0>(arguments[0]);
+                depth_first_search(root, rearranged_args, parent_argument);
+            } else {
+                // Traverse the roots and re-arrange the arguments
+                for (entity_type const& root : roots) {
+                    depth_first_search(root, rearranged_args, parent_argument);
+                }
             }
 
-            arguments = std::move(vec);
+            if (rearranged_args.size() != arguments.size()) {
+                // Remove the processed arguments from the map
+                auto const is_arg_processed = [](auto const& arg) { return arg.second == nullptr; };
+                std::erase_if(parent_argument, is_arg_processed);
+
+                while (parent_argument.size() > 0) {
+                    auto const root = parent_argument.begin()->first;
+                    depth_first_search(root, rearranged_args, parent_argument);
+
+                    std::erase_if(parent_argument, is_arg_processed);
+                }
+            }
+
+            Expects(rearranged_args.size() == arguments.size());
+            arguments = std::move(rearranged_args);
         }
     };
 } // namespace ecs::detail
