@@ -160,9 +160,13 @@ namespace ecs::detail {
                             std::remove_cvref_t<Components>...>,
                 void>;
 
-            // Do some checks on the components
+            // Do some checks on the systems
             bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
             bool constexpr has_parent = !std::is_same_v<void, parent_type>;
+            bool constexpr is_global_sys = detail::global<FirstComponent> && (detail::global<Components> && ...);
+
+            // Global systems cannot have a sort function
+            static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
 
             // Make sure we have a valid sort function
             if constexpr (has_sort_func) {
@@ -170,8 +174,7 @@ namespace ecs::detail {
                     detail::sorter<SortFn>, "Invalid sort-function supplied, should be 'bool(T const&, T const&)'");
             }
 
-            static_assert(
-                !(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
+            static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
             // Create the system instance
             std::unique_ptr<system_base> sys;
@@ -199,8 +202,14 @@ namespace ecs::detail {
                 using argument_builder = builder_hierarchy_argument<Options, UpdateFn, SortFn, decltype(all_pools), FirstComponent, Components...>;
                 using typed_system = system<Options, UpdateFn, SortFn, argument_builder, FirstComponent, Components...>;
                 sys = std::make_unique<typed_system>(update_func, sort_func, all_pools);
-            }
-            else if constexpr (has_sort_func) {
+            } else if constexpr (is_global_sys) {
+                using argument_builder =
+                    builder_global_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>;
+                using typed_system = system<Options, UpdateFn, SortFn, argument_builder, FirstComponent, Components...>;
+
+                auto pools = make_tuple_pools<FirstComponent, Components...>();
+                sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+            } else if constexpr (has_sort_func) {
                 using argument_builder = builder_sorted_argument<Options, UpdateFn, SortFn, FirstComponent, Components...>;
                 using typed_system = system<Options, UpdateFn, SortFn, argument_builder, FirstComponent, Components...>;
 

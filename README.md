@@ -83,6 +83,7 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
   - [`immutable`](#immutable)
   - [`transient`](#transient)
   - [`global`](#global)
+    - [Global systems](#Global-systems)
 
 
 # Entities
@@ -428,6 +429,17 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
 });
 ```
-
 **Note!** Beware of using mutable global components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
 to disallow systems modifying the global component, using `ecs_flags(ecs::flag::global, ecs::flag::immutable);`
+
+#### Global systems
+With [global components](#global) it is also possible to create *global systems*, which are a special kind of system that only operates on global components. Global systems are only run once per update cycle.
+
+```cpp
+ecs::make_system([](frame_data& fd) {
+    static auto clock_last = std::chrono::high_resolution_clock::now();
+    auto const clock_now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> const diff = clock_now - clock_last;
+    fd.delta_time = clock_diff.count();
+});
+```

@@ -14,34 +14,28 @@ struct state_s {
     int total = 0;
 };
 
-static void print_global_state() {
-    auto const& global = ecs::get_global_component<state_s>();
-    std::cout << "  A touches:       " << global.a << "\n";
-    std::cout << "  B touches:       " << global.b << "\n";
-    std::cout << "  state_s touches: " << global.total << "\n\n";
-}
-
 int main() {
-    std::cout << "Initial state:\n";
-    print_global_state();
-
-    ecs::make_system([](A const&, state_s& state) {
+    ecs::make_system([](A, state_s& state) {
         state.a++;
         state.total++;
     });
-    ecs::make_system([](B const&, state_s& state) {
+    ecs::make_system([](B, state_s& state) {
         state.b++;
         state.total++;
+    });
+    ecs::make_system([](state_s const& global) {
+        std::cout << "  state_s::a:     " << global.a << "\n";
+        std::cout << "  state_s::b:     " << global.b << "\n";
+        std::cout << "  state_s::total: " << global.total << "\n\n";
     });
 
     std::cout << "Adding 10 entities with an A component:\n";
     ecs::add_component({0, 9}, A{});
     
-    std::cout << "Adding 10 more entities with a B component:\n";
+    std::cout << "Adding 10 more entities with a B component:\n\n";
     ecs::add_component({10, 19}, B{});
 
     ecs::update();
-    print_global_state();
 
     // Dump some stats
     std::cout << "Number of entities with an A component:      " << ecs::get_entity_count<A>() << "\n";
