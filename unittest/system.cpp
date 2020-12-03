@@ -116,9 +116,6 @@ TEST_CASE("System specification", "[system]") {
         struct tagged {
             ecs_flags(ecs::flag::tag);
         };
-        struct shared {
-            ecs_flags(ecs::flag::share);
-        };
         struct transient {
             ecs_flags(ecs::flag::transient);
         };
@@ -134,7 +131,7 @@ TEST_CASE("System specification", "[system]") {
         int last = -100'000'000;
         int run_counter = 0;
         ecs::make_system<ecs::opts::not_parallel>(
-            [&](vanilla const& v, tagged, shared const&, transient const&, immutable const&, global const&, short*) {
+            [&](vanilla const& v, tagged, transient const&, immutable const&, global const&, short*) {
                 CHECK(last <= v.x);
                 last = v.x;
 
@@ -143,7 +140,7 @@ TEST_CASE("System specification", "[system]") {
             vanilla_sort);
 
         auto const vanilla_init = [](ecs::entity_id) { return vanilla{rand()}; };
-        ecs::add_component({0, 1000}, vanilla_init, tagged{}, shared{}, transient{}, immutable{});
+        ecs::add_component({0, 1000}, vanilla_init, tagged{}, transient{}, immutable{});
         ecs::add_component({10, 20}, short{0});
 
         ecs::update();

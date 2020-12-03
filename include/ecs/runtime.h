@@ -85,12 +85,6 @@ namespace ecs {
         remove_component<T>({id, id});
     }
 
-    // Returns a shared component.
-    template<detail::shared T>
-    T& get_shared_component() {
-        return detail::_context.get_component_pool<T>().get_shared_component();
-    }
-
     // Returns a global component.
     template<detail::global T>
     T& get_global_component() {

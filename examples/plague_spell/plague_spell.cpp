@@ -37,8 +37,8 @@ auto const do_spread_logic = [](ecs::entity_id self, infection const& p) {
                 // Add a copy of the infection component if the entity doesn't already have it.
                 // This means that newly infected entities are only affected for
                 // the remaing duration of this infection component
-                //ecs::add_component(ent, infection{p}); // entity 1 and 2 survives
-                ecs::add_component(ent, infection{});   // start a fresh infection instead. Entity 1 dies as well
+                ecs::add_component(ent, infection{p}); // entity 1 and 2 survives
+                //ecs::add_component(ent, infection{});   // start a fresh infection instead. Entity 1 dies as well
 
                 std::cout << "entity " << self << " infected entity " << ent << '\n';
             }

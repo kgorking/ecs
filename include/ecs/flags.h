@@ -15,13 +15,6 @@ namespace ecs::flag {
     // Mutually exclusive with 'share' and 'global'
     struct tag{};
 
-    // Add this in a component with 'ecs_flags()' to mark it as shared.
-    // Any entity with a shared component will all point to the same component.
-    // Think of it as a static member variable in a regular class.
-    // Uses O(1) memory instead of O(n).
-    // Mutually exclusive with 'tag' and 'global'
-    struct share{};
-
     // Add this in a component with 'ecs_flags()' to mark it as transient.
     // The component will only exist on an entity for one cycle,
     // and then be automatically removed.

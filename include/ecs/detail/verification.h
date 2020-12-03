@@ -67,23 +67,13 @@ namespace ecs::detail {
             return true;
     }
 
-    // Implement the requirements for shared components
-    template<typename C>
-    constexpr bool req_shared() {
-        // Components flagged as 'share' must not be tags or global
-        if constexpr (detail::shared<C>)
-            return !detail::tagged<C> && !detail::global<C>;
-        else
-            return true;
-    }
-
     // Implement the requirements for global components
     template<typename C>
     constexpr bool req_global() {
         // Components flagged as 'global' must not be tags or shared
         // and must not be marked as 'transient'
         if constexpr (detail::global<C>)
-            return !detail::tagged<C> && !detail::shared<C> && !detail::transient<C>;
+            return !detail::tagged<C> && !detail::transient<C>;
         else
             return true;
     }
@@ -101,7 +91,7 @@ namespace ecs::detail {
 
 
     template<class C>
-    concept Component = req_parent<C>() && req_immutable<C>() && req_tagged<C>() && req_shared<C>() && req_global<C>();
+    concept Component = req_parent<C>() && req_immutable<C>() && req_tagged<C>() && req_global<C>();
 
 
     template<class R, class FirstArg, class... Args>

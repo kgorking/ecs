@@ -80,7 +80,6 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
   - [`opts::not_parallel`](#optsnot_parallel)
 - [Component Flags](#component-flags)
   - [`tag`](#tag)
-  - [`share`](#share)
   - [`immutable`](#immutable)
   - [`transient`](#transient)
   - [`global`](#global)
@@ -386,7 +385,7 @@ struct freezable {
 ```
 
 Using tagged components in systems has a slightly different syntax to regular components, namely that they are
-passed by value. This is to discourage the use of tags to share some kind of data, which you should use the `share` flag
+passed by value. This is to discourage the use of tags to share some kind of data, which you should use the `global` flag
 for instead.
 
 ```cpp
@@ -396,27 +395,6 @@ ecs::make_system([](greeting const& g, freezable) {
 ```
 
 If tag components are marked as anything other than pass-by-value, the compiler will drop a little error message to remind you.
-
-**Note** This flag is mutually exclusive with `share`.
-
-### `share`
-Marking a component as *shared* is used for components that hold data that is shared between all entities the component is added to.
-
-```cpp
-struct frame_data {
-    ecs_flags(ecs::flag::share);
-    double delta_time = 0.0;
-};
-// ...
-ecs::add_component({0, 100}, position{}, velocity{}, frame_data{});
-// ...
-ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
-    pos += vel * fd.delta_time;
-});
-```
-
-**Note!** Beware of using mutable shared components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
-to disallow systems modifying the shared component, using `ecs_flags(ecs::flag::share, ecs::flag::immutable);`
 
 ### `immutable`
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
@@ -451,6 +429,8 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
 });
 ```
+**Note!** Beware of using mutable global components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
+to disallow systems modifying the global component, using `ecs_flags(ecs::flag::global, ecs::flag::immutable);`
 
 #### Global systems
 With [global components](#global) it is also possible to create *global systems*, which are a special kind of system that only operates on global components. Global systems are only run once per update cycle.

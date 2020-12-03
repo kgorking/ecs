@@ -2,7 +2,7 @@
 #include <ecs/ecs.h>
 #include <random>
 
-#include "shared.h"
+#include "global.h"
 
 void component_add(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
