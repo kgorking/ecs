@@ -23,7 +23,9 @@ namespace ecs::detail {
         }
 
         void run() {
-            update_func(extract_arg<FirstComponent>(argument, 0), extract_arg<Components>(argument, 0)...);
+            update_func(
+                *std::get<std::remove_cvref_t<FirstComponent>*>(argument),
+                *std::get<std::remove_cvref_t<Components>*>(argument)...);
         }
 
         // Convert a set of entities into arguments that can be passed to the system
