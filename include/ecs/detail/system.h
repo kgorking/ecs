@@ -65,12 +65,18 @@ namespace ecs::detail {
             return group::group_id;
         }
 
+        std::string_view get_name() const noexcept override {
+            using name = test_option_type_or<is_name, Options, opts::name<"system">>;
+            return name::_internal_get();
+        }
+
         std::string get_signature() const noexcept override {
             // Component names
             constexpr std::array<std::string_view, num_arguments> argument_names{
                 get_type_name<FirstComponent>(), get_type_name<Components>()...};
 
-            std::string sig("system(");
+            std::string sig(get_name());
+            sig += '(';
             for (size_t i = 0; i < num_arguments - 1; i++) {
                 sig += argument_names[i];
                 sig += ", ";
