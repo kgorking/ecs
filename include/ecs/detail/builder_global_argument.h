@@ -39,7 +39,7 @@ namespace ecs::detail {
         UpdateFn update_func;
 
         // The arguments for the system
-        using global_argument = std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...> > ;
+        using global_argument = std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
         global_argument argument;
     };
 } // namespace ecs::detail
