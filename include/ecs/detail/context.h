@@ -163,6 +163,7 @@ namespace ecs::detail {
             // Do some checks on the components
             bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
             bool constexpr has_parent = !std::is_same_v<void, parent_type>;
+            bool constexpr is_global_sys = detail::global<FirstComponent> && (detail::global<Components> && ...);
 
             // Make sure we have a valid sort function
             if constexpr (has_sort_func) {
