@@ -117,13 +117,13 @@ namespace ecs::detail {
 
     // Gets the type a sorting functions operates on.
     // Has to be outside of system or clang craps itself
-    template<class R, class C, class T1, class T2>
+    /*template<class R, class C, class T1, class T2>
     struct get_sort_func_type_impl {
         explicit get_sort_func_type_impl(R (C::*)(T1, T2) const) {
         }
 
         using type = std::remove_cvref_t<T1>;
-    };
+    };*/
 
     // The type of a single component argument
     template<typename Component>

@@ -36,15 +36,6 @@ namespace ecs::detail {
         using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
         using parent_type = std::remove_cvref_t<full_parent_type>;
 
-        // If there is one-or-more sub-components then the parent
-        // must be passed as a reference
-        static constexpr size_t num_parent_subtype_filters =
-            count_ptrs_in_tuple<0, parent_types_tuple_t<parent_type>>();
-        static constexpr size_t num_parent_subtypes =
-            std::tuple_size_v<parent_types_tuple_t<parent_type>> - num_parent_subtype_filters;
-        static_assert((num_parent_subtypes > 0) ? std::is_reference_v<full_parent_type> : true,
-            "parents with non-filter sub-components must be passed as references");
-
 
         // Holds a single entity id and its arguments
         using single_argument =

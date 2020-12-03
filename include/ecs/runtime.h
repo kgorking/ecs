@@ -172,9 +172,13 @@ namespace ecs {
     }
 
     // Make a new system
-    template<typename... Options, detail::lambda UpdateFn, typename SortFn = std::nullptr_t>
+    template<typename... Options, typename UpdateFn, typename SortFn = std::nullptr_t>
     auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
         using opts = std::tuple<Options...>;
+
+        // verify the input
+        detail::make_system_parameter_verifier<opts, UpdateFn, SortFn>();
+
         return detail::_context.create_system<opts, UpdateFn, SortFn>(
             update_func, sort_func, &UpdateFn::operator());
     }
