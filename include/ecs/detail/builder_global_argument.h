@@ -14,8 +14,8 @@ namespace ecs::detail {
             : pools{pools}
             , update_func{update_func}
             , argument{
-                get_pool<FirstComponent>(pools).get_shared_component(),
-                get_pool<Components>(pools).get_shared_component()...} {
+                &get_pool<FirstComponent>(pools).get_shared_component(),
+                &get_pool<Components>(pools).get_shared_component()...} {
         }
 
         tup_pools<FirstComponent, Components...> get_pools() const {
@@ -27,7 +27,7 @@ namespace ecs::detail {
         }
 
         // Convert a set of entities into arguments that can be passed to the system
-        void build(entity_range_view entities) {
+        void build(entity_range_view /*entities*/) {
             // Does nothing
         }
 
@@ -39,7 +39,7 @@ namespace ecs::detail {
         UpdateFn update_func;
 
         // The arguments for the system
-        using global_argument = std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
+        using global_argument = std::tuple<std::remove_cvref_t<FirstComponent>*, std::remove_cvref_t<Components>*...>;
         global_argument argument;
     };
 } // namespace ecs::detail
