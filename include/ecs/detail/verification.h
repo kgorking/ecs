@@ -175,13 +175,7 @@ namespace ecs::detail {
         system_to_func_bridge(R(FirstArg, Args...)) {
             system_verifier<R, FirstArg, Args...>();
         };
-        system_to_func_bridge(R(FirstArg, Args...) const) {
-            system_verifier<R, FirstArg, Args...>();
-        };
         system_to_func_bridge(R(FirstArg, Args...) noexcept) {
-            system_verifier<R, FirstArg, Args...>();
-        };
-        system_to_func_bridge(R(FirstArg, Args...) const noexcept) {
             system_verifier<R, FirstArg, Args...>();
         };
     };
