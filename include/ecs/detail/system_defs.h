@@ -3,10 +3,12 @@
 
 // Contains definitions that are used by the system- and builder classes
 #include "component_pool.h"
-#include "verification.h"
 #include "parent_id.h"
 
 namespace ecs::detail {
+    template<class T>
+    constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_id>;
+
     // Alias for stored pools
     template<class T>
     using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>* const;
@@ -43,6 +45,17 @@ namespace ecs::detail {
     using parent_types_tuple_t = typename parent_type_detect<T>::type;
     template<typename T>
     using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
+
+    template<int Index, class Tuple>
+    constexpr int count_ptrs_in_tuple() {
+        if constexpr (Index == std::tuple_size_v<Tuple>) {
+            return 0;
+        } else if constexpr (std::is_pointer_v<std::tuple_element_t<Index, Tuple>>) {
+            return 1 + count_ptrs_in_tuple<Index + 1, Tuple>();
+        } else {
+            return count_ptrs_in_tuple<Index + 1, Tuple>();
+        }
+    }
 
 
     // Get a component pool from a component pool tuple.

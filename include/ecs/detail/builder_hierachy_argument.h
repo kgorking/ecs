@@ -10,17 +10,6 @@
 #include "../parent.h"
 
 namespace ecs::detail {
-    template<int Index, class Tuple>
-    constexpr int count_ptrs_in_tuple() {
-        if constexpr (Index == std::tuple_size_v<Tuple>) {
-            return 0;
-        } else if constexpr (std::is_pointer_v<std::tuple_element_t<Index, Tuple>>) {
-            return 1 + count_ptrs_in_tuple<Index + 1, Tuple>();
-        } else {
-            return count_ptrs_in_tuple<Index + 1, Tuple>();
-        }
-    }
-
     template<typename Options, typename UpdateFn, typename SortFn, typename TuplePools, class FirstComponent,
         class... Components>
     class builder_hierarchy_argument {

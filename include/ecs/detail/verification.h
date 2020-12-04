@@ -7,6 +7,7 @@
 #include "../flags.h"
 #include "../entity_id.h"
 #include "options.h"
+#include "system_defs.h"
 
 namespace ecs::detail {
     // Given a type T, if it is callable with an entity argument,
@@ -43,9 +44,6 @@ namespace ecs::detail {
     // Ensure that any type in the parameter pack T is only present once.
     template<typename First, typename... T>
     concept unique = unique_types_v<First, T...>;
-
-    template<class T>
-    constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
     // Gets the type a sorting functions operates on.
     // Has to be outside of system or clang craps itself
@@ -93,9 +91,9 @@ namespace ecs::detail {
         if constexpr (detail::is_parent<std::remove_cvref_t<C>>::value) {
             // If there is one-or-more sub-components,
             // then the parent must be passed as a reference
-            static constexpr size_t num_parent_subtype_filters =
+            constexpr size_t num_parent_subtype_filters =
                 count_ptrs_in_tuple<0, parent_types_tuple_t<std::remove_cvref_t<C>>>();
-            static constexpr size_t num_parent_subtypes =
+            constexpr size_t num_parent_subtypes =
                 std::tuple_size_v<parent_types_tuple_t<std::remove_cvref_t<C>>> - num_parent_subtype_filters;
 
             if constexpr (num_parent_subtypes > 0) {
@@ -197,7 +195,7 @@ namespace ecs::detail {
         if constexpr (is_lambda) {
             system_to_lambda_bridge stlb(&SystemFunc::operator());
         } else if constexpr (is_function) {
-            system_to_func_bridge stfb(&SystemFunc);
+            system_to_func_bridge stfb(SystemFunc{});
         }
 
         // verify the sort function
