@@ -65,7 +65,7 @@ namespace ecs::detail {
     }
 
 
-    // A small bridge to allow the Lambda to activate the system verifier
+    // A small bridge to allow the Lambda to activate the sorter verifier
     template<class R, class C, class FirstArg, class... Args>
     struct sorter_to_lambda_bridge {
         static_assert(sizeof...(Args) == 1, "only two parameters can exist in a predicate");
