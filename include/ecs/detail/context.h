@@ -168,12 +168,6 @@ namespace ecs::detail {
             // Global systems cannot have a sort function
             static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
 
-            // Make sure we have a valid sort function
-            if constexpr (has_sort_func) {
-                static_assert(
-                    detail::sorter<SortFn>, "Invalid sort-function supplied, should be 'bool(T const&, T const&)'");
-            }
-
             static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
             // Create the system instance

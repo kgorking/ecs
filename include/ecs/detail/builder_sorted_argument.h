@@ -82,8 +82,8 @@ namespace ecs::detail {
         using single_argument =
             decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
 
-        using sort_type = typename decltype(get_sort_func_type_impl(&SortFn::operator()))::type;
-        static_assert(std::predicate<SortFn, sort_type, sort_type>, "Sorting function is not a predicate");
+        using sort_type = typename decltype(get_sort_func_type_impl(&SortFn::operator()))::type1;
+        //static_assert(std::predicate<SortFn, sort_type, sort_type>, "Sorting function is not a predicate");
 
         // A tuple of the fully typed component pools used by this system
         tup_pools<FirstComponent, Components...> const pools;
