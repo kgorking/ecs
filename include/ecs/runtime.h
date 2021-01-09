@@ -172,15 +172,21 @@ namespace ecs {
     }
 
     // Make a new system
-    template<typename... Options, typename UpdateFn, typename SortFn = std::nullptr_t>
-    auto& make_system(UpdateFn update_func, SortFn sort_func = nullptr) {
+    template<typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
+    auto& make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
         using opts = std::tuple<Options...>;
 
         // verify the input
-        detail::make_system_parameter_verifier<opts, UpdateFn, SortFn>();
+        detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
 
-        return detail::_context.create_system<opts, UpdateFn, SortFn>(
-            update_func, sort_func, &UpdateFn::operator());
+        if constexpr (!ecs::detail::type_is_lambda<SystemFunc>) {
+            // Build from regular function
+            return detail::_context.create_system<opts, SystemFunc, SortFn>(sys_func, sort_func, sys_func);
+        } else {
+            // Build from lambda
+            return detail::_context.create_system<opts, SystemFunc, SortFn>(
+                sys_func, sort_func, &SystemFunc::operator());
+        }
     }
 } // namespace ecs
 

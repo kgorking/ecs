@@ -170,10 +170,10 @@ namespace ecs::detail {
     // A small bridge to allow the function to activate the system verifier
     template<class R, class FirstArg, class... Args>
     struct system_to_func_bridge {
-        system_to_func_bridge(R(FirstArg, Args...)) {
+        system_to_func_bridge(R (*)(FirstArg, Args...)) {
             system_verifier<R, FirstArg, Args...>();
         };
-        system_to_func_bridge(R(FirstArg, Args...) noexcept) {
+        system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) {
             system_verifier<R, FirstArg, Args...>();
         };
     };
@@ -189,12 +189,10 @@ namespace ecs::detail {
     void make_system_parameter_verifier() {
         // verify the system function
         constexpr bool is_lambda = type_is_lambda<SystemFunc>;
-        constexpr bool is_function = std::is_function_v<SystemFunc>;
-        static_assert(is_lambda || is_function, "the passed system must be either a lambda, functor, or function");
 
         if constexpr (is_lambda) {
             system_to_lambda_bridge stlb(&SystemFunc::operator());
-        } else if constexpr (is_function) {
+        } else {
             system_to_func_bridge stfb(SystemFunc{});
         }
 

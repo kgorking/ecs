@@ -106,6 +106,13 @@ namespace ecs::detail {
             return *static_cast<component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>*>(pool);
         }
 
+        // Regular function
+        template<typename Options, typename UpdateFn, typename SortFn, typename R, typename FirstArg,
+            typename... Args>
+        auto& create_system(UpdateFn update_func, SortFn sort_func, R(FirstArg, Args...)) {
+            return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
+        }
+
         // Const lambda with sort
         template<typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg,
             typename... Args>
