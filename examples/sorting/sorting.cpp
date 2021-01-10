@@ -4,7 +4,6 @@
 auto constexpr printer = [](int const& i) { std::cout << i << ' '; };
 auto constexpr generator = [](ecs::entity_id) -> int { return rand() % 9; };
 
-//auto constexpr sort_even_odd = [](int const& l, int const& r) {
 bool sort_even_odd(int const& l, int const& r) {
     // sort evens to the left, odds to the right
     if (l % 2 == 0 && r % 2 != 0)

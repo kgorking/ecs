@@ -68,10 +68,12 @@ namespace ecs::detail {
     template<class T1, class T2>
     struct get_sorter_types {
         template<class T> requires requires { &T::operator(); }
-        get_sorter_types(T);
+        explicit get_sorter_types(T) {
+        }
 
         template<class R, class A, class B>
-        get_sorter_types(R (*)(A, B));
+        explicit get_sorter_types(R (*)(A, B)) {
+        }
 
         using type1 = std::remove_cvref_t<T1>;
         using type2 = std::remove_cvref_t<T2>;
@@ -154,16 +156,16 @@ namespace ecs::detail {
     // A small bridge to allow the Lambda to activate the system verifier
     template<class R, class C, class FirstArg, class... Args>
     struct system_to_lambda_bridge {
-        system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) {
+        explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) {
             system_verifier<R, FirstArg, Args...>();
         };
-        system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const){
+        explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) {
             system_verifier<R, FirstArg, Args...>();
         };
-        system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept){
+        explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) {
             system_verifier<R, FirstArg, Args...>();
         };
-        system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept){
+        explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) {
             system_verifier<R, FirstArg, Args...>();
         };
     };
@@ -171,10 +173,10 @@ namespace ecs::detail {
     // A small bridge to allow the function to activate the system verifier
     template<class R, class FirstArg, class... Args>
     struct system_to_func_bridge {
-        system_to_func_bridge(R (*)(FirstArg, Args...)) {
+        explicit system_to_func_bridge(R (*)(FirstArg, Args...)) {
             system_verifier<R, FirstArg, Args...>();
         };
-        system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) {
+        explicit system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) {
             system_verifier<R, FirstArg, Args...>();
         };
     };
