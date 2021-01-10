@@ -181,19 +181,26 @@ namespace ecs::detail {
 
     template<typename T>
     concept type_is_lambda = requires {
-        // A function-call operator means it's a lambda/functor
         &T::operator();
+    };
+
+    template<typename T>
+    concept type_is_function = requires (T t) {
+        system_to_func_bridge{t};
     };
 
     template<typename TupleOptions, typename SystemFunc, typename SortFunc>
     void make_system_parameter_verifier() {
-        // verify the system function
-        constexpr bool is_lambda = type_is_lambda<SystemFunc>;
+        bool constexpr is_lambda = type_is_lambda<SystemFunc>;
+        bool constexpr is_func = type_is_function<SystemFunc>;
 
+        static_assert(is_lambda || is_func, "Systems can only be created from lambdas or free-standing functions");
+
+        // verify the system function
         if constexpr (is_lambda) {
-            system_to_lambda_bridge stlb(&SystemFunc::operator());
-        } else {
-            system_to_func_bridge stfb(SystemFunc{});
+            system_to_lambda_bridge const stlb(&SystemFunc::operator());
+        } else if constexpr(is_func) {
+            system_to_func_bridge const stfb(SystemFunc{});
         }
 
         // verify the sort function

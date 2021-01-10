@@ -179,13 +179,19 @@ namespace ecs {
         // verify the input
         detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
 
-        if constexpr (!ecs::detail::type_is_lambda<SystemFunc>) {
+        if constexpr (ecs::detail::type_is_function<SystemFunc>) {
             // Build from regular function
             return detail::_context.create_system<opts, SystemFunc, SortFn>(sys_func, sort_func, sys_func);
-        } else {
+        } else if constexpr (ecs::detail::type_is_lambda<SystemFunc>) {
             // Build from lambda
             return detail::_context.create_system<opts, SystemFunc, SortFn>(
                 sys_func, sort_func, &SystemFunc::operator());
+        } else {
+            (void) sys_func;
+            (void) sort_func;
+            struct _invalid_system_type {
+            } invalid_system_type;
+            return invalid_system_type;
         }
     }
 } // namespace ecs
