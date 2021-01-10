@@ -6,13 +6,13 @@
 namespace ecs::detail {
     // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
     // will be passed to the user supplied lambda in a sorted manner
-    template<typename Options, typename UpdateFn, typename SortFn, class FirstComponent, class... Components>
+    template<typename Options, typename UpdateFn, typename SortFunc, class FirstComponent, class... Components>
     struct builder_sorted_argument {
         // Determine the execution policy from the options (or lack thereof)
         using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
             std::execution::sequenced_policy, std::execution::parallel_policy>;
 
-        builder_sorted_argument(UpdateFn update_func, SortFn sort, tup_pools<FirstComponent, Components...> pools)
+        builder_sorted_argument(UpdateFn update_func, SortFunc sort, tup_pools<FirstComponent, Components...> pools)
             : pools{pools}
             , update_func{update_func}
             , sort_func{sort} {
@@ -24,11 +24,11 @@ namespace ecs::detail {
 
         void run() {
             // Sort the arguments if the component data has been modified
-            if (needs_sorting || std::get<pool<sort_type>>(pools)->has_components_been_modified()) {
+            if (needs_sorting || std::get<pool<sort_types>>(pools)->has_components_been_modified()) {
                 auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
                 std::sort(e_p, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
-                    sort_type* t_l = std::get<sort_type*>(l);
-                    sort_type* t_r = std::get<sort_type*>(r);
+                    sort_types* t_l = std::get<sort_types*>(l);
+                    sort_types* t_r = std::get<sort_types*>(r);
                     return sort_func(*t_l, *t_r);
                 });
 
@@ -82,9 +82,6 @@ namespace ecs::detail {
         using single_argument =
             decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
 
-        using sort_type = typename decltype(get_sort_func_type_impl(&SortFn::operator()))::type1;
-        //static_assert(std::predicate<SortFn, sort_type, sort_type>, "Sorting function is not a predicate");
-
         // A tuple of the fully typed component pools used by this system
         tup_pools<FirstComponent, Components...> const pools;
 
@@ -92,13 +89,15 @@ namespace ecs::detail {
         UpdateFn update_func;
 
         // The user supplied sorting function
-        SortFn sort_func;
+        SortFunc sort_func;
 
         // The vector of unrolled arguments, sorted using 'sort_func'
         std::vector<single_argument> arguments;
 
         // True if the data needs to be sorted
         bool needs_sorting = false;
+
+        using sort_types = typename decltype(get_sorter_types(SortFunc{}))::type1;
     };
 } // namespace ecs::detail
 

@@ -45,44 +45,45 @@ namespace ecs::detail {
     template<typename First, typename... T>
     concept unique = unique_types_v<First, T...>;
 
-    // Gets the type a sorting functions operates on.
-    // Has to be outside of system or clang craps itself
-    template<class R, class C, class T1, class T2>
-    struct get_sort_func_type_impl {
-        explicit get_sort_func_type_impl(R (C::*)(T1, T2) const) {
+    // Gets the type a sorting function operates on.
+    template<class R, class A, class B, class ...C>
+    struct get_sorter_types_impl {
+        explicit get_sorter_types_impl(R (*)(A, B)) {
+            static_assert(sizeof...(C) == 0, "two arguments expected in sorting predicate");
+            static_assert(std::is_same_v<A, B>, "types must be identical");
         }
+        explicit get_sorter_types_impl(R (A::*)(B, C...) const) {
+            static_assert(sizeof...(C) == 1, "two arguments expected in sorting predicate");
+            static_assert(std::is_same_v<B, C...>, "types must be identical");
+        }
+
+        using type1 = std::conditional_t<sizeof...(C)==0,
+            std::remove_cvref_t<A>,
+            std::remove_cvref_t<B>>;
+        using type2 = std::conditional_t<sizeof...(C)==0,
+            std::remove_cvref_t<B>,
+            std::remove_cvref_t<std::tuple_element_t<0, std::tuple<C...>>>>;
+    };
+
+    template<class T1, class T2>
+    struct get_sorter_types {
+        template<class T> requires requires { &T::operator(); }
+        get_sorter_types(T);
+
+        template<class R, class A, class B>
+        get_sorter_types(R (*)(A, B));
 
         using type1 = std::remove_cvref_t<T1>;
         using type2 = std::remove_cvref_t<T2>;
     };
 
+    template<class R, class A, class B>
+    get_sorter_types(R (*)(A, B)) -> get_sorter_types<A, B>;
 
-
-    template<class R, class T, class U>
-    void sorter_verifier() {
-        static_assert(std::is_same_v<bool, R>, "predicates must return a boolean value");
-        static_assert(std::is_same_v<T, U>, "arguments to predicates must be identical");
-    }
-
-
-    // A small bridge to allow the Lambda to activate the sorter verifier
-    template<class R, class C, class FirstArg, class... Args>
-    struct sorter_to_lambda_bridge {
-        static_assert(sizeof...(Args) == 1, "only two parameters can exist in a predicate");
-
-        sorter_to_lambda_bridge(R (C::*)(FirstArg, Args...)) {
-            sorter_verifier<R, FirstArg, Args...>();
-        };
-        sorter_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) {
-            sorter_verifier<R, FirstArg, Args...>();
-        };
-        sorter_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) {
-            sorter_verifier<R, FirstArg, Args...>();
-        };
-        sorter_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) {
-            sorter_verifier<R, FirstArg, Args...>();
-        };
-    };
+    template<class T>
+    get_sorter_types(T) -> get_sorter_types< // get_sorter_types(&T::operator()) // deduction guides can't refer to other guides :/
+        typename decltype(get_sorter_types_impl(&T::operator()))::type1,
+        typename decltype(get_sorter_types_impl(&T::operator()))::type2>;
 
 
     // Implement the requirements for ecs::parent components
@@ -205,12 +206,19 @@ namespace ecs::detail {
 
         // verify the sort function
         if constexpr (!std::is_same_v<std::nullptr_t, SortFunc>) {
-            static_assert(type_is_lambda<SortFunc>, "only lambda predicates are supported");
+            bool constexpr is_sort_lambda = type_is_lambda<SystemFunc>;
+            bool constexpr is_sort_func = type_is_function<SystemFunc>;
 
-            using sort_types = decltype(get_sort_func_type_impl(&SortFunc::operator()));
-            static_assert(
-                std::predicate<SortFunc, typename sort_types::type1, typename sort_types::type2>,
-                "Sorting function is not a predicate");
+            static_assert(is_sort_lambda || is_sort_func, "invalid sorting function");
+
+            using sort_types = decltype(get_sorter_types(SortFunc{}));
+            if constexpr (is_sort_lambda) {
+                static_assert(std::predicate<SortFunc, typename sort_types::type1, typename sort_types::type2>,
+                    "Sorting function is not a predicate");
+            } else if constexpr (is_sort_func) {
+                static_assert(std::predicate<SortFunc, typename sort_types::type1, typename sort_types::type2>,
+                    "Sorting function is not a predicate");
+            }
         }
     }
 
