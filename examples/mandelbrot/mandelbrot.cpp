@@ -12,7 +12,7 @@ struct pos {
     int x, y;
 };
 
-auto constexpr mandelbrot_system = [](size_t& color, pos const& p) {
+void mandelbrot_system(size_t& color, pos const& p) {
     int constexpr max_iterations = 500;
     double constexpr fr_w = 1.5;
     double constexpr fr_h = 1.5;
@@ -40,7 +40,7 @@ int main() {
     ecs::make_system(mandelbrot_system);
 
     // Add the size_t component to the pixels/entities
-    ecs::entity_range const ents{0, dimension * dimension};
+    ecs::entity_range const ents{0, dimension * dimension - 1};
     ecs::add_component(ents, size_t{0}, [](ecs::entity_id ent) -> pos {
         int const x = ent % dimension;
         int const y = ent / dimension;
