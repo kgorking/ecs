@@ -19,13 +19,15 @@
 
 namespace ecs::detail {
     // The implementation of a system specialized on its components
-    template<typename Options, typename UpdateFn, typename SortFn, typename ArgumentBuilder, class FirstComponent, class... Components>
-    class system final : public system_base {
+    template<class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
+    class system : public system_base {
+        virtual void do_run() = 0;
+        virtual void do_build(entity_range_view) = 0;
+
     public:
-        template<typename ...BuilderArgs>
-        system(UpdateFn update_func, SortFn sort_func, BuilderArgs&& ...args)
-            : arguments{update_func, sort_func, std::forward<BuilderArgs>(args)...} {
-            find_entities();
+        system(UpdateFn update_func, TupPools pools)
+            : update_func{update_func}
+            , pools{pools} {
         }
 
         void run() override {
@@ -37,7 +39,7 @@ namespace ecs::detail {
                 return;
             }
 
-            arguments.run();
+            do_run();
 
             // Notify pools if data was written to them
             if constexpr (!is_entity<FirstComponent>) {
@@ -167,7 +169,7 @@ namespace ecs::detail {
             }
 
             bool const modified = std::apply(
-                [](auto... pools) { return (pools->has_component_count_changed() || ...); }, arguments.get_pools());
+                [](auto... pools) { return (pools->has_component_count_changed() || ...); }, pools);
 
             if (modified) {
                 find_entities();
@@ -179,27 +181,31 @@ namespace ecs::detail {
         void find_entities() {
             if constexpr (num_components == 1) {
                 // Build the arguments
-                entity_range_view const entities = std::get<0>(arguments.get_pools())->get_entities();
-                arguments.build(entities);
+                entity_range_view const entities = std::get<0>(pools)->get_entities();
+                do_build(entities);
             } else {
                 // When there are more than one component required for a system,
                 // find the intersection of the sets of entities that have those components
 
                 // Build the arguments
-                auto const ranges = find_entity_pool_intersections<FirstComponent, Components...>(arguments.get_pools());
-                arguments.build(ranges);
+                auto const ranges = find_entity_pool_intersections<FirstComponent, Components...>(pools);
+                do_build(ranges);
             }
         }
 
         template<typename Component>
         [[nodiscard]] component_pool<Component>& get_pool() const {
-            return detail::get_pool<Component>(arguments.get_pools());
+            return detail::get_pool<Component>(pools);
         }
 
-    private:
-        //using argument_builder = builder_selector<Options, UpdateFn, SortFn, FirstComponent, Components...>;
-        ArgumentBuilder arguments;
+    protected:
+        // A tuple of the fully typed component pools used by this system
+        TupPools const pools;
 
+        // The user supplied system
+        UpdateFn update_func;
+
+    private:
         using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
         frequency_limiter<user_freq::hz> frequency;
 
