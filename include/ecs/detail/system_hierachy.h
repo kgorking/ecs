@@ -1,54 +1,27 @@
-#ifndef __BUILDER_HIERARCHY_ARGUMENT_H_
-#define __BUILDER_HIERARCHY_ARGUMENT_H_
+#ifndef __SYSTEM_HIERARCHY_H_
+#define __SYSTEM_HIERARCHY_H_
 
-// !Only to be included by system.h
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
 
+#include "system.h"
 #include "find_entity_pool_intersections.h"
 #include "../parent.h"
 
 namespace ecs::detail {
-    template<typename Options, typename UpdateFn, typename SortFn, typename TuplePools, class FirstComponent,
-        class... Components>
-    class builder_hierarchy_argument {
-        // Walking the tree in parallel doesn't seem possible
-        using execution_policy = std::execution::sequenced_policy;
-
-
-        // Extract the parent type
-        static constexpr int ParentIndex = test_option_index<is_parent,
-            std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
-        static_assert(-1 != ParentIndex, "no parent component found");
-
-        using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
-        using parent_type = std::remove_cvref_t<full_parent_type>;
-
-
+    template<class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
+    class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
         // Holds a single entity id and its arguments
-        using single_argument =
-            decltype(std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
+        using single_argument = decltype(
+            std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
 
         using relation_map = std::unordered_map<entity_type, single_argument const*>;
         using relation_mmap = std::multimap<entity_type, single_argument const*>;
 
-        // The vector of unrolled arguments, sorted using 'sort_func'
-        std::vector<single_argument> arguments;
-
-        // The user supplied system
-        UpdateFn update_func;
-
-        // A tuple of the fully typed component pools used by this system
-        TuplePools const pools;
-
-        // A tuple of the fully typed component pools used the parent component
-        parent_pool_tuple_t<parent_type> const parent_pools;
-
     public:
-        builder_hierarchy_argument(UpdateFn update_func, SortFn /*sort*/, TuplePools const pools)
-            : update_func{update_func} 
-            , pools{pools}
+        system_hierarchy(UpdateFn update_func, TupPools pools)
+            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
             , parent_pools{
                 std::apply([&pools](auto... parent_types) {
                     return std::make_tuple(&get_pool<decltype(parent_types)>(pools)...);
@@ -57,23 +30,21 @@ namespace ecs::detail {
             } {
         }
 
-        TuplePools get_pools() const {
-            return pools;
-        }
-
-        void run() {
+    private:
+        void do_run() override {
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
             std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
                 if constexpr (is_entity<FirstComponent>) {
-                    update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
+                    this->update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                 } else {
-                    update_func(extract_arg<FirstComponent>(packed_arg, 0), extract_arg<Components>(packed_arg, 0)...);
+                    this->update_func(
+                        extract_arg<FirstComponent>(packed_arg, 0), extract_arg<Components>(packed_arg, 0)...);
                 }
             });
         }
 
         // Convert a set of entities into arguments that can be passed to the system
-        void build(entity_range_view entities) {
+        void do_build(entity_range_view entities) override {
             if (entities.size() == 0) {
                 arguments.clear();
                 return;
@@ -89,7 +60,7 @@ namespace ecs::detail {
             arguments.clear();
 
             // lookup for the parent
-            auto& pool_parent_id = get_pool<parent_id>(pools);
+            auto& pool_parent_id = get_pool<parent_id>(this->pools);
 
             // Build the arguments for the ranges
             for (auto const& range : entities) {
@@ -108,7 +79,7 @@ namespace ecs::detail {
                                     parent_id const pid = *pool_parent_id.find_component_data(entity);
 
                                     // Get the pool of the parent sub-component
-                                    auto& sub_pool = get_pool<decltype(parent_type)>(pools);
+                                    auto& sub_pool = get_pool<decltype(parent_type)>(this->pools);
 
                                     if constexpr (std::is_pointer_v<decltype(parent_type)>) {
                                         // The type is a filter, so the parent is _not_ allowed to have this component
@@ -127,12 +98,10 @@ namespace ecs::detail {
                     }
 
                     if constexpr (is_entity<FirstComponent>) {
-                        arguments.emplace_back(entity,
-                            get_component<Components>(entity, pools)...);
+                        arguments.emplace_back(entity, get_component<Components>(entity, this->pools)...);
                     } else {
-                        arguments.emplace_back(entity,
-                            get_component<FirstComponent>(entity, pools),
-                            get_component<Components>(entity, pools)...);
+                        arguments.emplace_back(entity, get_component<FirstComponent>(entity, this->pools),
+                            get_component<Components>(entity, this->pools)...);
                     }
                 }
             }
@@ -141,7 +110,6 @@ namespace ecs::detail {
             rebuild_tree();
         }
 
-    private:
         void depth_first_search(entity_type ent, std::vector<single_argument>& vec, relation_mmap& parent_argument) {
             auto const [first, last] = parent_argument.equal_range(ent);
             auto current = first;
@@ -220,7 +188,25 @@ namespace ecs::detail {
             Expects(rearranged_args.size() == arguments.size());
             arguments = std::move(rearranged_args);
         }
+
+    private:
+        // Walking the tree in parallel doesn't seem possible
+        using execution_policy = std::execution::sequenced_policy;
+
+        // Extract the parent type
+        static constexpr int ParentIndex = test_option_index<is_parent,
+            std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
+        static_assert(-1 != ParentIndex, "no parent component found");
+
+        using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
+        using parent_type = std::remove_cvref_t<full_parent_type>;
+
+        // The vector of unrolled arguments, sorted using 'sort_func'
+        std::vector<single_argument> arguments;
+
+        // A tuple of the fully typed component pools used the parent component
+        parent_pool_tuple_t<parent_type> const parent_pools;
     };
 } // namespace ecs::detail
 
-#endif // !__BUILDER_HIERARCHY_ARGUMENT_H_
+#endif // !__SYSTEM_HIERARCHY_H_
