@@ -64,9 +64,9 @@ The CI build status for msvc, clang 10, and gcc 10.1 is currently:
   - [Committing component changes](#committing-component-changes)
 - [Systems](#systems)
   - [Requirements and rules](#requirements-and-rules)
+  - [The current entity](#the-current-entity)
   - [Parallel-by-default systems](#parallel-by-default-systems)
   - [Automatic concurrency](#automatic-concurrency)
-  - [The current entity](#the-current-entity)
   - [Sorting](#sorting)
   - [Filtering](#filtering)
   - [Hierarchies](#hierarchies)
@@ -155,11 +155,11 @@ By deferring the components changes to entities, it is possible to safely add an
 
 
 # Systems
-Systems holds the logic that operates on components that are attached to entities.
+Systems holds the logic that operates on components that are attached to entities, and are built using `ecs::make_system` by passing it a lambda or a free-standing function.
 
-A system is built from a user-provided lambda using the function `ecs::make_system`. Systems can operate on as many components as you need; there is no limit.
+Systems can operate on as many components as you need; there is no limit.
 
-Accessing components in systems is done through *references*. If you forget to do so, you will get a compile-time error to remind you.
+Accessing components in systems should be done through *references* to avoid unnecessary copying of the components data.
 
 Remember to mark components you don't intend to change in a system as `const`, as this will help the sceduler by allowing the system to run concurrently with other systems that also only reads from the component. There is more information available in the [automatic concurrency](#Automatic-concurrency) section.
 
@@ -170,6 +170,15 @@ There are a few requirements and restrictions put on the lambdas:
 * **No return values.** Systems are not permitted to have return values, because it logically does not make any sense. Systems with return types other than `void` will result in a compile time error.
 * **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
 * **No duplicate components.** Having the same component more than once in the parameter list is likely an error on the programmers side, so a compile time error will be raised. 
+
+## The current entity
+If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
+
+```cpp
+ecs::make_system([](ecs::entity_id ent, greeting const& g) {
+    std::cout << "entity with id " << ent << " says: " << g.msg << '\n';
+});
+```
 
 
 ## Parallel-by-default systems
@@ -190,15 +199,6 @@ If a component is written to, the system that previously read from or wrote to t
 If a component is read from, the system that previously wrote to it becomes a dependency.
 
 Multiple systems that read from the same component can safely run concurrently.
-
-## The current entity
-If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
-
-```cpp
-ecs::make_system([](ecs::entity_id ent, greeting const& g) {
-    std::cout << "entity with id " << ent << " says: " << g.msg << '\n';
-});
-```
 
 
 ## Sorting
