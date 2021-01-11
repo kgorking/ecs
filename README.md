@@ -32,6 +32,7 @@ int main() {
     ecs::update();
 }
 ```
+
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
@@ -157,9 +158,28 @@ By deferring the components changes to entities, it is possible to safely add an
 # Systems
 Systems holds the logic that operates on components that are attached to entities, and are built using `ecs::make_system` by passing it a lambda or a free-standing function.
 
+```cpp
+#include <ecs/ecs.h>
+
+struct component1;
+struct component2;
+struct component3;
+
+void read_only_system(component1 const&) { /* logic */ }
+auto read_write_system = [](component1&, component2 const&) { /* logic */ }
+
+int main() {
+    ecs::make_system(read_only_system);
+    ecs::make_system(read_write_system);
+    ecs::make_system([](component2&, component3&) { // read/write to two components
+        /* logic */
+    });
+}
+```
+
 Systems can operate on as many components as you need; there is no limit.
 
-Accessing components in systems should be done through *references* to avoid unnecessary copying of the components data.
+Accessing large components in systems should be done through references to avoid unnecessary copying of the components data.
 
 Remember to mark components you don't intend to change in a system as `const`, as this will help the sceduler by allowing the system to run concurrently with other systems that also only reads from the component. There is more information available in the [automatic concurrency](#Automatic-concurrency) section.
 
