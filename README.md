@@ -205,12 +205,12 @@ ecs::make_system([](ecs::entity_id ent, greeting const& g) {
 An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
-// sort ascending
+// sort descending
 auto &sys_dec = ecs::make_system(
     [](int const&) { /* ... */ },
     std::less<int>());
 
-// sort descending
+// sort ascending
 auto & sys_asc = ecs::make_system(
     [](int const&) { /* ... */ },
     std::greater<int>());
@@ -245,7 +245,7 @@ More than one filter can be present; there is no limit.
 ## Hierarchies
 Hierarchies can be created by adding the special component `ecs::parent` to an entity:
 ```cpp
-add_component({1}, parent{0});
+add_component({1}, ecs::parent{0});
 ```
 This alone does not create a hierarchy, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter:
 
@@ -267,34 +267,34 @@ add_component(2, short{10});
 add_component(3, long{20});
 add_component(4, float{30});
 
-add_component({5, 7}, parent{2});  // short children, parent 2 has a short
-add_component({7, 9}, parent{3});  // long children, parent 3 has a long
-add_component({9, 11}, parent{4}); // float children, parent 4 has a float
+add_component({5, 7}, ecs::parent{2});  // short children, parent 2 has a short
+add_component({7, 9}, ecs::parent{3});  // long children, parent 3 has a long
+add_component({9, 11}, ecs::parent{4}); // float children, parent 4 has a float
 
 // Systems that only runs on entities that has a parent with a specific component,
-make_system([](parent<short> const& p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
-make_system([](parent<long>  const& p) { /* 20 == p.get<long>() */ });   // runs on entities 7-9
-make_system([](parent<float> const& p) { /* 30 == p.get<float>() */ });  // runs on entities 9-11
-make_system([](parent<short, long> const& p) { // runs on entity 7
+make_system([](ecs::parent<short> const& p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
+make_system([](ecs::parent<long>  const& p) { /* 20 == p.get<long>() */ });   // runs on entities 7-9
+make_system([](ecs::parent<float> const& p) { /* 30 == p.get<float>() */ });  // runs on entities 9-11
+make_system([](ecs::parent<short, long> const& p) { // runs on entity 7
   /* 10 == p.get<short>() */
   /* 20 == p.get<long>() */
 ); 
 
 // Fails
-//make_system([](parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
+//make_system([](ecs::parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
 ```
 
 ### Filtering on parents components
 Filters work like regular system filters and can be specified on a parents sub-components:
 ```cpp
-make_system([](parent<short*> p) { });  // runs on entities 8-13
+make_system([](ecs::parent<short*> p) { });  // runs on entities 7-11
 ```
 An `ecs::parent` that only consist of filters does not need to be passed as a reference.
 
 
 Marking the parent itself as a filter means that any entity with a parent component on it will be ignored. Any sub-components specified are ignored.
 ```cpp
-make_system([](int, parent<> *p) { });  // runs on entities with an int and no parents
+make_system([](int, ecs::parent<> *p) { });  // runs on entities with an int and no parents
 ```
 
 ### Traversal and layout
