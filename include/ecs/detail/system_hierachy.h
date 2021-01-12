@@ -56,8 +56,9 @@ namespace ecs::detail {
                 arg_count += range.count();
             }
 
-            // Clear the arguments
+            // Clear the arguments and reserve space for new ones
             arguments.clear();
+            arguments.reserve(arg_count);
 
             // lookup for the parent
             auto& pool_parent_id = get_pool<parent_id>(this->pools);
@@ -67,7 +68,6 @@ namespace ecs::detail {
                 for (entity_id const& entity : range) {
                     // If the parent has sub-components specified, verify them
                     if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
-
                         // Does tests on the parent sub-components to see they satisfy the constraints
                         // ie. a 'parent<int*, float>' will return false if the parent does not have a float or
                         // has an int.
@@ -79,7 +79,7 @@ namespace ecs::detail {
                                     parent_id const pid = *pool_parent_id.find_component_data(entity);
 
                                     // Get the pool of the parent sub-component
-                                    auto& sub_pool = get_pool<decltype(parent_type)>(this->pools);
+                                    auto const& sub_pool = get_pool<decltype(parent_type)>(this->pools);
 
                                     if constexpr (std::is_pointer_v<decltype(parent_type)>) {
                                         // The type is a filter, so the parent is _not_ allowed to have this component
@@ -201,7 +201,7 @@ namespace ecs::detail {
         using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
         using parent_type = std::remove_cvref_t<full_parent_type>;
 
-        // The vector of unrolled arguments, sorted using 'sort_func'
+        // The vector of unrolled arguments
         std::vector<single_argument> arguments;
 
         // A tuple of the fully typed component pools used the parent component
