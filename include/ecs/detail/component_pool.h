@@ -107,6 +107,13 @@ namespace ecs::detail {
             return index ? &components[index.value()] : nullptr;
         }
 
+        // Returns an entities component.
+        // Returns nullptr if the entity is not found in this pool
+        T const* find_component_data(entity_id const id) const {
+            auto const index = find_entity_index(id);
+            return index ? &components[index.value()] : nullptr;
+        }
+
         // Merge all the components queued for addition to the main storage,
         // and remove components queued for removal
         void process_changes() override {
