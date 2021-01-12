@@ -64,7 +64,7 @@ namespace ecs::detail {
 
     protected:
         constexpr entity_type step(entity_type start, entity_offset diff) const {
-            // ensures the value wraps instead of causing an overflow
+            // ensures the value wraps instead of causing an overflow. This is required for entity_range::end() to work.
             auto const diff_start = static_cast<entity_offset>(start);
             return static_cast<entity_type>(diff_start + diff);
         }
