@@ -27,7 +27,7 @@ void hierarchy_add(benchmark::State& state) {
         ecs::commit_changes();
     }
 }
-BENCHMARK(hierarchy_add)->RangeMultiplier(2)->Range(8, num_components);
+BENCHMARK(hierarchy_add)->RangeMultiplier(2)->Range(1024, num_components);
 
 void hierarchy_add_one_more(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -45,4 +45,4 @@ void hierarchy_add_one_more(benchmark::State& state) {
         ecs::commit_changes();
     }
 }
-BENCHMARK(hierarchy_add_one_more)->RangeMultiplier(2)->Range(8, num_components);
+BENCHMARK(hierarchy_add_one_more)->RangeMultiplier(2)->Range(1024, num_components);
