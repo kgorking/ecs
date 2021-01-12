@@ -16,9 +16,7 @@ namespace ecs::detail {
         using single_argument = decltype(
             std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
 
-        using relation_map = std::unordered_map<entity_type, single_argument const*>;
-        using relation_mmap = std::multimap<entity_type, single_argument const*>;
-        using relation_mmap_v2 = std::multimap<entity_type, entity_type>;
+        using relation_mmap = std::multimap<entity_type, entity_type>;
 
     public:
         system_hierarchy(UpdateFn update_func, TupPools pools)
@@ -64,11 +62,15 @@ namespace ecs::detail {
             // The component pool for the parent ids
             component_pool<parent_id> const& pool_parent_id = get_pool<parent_id>(this->pools);
 
+            // • find a vertex with no incoming edges, put it in the output;
+            // • delete all its outgoing edges;
+            // • repeat.
+
             // Find the roots; map parents to their children.
             // 'ranges' holds all the entities that has a 'ecs::parent' on them, so any parent id I test
             // against the pool will tell me if it is a root if it doesn't exist in the pool.
             std::unordered_set<entity_type> roots;
-            relation_mmap_v2 parent_argument;
+            relation_mmap parent_argument;
 
             for (auto const& range : ranges) {
                 // Get the ranges span of the parent-id components
@@ -95,7 +97,7 @@ namespace ecs::detail {
             std::vector<entity_type> rearranged_args;
             rearranged_args.reserve(arg_count);
             for (entity_type const& root : roots) {
-                depth_first_search_v2(root, rearranged_args, parent_argument);
+                depth_first_search(root, rearranged_args, parent_argument);
             }
 
             // This contract triggers on cyclical graphs, which are not supported
@@ -144,7 +146,7 @@ namespace ecs::detail {
             }
         }
 
-        void depth_first_search_v2(entity_type ent, std::vector<entity_type>& vec, relation_mmap_v2& parent_argument) {
+        void depth_first_search(entity_type ent, std::vector<entity_type>& vec, relation_mmap& parent_argument) {
             // Get all the entities that has 'ent' as a parent
             auto const [first, last] = parent_argument.equal_range(ent);
             auto current = first;
@@ -156,7 +158,7 @@ namespace ecs::detail {
 
                     vec.push_back(id);
 
-                    depth_first_search_v2(id, vec, parent_argument);
+                    depth_first_search(id, vec, parent_argument);
                 }
 
                 ++current;
