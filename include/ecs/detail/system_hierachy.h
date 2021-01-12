@@ -18,6 +18,7 @@ namespace ecs::detail {
 
         using relation_map = std::unordered_map<entity_type, single_argument const*>;
         using relation_mmap = std::multimap<entity_type, single_argument const*>;
+        using relation_mmap_v2 = std::multimap<entity_type, entity_type>;
 
     public:
         system_hierarchy(UpdateFn update_func, TupPools pools)
@@ -44,15 +45,15 @@ namespace ecs::detail {
         }
 
         // Convert a set of entities into arguments that can be passed to the system
-        void do_build(entity_range_view entities) override {
-            if (entities.size() == 0) {
+        void do_build(entity_range_view ranges) override {
+            if (ranges.size() == 0) {
                 arguments.clear();
                 return;
             }
 
             // Count the total number of arguments
             size_t arg_count = 0;
-            for (auto const& range : entities) {
+            for (auto const& range : ranges) {
                 arg_count += range.count();
             }
 
@@ -60,133 +61,106 @@ namespace ecs::detail {
             arguments.clear();
             arguments.reserve(arg_count);
 
-            // lookup for the parent
-            auto& pool_parent_id = get_pool<parent_id>(this->pools);
+            // The component pool for the parent ids
+            component_pool<parent_id> const& pool_parent_id = get_pool<parent_id>(this->pools);
 
-            // Build the arguments for the ranges
-            for (auto const& range : entities) {
-                for (entity_id const& entity : range) {
-                    // If the parent has sub-components specified, verify them
-                    if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
-                        // Does tests on the parent sub-components to see they satisfy the constraints
-                        // ie. a 'parent<int*, float>' will return false if the parent does not have a float or
-                        // has an int.
-                        constexpr parent_types_tuple_t<parent_type> ptt{};
-                        bool const has_parent_types = std::apply(
-                            [&](auto... parent_types) {
-                                auto const check_parent = [&](auto parent_type) {
-                                    // Get the parent components id
-                                    parent_id const pid = *pool_parent_id.find_component_data(entity);
+            // Find the roots; map parents to their children.
+            // 'ranges' holds all the entities that has a 'ecs::parent' on them, so any parent id I test
+            // against the pool will tell me if it is a root if it doesn't exist in the pool.
+            std::unordered_set<entity_type> roots;
+            relation_mmap_v2 parent_argument;
 
-                                    // Get the pool of the parent sub-component
-                                    auto const& sub_pool = get_pool<decltype(parent_type)>(this->pools);
+            for (auto const& range : ranges) {
+                // Get the ranges span of the parent-id components
+                auto const span_parent_ids =
+                    std::span{pool_parent_id.find_component_data(range.first()), range.count()};
 
-                                    if constexpr (std::is_pointer_v<decltype(parent_type)>) {
-                                        // The type is a filter, so the parent is _not_ allowed to have this component
-                                        return !sub_pool.has_entity(pid);
-                                    } else {
-                                        // The parent must have this component
-                                        return sub_pool.has_entity(pid);
-                                    }
-                                };
+                for (auto const id : range) {
+                    // Get the parent id
+                    auto const offset = id - range.first();
+                    entity_type const parent_id = span_parent_ids[offset];
 
-                                return (check_parent(parent_types) && ...);
-                        }, ptt);
+                    // Entities can't be parents of themselves
+                    Expects(id != parent_id);
 
-                        if (!has_parent_types)
-                            continue;
-                    }
+                    if (!pool_parent_id.has_entity(parent_id))
+                        roots.insert(parent_id);
 
-                    if constexpr (is_entity<FirstComponent>) {
-                        arguments.emplace_back(entity, get_component<Components>(entity, this->pools)...);
-                    } else {
-                        arguments.emplace_back(entity, get_component<FirstComponent>(entity, this->pools),
-                            get_component<Components>(entity, this->pools)...);
-                    }
+                    // Map the parent to its children
+                    parent_argument.emplace(parent_id, id);
                 }
             }
 
-            // Re-arrange the arguments to match a tree
-            rebuild_tree();
+            // Do the depth-first search on the roots
+            std::vector<entity_type> rearranged_args;
+            rearranged_args.reserve(arg_count);
+            for (entity_type const& root : roots) {
+                depth_first_search_v2(root, rearranged_args, parent_argument);
+            }
+
+            // This contract triggers on cyclical graphs, which are not supported
+            Expects(rearranged_args.size() == arg_count);
+
+            // Build the arguments for the ranges
+            for (entity_id const entity : rearranged_args) {
+                // If the parent has sub-components specified, verify them
+                if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
+                    // Does tests on the parent sub-components to see they satisfy the constraints
+                    // ie. a 'parent<int*, float>' will return false if the parent does not have a float or
+                    // has an int.
+                    constexpr parent_types_tuple_t<parent_type> ptt{};
+                    bool const has_parent_types = std::apply(
+                        [&](auto... parent_types) {
+                            auto const check_parent = [&](auto parent_type) {
+                                // Get the parent components id
+                                parent_id const pid = *pool_parent_id.find_component_data(entity);
+
+                                // Get the pool of the parent sub-component
+                                auto const& sub_pool = get_pool<decltype(parent_type)>(this->pools);
+
+                                if constexpr (std::is_pointer_v<decltype(parent_type)>) {
+                                    // The type is a filter, so the parent is _not_ allowed to have this component
+                                    return !sub_pool.has_entity(pid);
+                                } else {
+                                    // The parent must have this component
+                                    return sub_pool.has_entity(pid);
+                                }
+                            };
+
+                            return (check_parent(parent_types) && ...);
+                        },
+                        ptt);
+
+                    if (!has_parent_types)
+                        continue;
+                }
+
+                if constexpr (is_entity<FirstComponent>) {
+                    arguments.emplace_back(entity, get_component<Components>(entity, this->pools)...);
+                } else {
+                    arguments.emplace_back(entity, get_component<FirstComponent>(entity, this->pools),
+                        get_component<Components>(entity, this->pools)...);
+                }
+            }
         }
 
-        void depth_first_search(entity_type ent, std::vector<single_argument>& vec, relation_mmap& parent_argument) {
+        void depth_first_search_v2(entity_type ent, std::vector<entity_type>& vec, relation_mmap_v2& parent_argument) {
+            // Get all the entities that has 'ent' as a parent
             auto const [first, last] = parent_argument.equal_range(ent);
             auto current = first;
 
             while (current != last) {
-                if (current->second != nullptr) {
-                    single_argument const& argument = *current->second;
-                    current->second = nullptr; // mark the node as visited
+                if (current->second != ent) {
+                    entity_type const id = current->second;
+                    current->second = ent; // mark the node as visited (points to itself)
 
-                    vec.push_back(argument);
+                    vec.push_back(id);
 
-                    auto const node = std::get<0>(argument);
-                    depth_first_search(node, vec, parent_argument);
+                    depth_first_search_v2(id, vec, parent_argument);
                 }
 
                 ++current;
             }
-        }
-
-        void rebuild_tree() {
-            relation_map entity_argument;
-            relation_mmap parent_argument;
-            entity_argument.reserve(arguments.size());
-
-            // Map entities and their parents to their arguments
-            std::for_each(arguments.begin(), arguments.end(), [&](auto const& packed_arg) {
-                entity_type const id = std::get<0>(packed_arg);
-                entity_type const par = std::get<parent_type>(packed_arg);
-
-                entity_argument.emplace(id, &packed_arg);
-                parent_argument.emplace(par, &packed_arg);
-            });
-
-            // Find roots
-            std::vector<entity_type> roots;
-            std::unordered_set<entity_type> visited;
-            visited.reserve(arguments.size());
-            for (auto const& packed_arg : arguments) {
-                // Get the current entity id
-                entity_type const id = std::get<0>(packed_arg);
-
-                // If we have already been here, move on
-                if (visited.contains(id))
-                    continue;
-
-                // Mark the entity as visited
-                visited.insert(id);
-
-                // Climb up the tree to find the top-most parent of this entity.
-                // If 'id_parent' is not contained in 'entity_argument' it measn
-                // that it does not have a 'parent' components, and is
-                // therefore automatically a root.
-                entity_type id_parent = std::get<parent_type>(packed_arg);
-                while (entity_argument.contains(id_parent)) {
-                    // Break out if were in a cyclical graph
-                    if (visited.contains(id_parent)) {
-                        break;
-                    }
-
-                    // Mark the parent as visited, and continue to its parent
-                    visited.insert(id_parent);
-                    id_parent = std::get<parent_type>(*entity_argument.at(id_parent));
-                }
-
-                // Mark the parent as a root
-                roots.push_back(id_parent);
-            }
-
-            // Do the depth-first search on the roots
-            std::vector<single_argument> rearranged_args;
-            rearranged_args.reserve(arguments.size());
-            for (entity_type const& root : roots) {
-                depth_first_search(root, rearranged_args, parent_argument);
-            }
-
-            Expects(rearranged_args.size() == arguments.size());
-            arguments = std::move(rearranged_args);
         }
 
     private:

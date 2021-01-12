@@ -31,10 +31,15 @@ namespace ecs {
                 static_assert(!std::is_same_v<ComponentType, void>,
                     "Initializer functions must return a component");
 
-                // Add it to the component pool
-                detail::component_pool<ComponentType>& pool =
-                    detail::_context.get_component_pool<ComponentType>();
-                pool.add_init(range, std::forward<Type>(val));
+                if constexpr (detail::is_parent<ComponentType>::value) {
+                    auto const converter = [val](entity_id id) { return detail::parent_id{val(id).id()}; };
+
+                    auto& pool = detail::_context.get_component_pool<detail::parent_id>();
+                    pool.add_init(range, converter);
+                } else {
+                    auto& pool = detail::_context.get_component_pool<ComponentType>();
+                    pool.add_init(range, std::forward<Type>(val));
+                }
             } else {
                 // Add it to the component pool
                 if constexpr (detail::is_parent<Type>::value) {

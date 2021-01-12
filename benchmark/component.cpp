@@ -4,6 +4,18 @@
 
 #include "global.h"
 
+void component_generate(benchmark::State& state) {
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+
+    for ([[maybe_unused]] auto const _ : state) {
+        ecs::detail::_context.reset();
+
+        ecs::add_component({0, nentities}, [](ecs::entity_id id) { return static_cast<size_t>(id); });
+        ecs::commit_changes();
+    }
+}
+BENCHMARK(component_generate)->Arg(num_components);
+
 void component_add(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
