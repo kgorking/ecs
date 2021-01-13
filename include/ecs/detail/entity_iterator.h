@@ -12,7 +12,7 @@ namespace ecs::detail {
     class entity_iterator {
     public:
         // iterator traits
-        using difference_type = entity_offset;
+        using difference_type = ptrdiff_t;
         using value_type = entity_type;
         using pointer = const entity_type*;
         using reference = const entity_type&;
@@ -63,7 +63,7 @@ namespace ecs::detail {
         }
 
     protected:
-        constexpr entity_type step(entity_type start, entity_offset diff) const {
+        constexpr entity_type step(entity_type start, difference_type diff) const {
             // ensures the value wraps instead of causing an overflow
             auto const diff_start = static_cast<entity_offset>(start);
             return static_cast<entity_type>(diff_start + diff);
