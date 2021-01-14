@@ -68,7 +68,7 @@ namespace ecs::detail {
                 if (++it_a != view_a.end())
                     range_a = *it_a;
             } else if (*it_b < range_a) {
-                // The whole 'b' range is before 'a', so add it and move ahead
+                // The whole 'b' range is before 'a', so move ahead
                 ++it_b;
             } else {
                 // The two ranges overlap
@@ -101,14 +101,6 @@ namespace ecs::detail {
                     }
                 }
             }
-        }
-
-        // Add remainders
-        while (it_a != view_a.end()) {
-            add(*it_a++);
-        }
-        while (it_b != view_b.end()) {
-            add(*it_b++);
         }
 
         return result;
