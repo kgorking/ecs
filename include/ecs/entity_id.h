@@ -16,10 +16,10 @@ namespace ecs {
             : id(_id) {
         }
 
-        constexpr operator detail::entity_type &() noexcept {
+        constexpr operator detail::entity_type & () noexcept {
             return id;
         }
-        constexpr operator detail::entity_type() const noexcept {
+        constexpr operator detail::entity_type const& () const noexcept {
             return id;
         }
 
