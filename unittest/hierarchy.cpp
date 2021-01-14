@@ -2,6 +2,7 @@
 #include "catch.hpp"
 #include <ecs/ecs.h>
 #include <vector>
+#include <unordered_map>
 
 using namespace ecs;
 
@@ -40,14 +41,61 @@ TEST_CASE("Hierarchies") {
         add_component(16, parent{13});
 
         // The system to verify the traversal order
-        std::vector<int> actual_traversal_order;
-        make_system<opts::not_parallel>(
-            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
+        std::unordered_map<int, bool> traversal_order;
+        traversal_order[1] = true;
+        make_system([&traversal_order](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order[p]);
+            traversal_order[id] = true;
+        });
 
         update();
 
-        std::vector<int> const expected_traversal_order{2, 11, 12, 13, 16, 3, 8, 9, 15, 10, 4, 5, 14, 6, 7};
-        CHECK(expected_traversal_order == actual_traversal_order);
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (1 + ecs::get_component_count<ecs::detail::parent_id>()));
+    }
+
+    SECTION("works on multiple trees") {
+        reset();
+
+        //
+        //
+        //   4       3          2
+        //  /|\     /|\       / | \
+        // 5 6 7   8 9 10   11  12 13
+        // |         |             |
+        // 14        15            16
+
+        // The roots
+        add_component(4, int{1});
+        add_component(3, int{1});
+        add_component(2, int{1});
+
+        // The children
+        add_component({5, 7}, parent{4});
+        add_component({8, 10}, parent{3});
+        add_component({11, 13}, parent{2});
+
+        // The grandchildren
+        add_component(14, parent{5});
+        add_component(15, parent{9});
+        add_component(16, parent{13});
+
+        // The system to verify the traversal order
+        std::unordered_map<int, bool> traversal_order;
+        traversal_order[2] = true;
+        traversal_order[3] = true;
+        traversal_order[4] = true;
+        make_system([&traversal_order](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order[p]);
+            traversal_order[id] = true;
+        });
+
+        update();
+
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (3 + ecs::get_component_count<ecs::detail::parent_id>()));
     }
 
     SECTION("can be built bottoms-up") {
@@ -80,14 +128,18 @@ TEST_CASE("Hierarchies") {
         add_component({1}, int{});
 
         // The system to verify the traversal order
-        std::vector<int> actual_traversal_order;
-        make_system<opts::not_parallel>(
-            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
+        std::unordered_map<int, bool> traversal_order;
+        traversal_order[1] = true;
+        make_system([&traversal_order](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order[p]);
+            traversal_order[id] = true;
+        });
 
         update();
 
-        std::vector<int> const expected_traversal_order{2, 11, 12, 13, 16, 3, 8, 9, 15, 10, 4, 5, 14, 6, 7};
-        CHECK(expected_traversal_order == actual_traversal_order);
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (1 + ecs::get_component_count<ecs::detail::parent_id>()));
     }
 
     SECTION("can be built in reverse") {
@@ -120,14 +172,18 @@ TEST_CASE("Hierarchies") {
         add_component(1, parent{6});
 
         // The system to verify the traversal order
-        std::vector<int> actual_traversal_order;
-        make_system<opts::not_parallel>(
-            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
+        std::unordered_map<int, bool> traversal_order;
+        traversal_order[16] = true;
+        make_system([&traversal_order](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order[p]);
+            traversal_order[id] = true;
+        });
 
         update();
 
-        std::vector<int> const expected_traversal_order{13, 10, 3, 11, 12, 14, 7, 8, 2, 9, 15, 4, 5, 6, 1};
-        CHECK(expected_traversal_order == actual_traversal_order);
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (1 + ecs::get_component_count<ecs::detail::parent_id>()));
     }
 
     SECTION("can extract parent info") {
