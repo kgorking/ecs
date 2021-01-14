@@ -49,7 +49,7 @@ namespace ecs::detail {
         // The entities that have components in this storage.
         std::vector<entity_range> ranges;
 
-        // The offset from a range into the components (inclusive scan of range size)
+        // The offset from a range into the components
         std::vector<size_t> offsets;
 
         // Keep track of which components to add/remove each cycle
