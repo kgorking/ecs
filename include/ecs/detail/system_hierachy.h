@@ -179,11 +179,11 @@ namespace ecs::detail {
         // map of entity info
         info_map info;
 
-        // The pool that holds 'parent_id's
-        component_pool<parent_id> const& pool_parent_id;
-
         // A tuple of the fully typed component pools used the parent component
         parent_pool_tuple_t<parent_type> const parent_pools;
+
+        // The pool that holds 'parent_id's
+        component_pool<parent_id> const& pool_parent_id;
     };
 } // namespace ecs::detail
 
