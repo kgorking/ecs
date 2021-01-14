@@ -103,6 +103,10 @@ namespace ecs::detail {
             }
         }
 
+        // add rest of a
+        while (it_a != view_a.end())
+            add(*it_a++);
+
         return result;
     }
 } // namespace ecs::detail
