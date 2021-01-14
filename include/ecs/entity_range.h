@@ -52,6 +52,10 @@ namespace ecs {
             return /*first_ < other.first() &&*/ last_ < other.first();
         }
 
+        [[nodiscard]] constexpr bool operator<(entity_id const& id) const {
+            return last_ < id;
+        }
+
         // Returns the first entity in the range
         [[nodiscard]] constexpr entity_id first() const {
             return entity_id{first_};
