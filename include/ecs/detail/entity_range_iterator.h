@@ -132,7 +132,7 @@ namespace ecs::detail {
         entity_iterator range_end;
 
         // The range currently being iterated
-        int current_range = 0;
+        size_t current_range = 0;
     };
 
     struct range_view_wrapper : public std::span<entity_range const> {
