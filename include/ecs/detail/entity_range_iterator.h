@@ -134,6 +134,16 @@ namespace ecs::detail {
         // The range currently being iterated
         int current_range = 0;
     };
-} // namespace ecs
+
+    struct range_view_wrapper : public std::span<entity_range const> {
+        auto begin() const {
+            return entity_range_iterator(*this);
+        }
+
+        auto end() const {
+            return entity_range_iterator();
+        }
+    };
+} // namespace ecs::detail
 
 #endif // !__ENTITY_RANGE_ITERATOR
