@@ -6,6 +6,7 @@
 #include <future>
 
 #include "system.h"
+#include "system_defs.h"
 #include "find_entity_pool_intersections.h"
 #include "../parent.h"
 #include "entity_range_iterator.h"
@@ -13,10 +14,6 @@
 namespace ecs::detail {
     template<class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
     class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
-        // Holds a single entity id and its arguments
-        using single_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0},
-            std::declval<argument_tuple<FirstComponent, Components...>>()));
-
         // Determine the execution policy from the options (or lack thereof)
         using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
             std::execution::sequenced_policy, std::execution::parallel_policy>;
@@ -40,7 +37,7 @@ namespace ecs::detail {
         void do_run() override {
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
             std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto span_packed_arg) {
-                for (single_argument& packed_arg : span_packed_arg) {
+				for (argument const& packed_arg : span_packed_arg) {
                     if constexpr (is_entity<FirstComponent>) {
                         this->update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                     } else {
@@ -84,7 +81,7 @@ namespace ecs::detail {
                 }
             }
 
-            auto const topological_sort_func = [this](single_argument const& arg_l, single_argument const& arg_r) {
+            auto const topological_sort_func = [this](argument const &arg_l, argument const &arg_r) {
                 entity_id const id_l = std::get<0>(arg_l);
                 entity_id const id_r = std::get<0>(arg_r);
 
@@ -106,7 +103,7 @@ namespace ecs::detail {
             std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
 
             // Build the spans
-            single_argument* current_args = &arguments.front();
+			argument *current_args = &arguments.front();
             for (auto const [root, count] : arg_roots) {
                 argument_spans.emplace_back(std::span(current_args, count));
                 current_args += count;
@@ -186,10 +183,11 @@ namespace ecs::detail {
         using parent_type = std::remove_cvref_t<full_parent_type>;
 
         // The vector of unrolled arguments
-        std::vector<single_argument> arguments;
+		using argument = single_argument<FirstComponent, Components...>;
+		std::vector<argument> arguments;
 
         // The spans over each tree in the argument vector
-        std::vector<std::span<single_argument>> argument_spans;
+		std::vector<std::span<argument>> argument_spans;
 
         // map of entity info
         info_map info;

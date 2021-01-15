@@ -77,15 +77,12 @@ namespace ecs::detail {
         }
 
     private:
-        // Holds a single entity id and its arguments
-        using single_argument =
-            decltype(std::tuple_cat(std::tuple<entity_id>{0}, argument_tuple<FirstComponent, Components...>{}));
-
         // The user supplied sorting function
         SortFunc sort_func;
 
         // The vector of unrolled arguments, sorted using 'sort_func'
-        std::vector<single_argument> arguments;
+		using argument = single_argument<FirstComponent, Components...>;
+		std::vector<argument> arguments;
 
         // True if the data needs to be sorted
         bool needs_sorting = false;

@@ -19,16 +19,16 @@ namespace ecs::detail {
     private:
         void do_run() override {
             // Call the system for all the components that match the system signature
-            for (auto const& argument : arguments) {
-                auto const& range = std::get<entity_range>(argument);
+            for (auto const& arg : arguments) {
+                auto const& range = std::get<entity_range>(arg);
                 auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-                std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
+                std::for_each(e_p, range.begin(), range.end(), [this, &arg, first_id = range.first()](auto ent) {
                     auto const offset = ent - first_id;
                     if constexpr (is_entity<FirstComponent>) {
-                        this->update_func(ent, extract_arg<Components>(argument, offset)...);
+                        this->update_func(ent, extract_arg<Components>(arg, offset)...);
                     } else {
-                        this->update_func(extract_arg<FirstComponent>(argument, offset),
-                            extract_arg<Components>(argument, offset)...);
+                        this->update_func(extract_arg<FirstComponent>(arg, offset),
+                            extract_arg<Components>(arg, offset)...);
                     }
                 });
             }
@@ -49,12 +49,9 @@ namespace ecs::detail {
         }
 
     private:
-        // Holds an entity range and its arguments
-        using range_argument =
-            decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, argument_tuple<FirstComponent, Components...>{}));
-
         // Holds the arguments for a range of entities
-        std::vector<range_argument> arguments;
+        using argument = range_argument<FirstComponent, Components...>;
+		std::vector<argument> arguments;
     };
 }
 
