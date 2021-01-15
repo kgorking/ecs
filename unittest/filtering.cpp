@@ -4,6 +4,7 @@
 
 TEST_CASE("Filtering", "[component][system]") {
     ecs::detail::_context.reset();
+    using ecs::opts::not_parallel;
 
     ecs::add_component({0, 6}, int());
     ecs::add_component({3, 9}, float());
@@ -31,8 +32,8 @@ TEST_CASE("Filtering", "[component][system]") {
     });
 
     // Filtering on non-existant component should run normally
-    size_t no_shorts = 0;
-    ecs::make_system<ecs::opts::not_parallel>([&no_shorts](int&, short*) {
+    std::atomic_int no_shorts = 0;
+    ecs::make_system([&no_shorts](int&, short*) {
         no_shorts++;
     });
 
