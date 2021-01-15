@@ -23,9 +23,9 @@ void hierarchy_sys_build(benchmark::State& state) {
             add_component({id + 1, id + 3}, parent{id + 0});
 
             // The grandchildren
-            /*add_component({id + 4, id + 6}, parent{id + 1});
+            add_component({id + 4, id + 6}, parent{id + 1});
             add_component({id + 7, id + 9}, parent{id + 2});
-            add_component({id + 10, id + 12}, parent{id + 3});*/
+            add_component({id + 10, id + 12}, parent{id + 3});
 
             id += 4;
         }
