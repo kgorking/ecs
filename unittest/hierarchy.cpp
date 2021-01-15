@@ -2,7 +2,7 @@
 #include "catch.hpp"
 #include <ecs/ecs.h>
 #include <vector>
-#include <unordered_map>
+#include <unordered_set>
 
 using namespace ecs;
 
@@ -41,12 +41,12 @@ TEST_CASE("Hierarchies") {
         add_component(16, parent{13});
 
         // The system to verify the traversal order
-        std::unordered_map<int, bool> traversal_order;
-        traversal_order[1] = true;
-        make_system([&traversal_order](entity_id id, parent<> p) {
+        std::unordered_set<int> traversal_order;
+        traversal_order.insert(1);
+        make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
             // Make sure parents are processed before the children
-            CHECK(true == traversal_order[p]);
-            traversal_order[id] = true;
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
         });
 
         update();
@@ -82,14 +82,60 @@ TEST_CASE("Hierarchies") {
         add_component(16, parent{13});
 
         // The system to verify the traversal order
-        std::unordered_map<int, bool> traversal_order;
-        traversal_order[2] = true;
-        traversal_order[3] = true;
-        traversal_order[4] = true;
-        make_system([&traversal_order](entity_id id, parent<> p) {
+        std::unordered_set<int> traversal_order;
+        traversal_order.insert(2);
+        traversal_order.insert(3);
+        traversal_order.insert(4);
+        make_system<opts::not_parallel>([&](entity_id id, parent<> p) {
             // Make sure parents are processed before the children
-            CHECK(true == traversal_order[p]);
-            traversal_order[id] = true;
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
+        });
+
+        update();
+
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (3 + ecs::get_component_count<ecs::detail::parent_id>()));
+    }
+
+    SECTION("works on multiple trees in parallel") {
+        reset();
+
+        //
+        //
+        //   4       3          2
+        //  /|\     /|\       / | \
+        // 5 6 7   8 9 10   11  12 13
+        // |         |             |
+        // 14        15            16
+
+        // The roots
+        add_component(4, int{1});
+        add_component(3, int{1});
+        add_component(2, int{1});
+
+        // The children
+        add_component({5, 7}, parent{4});
+        add_component({8, 10}, parent{3});
+        add_component({11, 13}, parent{2});
+
+        // The grandchildren
+        add_component(14, parent{5});
+        add_component(15, parent{9});
+        add_component(16, parent{13});
+
+        // The system to verify the traversal order
+        std::unordered_set<int> traversal_order;
+        std::mutex m;
+        traversal_order.insert(2);
+        traversal_order.insert(3);
+        traversal_order.insert(4);
+        make_system([&](entity_id id, parent<> p) {
+            std::scoped_lock lock{m};
+
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
         });
 
         update();
@@ -128,12 +174,12 @@ TEST_CASE("Hierarchies") {
         add_component({1}, int{});
 
         // The system to verify the traversal order
-        std::unordered_map<int, bool> traversal_order;
-        traversal_order[1] = true;
-        make_system([&traversal_order](entity_id id, parent<> p) {
+        std::unordered_set<int> traversal_order;
+        traversal_order.insert(1);
+        make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
             // Make sure parents are processed before the children
-            CHECK(true == traversal_order[p]);
-            traversal_order[id] = true;
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
         });
 
         update();
@@ -174,7 +220,7 @@ TEST_CASE("Hierarchies") {
         // The system to verify the traversal order
         std::unordered_map<int, bool> traversal_order;
         traversal_order[16] = true;
-        make_system([&traversal_order](entity_id id, parent<> p) {
+        make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
             // Make sure parents are processed before the children
             CHECK(true == traversal_order[p]);
             traversal_order[id] = true;
@@ -235,7 +281,8 @@ TEST_CASE("Hierarchies") {
 
         // This system is not a hierarchy
         bool filter_works = false;
-        make_system([&filter_works](entity_id id, int, parent<>*) { // run on entities with an int and no parent
+        make_system<opts::not_parallel>(
+            [&filter_works](entity_id id, int, parent<>*) { // run on entities with an int and no parent
             CHECK(id == 0);
             filter_works = true;
         });
@@ -253,7 +300,7 @@ TEST_CASE("Hierarchies") {
         add_component({2}, int{33}, float{}, parent{1});
 
         // run on entities with an int and a parent with no float
-        make_system([](entity_id id, int i, parent<float*> p) {
+        make_system<opts::not_parallel>([](entity_id id, int i, parent<float*> p) {
             CHECK(id == 2);
             CHECK(i == 33);
             CHECK(p.id() == 1);
