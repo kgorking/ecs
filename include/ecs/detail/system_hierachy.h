@@ -14,8 +14,12 @@ namespace ecs::detail {
     template<class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
     class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
         // Holds a single entity id and its arguments
-        using single_argument = decltype(
-            std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
+        using single_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0},
+            std::declval<argument_tuple<FirstComponent, Components...>>()));
+
+        // Determine the execution policy from the options (or lack thereof)
+        using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(),
+            std::execution::sequenced_policy, std::execution::parallel_policy>;
 
         using entity_info = std::pair<int, entity_type>; // parent count, root id
         using info_map = std::unordered_map<entity_type, entity_info>;
@@ -35,26 +39,31 @@ namespace ecs::detail {
     private:
         void do_run() override {
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-            std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
-                if constexpr (is_entity<FirstComponent>) {
-                    this->update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
-                } else {
-                    this->update_func(
-                        extract_arg<FirstComponent>(packed_arg, 0), extract_arg<Components>(packed_arg, 0)...);
+            std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto span_packed_arg) {
+                for (single_argument& packed_arg : span_packed_arg) {
+                    if constexpr (is_entity<FirstComponent>) {
+                        this->update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
+                    } else {
+                        this->update_func(
+                            extract_arg<FirstComponent>(packed_arg, 0), extract_arg<Components>(packed_arg, 0)...);
+                    }
                 }
             });
         }
 
         // Convert a set of entities into arguments that can be passed to the system
         void do_build(entity_range_view ranges) override {
-            if (ranges.size() == 0) {
-                arguments.clear();
-                return;
-            }
-
             // Clear the arguments
             arguments.clear();
             info.clear();
+            argument_spans.clear();
+
+            if (ranges.size() == 0) {
+                return;
+            }
+
+            // Keep info on the root node of the entities
+            std::map<entity_type, int> arg_roots;
 
             // Build the arguments for the ranges
             for (entity_id const entity : range_view_wrapper{ranges}) {
@@ -64,7 +73,8 @@ namespace ecs::detail {
                     }
                 }
 
-                fill_entity_info(entity);
+                auto const ent_info = fill_entity_info(entity);
+                arg_roots[ent_info.second] += 1;
 
                 if constexpr (is_entity<FirstComponent>) {
                     arguments.emplace_back(entity, get_component<Components>(entity, this->pools)...);
@@ -94,6 +104,13 @@ namespace ecs::detail {
             };
 
             std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
+
+            // Build the spans
+            single_argument* current_args = &arguments.front();
+            for (auto const [root, count] : arg_roots) {
+                argument_spans.emplace_back(std::span(current_args, count));
+                current_args += count;
+            }
         }
 
         entity_info fill_entity_info(entity_id const entity) {
@@ -160,9 +177,6 @@ namespace ecs::detail {
         }
 
     private:
-        // Walking the tree in parallel doesn't seem possible
-        using execution_policy = std::execution::sequenced_policy;
-
         // Extract the parent type
         static constexpr int ParentIndex = test_option_index<is_parent,
             std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
@@ -173,6 +187,9 @@ namespace ecs::detail {
 
         // The vector of unrolled arguments
         std::vector<single_argument> arguments;
+
+        // The spans over each tree in the argument vector
+        std::vector<std::span<single_argument>> argument_spans;
 
         // map of entity info
         info_map info;
