@@ -2,6 +2,7 @@
 #include "catch.hpp"
 #include <ecs/ecs.h>
 #include <vector>
+#include <unordered_set>
 
 using namespace ecs;
 
@@ -40,14 +41,107 @@ TEST_CASE("Hierarchies") {
         add_component(16, parent{13});
 
         // The system to verify the traversal order
-        std::vector<int> actual_traversal_order;
-        make_system<opts::not_parallel>(
-            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
+        std::unordered_set<int> traversal_order;
+        traversal_order.insert(1);
+        make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
+        });
 
         update();
 
-        std::vector<int> const expected_traversal_order{2, 11, 12, 13, 16, 3, 8, 9, 15, 10, 4, 5, 14, 6, 7};
-        CHECK(expected_traversal_order == actual_traversal_order);
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (1 + ecs::get_component_count<ecs::detail::parent_id>()));
+    }
+
+    SECTION("works on multiple trees") {
+        reset();
+
+        //
+        //
+        //   4       3          2
+        //  /|\     /|\       / | \
+        // 5 6 7   8 9 10   11  12 13
+        // |         |             |
+        // 14        15            16
+
+        // The roots
+        add_component(4, int{1});
+        add_component(3, int{1});
+        add_component(2, int{1});
+
+        // The children
+        add_component({5, 7}, parent{4});
+        add_component({8, 10}, parent{3});
+        add_component({11, 13}, parent{2});
+
+        // The grandchildren
+        add_component(14, parent{5});
+        add_component(15, parent{9});
+        add_component(16, parent{13});
+
+        // The system to verify the traversal order
+        std::unordered_set<int> traversal_order;
+        traversal_order.insert(2);
+        traversal_order.insert(3);
+        traversal_order.insert(4);
+        make_system<opts::not_parallel>([&](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
+        });
+
+        update();
+
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (3 + ecs::get_component_count<ecs::detail::parent_id>()));
+    }
+
+    SECTION("works on multiple trees in parallel") {
+        reset();
+
+        //
+        //
+        //   4       3          2
+        //  /|\     /|\       / | \
+        // 5 6 7   8 9 10   11  12 13
+        // |         |             |
+        // 14        15            16
+
+        // The roots
+        add_component(4, int{1});
+        add_component(3, int{1});
+        add_component(2, int{1});
+
+        // The children
+        add_component({5, 7}, parent{4});
+        add_component({8, 10}, parent{3});
+        add_component({11, 13}, parent{2});
+
+        // The grandchildren
+        add_component(14, parent{5});
+        add_component(15, parent{9});
+        add_component(16, parent{13});
+
+        // The system to verify the traversal order
+        std::unordered_set<int> traversal_order;
+        std::mutex m;
+        traversal_order.insert(2);
+        traversal_order.insert(3);
+        traversal_order.insert(4);
+        make_system([&](entity_id id, parent<> p) {
+            std::scoped_lock lock{m};
+
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
+        });
+
+        update();
+
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (3 + ecs::get_component_count<ecs::detail::parent_id>()));
     }
 
     SECTION("can be built bottoms-up") {
@@ -80,14 +174,18 @@ TEST_CASE("Hierarchies") {
         add_component({1}, int{});
 
         // The system to verify the traversal order
-        std::vector<int> actual_traversal_order;
-        make_system<opts::not_parallel>(
-            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
+        std::unordered_set<int> traversal_order;
+        traversal_order.insert(1);
+        make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order.contains(p));
+            traversal_order.insert(id);
+        });
 
         update();
 
-        std::vector<int> const expected_traversal_order{2, 11, 12, 13, 16, 3, 8, 9, 15, 10, 4, 5, 14, 6, 7};
-        CHECK(expected_traversal_order == actual_traversal_order);
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (1 + ecs::get_component_count<ecs::detail::parent_id>()));
     }
 
     SECTION("can be built in reverse") {
@@ -120,78 +218,18 @@ TEST_CASE("Hierarchies") {
         add_component(1, parent{6});
 
         // The system to verify the traversal order
-        std::vector<int> actual_traversal_order;
-        make_system<opts::not_parallel>(
-            [&actual_traversal_order](entity_id id, parent<>) { actual_traversal_order.push_back(id); });
-
-        update();
-
-        std::vector<int> const expected_traversal_order{13, 10, 3, 11, 12, 14, 7, 8, 2, 9, 15, 4, 5, 6, 1};
-        CHECK(expected_traversal_order == actual_traversal_order);
-    }
-
-    SECTION("handles cyclical graphs") {
-        reset();
-
-        // 0--1  4--5
-        // |  |  |  |
-        // 3--2  7--6
-
-        add_component({0}, int{}, parent{3});
-        add_component({1}, int{}, parent{0});
-        add_component({2}, int{}, parent{1});
-        add_component({3}, int{}, parent{2});
-
-        add_component({4}, int{}, parent{7});
-        add_component({5}, int{}, parent{4});
-        add_component({6}, int{}, parent{5});
-        add_component({7}, int{}, parent{6});
-
-        std::atomic_int counter = 0;
-        make_system([&counter](entity_id id, int, parent<int> const& p) {
-            switch (id) {
-            case 0:
-                CHECK(p.id() == 3);
-                counter++;
-                break;
-            case 1:
-                CHECK(p.id() == 0);
-                counter++;
-                break;
-            case 2:
-                CHECK(p.id() == 1);
-                counter++;
-                break;
-            case 3:
-                CHECK(p.id() == 2);
-                counter++;
-                break;
-
-            case 4:
-                CHECK(p.id() == 7);
-                counter++;
-                break;
-            case 5:
-                CHECK(p.id() == 4);
-                counter++;
-                break;
-            case 6:
-                CHECK(p.id() == 5);
-                counter++;
-                break;
-            case 7:
-                CHECK(p.id() == 6);
-                counter++;
-                break;
-
-            default:
-                FAIL();
-            }
+        std::unordered_map<int, bool> traversal_order;
+        traversal_order[16] = true;
+        make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
+            // Make sure parents are processed before the children
+            CHECK(true == traversal_order[p]);
+            traversal_order[id] = true;
         });
 
         update();
 
-        CHECK(counter == 8);
+        // Make sure all children where visited
+        CHECK(traversal_order.size() == (1 + ecs::get_component_count<ecs::detail::parent_id>()));
     }
 
     SECTION("can extract parent info") {
@@ -243,7 +281,8 @@ TEST_CASE("Hierarchies") {
 
         // This system is not a hierarchy
         bool filter_works = false;
-        make_system([&filter_works](entity_id id, int, parent<>*) { // run on entities with an int and no parent
+        make_system<opts::not_parallel>(
+            [&filter_works](entity_id id, int, parent<>*) { // run on entities with an int and no parent
             CHECK(id == 0);
             filter_works = true;
         });
@@ -261,7 +300,7 @@ TEST_CASE("Hierarchies") {
         add_component({2}, int{33}, float{}, parent{1});
 
         // run on entities with an int and a parent with no float
-        make_system([](entity_id id, int i, parent<float*> p) {
+        make_system<opts::not_parallel>([](entity_id id, int i, parent<float*> p) {
             CHECK(id == 2);
             CHECK(i == 33);
             CHECK(p.id() == 1);

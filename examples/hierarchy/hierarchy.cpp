@@ -5,7 +5,7 @@ using namespace ecs;
 using std::cout;
 
 // Print children, filtered on their parent
-auto constexpr print_roots          = [](entity_id id, int, parent<>*) { cout << id << ' '; };
+auto constexpr print_roots          = [](entity_id id, double, parent<>*) { cout << id << ' '; };
 auto constexpr print_all_children   = [](entity_id id, parent<> /*p*/) { cout << id << ' '; };
 auto constexpr print_short_children = [](entity_id id, parent<short> const& p) { cout << id << '(' << p.get<short>() << ") "; };
 auto constexpr print_long_children  = [](entity_id id, parent<long> const& p) { cout << id << '(' << p.get<long>() << ") "; };
@@ -15,16 +15,16 @@ auto constexpr print_double_children = [](entity_id id, parent<double> const& p)
 int main() {
     // Print the hierarchies
     cout <<
-        "     ______1_________              100--101    \n"
-        "    /      |         \\              |    |     \n"
-        "   4       3          2            103--102    \n"
+        "     ______1_________              100-101    \n"
+        "    /      |         \\                  |     \n"
+        "   4       3          2            103-102    \n"
         "  /|\\     /|\\       / | \\                      \n"
         " 5 6 7   8 9 10   11  12 13                    \n"
         " |         |             |                     \n"
         " 14        15            16                    \n\n\n";
 
     // A root
-    add_component({1}, int{});
+    add_component({1}, double{});
 
     // The children
     add_component(4, parent{1}, int{}, short{10});
@@ -41,8 +41,8 @@ int main() {
     add_component(15, parent{9}, int{});
     add_component(16, parent{13}, int{});
 
-    // second small cyclical tree
-    add_component({100}, double{0}, parent{103});
+    // second small tree
+    add_component({100}, double{0});
     add_component({101}, double{1}, parent{100});
     add_component({102}, double{2}, parent{101});
     add_component({103}, double{3}, parent{102});

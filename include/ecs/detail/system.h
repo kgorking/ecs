@@ -199,11 +199,11 @@ namespace ecs::detail {
         }
 
     protected:
-        // A tuple of the fully typed component pools used by this system
-        TupPools const pools;
-
         // The user supplied system
         UpdateFn update_func;
+
+        // A tuple of the fully typed component pools used by this system
+        TupPools const pools;
 
     private:
         using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;

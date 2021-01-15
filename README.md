@@ -318,10 +318,7 @@ make_system([](int, ecs::parent<> *p) { });  // runs on entities with an int and
 ```
 
 ### Traversal and layout
-Hiearchies in this library are depth-first-search order. Nodes are visited from lowest-to-highest entity id; see the [hierarchy unittest](unittest/hierarchy.cpp) for the expected order of traversal.
-
-Due to the nature of ecs, a child in a hiearchy can not have more than one parent, because an entity can not have more one of the same type of `ecs::parent` component. This could be remedied in the future with someting like an `ecs::multi_parent` component, if the need arises.
-
+Hiearchies in this library are [topological sorted](https://en.wikipedia.org/wiki/Topological_sorting) and can be processed in parallel. An entity's parent is always processed before the entity itself.
 
 
 # System options

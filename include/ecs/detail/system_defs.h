@@ -85,14 +85,21 @@ namespace ecs::detail {
     [[nodiscard]] auto get_component(entity_id const entity, Pools const& pools) {
         using T = std::remove_cvref_t<Component>;
 
+        // Filter: return a nullptr
         if constexpr (std::is_pointer_v<T>) {
             static_cast<void>(entity);
             return nullptr;
+
+        // Tag: return a pointer to some dummy storage
         } else if constexpr (tagged<T>) {
             static char dummy_arr[sizeof(T)];
             return reinterpret_cast<T*>(dummy_arr);
+
+        // Global: return the shared component
         } else if constexpr (global<T>) {
             return &get_pool<T>(pools).get_shared_component();
+
+        // Parent component: return the parent with the types filled out
         } else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
             using parent_type = std::remove_cvref_t<Component>;
             parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
@@ -100,11 +107,12 @@ namespace ecs::detail {
             parent_types_tuple_t<parent_type> pt;
             auto const tup_parent_ptrs = std::apply(
                 [&](auto... parent_types) {
-                    //return std::make_tuple(get_pool<std::remove_pointer_t<decltype(parent_types)>>(pools).find_component_data(pid)...);
                     return std::make_tuple(get_entity_data<decltype(parent_types)>(pid, pools)...);
             }, pt);
 
             return parent_type{pid, tup_parent_ptrs};
+
+        // Standard: return the component from the pool
         } else {
             return get_pool<T>(pools).find_component_data(entity);
         }
@@ -127,16 +135,6 @@ namespace ecs::detail {
             return *(ptr + offset);
         }
     }
-
-    // Gets the type a sorting functions operates on.
-    // Has to be outside of system or clang craps itself
-    /*template<class R, class C, class T1, class T2>
-    struct get_sort_func_type_impl {
-        explicit get_sort_func_type_impl(R (C::*)(T1, T2) const) {
-        }
-
-        using type = std::remove_cvref_t<T1>;
-    };*/
 
     // The type of a single component argument
     template<typename Component>

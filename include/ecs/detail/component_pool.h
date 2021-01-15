@@ -49,6 +49,9 @@ namespace ecs::detail {
         // The entities that have components in this storage.
         std::vector<entity_range> ranges;
 
+        // The offset from a range into the components
+        std::vector<size_t> offsets;
+
         // Keep track of which components to add/remove each cycle
         using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
         using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<T(entity_id)>>>;
@@ -107,6 +110,13 @@ namespace ecs::detail {
             return index ? &components[index.value()] : nullptr;
         }
 
+        // Returns an entities component.
+        // Returns nullptr if the entity is not found in this pool
+        T const* find_component_data(entity_id const id) const {
+            auto const index = find_entity_index(id);
+            return index ? &components[index.value()] : nullptr;
+        }
+
         // Merge all the components queued for addition to the main storage,
         // and remove components queued for removal
         void process_changes() override {
@@ -116,12 +126,7 @@ namespace ecs::detail {
 
         // Returns the number of active entities in the pool
         size_t num_entities() const {
-            // Don't want to include <algorithm> just for this
-            size_t val = 0;
-            for (auto r : ranges) {
-                val += r.count();
-            }
-            return val;
+            return offsets.empty() ? 0 : (offsets.back() + ranges.back().count());
         }
 
         // Returns the number of active components in the pool
@@ -181,13 +186,10 @@ namespace ecs::detail {
                 return false;
             }
 
-            for (entity_range const& r : ranges) {
-                if (r.contains(range)) {
-                    return true;
-                }
-            }
-
-            return false;
+            auto const it = std::lower_bound(ranges.begin(), ranges.end(), range);
+            if (it == ranges.end())
+                return false;
+            return it->contains(range);
         }
 
         // TODO remove?
@@ -236,6 +238,7 @@ namespace ecs::detail {
 
             // Clear the pool
             ranges.clear();
+            offsets.clear();
             components.clear();
             deferred_adds.clear();
             deferred_init_adds.clear();
@@ -265,23 +268,17 @@ namespace ecs::detail {
         // Searches for an entitys offset in to the component pool.
         // Returns nothing if 'ent' is not a valid entity
         std::optional<size_t> find_entity_index(entity_id const ent) const {
-            if (ranges.empty() || !has_entity(ent)) {
+            if (ranges.empty() /*|| !has_entity(ent)*/) {
                 return {};
             }
 
-            // Run through the ranges
-            size_t index = 0;
-            for (entity_range const& range : ranges) {
-                if (!range.contains(ent)) {
-                    index += range.count();
-                    continue;
-                }
+            auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
+            if (it == ranges.end() || !it->contains(ent))
+                return {};
 
-                index += range.offset(ent);
-                return index;
-            }
-
-            return {};
+            auto const dist = std::distance(ranges.begin(), it);
+            auto const range_offset = offsets.begin() + dist;
+            return *range_offset + it->offset(ent);
         }
 
         // Add new queued entities and components to the main storage
@@ -459,6 +456,11 @@ namespace ecs::detail {
             // Store the new ranges
             ranges = std::move(new_ranges);
 
+            // Calculate offsets
+            offsets.clear();
+            std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
+                [](size_t init, entity_range range) { return init + range.count(); });
+
             // Update the state
             set_data_added();
         }
@@ -571,6 +573,11 @@ namespace ecs::detail {
                         }
                     }
                 }
+
+                // Calculate offsets
+                offsets.clear();
+                std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
+                    [](size_t init, entity_range range) { return init + range.count(); });
 
                 // Update the state
                 set_data_removed();
