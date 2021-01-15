@@ -17,8 +17,6 @@ namespace ecs::detail {
         using single_argument = decltype(
             std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
 
-        using relation_mmap = std::multimap<entity_type, entity_type>;
-
         using entity_info = std::pair<int, entity_type>; // parent count, root id
         using info_map = std::unordered_map<entity_type, entity_info>;
         using info_iterator = info_map::iterator;
