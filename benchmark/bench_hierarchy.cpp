@@ -6,10 +6,12 @@
 
 using namespace ecs;
 
-auto constexpr hierarch_lambda = [](entity_id id, int& i, parent<int> const& p) {
-    i = std::gcd((int) id, (int) p.id());
-};
+extern void benchmark_system(ecs::entity_id ent, int &color, global_s const &global);
 
+auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const &p, global_s const &global) {
+	benchmark_system(id, i, global);
+};
+/*
 void hierarchy_sys_build(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
@@ -37,7 +39,7 @@ void hierarchy_sys_build(benchmark::State& state) {
         commit_changes();
     }
 }
-BENCHMARK(hierarchy_sys_build)->RangeMultiplier(2)->Range(32, num_components);
+BENCHMARK(hierarchy_sys_build)->RangeMultiplier(2)->Range(32, num_components);*/
 
 
 void hierarchy_serial_run(benchmark::State& state) {
@@ -45,15 +47,18 @@ void hierarchy_serial_run(benchmark::State& state) {
 
     detail::_context.reset();
 
+	auto &global = ecs::get_global_component<global_s>();
+	global.dimension = nentities;
+
     make_system<opts::not_parallel>(hierarch_lambda);
 
     detail::entity_type id = 0;
     while (id < nentities) {
-        add_component({id + 0}, int{1});
+        add_component({id + 0}, int{});
 
-        add_component({id + 1, id + 3}, int{2}, parent{id + 0});
-        add_component({id + 4, id + 6}, int{3}, parent{id + 0});
-        add_component({id + 7, id + 9}, int{4}, parent{id + 0});
+        add_component({id + 1, id + 3}, int{}, parent{id + 0});
+        add_component({id + 4, id + 6}, int{}, parent{id + 0});
+        add_component({id + 7, id + 9}, int{}, parent{id + 0});
 
         id += 10;
     }
@@ -61,11 +66,11 @@ void hierarchy_serial_run(benchmark::State& state) {
     commit_changes();
 
     for ([[maybe_unused]] auto const _ : state) {
-        for (int i=0; i<100; i++)
-            run_systems();
+        run_systems();
     }
 }
-BENCHMARK(hierarchy_serial_run)->RangeMultiplier(2)->Range(32, num_components);
+BENCHMARK(hierarchy_serial_run)->Arg(num_components);
+//->RangeMultiplier(2)->Range(32, num_components);
 
 void hierarchy_parallel_run(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -76,11 +81,11 @@ void hierarchy_parallel_run(benchmark::State& state) {
 
     detail::entity_type id = 0;
     while (id < nentities) {
-        add_component({id + 0}, int{1});
+        add_component({id + 0}, int{});
 
-        add_component({id + 1, id + 3}, int{2}, parent{id + 0});
-        add_component({id + 4, id + 6}, int{3}, parent{id + 0});
-        add_component({id + 7, id + 9}, int{4}, parent{id + 0});
+        add_component({id + 1, id + 3}, int{}, parent{id + 0});
+        add_component({id + 4, id + 6}, int{}, parent{id + 0});
+        add_component({id + 7, id + 9}, int{}, parent{id + 0});
 
         id += 10;
     }
@@ -88,8 +93,8 @@ void hierarchy_parallel_run(benchmark::State& state) {
     commit_changes();
 
     for ([[maybe_unused]] auto const _ : state) {
-        for (int i = 0; i < 100; i++)
-            run_systems();
+        run_systems();
     }
 }
-BENCHMARK(hierarchy_parallel_run)->RangeMultiplier(2)->Range(32, num_components);
+BENCHMARK(hierarchy_parallel_run)->Arg(num_components);
+//->RangeMultiplier(2)->Range(32, num_components);

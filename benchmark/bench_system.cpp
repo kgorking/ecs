@@ -4,7 +4,7 @@
 
 #include "global.h"
 
-auto constexpr benchmark_system = [](ecs::entity_id ent, int& color, global_s const& global) {
+void benchmark_system(ecs::entity_id ent, int& color, global_s const& global) {
 	constexpr int max_iterations = 50;
 	constexpr double fr_w = 1.5;
 	constexpr double fr_h = 1.5;

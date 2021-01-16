@@ -18,17 +18,16 @@ namespace ecs::detail {
 
     private:
         void do_run() override {
+            auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
             // Call the system for all the components that match the system signature
-            for (auto const& arg : arguments) {
-                auto const& range = std::get<entity_range>(arg);
-                auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-                std::for_each(e_p, range.begin(), range.end(), [this, &arg, first_id = range.first()](auto ent) {
+            for (auto const& argument : arguments) {
+                auto const& range = std::get<entity_range>(argument);
+                std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
                     auto const offset = ent - first_id;
                     if constexpr (is_entity<FirstComponent>) {
-                        this->update_func(ent, extract_arg<Components>(arg, offset)...);
+						this->update_func(ent, extract_arg<Components>(argument, offset)...);
                     } else {
-                        this->update_func(extract_arg<FirstComponent>(arg, offset),
-                            extract_arg<Components>(arg, offset)...);
+						this->update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
                     }
                 });
             }
