@@ -22,10 +22,10 @@ void ranged_system_with_components(benchmark::State &state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
 
-		state.BeginSuspendTiming();
+		state.BeginIgnoreTiming();
 		ecs::add_component({0, nentities}, int{});
 		ecs::commit_changes();
-		state.EndSuspendTiming();
+		state.EndIgnoreTiming();
 
 		ecs::make_system([](int) {});
 	}
@@ -52,11 +52,11 @@ void hierarchy_system_with_components(benchmark::State &state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
 
-		state.BeginSuspendTiming();
+		state.BeginIgnoreTiming();
 		ecs::add_component({0, nentities-1}, int{});
 		ecs::add_component({1, nentities}, int{}, [](ecs::entity_id id) { return ecs::parent{id - 1}; });
 		ecs::commit_changes();
-		state.EndSuspendTiming();
+		state.EndIgnoreTiming();
 
 		ecs::make_system([](int, ecs::parent<>) {});
 	}
@@ -71,11 +71,11 @@ void hierarchy_system_with_sub_components(benchmark::State &state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
 
-		state.BeginSuspendTiming();
+		state.BeginIgnoreTiming();
 		ecs::add_component({0, nentities-1}, int{});
 		ecs::add_component({1, nentities}, int{}, [](ecs::entity_id id) { return ecs::parent{id - 1}; });
 		ecs::commit_changes();
-		state.EndSuspendTiming();
+		state.EndIgnoreTiming();
 
 		ecs::make_system([](int, ecs::parent<int> const&) {});
 	}
