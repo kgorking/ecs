@@ -1,4 +1,3 @@
-#include <complex>
 #include <ecs/ecs.h>
 #include "gbench/include/benchmark/benchmark.h"
 
@@ -8,7 +7,7 @@ using namespace ecs;
 
 extern void benchmark_system(ecs::entity_id ent, int &color, global_s const &global);
 
-auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const &p, global_s const &global) {
+auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const& /*p*/, global_s const &global) {
 	benchmark_system(id, i, global);
 };
 /*
@@ -39,7 +38,7 @@ void hierarchy_sys_build(benchmark::State& state) {
         commit_changes();
     }
 }
-BENCHMARK(hierarchy_sys_build)->RangeMultiplier(2)->Range(32, num_components);*/
+ECS_BENCHMARK(hierarchy_sys_build);*/
 
 
 void hierarchy_serial_run(benchmark::State& state) {
@@ -55,22 +54,22 @@ void hierarchy_serial_run(benchmark::State& state) {
     detail::entity_type id = 0;
     while (id < nentities) {
         add_component({id + 0}, int{});
+        add_component({id + 1, id + 7}, int{}, parent{id + 0});
 
-        add_component({id + 1, id + 3}, int{}, parent{id + 0});
-        add_component({id + 4, id + 6}, int{}, parent{id + 0});
-        add_component({id + 7, id + 9}, int{}, parent{id + 0});
-
-        id += 10;
+        id += 8;
     }
+
+    Expects(id == nentities);
 
     commit_changes();
 
     for ([[maybe_unused]] auto const _ : state) {
         run_systems();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(hierarchy_serial_run)->Arg(num_components);
-//->RangeMultiplier(2)->Range(32, num_components);
+ECS_BENCHMARK(hierarchy_serial_run);
 
 void hierarchy_parallel_run(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -82,19 +81,19 @@ void hierarchy_parallel_run(benchmark::State& state) {
     detail::entity_type id = 0;
     while (id < nentities) {
         add_component({id + 0}, int{});
+        add_component({id + 1, id + 7}, int{}, parent{id + 0});
 
-        add_component({id + 1, id + 3}, int{}, parent{id + 0});
-        add_component({id + 4, id + 6}, int{}, parent{id + 0});
-        add_component({id + 7, id + 9}, int{}, parent{id + 0});
-
-        id += 10;
+        id += 8;
     }
+
+    Expects(id == nentities);
 
     commit_changes();
 
     for ([[maybe_unused]] auto const _ : state) {
         run_systems();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(hierarchy_parallel_run)->Arg(num_components);
-//->RangeMultiplier(2)->Range(32, num_components);
+ECS_BENCHMARK(hierarchy_parallel_run);

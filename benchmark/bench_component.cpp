@@ -13,8 +13,10 @@ void component_generate(benchmark::State& state) {
         ecs::add_component({0, nentities}, [](ecs::entity_id id) { return static_cast<size_t>(id); });
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_generate)->Arg(num_components);
+ECS_BENCHMARK(component_generate);
 
 void component_add(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -25,8 +27,10 @@ void component_add(benchmark::State& state) {
         ecs::add_component({0, nentities}, size_t{});
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_add)->Arg(num_components);
+ECS_BENCHMARK(component_add);
 
 void component_add_half_front(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -40,8 +44,10 @@ void component_add_half_front(benchmark::State& state) {
         ecs::add_component({0, nentities / 2}, size_t{});
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_add_half_front)->Arg(num_components);
+ECS_BENCHMARK(component_add_half_front);
 
 void component_add_half_back(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -55,8 +61,10 @@ void component_add_half_back(benchmark::State& state) {
         ecs::add_component({nentities / 2 + 1, nentities}, size_t{});
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_add_half_back)->Arg(num_components);
+ECS_BENCHMARK(component_add_half_back);
 
 void component_remove_all(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -70,8 +78,10 @@ void component_remove_all(benchmark::State& state) {
         ecs::remove_component<int>({0, nentities});
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_remove_all)->Arg(num_components);
+ECS_BENCHMARK(component_remove_all);
 
 void component_remove_half_front(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -85,8 +95,10 @@ void component_remove_half_front(benchmark::State& state) {
         ecs::remove_component<int>({0, nentities / 2});
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_remove_half_front)->Arg(num_components);
+ECS_BENCHMARK(component_remove_half_front);
 
 void component_remove_half_back(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -100,8 +112,10 @@ void component_remove_half_back(benchmark::State& state) {
         ecs::remove_component<int>({nentities / 2 + 1, nentities});
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_remove_half_back)->Arg(num_components);
+ECS_BENCHMARK(component_remove_half_back);
 
 void component_remove_half_middle(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -115,8 +129,10 @@ void component_remove_half_middle(benchmark::State& state) {
         ecs::remove_component<int>({nentities / 4, nentities - nentities / 4});
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_remove_half_middle)->Arg(num_components);
+ECS_BENCHMARK(component_remove_half_middle);
 
 void component_randomized_add(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -136,8 +152,10 @@ void component_randomized_add(benchmark::State& state) {
         }
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_randomized_add)->Arg(num_components);
+ECS_BENCHMARK(component_randomized_add);
 
 void component_randomized_remove(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -162,5 +180,7 @@ void component_randomized_remove(benchmark::State& state) {
         }
         ecs::commit_changes();
     }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
-BENCHMARK(component_randomized_remove)->Arg(num_components);
+ECS_BENCHMARK(component_randomized_remove);

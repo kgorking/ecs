@@ -1,5 +1,7 @@
 #include <complex>
 #include <ecs/ecs.h>
+
+#include "global.h"
 #include "gbench/include/benchmark/benchmark.h"
 
 // https://docs.unrealengine.com/en-US/Resources/ContentExamples/EffectsGallery/1_D/index.html
@@ -111,15 +113,17 @@ void make_systems() {
 }
 
 void particles(benchmark::State& state) {
+	auto const num_particles = static_cast<ecs::detail::entity_type>(state.range(0));
+
     ecs::detail::_context.reset();
     make_systems();
-    ecs::add_component({0, max_num_particles}, particle_init, velocity_init, color_init, life_init);
+	ecs::add_component({0, num_particles}, particle_init, velocity_init, color_init, life_init);
     ecs::commit_changes();
 
     for ([[maybe_unused]] auto const _ : state) {
-        for (int i = 0; i < num_frames; i++) {
-			ecs::update();
-		}
+		ecs::update();
 	}
+
+	state.SetItemsProcessed(state.iterations() * num_particles);
 }
-BENCHMARK(particles);
+ECS_BENCHMARK(particles);

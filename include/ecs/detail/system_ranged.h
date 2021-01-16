@@ -25,9 +25,13 @@ namespace ecs::detail {
                 std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
                     auto const offset = ent - first_id;
                     if constexpr (is_entity<FirstComponent>) {
-						this->update_func(ent, extract_arg<Components>(argument, offset)...);
+						this->update_func(
+                            ent,
+                            extract_arg<Components>(argument, offset)...);
                     } else {
-						this->update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+						this->update_func(
+                            extract_arg<FirstComponent>(argument, offset),
+                            extract_arg<Components>(argument, offset)...);
                     }
                 });
             }
