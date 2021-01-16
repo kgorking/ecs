@@ -1,3 +1,6 @@
 [submodule "tls"]
 	path = tls
 	url = https://github.com/kgorking/tls
+[submodule "benchmark/gbench"]
+	path = benchmark/gbench
+	url = https://github.com/kgorking/benchmark.git
