@@ -85,8 +85,8 @@ namespace ecs::detail {
                 entity_id const id_l = std::get<0>(arg_l);
                 entity_id const id_r = std::get<0>(arg_r);
 
-                auto const [count_l, root_l] = info[id_l];
-                auto const [count_r, root_r] = info[id_r];
+                auto const& [count_l, root_l] = info[id_l];
+                auto const& [count_r, root_r] = info[id_r];
 
                 // order by roots
                 if (root_l != root_r)
