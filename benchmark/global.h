@@ -10,5 +10,5 @@ struct global_s {
 	size_t dimension;
 };
 
-#define ECS_BENCHMARK_ONE(x) BENCHMARK(x)->Unit(benchmark::kMicrosecond)->Arg(1)
+#define ECS_BENCHMARK_ONE(x) BENCHMARK(x)/*->Unit(benchmark::kMicrosecond)*/->Arg(1)
 #define ECS_BENCHMARK(x) ECS_BENCHMARK_ONE(x)->Range(start_components, num_components)
