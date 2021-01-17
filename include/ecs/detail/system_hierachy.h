@@ -76,6 +76,15 @@ namespace ecs::detail {
 
                 info_iterator const ent_info = fill_entity_info(info, entity, index);
 
+                // Update the spans
+				int const root_index = ent_info->second.second;
+				if (root_index == argument_spans.size()) {
+					argument_spans.emplace_back(root_index + arguments.size(), 1);
+				} else {
+					argument_spans[root_index].second += 1;
+				}
+
+                // Add the argument for the entity
                 if constexpr (is_entity<FirstComponent>) {
 					arguments.emplace_back(
                         entity,
@@ -88,20 +97,13 @@ namespace ecs::detail {
                         get_component<Components>(entity, this->pools)...,
                         ent_info->second);
                 }
-
-                // Update the child count of the root
-				int const root_index = ent_info->second.second;
-				if (root_index == argument_spans.size()) {
-					argument_spans.emplace_back(root_index, 0);
-				}
-				argument_spans[root_index].second += 1;
 			}
 
             auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
                 entity_id const id_l = std::get<0>(arg_l);
                 entity_id const id_r = std::get<0>(arg_r);
 
-                auto const &[count_l, root_l] = std::get<entity_info>(arg_l);
+                auto const& [count_l, root_l] = std::get<entity_info>(arg_l);
 				auto const& [count_r, root_r] = std::get<entity_info>(arg_r);
 
                 // order by roots
@@ -116,12 +118,10 @@ namespace ecs::detail {
         }
 
         info_iterator fill_entity_info(info_map &info, entity_id const entity, int& index) {
-            // see if the entity exist in the map
-            // TODO always fails on new entities. Fix!
-            auto const ent_it = info.find(entity);
-            if (ent_it != info.end())
-                return ent_it;
-            
+			auto const ent_it = info.find(entity);
+			if (ent_it != info.end())
+				return ent_it;
+
             // Get the parent id
             entity_id const* parent_id = pool_parent_id.find_component_data(entity);
             if (parent_id == nullptr) {
@@ -133,9 +133,9 @@ namespace ecs::detail {
 
             // look up the parent info
 			info_iterator const parent_it = fill_entity_info(info, *parent_id, index);
-			auto const& [count, root_index] = parent_it->second;
 
             // insert the entity info
+			auto const &[count, root_index] = parent_it->second;
 			auto const [it, $] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
             return it;
         }
@@ -147,16 +147,16 @@ namespace ecs::detail {
         bool has_required_parent_types(entity_id const entity) const {
             // If the parent has sub-components specified, verify them
             if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
-                // Does tests on the parent sub-components to see they satisfy the constraints
+				// Get the parent components id
+				parent_id const pid = *pool_parent_id.find_component_data(entity);
+
+				// Does tests on the parent sub-components to see they satisfy the constraints
                 // ie. a 'parent<int*, float>' will return false if the parent does not have a float or
                 // has an int.
                 constexpr parent_types_tuple_t<parent_type> ptt{};
                 bool const has_parent_types = std::apply(
-                    [&](auto... parent_types) {
-                        auto const check_parent = [&](auto parent_type) {
-                            // Get the parent components id
-                            parent_id const pid = *pool_parent_id.find_component_data(entity);
-
+                    [&](auto const& ... parent_types) {
+						auto const check_parent = [&](auto parent_type) {
                             // Get the pool of the parent sub-component
                             auto const& sub_pool = get_pool<decltype(parent_type)>(this->pools);
 
@@ -197,7 +197,7 @@ namespace ecs::detail {
 		std::vector<argument> arguments;
 
         // The spans over each tree in the argument vector
-		std::vector<std::pair<int, int>> argument_spans;
+		std::vector<std::pair<size_t, size_t>> argument_spans;
 
         // A tuple of the fully typed component pools used the parent component
         parent_pool_tuple_t<parent_type> const parent_pools;
