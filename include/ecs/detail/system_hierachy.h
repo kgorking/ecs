@@ -64,6 +64,8 @@ namespace ecs::detail {
             // map of entity info
 			info_map info;
 
+            // TODO std::vector<ent_info> infos
+
 			// Build the arguments for the ranges
             // TODO int root_index = 0;
             for (entity_id const entity : range_view_wrapper{ranges}) {
@@ -91,10 +93,11 @@ namespace ecs::detail {
             }
 
             auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
+                // TODO std::distance(arg_first, &arg_l)
                 entity_id const id_l = std::get<0>(arg_l);
                 entity_id const id_r = std::get<0>(arg_r);
 
-                auto const &[count_l, root_l] = std::get<entity_info>(arg_l);
+                auto const &[count_l, root_l] = std::get<entity_info>(arg_l); // TODO infos[offset]
 				auto const& [count_r, root_r] = std::get<entity_info>(arg_r);
 
                 // order by roots
