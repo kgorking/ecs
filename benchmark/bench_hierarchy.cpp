@@ -5,8 +5,6 @@
 
 using namespace ecs;
 
-extern void benchmark_system(ecs::entity_id ent, int &color, global_s const &global);
-
 auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const& /*p*/, global_s const &global) {
 	benchmark_system(id, i, global);
 };
@@ -40,7 +38,7 @@ void hierarchy_sys_build(benchmark::State& state) {
 }
 ECS_BENCHMARK(hierarchy_sys_build);*/
 
-
+/*
 void hierarchy_serial_run(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
@@ -70,7 +68,7 @@ void hierarchy_serial_run(benchmark::State& state) {
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(hierarchy_serial_run);
-
+*/
 void hierarchy_parallel_run(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 

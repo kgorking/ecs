@@ -74,19 +74,25 @@ namespace ecs::detail {
                 arg_roots[ent_info.second] += 1;
 
                 if constexpr (is_entity<FirstComponent>) {
-                    arguments.emplace_back(entity, get_component<Components>(entity, this->pools)...);
+					arguments.emplace_back(
+                        entity,
+                        get_component<Components>(entity, this->pools)...,
+                        ent_info);
                 } else {
-                    arguments.emplace_back(entity, get_component<FirstComponent>(entity, this->pools),
-                        get_component<Components>(entity, this->pools)...);
+                    arguments.emplace_back(
+                        entity,
+                        get_component<FirstComponent>(entity, this->pools),
+                        get_component<Components>(entity, this->pools)...,
+                        ent_info);
                 }
             }
 
-            auto const topological_sort_func = [this](argument const &arg_l, argument const &arg_r) {
+            auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
                 entity_id const id_l = std::get<0>(arg_l);
                 entity_id const id_r = std::get<0>(arg_r);
 
-                auto const& [count_l, root_l] = info[id_l];
-                auto const& [count_r, root_r] = info[id_r];
+                auto const &[count_l, root_l] = std::get<entity_info>(arg_l);
+				auto const& [count_r, root_r] = std::get<entity_info>(arg_r);
 
                 // order by roots
                 if (root_l != root_r)
@@ -100,7 +106,7 @@ namespace ecs::detail {
                 return id_l < id_r;
             };
 
-            std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
+            std::sort(std::execution::par_unseq, arguments.begin(), arguments.end(), topological_sort_func);
 
             // Build the spans
 			argument *current_args = &arguments.front();
@@ -182,8 +188,12 @@ namespace ecs::detail {
         using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
         using parent_type = std::remove_cvref_t<full_parent_type>;
 
+		template <class FirstComponent, class... Components>
+		using hierarchy_argument = decltype(std::tuple_cat(
+			std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
+
         // The vector of unrolled arguments
-		using argument = single_argument<FirstComponent, Components...>;
+		using argument = hierarchy_argument<FirstComponent, Components...>;
 		std::vector<argument> arguments;
 
         // The spans over each tree in the argument vector

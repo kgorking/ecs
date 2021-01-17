@@ -3,7 +3,7 @@
 #include <ecs/ecs.h>
 
 #include "global.h"
-
+/*
 void ranged_system_no_components(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
@@ -44,7 +44,7 @@ void hierarchy_system_no_components(benchmark::State &state) {
 
 	state.SetItemsProcessed(state.iterations());
 }
-ECS_BENCHMARK_ONE(hierarchy_system_no_components);
+ECS_BENCHMARK_ONE(hierarchy_system_no_components);*/
 
 void hierarchy_system_with_components(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
