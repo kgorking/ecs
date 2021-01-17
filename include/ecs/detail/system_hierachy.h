@@ -52,7 +52,6 @@ namespace ecs::detail {
         void do_build(entity_range_view ranges) override {
             // Clear the arguments
             arguments.clear();
-            info.clear();
             argument_spans.clear();
 
             if (ranges.size() == 0) {
@@ -62,7 +61,11 @@ namespace ecs::detail {
             // Keep info on the root node of the entities
             std::map<entity_type, int> arg_roots;
 
-            // Build the arguments for the ranges
+            // map of entity info
+			info_map info;
+
+			// Build the arguments for the ranges
+            // TODO int root_index = 0;
             for (entity_id const entity : range_view_wrapper{ranges}) {
                 if constexpr (has_parent_types()) {
                     if (!has_required_parent_types(entity)) {
@@ -70,7 +73,7 @@ namespace ecs::detail {
                     }
                 }
 
-                auto const ent_info = fill_entity_info(entity);
+                auto const ent_info = fill_entity_info(info, entity /*, root_index++*/);
                 arg_roots[ent_info.second] += 1;
 
                 if constexpr (is_entity<FirstComponent>) {
@@ -96,6 +99,7 @@ namespace ecs::detail {
 
                 // order by roots
                 if (root_l != root_r)
+                    // TODO sort on root index
                     return root_l < root_r;
 
                 // order by depth
@@ -116,7 +120,7 @@ namespace ecs::detail {
             }
         }
 
-        entity_info fill_entity_info(entity_id const entity) {
+        entity_info fill_entity_info(info_map &info, entity_id const entity) {
             // see if the entity exist in the map
             auto const ent_it = info.find(entity);
             if (ent_it != info.end())
@@ -132,7 +136,7 @@ namespace ecs::detail {
             }
 
             // look up the parent info
-            auto const [parent_count, parent_root] = fill_entity_info(*parent_id);
+            auto const [parent_count, parent_root] = fill_entity_info(info, *parent_id);
 
             // insert the entity info
             auto const [it, $] =
@@ -198,9 +202,6 @@ namespace ecs::detail {
 
         // The spans over each tree in the argument vector
 		std::vector<std::span<argument>> argument_spans;
-
-        // map of entity info
-        info_map info;
 
         // A tuple of the fully typed component pools used the parent component
         parent_pool_tuple_t<parent_type> const parent_pools;

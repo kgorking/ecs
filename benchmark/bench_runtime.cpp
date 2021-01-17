@@ -3,7 +3,6 @@
 
 #include "global.h"
 
-
 void raw_serial_run(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
