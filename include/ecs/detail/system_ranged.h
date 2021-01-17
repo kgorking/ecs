@@ -25,9 +25,12 @@ namespace ecs::detail {
                 std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
                     auto const offset = ent - first_id;
                     if constexpr (is_entity<FirstComponent>) {
-                        this->update_func(ent, extract_arg<Components>(argument, offset)...);
+						this->update_func(
+                            ent,
+                            extract_arg<Components>(argument, offset)...);
                     } else {
-                        this->update_func(extract_arg<FirstComponent>(argument, offset),
+						this->update_func(
+                            extract_arg<FirstComponent>(argument, offset),
                             extract_arg<Components>(argument, offset)...);
                     }
                 });
@@ -49,12 +52,9 @@ namespace ecs::detail {
         }
 
     private:
-        // Holds an entity range and its arguments
-        using range_argument =
-            decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, argument_tuple<FirstComponent, Components...>{}));
-
         // Holds the arguments for a range of entities
-        std::vector<range_argument> arguments;
+        using argument = range_argument<FirstComponent, Components...>;
+		std::vector<argument> arguments;
     };
 }
 

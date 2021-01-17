@@ -1,6 +1,7 @@
-[submodule "benchmark/gbench"]
-	path = benchmark/gbench
-	url = https://github.com/google/benchmark.git
 [submodule "tls"]
 	path = tls
 	url = https://github.com/kgorking/tls
+[submodule "benchmark/gbench"]
+	path = benchmark/gbench
+	branch = lightweight_timer_suspension
+	url = https://github.com/kgorking/benchmark.git
