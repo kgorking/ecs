@@ -61,16 +61,12 @@ namespace ecs::detail {
                 return;
             }
 
-            // Keep info on the root node of the entities
-			std::vector<int> root_children_count;
-
             // map of entity info
 			info_map info;
 
 			// Build the arguments for the ranges
             int index = 0;
-            for (entity_id const entity : range_view_wrapper{ranges}) {
-
+			for (entity_id const entity : range_view_wrapper{ranges}) {
                 // TODO move this check to system::find_entities
                 if constexpr (has_parent_types()) {
                     if (!has_required_parent_types(entity)) {
@@ -78,7 +74,7 @@ namespace ecs::detail {
                     }
                 }
 
-                info_iterator const ent_info = fill_entity_info(info, entity, index++);
+                info_iterator const ent_info = fill_entity_info(info, entity, index);
 
                 if constexpr (is_entity<FirstComponent>) {
 					arguments.emplace_back(
@@ -95,11 +91,11 @@ namespace ecs::detail {
 
                 // Update the child count of the root
 				int const root_index = ent_info->second.second;
-				while (root_index >= root_children_count.size()) {
-					root_children_count.push_back(0);
+				if (root_index == argument_spans.size()) {
+					argument_spans.emplace_back(root_index, 0);
 				}
-                root_children_count[root_index] += 1;
-            }
+				argument_spans[root_index].second += 1;
+			}
 
             auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
                 entity_id const id_l = std::get<0>(arg_l);
@@ -117,16 +113,9 @@ namespace ecs::detail {
             };
 
             std::sort(std::execution::par_unseq, arguments.begin(), arguments.end(), topological_sort_func);
-
-            // Build the spans
-			int current_count = 0;
-			for (int const count : root_children_count) {
-				argument_spans.emplace_back(current_count, count);
-                current_count += count;
-            }
         }
 
-        info_iterator fill_entity_info(info_map &info, entity_id const entity, int index) {
+        info_iterator fill_entity_info(info_map &info, entity_id const entity, int& index) {
             // see if the entity exist in the map
             // TODO always fails on new entities. Fix!
             auto const ent_it = info.find(entity);
@@ -138,7 +127,7 @@ namespace ecs::detail {
             if (parent_id == nullptr) {
                 // This entity does not have a 'parent_id' component,
                 // which means that this entity is a root
-				auto const [it, _] = info.emplace(std::make_pair(entity, entity_info{0, index}));
+				auto const [it, _] = info.emplace(std::make_pair(entity, entity_info{0, index++}));
                 return it;
             }
 
