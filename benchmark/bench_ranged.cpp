@@ -9,12 +9,12 @@ void build_ranged_no_components(benchmark::State &state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
-		ecs::make([](int) {});
+		ecs::make_system([](int) {});
 	}
 
 	state.SetItemsProcessed(state.iterations());
 }
-ECS_BENCHMARK_ONE(ranged_no_components);
+ECS_BENCHMARK_ONE(build_ranged_no_components);
 
 void build_ranged_with_components(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -27,15 +27,15 @@ void build_ranged_with_components(benchmark::State &state) {
 		ecs::commit_changes();
 		state.EndIgnoreTiming();
 
-		ecs::make([](int) {});
+		ecs::make_system([](int) {});
 	}
 
 	state.SetItemsProcessed(state.iterations());
 }
-ECS_BENCHMARK(ranged_with_components);
+ECS_BENCHMARK(build_ranged_with_components);
 
 
-void ranged_serial_run(benchmark::State &state) {
+void run_ranged_serial(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	ecs::detail::_context.reset();
@@ -43,34 +43,34 @@ void ranged_serial_run(benchmark::State &state) {
 	ecs::detail::get_context().get_component_pool<int>();
 	ecs::get_global_component<global_s>().dimension = nentities;
 
-	ecs::make<ecs::opts::not_parallel>(benchmark);
+	ecs::make_system<ecs::opts::not_parallel>(benchmark_system);
 
 	ecs::add_component({0, nentities}, int{});
 	ecs::commit_changes();
 
 	for ([[maybe_unused]] auto const _ : state) {
-		ecs::runs();
+		ecs::run_systems();
 	}
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
-ECS_BENCHMARK(ranged_serial_run);
+ECS_BENCHMARK(run_ranged_serial);
 
-void ranged_parallel_run(benchmark::State &state) {
+void run_ranged_parallel(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	ecs::detail::_context.reset();
 
-	ecs::make(benchmark);
+	ecs::make_system(benchmark_system);
 	ecs::get_global_component<global_s>().dimension = nentities;
 
 	ecs::add_component({0, nentities}, int{});
 	ecs::commit_changes();
 
 	for ([[maybe_unused]] auto const _ : state) {
-		ecs::runs();
+		ecs::run_systems();
 	}
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
-ECS_BENCHMARK(ranged_parallel_run);
+ECS_BENCHMARK(run_ranged_parallel);
