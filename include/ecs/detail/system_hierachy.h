@@ -59,7 +59,7 @@ namespace ecs::detail {
             }
 
             // Keep info on the root node of the entities
-            std::map<entity_type, int> root_children_count;
+			std::vector<int> root_children_count;
 
             // map of entity info
 			info_map info;
@@ -73,20 +73,26 @@ namespace ecs::detail {
                     }
                 }
 
-                auto const ent_info = fill_entity_info(info, entity, index++);
-				root_children_count[ent_info.second] += 1;
+                info_iterator const ent_info = fill_entity_info(info, entity, index++);
+
+                // Update the child count of the root
+				int const root_index = ent_info->second.second;
+				while (root_index >= root_children_count.size()) {
+					root_children_count.push_back(0);
+				}
+                root_children_count[root_index] += 1;
 
                 if constexpr (is_entity<FirstComponent>) {
 					arguments.emplace_back(
                         entity,
                         get_component<Components>(entity, this->pools)...,
-                        ent_info);
+                        ent_info->second);
                 } else {
                     arguments.emplace_back(
                         entity,
                         get_component<FirstComponent>(entity, this->pools),
                         get_component<Components>(entity, this->pools)...,
-                        ent_info);
+                        ent_info->second);
                 }
             }
 
@@ -102,28 +108,25 @@ namespace ecs::detail {
                     return root_l < root_r;
 
                 // order by depth
-                if (count_l != count_r)
-                    return count_l < count_r;
-
-                // order by id (irrelevant, but needed)
-                return id_l < id_r;
+                return count_l < count_r;
             };
 
             std::sort(std::execution::par_unseq, arguments.begin(), arguments.end(), topological_sort_func);
 
             // Build the spans
 			argument *current_args = &arguments.front();
-			for (auto const [root, count] : root_children_count) {
+			for (int const count : root_children_count) {
                 argument_spans.emplace_back(std::span(current_args, count));
                 current_args += count;
             }
         }
 
-        entity_info fill_entity_info(info_map &info, entity_id const entity, int index) {
+        info_iterator fill_entity_info(info_map &info, entity_id const entity, int index) {
             // see if the entity exist in the map
+            // TODO always fails on new entities. Fix!
             auto const ent_it = info.find(entity);
             if (ent_it != info.end())
-                return ent_it->second;
+                return ent_it;
             
             // Get the parent id
             entity_id const* parent_id = pool_parent_id.find_component_data(entity);
@@ -131,16 +134,16 @@ namespace ecs::detail {
                 // This entity does not have a 'parent_id' component,
                 // which means that this entity is a root
 				auto const [it, _] = info.emplace(std::make_pair(entity, entity_info{0, index}));
-                return it->second;
+                return it;
             }
 
             // look up the parent info
-			auto const [parent_count, parent_root] = fill_entity_info(info, *parent_id, index);
+			info_iterator const parent_it = fill_entity_info(info, *parent_id, index);
+			auto const& [count, root_index] = parent_it->second;
 
             // insert the entity info
-            auto const [it, $] =
-                info.emplace(std::make_pair(entity, entity_info{1 + parent_count, parent_root}));
-            return it->second;
+			auto const [it, $] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
+            return it;
         }
 
         constexpr static bool has_parent_types() {
