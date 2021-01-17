@@ -36,8 +36,11 @@ namespace ecs::detail {
     private:
         void do_run() override {
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-            std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto span_packed_arg) {
-				for (argument const& packed_arg : span_packed_arg) {
+			std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto span_packed_arg) {
+				auto const[first, count] = span_packed_arg;
+				auto const span = std::span<argument>(arguments.data() + first, count);
+
+				for (argument const &packed_arg : span) {
                     if constexpr (is_entity<FirstComponent>) {
                         this->update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                     } else {
@@ -67,6 +70,8 @@ namespace ecs::detail {
 			// Build the arguments for the ranges
             int index = 0;
             for (entity_id const entity : range_view_wrapper{ranges}) {
+
+                // TODO move this check to system::find_entities
                 if constexpr (has_parent_types()) {
                     if (!has_required_parent_types(entity)) {
                         continue;
@@ -74,13 +79,6 @@ namespace ecs::detail {
                 }
 
                 info_iterator const ent_info = fill_entity_info(info, entity, index++);
-
-                // Update the child count of the root
-				int const root_index = ent_info->second.second;
-				while (root_index >= root_children_count.size()) {
-					root_children_count.push_back(0);
-				}
-                root_children_count[root_index] += 1;
 
                 if constexpr (is_entity<FirstComponent>) {
 					arguments.emplace_back(
@@ -94,6 +92,13 @@ namespace ecs::detail {
                         get_component<Components>(entity, this->pools)...,
                         ent_info->second);
                 }
+
+                // Update the child count of the root
+				int const root_index = ent_info->second.second;
+				while (root_index >= root_children_count.size()) {
+					root_children_count.push_back(0);
+				}
+                root_children_count[root_index] += 1;
             }
 
             auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
@@ -114,10 +119,10 @@ namespace ecs::detail {
             std::sort(std::execution::par_unseq, arguments.begin(), arguments.end(), topological_sort_func);
 
             // Build the spans
-			argument *current_args = &arguments.front();
+			int current_count = 0;
 			for (int const count : root_children_count) {
-                argument_spans.emplace_back(std::span(current_args, count));
-                current_args += count;
+				argument_spans.emplace_back(current_count, count);
+                current_count += count;
             }
         }
 
@@ -203,7 +208,7 @@ namespace ecs::detail {
 		std::vector<argument> arguments;
 
         // The spans over each tree in the argument vector
-		std::vector<std::span<argument>> argument_spans;
+		std::vector<std::pair<int, int>> argument_spans;
 
         // A tuple of the fully typed component pools used the parent component
         parent_pool_tuple_t<parent_type> const parent_pools;
