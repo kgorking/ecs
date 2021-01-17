@@ -61,7 +61,7 @@ void build_hierarchy_with_sub_components(benchmark::State &state) {
 }
 ECS_BENCHMARK(build_hierarchy_with_sub_components);
 
-/*
+
 void run_hierarchy_serial(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
@@ -89,7 +89,7 @@ void run_hierarchy_serial(benchmark::State& state) {
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(run_hierarchy_serial);
-*/
+
 void run_hierarchy_parallel(benchmark::State &state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
@@ -127,15 +127,15 @@ void run_hierarchy_parallel_rand(benchmark::State &state) {
 	make_system(hierarch_lambda);
 
     std::vector<detail::entity_type> ids(nentities/8);
-	std::iota(ids.begin(), ids.end(), 0);
+	std::generate(ids.begin(), ids.end(), [i = 0]() mutable { return i++ * 8; });
 
     std::random_device rd;
 	std::mt19937 g(rd());
 	std::shuffle(ids.begin(), ids.end(), g);
 
     for (auto id : ids) {
-        add_component({id + 0}, int{});
-        add_component({id + 1, id + 7}, int{}, parent{id + 0});
+        add_component({id + 0}, int{-1});
+        add_component({id + 1, id + 7}, int{-1}, parent{id + 0});
     }
 
     commit_changes();

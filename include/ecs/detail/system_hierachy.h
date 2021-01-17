@@ -59,15 +59,13 @@ namespace ecs::detail {
             }
 
             // Keep info on the root node of the entities
-            std::map<entity_type, int> arg_roots;
+            std::map<entity_type, int> root_children_count;
 
             // map of entity info
 			info_map info;
 
-            // TODO std::vector<ent_info> infos
-
 			// Build the arguments for the ranges
-            // TODO int root_index = 0;
+            int index = 0;
             for (entity_id const entity : range_view_wrapper{ranges}) {
                 if constexpr (has_parent_types()) {
                     if (!has_required_parent_types(entity)) {
@@ -75,8 +73,8 @@ namespace ecs::detail {
                     }
                 }
 
-                auto const ent_info = fill_entity_info(info, entity /*, root_index++*/);
-                arg_roots[ent_info.second] += 1;
+                auto const ent_info = fill_entity_info(info, entity, index++);
+				root_children_count[ent_info.second] += 1;
 
                 if constexpr (is_entity<FirstComponent>) {
 					arguments.emplace_back(
@@ -93,16 +91,14 @@ namespace ecs::detail {
             }
 
             auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
-                // TODO std::distance(arg_first, &arg_l)
                 entity_id const id_l = std::get<0>(arg_l);
                 entity_id const id_r = std::get<0>(arg_r);
 
-                auto const &[count_l, root_l] = std::get<entity_info>(arg_l); // TODO infos[offset]
+                auto const &[count_l, root_l] = std::get<entity_info>(arg_l);
 				auto const& [count_r, root_r] = std::get<entity_info>(arg_r);
 
                 // order by roots
                 if (root_l != root_r)
-                    // TODO sort on root index
                     return root_l < root_r;
 
                 // order by depth
@@ -117,13 +113,13 @@ namespace ecs::detail {
 
             // Build the spans
 			argument *current_args = &arguments.front();
-            for (auto const [root, count] : arg_roots) {
+			for (auto const [root, count] : root_children_count) {
                 argument_spans.emplace_back(std::span(current_args, count));
                 current_args += count;
             }
         }
 
-        entity_info fill_entity_info(info_map &info, entity_id const entity) {
+        entity_info fill_entity_info(info_map &info, entity_id const entity, int index) {
             // see if the entity exist in the map
             auto const ent_it = info.find(entity);
             if (ent_it != info.end())
@@ -134,12 +130,12 @@ namespace ecs::detail {
             if (parent_id == nullptr) {
                 // This entity does not have a 'parent_id' component,
                 // which means that this entity is a root
-                auto const [it, _] = info.emplace(std::make_pair(entity, entity_info{0, entity}));
+				auto const [it, _] = info.emplace(std::make_pair(entity, entity_info{0, index}));
                 return it->second;
             }
 
             // look up the parent info
-            auto const [parent_count, parent_root] = fill_entity_info(info, *parent_id);
+			auto const [parent_count, parent_root] = fill_entity_info(info, *parent_id, index);
 
             // insert the entity info
             auto const [it, $] =
