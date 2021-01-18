@@ -22,12 +22,10 @@ namespace ecs::detail {
         using info_map = std::unordered_map<entity_type, entity_info>;
         using info_iterator = info_map::iterator;
 
-        //template <class... T>
-		using /*hierarchy_*/argument = decltype(std::tuple_cat(
+		using argument = decltype(std::tuple_cat(
             std::tuple<entity_id>{0},
             std::declval<argument_tuple<FirstComponent, Components...>>(),
             std::tuple<entity_info>{}));
-		//using argument = hierarchy_argument<FirstComponent, Components...>;
 
     public:
         system_hierarchy(UpdateFn update_func, TupPools pools)
