@@ -33,7 +33,7 @@ void mandelbrot_system(size_t& color, pos const& p) {
     }
 
     color += iter;
-};
+}
 
 int main() {
     // Add the system
