@@ -1,7 +1,7 @@
 #ifndef __SYSTEM_RANGED_H_
 #define __SYSTEM_RANGED_H_
 
-#include "pool_walker.h"
+#include "pool_range_walker.h"
 #include "system.h"
 
 namespace ecs::detail {
@@ -45,10 +45,7 @@ private:
 			if constexpr (is_entity<FirstComponent>) {
 				arguments.emplace_back(walker.get_range(), walker.get<Components>()...);
 			} else {
-				auto const range = walker.get_range();
-				arguments.emplace_back(range,
-					get_component<FirstComponent>(range.first(), this->pools),
-					get_component<Components>(range.first(), this->pools)...);
+				arguments.emplace_back(walker.get_range(), walker.get<FirstComponent>(), walker.get<Components>()...);
 			}
 
 			walker.next();

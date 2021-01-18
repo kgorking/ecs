@@ -9,15 +9,16 @@ namespace ecs::detail {
 template <class T>
 constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
-// Alias for stored pools
-template <class T>
-using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>> *const;
-
 // If given a parent, convert to detail::parent_id, otherwise do nothing
 template <typename T>
 using reduce_parent_t =
-	std::conditional_t<std::is_pointer_v<T>, std::conditional_t<is_parent<std::remove_pointer_t<T>>::value, parent_id *, T>,
-					   std::conditional_t<is_parent<T>::value, parent_id, T>>;
+	std::conditional_t<std::is_pointer_v<T>,
+		std::conditional_t<is_parent<std::remove_pointer_t<T>>::value, parent_id *, T>,
+		std::conditional_t<is_parent<T>::value, parent_id, T>>;
+
+// Alias for stored pools
+template <class T>
+using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<T>>>> *const;
 
 // Helper to extract the parent types
 template <typename T>
@@ -59,7 +60,7 @@ constexpr int count_ptrs_in_tuple() {
 // Removes cvref and pointer from Component
 template <typename Component, typename Pools>
 auto &get_pool(Pools const &pools) {
-	using T = std::remove_pointer_t<std::remove_cvref_t<Component>>;
+	using T = std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<Component>>>;
 	return *std::get<pool<T>>(pools);
 }
 

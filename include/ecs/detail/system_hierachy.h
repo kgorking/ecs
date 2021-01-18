@@ -10,6 +10,7 @@
 #include "find_entity_pool_intersections.h"
 #include "../parent.h"
 #include "entity_range_iterator.h"
+#include "pool_entity_walker.h"
 
 namespace ecs::detail {
     template<class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
@@ -29,8 +30,9 @@ namespace ecs::detail {
                 std::apply([&pools](auto... parent_types) {
                     return std::make_tuple(&get_pool<decltype(parent_types)>(pools)...);
                 },
-                parent_types_tuple_t<parent_type>{})}
-            , pool_parent_id{get_pool<parent_id>(pools)} {
+                parent_types_tuple_t<parent_type>{})},
+			  pool_parent_id{get_pool<parent_id>(pools)}
+            , walker(pools) {
         }
 
     private:
@@ -61,16 +63,22 @@ namespace ecs::detail {
                 return;
             }
 
+            walker.reset(ranges);
+
             // map of entity info
 			info_map info;
 
 			// Build the arguments for the ranges
             int index = 0;
-			for (entity_id const entity : range_view_wrapper{ranges}) {
+			//for (entity_id const entity : range_view_wrapper{ranges}) {
+            while (!walker.done()) {
+				entity_id const entity = walker.get_entity();
+
                 // TODO move this check to system::find_entities
                 if constexpr (has_parent_types()) {
                     if (!has_required_parent_types(entity)) {
-                        continue;
+						walker.next();
+						continue;
                     }
                 }
 
@@ -86,17 +94,12 @@ namespace ecs::detail {
 
                 // Add the argument for the entity
                 if constexpr (is_entity<FirstComponent>) {
-					arguments.emplace_back(
-                        entity,
-                        get_component<Components>(entity, this->pools)...,
-                        ent_info->second);
+					arguments.emplace_back(entity, walker.get<Components>()..., ent_info->second);
                 } else {
-                    arguments.emplace_back(
-                        entity,
-                        get_component<FirstComponent>(entity, this->pools),
-                        get_component<Components>(entity, this->pools)...,
-                        ent_info->second);
+                    arguments.emplace_back(entity, walker.get<FirstComponent>(), walker.get<Components>()..., ent_info->second);
                 }
+
+                walker.next();
 			}
 
             auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
@@ -204,6 +207,12 @@ namespace ecs::detail {
 
         // The pool that holds 'parent_id's
         component_pool<parent_id> const& pool_parent_id;
+
+        // walker
+		using walker_type = std::conditional_t<is_entity<FirstComponent>,
+            pool_entity_walker<TupPools, Components...>,
+			pool_entity_walker<TupPools, FirstComponent, Components...>>;
+		walker_type walker;
     };
 } // namespace ecs::detail
 

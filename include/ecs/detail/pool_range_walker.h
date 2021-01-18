@@ -1,5 +1,5 @@
-#ifndef __POOL_WALKER_H_
-#define __POOL_WALKER_H_
+#ifndef POOL_RANGE_WALKER_H_
+#define POOL_RANGE_WALKER_H_
 
 #include "../entity_id.h"
 #include "../entity_range.h"
@@ -78,4 +78,4 @@ private:
 
 } // namespace ecs::detail
 
-#endif // !__POOL_WALKER_H_
+#endif // !POOL_RANGE_WALKER_H_
