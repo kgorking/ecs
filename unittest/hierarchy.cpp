@@ -134,9 +134,6 @@ TEST_CASE("Hierarchies") {
 		update();
 
 		CHECK(traversal_order.size() == nentities);
-
-		// Make sure all children where visited
-		CHECK(traversal_order.size() == (3 + ecs::get_component_count<ecs::detail::parent_id>()));
 	}
 
 	SECTION("works on multiple trees in parallel") {
