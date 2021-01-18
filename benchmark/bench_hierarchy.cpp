@@ -4,13 +4,18 @@
 #include <ecs/ecs.h>
 #include "gbench/include/benchmark/benchmark.h"
 #include "global.h"
+#include <chrono>
 
 using namespace ecs;
 
 // A wrapper for the standard benchmark that forces a hierarcu to built
 auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const& /*p*/, global_s const &global) {
 	benchmark_system(id, i, global);
+	//i *= p.get<int>();
 };
+
+// The number of children in hierarchies to test
+constexpr int num_children = 3;
 
 void build_hierarchy_no_components(benchmark::State &state) {
 	for ([[maybe_unused]] auto const _ : state) {
@@ -71,9 +76,9 @@ void run_hierarchy_serial(benchmark::State& state) {
     detail::entity_type id = 0;
     while (id < nentities) {
         add_component({id + 0}, int{});
-        add_component({id + 1, id + 7}, int{}, parent{id + 0});
+		add_component({id + 1, id + num_children}, int{}, parent{id + 0});
 
-        id += 8;
+        id += num_children + 1;
     }
 
     Expects(id == nentities);
@@ -99,9 +104,9 @@ void run_hierarchy_parallel(benchmark::State &state) {
     detail::entity_type id = 0;
     while (id < nentities) {
         add_component({id + 0}, int{});
-        add_component({id + 1, id + 7}, int{}, parent{id + 0});
+		add_component({id + 1, id + num_children}, int{}, parent{id + 0});
 
-        id += 8;
+        id += num_children + 1;
     }
 
     Expects(id == nentities);
@@ -124,8 +129,8 @@ void run_hierarchy_parallel_rand(benchmark::State &state) {
 	ecs::get_global_component<global_s>().dimension = nentities;
 	make_system(hierarch_lambda);
 
-    std::vector<detail::entity_type> ids(nentities/8);
-	std::generate(ids.begin(), ids.end(), [i = 0]() mutable { return i++ * 8; });
+    std::vector<detail::entity_type> ids(nentities/(num_children+1));
+	std::generate(ids.begin(), ids.end(), [i = 0]() mutable { return i++ * (num_children + 1); });
 
     std::random_device rd;
 	std::mt19937 g(rd());
@@ -133,7 +138,7 @@ void run_hierarchy_parallel_rand(benchmark::State &state) {
 
     for (auto id : ids) {
         add_component({id + 0}, int{-1});
-        add_component({id + 1, id + 7}, int{-1}, parent{id + 0});
+		add_component({id + 1, id + num_children}, int{}, parent{id + 0});
     }
 
     commit_changes();
