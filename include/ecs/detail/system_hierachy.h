@@ -42,16 +42,17 @@ namespace ecs::detail {
     private:
         void do_run() override {
             auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto span_packed_arg) {
-				auto const[first, count] = span_packed_arg;
-				auto const span = std::span<argument>(arguments.data() + first, count);
+			std::span<argument> const span_all = std::span<argument>(arguments.data(), arguments.size());
+
+			std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this, span_all](auto const span_packed_arg) {
+				auto const [first, count] = span_packed_arg;
+				auto const span = span_all.subspan(first, count);
 
 				for (argument const &packed_arg : span) {
                     if constexpr (is_entity<FirstComponent>) {
                         this->update_func(std::get<0>(packed_arg), extract_arg<Components>(packed_arg, 0)...);
                     } else {
-                        this->update_func(
-                            extract_arg<FirstComponent>(packed_arg, 0), extract_arg<Components>(packed_arg, 0)...);
+                        this->update_func(extract_arg<FirstComponent>(packed_arg, 0), extract_arg<Components>(packed_arg, 0)...);
                     }
                 }
             });
