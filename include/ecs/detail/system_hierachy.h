@@ -3,7 +3,6 @@
 
 #include <map>
 #include <unordered_map>
-#include <future>
 
 #include "system.h"
 #include "system_defs.h"
@@ -75,9 +74,11 @@ namespace ecs::detail {
             // map of entity info
 			info_map info;
 
+            // Add the starting span (offset:0, count:0)
+			argument_spans.emplace_back(0, 0);
+
 			// Build the arguments for the ranges
             int index = 0;
-			//for (entity_id const entity : range_view_wrapper{ranges}) {
             while (!walker.done()) {
 				entity_id const entity = walker.get_entity();
 
@@ -91,14 +92,6 @@ namespace ecs::detail {
 
                 info_iterator const ent_info = fill_entity_info(info, entity, index);
 
-                // Update the spans
-				size_t const root_index = ent_info->second.second;
-				if (root_index == argument_spans.size()) {
-					argument_spans.emplace_back(root_index + arguments.size(), 1);
-				} else {
-					argument_spans[root_index].second += 1;
-				}
-
                 // Add the argument for the entity
                 if constexpr (is_entity<FirstComponent>) {
 					arguments.emplace_back(entity, walker.template get<Components>()..., ent_info->second);
@@ -106,10 +99,27 @@ namespace ecs::detail {
 					arguments.emplace_back(entity, walker.template get<FirstComponent>(), walker.template get<Components>()..., ent_info->second);
                 }
 
+                // Update the spans
+				size_t const root_index = ent_info->second.second;
+				if (root_index == argument_spans.size()) {
+                    // New root of a tree has been started, so create its new span with a count of one
+					argument_spans.emplace_back(0, 1);
+				} else {
+                    // Update the child-count of an existing tree
+					argument_spans[root_index].second += 1;
+				}
+
                 walker.next();
 			}
 
             std::sort(std::execution::par_unseq, arguments.begin(), arguments.end(), topological_sort_func);
+
+            // Update the offsets in the spans
+            size_t count = 0;
+            for (auto& arg_span : argument_spans) {
+				arg_span.first = count;
+				count += arg_span.second;
+            }
         }
 
         static bool topological_sort_func(argument const &arg_l, argument const &arg_r) {
