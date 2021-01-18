@@ -12,7 +12,7 @@ auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const& /*p
 };
 
 void build_hierarchy_no_components(benchmark::State &state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	//auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();

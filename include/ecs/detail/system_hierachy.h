@@ -23,6 +23,13 @@ namespace ecs::detail {
         using info_map = std::unordered_map<entity_type, entity_info>;
         using info_iterator = info_map::iterator;
 
+        //template <class... T>
+		using /*hierarchy_*/argument = decltype(std::tuple_cat(
+            std::tuple<entity_id>{0},
+            std::declval<argument_tuple<FirstComponent, Components...>>(),
+            std::tuple<entity_info>{}));
+		//using argument = hierarchy_argument<FirstComponent, Components...>;
+
     public:
         system_hierarchy(UpdateFn update_func, TupPools pools)
             : system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
@@ -85,7 +92,7 @@ namespace ecs::detail {
                 info_iterator const ent_info = fill_entity_info(info, entity, index);
 
                 // Update the spans
-				int const root_index = ent_info->second.second;
+				size_t const root_index = ent_info->second.second;
 				if (root_index == argument_spans.size()) {
 					argument_spans.emplace_back(root_index + arguments.size(), 1);
 				} else {
@@ -94,30 +101,30 @@ namespace ecs::detail {
 
                 // Add the argument for the entity
                 if constexpr (is_entity<FirstComponent>) {
-					arguments.emplace_back(entity, walker.get<Components>()..., ent_info->second);
+					arguments.emplace_back(entity, walker.template get<Components>()..., ent_info->second);
                 } else {
-                    arguments.emplace_back(entity, walker.get<FirstComponent>(), walker.get<Components>()..., ent_info->second);
+					arguments.emplace_back(entity, walker.template get<FirstComponent>(), walker.template get<Components>()..., ent_info->second);
                 }
 
                 walker.next();
 			}
 
-            auto const topological_sort_func = [](argument const &arg_l, argument const &arg_r) {
-                entity_id const id_l = std::get<0>(arg_l);
-                entity_id const id_r = std::get<0>(arg_r);
-
-                auto const& [count_l, root_l] = std::get<entity_info>(arg_l);
-				auto const& [count_r, root_r] = std::get<entity_info>(arg_r);
-
-                // order by roots
-                if (root_l != root_r)
-                    return root_l < root_r;
-
-                // order by depth
-                return count_l < count_r;
-            };
-
             std::sort(std::execution::par_unseq, arguments.begin(), arguments.end(), topological_sort_func);
+        }
+
+        static bool topological_sort_func(argument const &arg_l, argument const &arg_r) {
+            entity_id const id_l = std::get<0>(arg_l);
+            entity_id const id_r = std::get<0>(arg_r);
+
+            auto const& [count_l, root_l] = std::get<entity_info>(arg_l);
+			auto const& [count_r, root_r] = std::get<entity_info>(arg_r);
+
+            // order by roots
+            if (root_l != root_r)
+                return root_l < root_r;
+
+            // order by depth
+            return count_l < count_r;
         }
 
         info_iterator fill_entity_info(info_map &info, entity_id const entity, int& index) {
@@ -191,12 +198,7 @@ namespace ecs::detail {
         using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
         using parent_type = std::remove_cvref_t<full_parent_type>;
 
-		template <class FirstComponent, class... Components>
-		using hierarchy_argument = decltype(std::tuple_cat(
-			std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
-
         // The vector of unrolled arguments
-		using argument = hierarchy_argument<FirstComponent, Components...>;
 		std::vector<argument> arguments;
 
         // The spans over each tree in the argument vector

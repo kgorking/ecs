@@ -32,7 +32,7 @@ TEST_CASE("Filtering", "[component][system]") {
     });
 
     // Filtering on non-existant component should run normally
-    std::atomic_int no_shorts = 0;
+	std::atomic_size_t no_shorts = 0;
     ecs::make_system([&no_shorts](int&, short*) {
         no_shorts++;
     });

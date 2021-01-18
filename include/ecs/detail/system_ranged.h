@@ -43,9 +43,9 @@ private:
 
 		while (!walker.done()) {
 			if constexpr (is_entity<FirstComponent>) {
-				arguments.emplace_back(walker.get_range(), walker.get<Components>()...);
+				arguments.emplace_back(walker.get_range(), walker.template get<Components>()...);
 			} else {
-				arguments.emplace_back(walker.get_range(), walker.get<FirstComponent>(), walker.get<Components>()...);
+				arguments.emplace_back(walker.get_range(), walker.template get<FirstComponent>(), walker.template get<Components>()...);
 			}
 
 			walker.next();
