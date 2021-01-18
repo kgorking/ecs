@@ -10,15 +10,15 @@
 // https://docs.unrealengine.com/en-US/Resources/ContentExamples/EffectsGallery/2_E/index.html
 
 constexpr float delta_time = 1.0f / 60.0f;
-constexpr int num_frames = 100;
-constexpr int max_num_particles = 5'000;
+
+using namespace ecs::flag;
 
 struct particle { float x, y; };
 struct color    { float r, g, b; };
 struct velocity { float x, y; };
 struct life     { float val; };
-struct dead_tag { ecs_flags(ecs::flag::tag, ecs::flag::transient); };
-struct gravity  { ecs_flags(ecs::flag::global); float g = 0.2f; };
+struct dead_tag { ecs_flags(tag, transient); };
+struct gravity  { ecs_flags(global); float g = 0.2f; };
 
 // Helper lambda to initialize a particle
 auto constexpr particle_init = [](ecs::entity_id) -> particle {

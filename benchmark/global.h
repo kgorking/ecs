@@ -3,7 +3,7 @@
 #include <ecs/flags.h>
 #include <ecs/entity_id.h>
 
-size_t constexpr start_components = 512;
+size_t constexpr start_components = 1024;
 // size_t constexpr num_components = 256 * 1024;
 size_t constexpr num_components = start_components * start_components;
 //size_t constexpr num_components = 256 * 256;

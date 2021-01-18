@@ -12,6 +12,8 @@ void benchmark_system(ecs::entity_id ent, int &color, global_s const &global) {
 	constexpr double fr_x = -2.2;
 	constexpr double fr_y = 1.2;
 
+	static ecs::entity_id last_ent = 0;
+
 	size_t const x = ent % global.dimension;
 	size_t const y = ent / global.dimension;
 
@@ -29,6 +31,8 @@ void benchmark_system(ecs::entity_id ent, int &color, global_s const &global) {
 	}
 
 	color = iter;
+
+	last_ent = ent;
 }
 
 BENCHMARK_MAIN();

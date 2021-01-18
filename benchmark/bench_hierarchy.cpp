@@ -7,13 +7,12 @@
 
 using namespace ecs;
 
+// A wrapper for the standard benchmark that forces a hierarcu to built
 auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const& /*p*/, global_s const &global) {
 	benchmark_system(id, i, global);
 };
 
 void build_hierarchy_no_components(benchmark::State &state) {
-	//auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
-
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::detail::_context.reset();
 		ecs::make_system([](int, ecs::parent<>) {});
@@ -60,7 +59,6 @@ void build_hierarchy_with_sub_components(benchmark::State &state) {
 	state.SetItemsProcessed(state.iterations());
 }
 ECS_BENCHMARK(build_hierarchy_with_sub_components);
-
 
 void run_hierarchy_serial(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
