@@ -70,7 +70,7 @@ struct pool_entity_walker {
 	}
 
 	void next() {
-		if (offset == ranges_it->count()-1) {
+		if (offset == static_cast<entity_type>(ranges_it->count()) - 1) {
 			next_range();
 		} else {
 			++offset;

@@ -29,6 +29,6 @@ void benchmark_system(ecs::entity_id ent, int &color, global_s const &global) {
 	}
 
 	color = iter;
-};
+}
 
 BENCHMARK_MAIN();

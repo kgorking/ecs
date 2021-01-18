@@ -23,7 +23,7 @@ void do_damage_logic(ecs::entity_id self, health& h, infection const&) {
     h.hp -= infection::dmg;
 
     std::cout << "entity " << self << " took " << infection::dmg << " damage, health is now " << h.hp << '\n';
-};
+}
 
 // Handle spread logic
 void do_spread_logic(ecs::entity_id self, infection const& p) {
@@ -44,7 +44,7 @@ void do_spread_logic(ecs::entity_id self, infection const& p) {
             }
         }
     }
-};
+}
 
 // Handle spell logic
 void do_spell_logic(ecs::entity_id self, infection& p, health const& h) {
@@ -65,7 +65,7 @@ void do_spell_logic(ecs::entity_id self, infection& p, health const& h) {
 
     if (remove_spell)
         ecs::remove_component(self, p);
-};
+}
 
 int main() {
     // Create the plague spell system from the lambda

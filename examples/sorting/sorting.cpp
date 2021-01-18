@@ -11,7 +11,7 @@ bool sort_even_odd(int const& l, int const& r) {
     if (l % 2 != 0 && r % 2 == 0)
         return false;
     return l < r;
-};
+}
 
 int main() {
     auto& sys_no_sort = ecs::make_system<ecs::opts::not_parallel>(printer);

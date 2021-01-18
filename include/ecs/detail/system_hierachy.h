@@ -113,9 +113,6 @@ namespace ecs::detail {
         }
 
         static bool topological_sort_func(argument const &arg_l, argument const &arg_r) {
-            entity_id const id_l = std::get<0>(arg_l);
-            entity_id const id_r = std::get<0>(arg_r);
-
             auto const& [count_l, root_l] = std::get<entity_info>(arg_l);
 			auto const& [count_r, root_r] = std::get<entity_info>(arg_r);
 
