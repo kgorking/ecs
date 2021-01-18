@@ -103,8 +103,7 @@ TEST_CASE("Hierarchies") {
 	SECTION("works on lots of trees") {
 		reset();
 
-	    auto const nentities = 16;
-		//256 * 256;
+	    auto const nentities = 256 * 256;
 
 		// The set to verify the traversal order
 		std::unordered_set<int> traversal_order;
@@ -122,7 +121,7 @@ TEST_CASE("Hierarchies") {
 
 		make_system<opts::not_parallel>([&](entity_id id, parent<> p) {
 			CHECK(id >= 0);
-			CHECK(id <= 15);
+			CHECK(id <= nentities);
 
 			// Make sure parents are processed before the children
 			CHECK(false == traversal_order.contains(id));
@@ -133,6 +132,7 @@ TEST_CASE("Hierarchies") {
 
 		update();
 
+		// Make sure all children where visited
 		CHECK(traversal_order.size() == nentities);
 	}
 
