@@ -45,6 +45,7 @@ TEST_CASE("Hierarchies") {
 		traversal_order.insert(1);
 		make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
 			// Make sure parents are processed before the children
+			CHECK(false == traversal_order.contains(id));
 			CHECK(true == traversal_order.contains(p));
 			traversal_order.insert(id);
 		});
@@ -88,11 +89,51 @@ TEST_CASE("Hierarchies") {
 		traversal_order.insert(4);
 		make_system<opts::not_parallel>([&](entity_id id, parent<> p) {
 			// Make sure parents are processed before the children
+			CHECK(false == traversal_order.contains(id));
 			CHECK(true == traversal_order.contains(p));
 			traversal_order.insert(id);
 		});
 
 		update();
+
+		// Make sure all children where visited
+		CHECK(traversal_order.size() == (3 + ecs::get_component_count<ecs::detail::parent_id>()));
+	}
+
+	SECTION("works on lots of trees") {
+		reset();
+
+	    auto const nentities = 16;
+		//256 * 256;
+
+		// The set to verify the traversal order
+		std::unordered_set<int> traversal_order;
+
+		detail::entity_type id = 0;
+		while (id < nentities) {
+			traversal_order.insert(id + 0);
+			add_component({id + 0}, int{});
+			add_component({id + 1, id + 7}, int{}, parent{id + 0});
+
+			id += 8;
+		}
+
+		commit_changes();
+
+		make_system<opts::not_parallel>([&](entity_id id, parent<> p) {
+			CHECK(id >= 0);
+			CHECK(id <= 15);
+
+			// Make sure parents are processed before the children
+			CHECK(false == traversal_order.contains(id));
+			CHECK(true == traversal_order.contains(p));
+
+			traversal_order.insert(id);
+		});
+
+		update();
+
+		CHECK(traversal_order.size() == nentities);
 
 		// Make sure all children where visited
 		CHECK(traversal_order.size() == (3 + ecs::get_component_count<ecs::detail::parent_id>()));
@@ -134,6 +175,7 @@ TEST_CASE("Hierarchies") {
 			std::scoped_lock lock{m};
 
 			// Make sure parents are processed before the children
+			CHECK(false == traversal_order.contains(id));
 			CHECK(true == traversal_order.contains(p));
 			traversal_order.insert(id);
 		});
@@ -178,6 +220,7 @@ TEST_CASE("Hierarchies") {
 		traversal_order.insert(1);
 		make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
 			// Make sure parents are processed before the children
+			CHECK(false == traversal_order.contains(id));
 			CHECK(true == traversal_order.contains(p));
 			traversal_order.insert(id);
 		});
@@ -222,7 +265,8 @@ TEST_CASE("Hierarchies") {
 		traversal_order[16] = true;
 		make_system<opts::not_parallel>([&traversal_order](entity_id id, parent<> p) {
 			// Make sure parents are processed before the children
-			CHECK(true == traversal_order[p]);
+			CHECK(false == traversal_order.contains(id));
+			CHECK(true == traversal_order.contains(p));
 			traversal_order[id] = true;
 		});
 
