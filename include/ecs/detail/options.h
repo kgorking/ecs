@@ -29,6 +29,20 @@ namespace ecs::detail {
     };
 
     //
+    // Check if type is a name
+    template<typename T>
+    struct is_name{
+        static constexpr bool value = false;
+    };
+    template<typename T>
+    requires requires (T t) {
+        t._internal_get();
+    }
+    struct is_name<T> {
+        static constexpr bool value = true;
+    };
+
+    //
     // Check if type is a parent
     template<typename T> struct is_parent {
         static constexpr bool value = false;
