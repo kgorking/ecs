@@ -8,10 +8,9 @@
 
 using namespace ecs;
 
-// A wrapper for the standard benchmark that forces a hierarcu to built
+// A wrapper for the standard benchmark that forces a hierarchy to built
 auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const& /*p*/, global_s const &global) {
 	benchmark_system(id, i, global);
-	//i *= p.get<int>();
 };
 
 // The number of children in hierarchies to test
