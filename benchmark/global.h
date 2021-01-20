@@ -14,6 +14,8 @@ struct global_s {
 };
 
 #define ECS_BENCHMARK_ONE(x) BENCHMARK(x)/*->Unit(benchmark::kMicrosecond)*/->Arg(1)
-#define ECS_BENCHMARK(x) BENCHMARK(x)->Range(start_components, num_components)
+//#define ECS_BENCHMARK(x) BENCHMARK(x)->Range(start_components, num_components)
+#define ECS_BENCHMARK(x) BENCHMARK(x)->Arg(num_components)//->MinTime(10)
+//#define ECS_BENCHMARK(x) BENCHMARK(x)->Arg(num_components)->Repetitions(12)->MinTime(0.5 / 12)->ReportAggregatesOnly()
 
-extern void benchmark_system(ecs::entity_id ent, int &color, global_s const &global);
+extern void benchmark_system(ecs::entity_id ent, int &color);

@@ -4,13 +4,12 @@
 #include <ecs/ecs.h>
 #include "gbench/include/benchmark/benchmark.h"
 #include "global.h"
-#include <chrono>
 
 using namespace ecs;
 
 // A wrapper for the standard benchmark that forces a hierarchy to built
-auto constexpr hierarch_lambda = [](entity_id id, int &i, parent<int> const& /*p*/, global_s const &global) {
-	benchmark_system(id, i, global);
+static void hierarch_lambda(entity_id id, int &i, parent<int> const& /*p*/) {
+	benchmark_system(id, i);
 };
 
 // The number of children in hierarchies to test
@@ -64,88 +63,35 @@ void build_hierarchy_with_sub_components(benchmark::State &state) {
 }
 ECS_BENCHMARK(build_hierarchy_with_sub_components);
 
-void run_hierarchy_serial(benchmark::State& state) {
+void run_hierarchy(benchmark::State& state, bool parallel) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     detail::_context.reset();
-
-	ecs::get_global_component<global_s>().dimension = nentities;
-	make_system<opts::not_parallel>(hierarch_lambda);
+	auto& sys = (parallel) ? make_system(hierarch_lambda) : make_system<opts::not_parallel>(hierarch_lambda);
 
     detail::entity_type id = 0;
     while (id < nentities) {
-        add_component({id + 0}, int{});
-		add_component({id + 1, id + num_children}, int{}, parent{id + 0});
+        add_component({id + 0}, int{0});
+		add_component({id + 1, id + num_children}, int{0}, parent{id + 0});
 
         id += num_children + 1;
     }
 
-    Expects(id == nentities);
-
     commit_changes();
 
-    for ([[maybe_unused]] auto const _ : state) {
-        run_systems();
-    }
+	for ([[maybe_unused]] auto const _ : state) {
+		sys.run();
+	}
 
 	state.SetItemsProcessed(state.iterations() * nentities);
+}
+
+void run_hierarchy_serial(benchmark::State& state) {
+	run_hierarchy(state, false);
 }
 ECS_BENCHMARK(run_hierarchy_serial);
 
 void run_hierarchy_parallel(benchmark::State &state) {
-    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
-
-    detail::_context.reset();
-
-	ecs::get_global_component<global_s>().dimension = nentities;
-	make_system(hierarch_lambda);
-
-    detail::entity_type id = 0;
-    while (id < nentities) {
-        add_component({id + 0}, int{});
-		add_component({id + 1, id + num_children}, int{}, parent{id + 0});
-
-        id += num_children + 1;
-    }
-
-    Expects(id == nentities);
-
-    commit_changes();
-
-    for ([[maybe_unused]] auto const _ : state) {
-        run_systems();
-    }
-
-	state.SetItemsProcessed(state.iterations() * nentities);
+	run_hierarchy(state, true);
 }
 ECS_BENCHMARK(run_hierarchy_parallel);
-
-void run_hierarchy_parallel_rand(benchmark::State &state) {
-    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
-
-    detail::_context.reset();
-
-	ecs::get_global_component<global_s>().dimension = nentities;
-	make_system(hierarch_lambda);
-
-    std::vector<detail::entity_type> ids(nentities/(num_children+1));
-	std::generate(ids.begin(), ids.end(), [i = 0]() mutable { return i++ * (num_children + 1); });
-
-    std::random_device rd;
-	std::mt19937 g(rd());
-	std::shuffle(ids.begin(), ids.end(), g);
-
-    for (auto id : ids) {
-        add_component({id + 0}, int{-1});
-		add_component({id + 1, id + num_children}, int{}, parent{id + 0});
-    }
-
-    commit_changes();
-
-    for ([[maybe_unused]] auto const _ : state) {
-        run_systems();
-    }
-
-	state.SetItemsProcessed(state.iterations() * nentities);
-}
-ECS_BENCHMARK(run_hierarchy_parallel_rand);
