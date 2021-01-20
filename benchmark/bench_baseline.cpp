@@ -67,7 +67,7 @@ void run_raw_hierarchy(benchmark::State &state) {
 	std::fill_n(colors.begin(), nentities + 1, 0);
 
 	//
-	// Simulate a work unit that can operate on some, or all, of 'colors'.
+	// Simulate a work unit that operates on 'colors'.
 
 	// Create the 'colors' arguments,
 	// which holds an id and a pointer to that id's color.
@@ -95,12 +95,12 @@ void run_raw_hierarchy(benchmark::State &state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [](auto const local_span) {
 			for (argument& arg : local_span) {
-				auto ent = std::get<ecs::entity_id>(arg);
+				auto const ent = std::get<ecs::entity_id>(arg);
 
 				int color = *std::get<int *>(arg);
 				benchmark_system(ent, color);
 
-				*std::get<int *>(arg) = color; // Writing back the value results in serial execution time.
+				*std::get<int *>(arg) = color;			// Writing back the value results in serial execution time.
 				//benchmark::DoNotOptimize(color);		// Not writing to it parallelizes just fine
 			}
 		});
