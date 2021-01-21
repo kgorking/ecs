@@ -37,7 +37,7 @@ else()
     target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -pedantic ${STDLIB})
 
     # thread sanitizer
-    target_compile_options(ecs INTERFACE -fsanitize=thread -g -O1)
+    #target_compile_options(ecs INTERFACE -fsanitize=thread -g -O1)
 
     # Disable C++ exceptions.
     # - fails to compile on gcc 10
