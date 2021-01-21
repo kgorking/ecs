@@ -34,13 +34,8 @@ public:
 
 private:
 	void do_run() override {
-		auto const span_all_args = std::span(arguments.data(), arguments.size());
-
 		auto const e_p = execution_policy{}; // cannot pass directly to 'for_each' in gcc
-		std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [&](auto const &span) {
-			auto const &[first, count] = span;
-			auto const local_span = span_all_args.subspan(first, count);
-
+		std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto const local_span) {
 			for (argument &arg : local_span) {
 				if constexpr (is_entity<FirstComponent>) {
 					this->update_func(std::get<entity_id>(arg), extract<Components>(arg)...);
@@ -82,10 +77,8 @@ private:
 		// map of entity info
 		info_map info;
 
-		// Add the starting span (offset:0, count:0)
-		argument_spans.emplace_back(0, 0);
-
 		// Build the arguments for the ranges
+		// TODO optimize this further
 		int index = 0;
 		while (!walker.done()) {
 			entity_id const entity = walker.get_entity();
@@ -112,10 +105,11 @@ private:
 			size_t const root_index = ent_info->second.second;
 			if (root_index == argument_spans.size()) {
 				// New root of a tree has been started, so create its new span with a count of one
-				argument_spans.emplace_back(0, 1);
+				argument_spans.emplace_back((argument *)nullptr, 1);
 			} else {
 				// Update the child-count of an existing tree
-				argument_spans[root_index].second += 1;
+				auto& current_span = argument_spans[root_index];
+				current_span = std::span((argument *)nullptr, 1 + current_span.size());
 			}
 
 			walker.next();
@@ -126,22 +120,22 @@ private:
 		// Update the offsets in the spans
 		// TODO collapse to std::thread::hardware_concurrency() spans?
 		size_t count = 0;
-		for (auto &arg_span : argument_spans) {
-			arg_span.first = count;
-			count += arg_span.second;
+		for (std::span<argument> &current_span : argument_spans) {
+			current_span = std::span(arguments.data() + count, current_span.size());
+			count += current_span.size();
 		}
 	}
 
 	static bool topological_sort_func(argument const &arg_l, argument const &arg_r) {
-		auto const &[count_l, root_l] = std::get<entity_info>(arg_l);
-		auto const &[count_r, root_r] = std::get<entity_info>(arg_r);
+		auto const &[depth_l, root_l] = std::get<entity_info>(arg_l);
+		auto const &[depth_r, root_r] = std::get<entity_info>(arg_r);
 
 		// order by roots
 		if (root_l != root_r)
 			return root_l < root_r;
-
-		// order by depth
-		return count_l < count_r;
+		else
+			// order by depth
+			return depth_l < depth_r;
 	}
 
 	info_iterator fill_entity_info(info_map &info, entity_id const entity, int &index) {
@@ -219,7 +213,7 @@ private:
 	std::vector<argument> arguments;
 
 	// The spans over each tree in the argument vector
-	std::vector<std::pair<size_t, size_t>> argument_spans;
+	std::vector<std::span<argument>> argument_spans;
 
 	// A tuple of the fully typed component pools used the parent component
 	parent_pool_tuple_t<parent_type> const parent_pools;

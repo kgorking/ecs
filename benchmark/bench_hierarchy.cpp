@@ -8,12 +8,9 @@
 using namespace ecs;
 
 // A wrapper for the standard benchmark that forces a hierarchy to built
-static void hierarch_lambda(entity_id id, int &i, parent<int> const& /*p*/) {
+void hierarch_lambda(entity_id id, int &i, parent<int> const& /*p*/) {
 	benchmark_system(id, i);
 };
-
-// The number of children in hierarchies to test
-constexpr int num_children = 3;
 
 void build_hierarchy_no_components(benchmark::State &state) {
 	for ([[maybe_unused]] auto const _ : state) {
@@ -63,18 +60,22 @@ void build_hierarchy_with_sub_components(benchmark::State &state) {
 }
 ECS_BENCHMARK(build_hierarchy_with_sub_components);
 
-void run_hierarchy(benchmark::State& state, bool parallel) {
+template <bool parallel>
+void run_hierarchy(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     detail::_context.reset();
 	auto& sys = (parallel) ? make_system(hierarch_lambda) : make_system<opts::not_parallel>(hierarch_lambda);
 
-    detail::entity_type id = 0;
-    while (id < nentities) {
-        add_component({id + 0}, int{0});
-		add_component({id + 1, id + num_children}, int{0}, parent{id + 0});
+	// The number of children in hierarchies to test
+	//const int num_children = nentities/(4*std::thread::hardware_concurrency()) - 1;
+	const int num_children = 7;
 
-        id += num_children + 1;
+	detail::entity_type id = 0;
+	add_component({0, nentities}, int{0});
+	while (id < nentities) {
+		add_component({id + 1, id + num_children}, parent{id + 0});
+        id += 1 + num_children;
     }
 
     commit_changes();
@@ -87,11 +88,11 @@ void run_hierarchy(benchmark::State& state, bool parallel) {
 }
 
 void run_hierarchy_serial(benchmark::State& state) {
-	run_hierarchy(state, false);
+	run_hierarchy<false>(state);
 }
 ECS_BENCHMARK(run_hierarchy_serial);
 
 void run_hierarchy_parallel(benchmark::State &state) {
-	run_hierarchy(state, true);
+	run_hierarchy<true>(state);
 }
 ECS_BENCHMARK(run_hierarchy_parallel);

@@ -36,6 +36,9 @@ else()
     # lots of warnings
     target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -pedantic ${STDLIB})
 
+    # thread sanitizer
+    target_compile_options(ecs INTERFACE -fsanitize=thread -g -O1)
+
     # Disable C++ exceptions.
     # - fails to compile on gcc 10
     #string(REGEX REPLACE "-fexceptions" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
