@@ -89,7 +89,8 @@ template <typename Component, typename Pools>
 
 		// Tag: return a pointer to some dummy storage
 	} else if constexpr (tagged<T>) {
-		static char dummy_arr[sizeof(T)];
+		// TODO thread_local. static syncs threads
+		thread_local char dummy_arr[sizeof(T)];
 		return reinterpret_cast<T *>(dummy_arr);
 
 		// Global: return the shared component

@@ -87,7 +87,7 @@ namespace ecs::detail {
 
         // Return the shared component
         T& get_shared_component() requires unbound<T> {
-            static T t{};
+            thread_local T t{};
             return t;
         }
 

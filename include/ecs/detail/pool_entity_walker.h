@@ -100,7 +100,7 @@ struct pool_entity_walker {
 
 		} else if constexpr (tagged<T>) {
 			// Tag: return a pointer to some dummy storage
-			static char dummy_arr[sizeof(T)];
+			thread_local char dummy_arr[sizeof(T)];
 			return reinterpret_cast<T *>(dummy_arr);
 
 		} else if constexpr (global<T>) {
