@@ -38,6 +38,7 @@ template <typename T>
 using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 
 // Linearly walks one-or-more component pools
+// TODO why is this not called an iterator?
 template <class Pools, class... Components>
 struct pool_entity_walker {
 	pool_entity_walker(Pools pools) : pools(pools) {
@@ -49,15 +50,7 @@ struct pool_entity_walker {
 		ranges_it = ranges.begin();
 		offset = 0;
 
-		std::apply([this](auto *const ...pools) {
-			auto const f = [&] (auto pool) {
-				using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
-
-				std::get<pool_inner_type*>(pointers) = pool->find_component_data(ranges_it->first());
-			};
-
-			(f(pools), ...);
-		}, pools);
+		update_pool_offsets();
 	}
 
 	bool done() const {
@@ -67,6 +60,8 @@ struct pool_entity_walker {
 	void next_range() {
 		++ranges_it;
 		offset = 0;
+
+		update_pool_offsets();
 	}
 
 	void next() {
@@ -100,7 +95,7 @@ struct pool_entity_walker {
 
 		} else if constexpr (tagged<T>) {
 			// Tag: return a pointer to some dummy storage
-			static char dummy_arr[sizeof(T)];
+			thread_local char dummy_arr[sizeof(T)];
 			return reinterpret_cast<T *>(dummy_arr);
 
 		} else if constexpr (global<T>) {
@@ -124,10 +119,35 @@ struct pool_entity_walker {
 	}
 
 private:
+	void update_pool_offsets() {
+		if (done())
+			return;
+
+		std::apply([this](auto *const... pools) {
+				auto const f = [&](auto pool) {
+					using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
+					std::get<pool_inner_type *>(pointers) = pool->find_component_data(ranges_it->first());
+				};
+
+				(f(pools), ...);
+			},
+			pools);
+	}
+
+private:
+	// The ranges to iterate over
 	std::vector<entity_range> ranges;
+
+	// Iterator over the current range
 	std::vector<entity_range>::iterator ranges_it;
+
+	// Pointers to the start of each pools data
 	tuple_pool_type_detect_t<Pools> pointers;
+	
+	// Entity id and pool-pointers offset
 	entity_type offset;
+
+	// The tuple of pools in use
 	Pools pools;
 };
 

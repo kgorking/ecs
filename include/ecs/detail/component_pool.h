@@ -43,6 +43,8 @@ namespace ecs::detail {
     template<typename T>
     class component_pool final : public component_pool_base {
     private:
+		static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
+
         // The components
         std::vector<T> components;
 
@@ -87,7 +89,7 @@ namespace ecs::detail {
 
         // Return the shared component
         T& get_shared_component() requires unbound<T> {
-            static T t{};
+            thread_local T t{};
             return t;
         }
 

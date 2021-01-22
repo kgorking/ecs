@@ -20,6 +20,10 @@ if (MSVC)
     # warning level 4
     target_compile_options(ecs INTERFACE /std:c++latest /W4 /wo4648)
 
+    # enable profiling
+    #target_compile_options(ecs INTERFACE /Zi)
+    #target_link_options(ecs INTERFACE /PROFILE)
+
     # Disable C++ exceptions.
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHs-c-")
@@ -31,6 +35,9 @@ if (MSVC)
 else()
     # lots of warnings
     target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -pedantic ${STDLIB})
+
+    # thread sanitizer
+    #target_compile_options(ecs INTERFACE -fsanitize=thread -g -O1)
 
     # Disable C++ exceptions.
     # - fails to compile on gcc 10

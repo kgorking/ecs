@@ -314,6 +314,39 @@ TEST_CASE("Hierarchies") {
 		CHECK(count_float == 3);
 	}
 
+	SECTION("interactions with parents are correct") {
+		reset();
+
+		auto const nentities = 256 * 256;
+
+		detail::entity_type id = 0;
+		while (id < nentities) {
+			add_component({id + 0}, int{});
+
+			auto p = parent{id + 0};
+			add_component({id + 1, id + 7}, int{}, p);
+
+			id += 8;
+		}
+
+		commit_changes();
+
+		using namespace ecs::opts;
+		make_system<not_parallel, group<-1>>([](parent<int>& p) {
+			p.get<int>() += 1;
+		});
+
+		int num_correct = 0;
+		make_system<not_parallel>([&num_correct](int i, parent<>*) {
+			if (i == 7)
+				num_correct += 1;
+		});
+
+		update();
+
+		CHECK(num_correct == nentities / 8);
+	}
+
 	SECTION("can filter on parents") {
 		reset();
 
