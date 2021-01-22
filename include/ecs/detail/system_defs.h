@@ -20,6 +20,12 @@ using reduce_parent_t =
 template <class T>
 using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<T>>>> *const;
 
+// Returns true if a type is read-only
+template<typename T>
+constexpr bool is_read_only() {
+    return detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
+}
+
 // Helper to extract the parent types
 template <typename T>
 struct parent_type_detect; // primary template

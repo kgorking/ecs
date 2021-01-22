@@ -151,11 +151,6 @@ namespace ecs::detail {
             }
         }
 
-        template<typename T>
-        static constexpr bool is_read_only() {
-            return detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
-        }
-
     private:
         // Handle changes when the component pools change
         void process_changes(bool force_rebuild) override {
