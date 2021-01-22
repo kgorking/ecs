@@ -121,14 +121,6 @@ namespace ecs::detail {
             return false;
         }
 
-        constexpr bool writes_to_any_components() const noexcept override {
-            if constexpr (!is_entity<FirstComponent> && !std::is_const_v<std::remove_reference_t<FirstComponent>>)
-                return true;
-            else {
-                return ((!std::is_const_v<std::remove_reference_t<Components>>) &&...);
-            }
-        }
-
         constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
             auto const it = std::find(type_hashes.begin(), type_hashes.end(), hash);
             if (it == type_hashes.end())
