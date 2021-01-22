@@ -25,7 +25,7 @@ struct parent : entity_id {
 	parent &operator=(parent const &) = default;
 
 	entity_id id() const {
-		return (detail::entity_type) * this;
+		return (entity_id) * this;
 	}
 
 	template <typename T>
