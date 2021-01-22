@@ -11,9 +11,13 @@
 #include "system.h"
 #include "system_defs.h"
 
+#include "type_list.h"
+
 namespace ecs::detail {
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
 class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
+	using base = system<Options, UpdateFn, TupPools, FirstComponent, Components...>;
+
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
@@ -27,10 +31,10 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 
 public:
 	system_hierarchy(UpdateFn update_func, TupPools pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools},
-		  parent_pools{std::apply([&pools](auto... parent_types) { return std::make_tuple(&get_pool<decltype(parent_types)>(pools)...); },
-								  parent_types_tuple_t<parent_type>{})},
-		  pool_parent_id{get_pool<parent_id>(pools)}, walker(pools) {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
+		, parent_pools{make_parent_types_tuple()}
+		, pool_parent_id{get_pool<parent_id>(pools)}
+		, walker(pools) {}
 
 private:
 	void do_run() override {
@@ -44,21 +48,6 @@ private:
 				}
 			}
 		});
-	}
-
-	// Extracts a component argument from a tuple
-	template <typename Component, typename Tuple>
-	static decltype(auto) extract(Tuple &tuple) {
-		using T = std::remove_cvref_t<Component>;
-
-		if constexpr (std::is_pointer_v<T>) {
-			return nullptr;
-		} else if constexpr (detail::is_parent<T>::value) {
-			return std::get<T>(tuple);
-		} else {
-			T *ptr = std::get<T *>(tuple);
-			return *(ptr);
-		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
@@ -125,6 +114,44 @@ private:
 		}
 	}
 
+	decltype(auto) make_parent_types_tuple() const {
+		auto const func = [this](auto* ...parent_types) {
+			return std::make_tuple(&get_pool<std::remove_pointer_t<decltype(parent_types)>>(this->pools)...);
+		};
+
+		return apply_type<parent_type_list_t<stripped_parent_type>>(func);
+	}
+
+	constexpr bool writes_to_any_components() const noexcept override {
+		if (base::writes_to_any_components())
+			return true;
+
+		// Check if parent types are written to
+		return false;
+	}
+
+	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
+		if (base::writes_to_component(hash))
+			return true;
+
+		return false;
+	}
+
+	// Extracts a component argument from a tuple
+	template <typename Component, typename Tuple>
+	static decltype(auto) extract(Tuple &tuple) {
+		using T = std::remove_cvref_t<Component>;
+
+		if constexpr (std::is_pointer_v<T>) {
+			return nullptr;
+		} else if constexpr (detail::is_parent<T>::value) {
+			return std::get<T>(tuple);
+		} else {
+			T *ptr = std::get<T *>(tuple);
+			return *(ptr);
+		}
+	}
+
 	static bool topological_sort_func(argument const &arg_l, argument const &arg_r) {
 		auto const &[depth_l, root_l] = std::get<entity_info>(arg_l);
 		auto const &[depth_r, root_r] = std::get<entity_info>(arg_r);
@@ -173,25 +200,21 @@ private:
 			// Does tests on the parent sub-components to see they satisfy the constraints
 			// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
 			// has an int.
-			constexpr parent_types_tuple_t<parent_type> ptt{};
-			bool const has_parent_types = std::apply(
-				[&](auto const &...parent_types) {
-					auto const check_parent = [&](auto parent_type) {
-						// Get the pool of the parent sub-component
-						auto const &sub_pool = get_pool<decltype(parent_type)>(this->pools);
+			bool const has_parent_types = any_of_type<parent_type_list_t<stripped_parent_type>>(
+				[&](auto* pt) {
+					using subtype = std::remove_pointer_t<decltype(pt)>;
 
-						if constexpr (std::is_pointer_v<decltype(parent_type)>) {
-							// The type is a filter, so the parent is _not_ allowed to have this component
-							return !sub_pool.has_entity(pid);
-						} else {
-							// The parent must have this component
-							return sub_pool.has_entity(pid);
-						}
-					};
+					// Get the pool of the parent sub-component
+					auto const &sub_pool = get_pool<subtype>(this->pools);
 
-					return (check_parent(parent_types) && ...);
-				},
-				ptt);
+					if constexpr (std::is_pointer_v<subtype>) {
+						// The type is a filter, so the parent is _not_ allowed to have this component
+						return !sub_pool.has_entity(pid);
+					} else {
+						// The parent must have this component
+						return sub_pool.has_entity(pid);
+					}
+				});
 
 			return has_parent_types;
 		} else {
@@ -205,8 +228,9 @@ private:
 		test_option_index<is_parent, std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
 	static_assert(-1 != parent_index, "no parent component found");
 
-	using full_parent_type = std::tuple_element_t<parent_index, std::tuple<FirstComponent, Components...>>;
-	using parent_type = std::remove_cvref_t<full_parent_type>;
+	using component_type_list = type_list<FirstComponent, Components...>;
+	using full_parent_type = type_list_at<parent_index, component_type_list>;
+	using stripped_parent_type = std::remove_cvref_t<full_parent_type>;
 
 	// The vector of unrolled arguments
 	std::vector<argument> arguments;
@@ -215,7 +239,7 @@ private:
 	std::vector<std::span<argument>> argument_spans;
 
 	// A tuple of the fully typed component pools used the parent component
-	parent_pool_tuple_t<parent_type> const parent_pools;
+	parent_pool_tuple_t<stripped_parent_type> const parent_pools;
 
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const &pool_parent_id;
@@ -224,6 +248,11 @@ private:
 	using walker_type = std::conditional_t<is_entity<FirstComponent>, pool_entity_walker<TupPools, Components...>,
 										   pool_entity_walker<TupPools, FirstComponent, Components...>>;
 	walker_type walker;
+
+
+	static constexpr int num_parent_components = std::tuple_size_v<decltype(parent_pools)>;
+	//static constexpr std::array<detail::type_hash, num_parent_components> parent_type_hashes =
+	//	get_type_hashes_array<is_entity<FirstComponent>, std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>();
 };
 } // namespace ecs::detail
 

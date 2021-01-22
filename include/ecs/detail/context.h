@@ -15,6 +15,7 @@
 #include "system_sorted.h"
 #include "tls/cache.h"
 #include "type_hash.h"
+#include "type_list.h"
 
 namespace ecs::detail {
     // The central class of the ecs implementation. Maintains the state of the system.
@@ -181,11 +182,10 @@ namespace ecs::detail {
             // Create the system instance
             std::unique_ptr<system_base> sys;
             if constexpr (has_parent) {
-                parent_types_tuple_t<parent_type> pt;
 
                 // Find the component pools
-                auto const all_pools = std::apply(
-                    [this](auto... parent_types) {
+                auto const all_pools = apply_type<parent_type_list_t<parent_type>>(
+                    [this](auto* ...parent_types) {
                         // The pools for the regular components
                         auto const pools = make_tuple_pools<
                             reduce_parent_t<std::remove_cvref_t<FirstComponent>>,
@@ -195,11 +195,12 @@ namespace ecs::detail {
                         if constexpr (sizeof...(parent_types) > 0) {
                             return tuple_cat_unique(
                                 pools,
-                                &get_component_pool<decltype(parent_types)>()...);
+                                &get_component_pool<std::remove_pointer_t<decltype(parent_types)>>()...
+                            );
                         } else {
                             return pools;
                         }
-                    }, pt);
+                    });
 
                 using typed_system = system_hierarchy<Options, UpdateFn, decltype(all_pools), FirstComponent, Components...>;
                 sys = std::make_unique<typed_system>(update_func, all_pools);
