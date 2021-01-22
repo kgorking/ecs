@@ -44,9 +44,6 @@ struct parent : entity_id {
 	struct _ecs_parent {};
 
 private:
-	using pool_tuple = std::tuple<detail::pool<ParentTypes>...>;
-	using self = parent<ParentTypes...>;
-
 	template <typename Component, typename Pools>
 	friend auto detail::get_component(entity_id const, Pools const &);
 

@@ -62,7 +62,7 @@ namespace ecs::detail {
             std::remove_cvref_t<B>>;
         using type2 = std::conditional_t<sizeof...(C)==0,
             std::remove_cvref_t<B>,
-            std::remove_cvref_t<std::tuple_element_t<0, std::tuple<C...>>>>;
+            std::remove_cvref_t<type_list_at<0, type_list<C...>>>>;
     };
 
     template<class T1, class T2>
@@ -92,17 +92,24 @@ namespace ecs::detail {
     template<typename C>
     constexpr void verify_parent_component() {
         if constexpr (detail::is_parent<std::remove_cvref_t<C>>::value) {
-            // If there is one-or-more sub-components,
-            // then the parent must be passed as a reference
-            constexpr size_t num_parent_subtype_filters =
-                count_ptrs_in_tuple<0, parent_types_tuple_t<std::remove_cvref_t<C>>>();
-            constexpr size_t num_parent_subtypes =
-                std::tuple_size_v<parent_types_tuple_t<std::remove_cvref_t<C>>> - num_parent_subtype_filters;
+            using parent_subtypes = parent_type_list_t<std::remove_cvref_t<C>>;
+			constexpr size_t total_subtypes = type_list_size<parent_subtypes>;
 
-            if constexpr (num_parent_subtypes > 0) {
-                static_assert(
-                    std::is_reference_v<C>, "parents with non-filter sub-components must be passed as references");
-            }
+            if constexpr (total_subtypes > 0) {
+                // Count all the filters in the parent type
+				constexpr size_t num_subtype_filters = apply_type<parent_subtypes>(
+					[](auto *...types) { return (std::is_pointer_v<std::remove_pointer_t<decltype(types)>> + ...); });
+
+				// Count all the types minus filters in the parent type
+				constexpr size_t num_parent_subtypes = total_subtypes - num_subtype_filters;
+				// std::tuple_size_v<parent_types_tuple_t<std::remove_cvref_t<C>>> - num_parent_subtype_filters;
+
+				// If there is one-or-more sub-components,
+				// then the parent must be passed as a reference
+				if constexpr (num_parent_subtypes > 0) {
+					static_assert(std::is_reference_v<C>, "parents with non-filter sub-components must be passed as references");
+				}
+			}
         }
     }
     

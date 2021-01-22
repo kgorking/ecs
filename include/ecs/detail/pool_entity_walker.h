@@ -107,9 +107,8 @@ struct pool_entity_walker {
 			using parent_type = std::remove_cvref_t<Component>;
 			parent_id pid = *(std::get<parent_id*>(pointers) + offset);
 
-			parent_types_tuple_t<parent_type> pt;
-			auto const tup_parent_ptrs = std::apply(
-				[&](auto... parent_types) { return std::make_tuple(get_entity_data<decltype(parent_types)>(pid, pools)...); }, pt);
+			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+				[&](auto* ...parent_types) { return std::make_tuple(get_entity_data<std::remove_pointer_t<decltype(parent_types)>>(pid, pools)...); });
 
 			return parent_type{pid, tup_parent_ptrs};
 		} else {

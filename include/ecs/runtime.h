@@ -10,6 +10,7 @@
 #include "detail/context.h"
 #include "detail/system.h"
 #include "detail/verification.h"
+#include "detail/type_list.h"
 #include "entity_id.h"
 #include "options.h"
 
@@ -179,7 +180,7 @@ namespace ecs {
     // Make a new system
     template<typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
     auto& make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
-        using opts = std::tuple<Options...>;
+        using opts = detail::type_list<Options...>;
 
         // verify the input
         detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
