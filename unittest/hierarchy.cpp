@@ -332,7 +332,7 @@ TEST_CASE("Hierarchies") {
 		commit_changes();
 
 		using namespace ecs::opts;
-		make_system<not_parallel, group<-1>>([](parent<int>& p) {
+		make_system([](parent<int>& p) {
 			p.get<int>() += 1;
 		});
 

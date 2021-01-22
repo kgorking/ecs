@@ -134,7 +134,9 @@ private:
 		if (base::writes_to_component(hash))
 			return true;
 
-		return false;
+		return any_of_type<parent_component_list>([hash]<typename T>(T*) {
+			return get_type_hash<T>() == hash && !is_read_only<T>();
+		});
 	}
 
 	// Extracts a component argument from a tuple
