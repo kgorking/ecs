@@ -249,7 +249,6 @@ private:
 										   pool_entity_walker<TupPools, FirstComponent, Components...>>;
 	walker_type walker;
 
-
 	static constexpr int num_parent_components = std::tuple_size_v<decltype(parent_pools)>;
 	//static constexpr std::array<detail::type_hash, num_parent_components> parent_type_hashes =
 	//	get_type_hashes_array<is_entity<FirstComponent>, std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>();
