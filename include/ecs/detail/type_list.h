@@ -64,6 +64,8 @@ constexpr size_t type_list_size = impl::type_list_size<Types>::value;
 template <size_t I, typename Types>
 using type_list_at = typename impl::type_list_at<I, Types>::type;
 
+// pass '[]<typename T>(T*) {}' to get at the type "easily"
+
 template <typename TypeList, typename F>
 constexpr void for_each_type(F &&f) {
 	impl::for_each_type(f, static_cast<std::add_pointer_t<TypeList>>(nullptr));
