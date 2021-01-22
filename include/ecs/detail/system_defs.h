@@ -4,6 +4,7 @@
 // Contains definitions that are used by the system- and builder classes
 #include "component_pool.h"
 #include "parent_id.h"
+#include "type_list.h"
 
 namespace ecs::detail {
 template <class T>
@@ -20,15 +21,23 @@ using reduce_parent_t =
 template <class T>
 using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<T>>>> *const;
 
+// Returns true if a type is read-only
+template<typename T>
+constexpr bool is_read_only() {
+    return detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
+}
+
 // Helper to extract the parent types
 template <typename T>
-struct parent_type_detect; // primary template
+struct parent_type_list; // primary template
 
 template <template <class...> class Parent, class... ParentComponents> // partial specialization
-struct parent_type_detect<Parent<ParentComponents...>> {
+struct parent_type_list<Parent<ParentComponents...>> {
 	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
-	using type = std::tuple<ParentComponents...>;
+	using type = type_list<ParentComponents...>;
 };
+template <typename T>
+using parent_type_list_t = typename parent_type_list<T>::type;
 
 // Helper to extract the parent pool types
 template <typename T>
@@ -39,22 +48,9 @@ struct parent_pool_detect<Parent<ParentComponents...>> {
 	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
 	using type = std::tuple<pool<ParentComponents>...>;
 };
-
-template <typename T>
-using parent_types_tuple_t = typename parent_type_detect<T>::type;
 template <typename T>
 using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
 
-template <int Index, class Tuple>
-constexpr int count_ptrs_in_tuple() {
-	if constexpr (Index == std::tuple_size_v<Tuple>) {
-		return 0;
-	} else if constexpr (std::is_pointer_v<std::tuple_element_t<Index, Tuple>>) {
-		return 1 + count_ptrs_in_tuple<Index + 1, Tuple>();
-	} else {
-		return count_ptrs_in_tuple<Index + 1, Tuple>();
-	}
-}
 
 // Get a component pool from a component pool tuple.
 // Removes cvref and pointer from Component
@@ -102,9 +98,10 @@ template <typename Component, typename Pools>
 		using parent_type = std::remove_cvref_t<Component>;
 		parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
-		parent_types_tuple_t<parent_type> pt;
-		auto const tup_parent_ptrs =
-			std::apply([&](auto... parent_types) { return std::make_tuple(get_entity_data<decltype(parent_types)>(pid, pools)...); }, pt);
+		parent_type_list_t<parent_type> pt;
+		auto const tup_parent_ptrs = apply([&](auto* ... parent_types) {
+			return std::make_tuple(get_entity_data<std::remove_pointer_t<decltype(parent_types)>>(pid, pools)...); }
+		, pt);
 
 		return parent_type{pid, tup_parent_ptrs};
 

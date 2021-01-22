@@ -58,9 +58,10 @@ struct pool_range_walker {
 			using parent_type = std::remove_cvref_t<Component>;
 			parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
-			parent_types_tuple_t<parent_type> pt;
-			auto const tup_parent_ptrs = std::apply(
-				[&](auto... parent_types) { return std::make_tuple(get_entity_data<decltype(parent_types)>(pid, pools)...); }, pt);
+			parent_type_list_t<parent_type> pt;
+			auto const tup_parent_ptrs = apply([&](auto* ...parent_types) {
+				return std::make_tuple(get_entity_data<std::remove_pointer_t<decltype(parent_types)>>(pid, pools)...); }
+			, pt);
 
 			return parent_type{pid, tup_parent_ptrs};
 
