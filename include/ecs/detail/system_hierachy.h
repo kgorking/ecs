@@ -202,11 +202,11 @@ private:
 
 private:
 	// Extract the parent type
-	static constexpr int ParentIndex =
+	static constexpr int parent_index =
 		test_option_index<is_parent, std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
-	static_assert(-1 != ParentIndex, "no parent component found");
+	static_assert(-1 != parent_index, "no parent component found");
 
-	using full_parent_type = std::tuple_element_t<ParentIndex, std::tuple<FirstComponent, Components...>>;
+	using full_parent_type = std::tuple_element_t<parent_index, std::tuple<FirstComponent, Components...>>;
 	using parent_type = std::remove_cvref_t<full_parent_type>;
 
 	// The vector of unrolled arguments
