@@ -118,7 +118,6 @@ private:
 		std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
 
 		// Update the offsets in the spans
-		// TODO collapse to std::thread::hardware_concurrency() spans?
 		size_t count = 0;
 		for (std::span<argument> &current_span : argument_spans) {
 			current_span = std::span(arguments.data() + count, current_span.size());

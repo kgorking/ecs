@@ -68,7 +68,6 @@ void run_hierarchy(benchmark::State& state) {
 	auto& sys = (parallel) ? make_system(hierarch_lambda) : make_system<opts::not_parallel>(hierarch_lambda);
 
 	// The number of children in hierarchies to test
-	//const int num_children = nentities/(4*std::thread::hardware_concurrency()) - 1;
 	const int num_children = 7;
 
 	detail::entity_type id = 0;
