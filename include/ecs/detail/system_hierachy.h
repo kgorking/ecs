@@ -115,11 +115,9 @@ private:
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
-		auto const func = [this](auto* ...parent_types) {
-			return std::make_tuple(&get_pool<std::remove_pointer_t<decltype(parent_types)>>(this->pools)...);
-		};
-
-		return apply_type<parent_type_list_t<stripped_parent_type>>(func);
+		return M_apply_type(parent_component_list, {
+			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
+		});
 	}
 
 	constexpr bool writes_to_any_components() const noexcept override {
@@ -127,14 +125,18 @@ private:
 			return true;
 
 		// Check if parent types are written to
-		return false;
+		return M_any_of_type(parent_component_list, {
+			return !is_read_only<T>();
+		});
 	}
 
 	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
 		if (base::writes_to_component(hash))
 			return true;
 
-		return false;
+		return M_any_of_type(parent_component_list, {
+			return get_type_hash<T>() == hash && !is_read_only<T>();
+		});
 	}
 
 	// Extracts a component argument from a tuple
@@ -188,33 +190,30 @@ private:
 	}
 
 	constexpr static bool has_parent_types() {
-		return (0 != std::tuple_size_v<decltype(parent_pools)>);
+		return (0 != num_parent_components);
 	}
 
 	bool has_required_parent_types(entity_id const entity) const {
 		// If the parent has sub-components specified, verify them
-		if constexpr (0 != std::tuple_size_v<decltype(parent_pools)>) {
+		if constexpr (has_parent_types()) {
 			// Get the parent components id
 			parent_id const pid = *pool_parent_id.find_component_data(entity);
 
 			// Does tests on the parent sub-components to see they satisfy the constraints
 			// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
 			// has an int.
-			bool const has_parent_types = any_of_type<parent_type_list_t<stripped_parent_type>>(
-				[&](auto* pt) {
-					using subtype = std::remove_pointer_t<decltype(pt)>;
+			bool const has_parent_types = M_any_of_type(parent_component_list, {
+				// Get the pool of the parent sub-component
+				auto const &sub_pool = get_pool<T>(this->pools);
 
-					// Get the pool of the parent sub-component
-					auto const &sub_pool = get_pool<subtype>(this->pools);
-
-					if constexpr (std::is_pointer_v<subtype>) {
-						// The type is a filter, so the parent is _not_ allowed to have this component
-						return !sub_pool.has_entity(pid);
-					} else {
-						// The parent must have this component
-						return sub_pool.has_entity(pid);
-					}
-				});
+				if constexpr (std::is_pointer_v<T>) {
+					// The type is a filter, so the parent is _not_ allowed to have this component
+					return !sub_pool.has_entity(pid);
+				} else {
+					// The parent must have this component
+					return sub_pool.has_entity(pid);
+				}
+			});
 
 			return has_parent_types;
 		} else {
@@ -228,9 +227,10 @@ private:
 		test_option_index<is_parent, type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
 	static_assert(-1 != parent_index, "no parent component found");
 
-	using component_type_list = type_list<FirstComponent, Components...>;
-	using full_parent_type = type_list_at<parent_index, component_type_list>;
+	using component_list = type_list<FirstComponent, Components...>;
+	using full_parent_type = type_list_at<parent_index, component_list>;
 	using stripped_parent_type = std::remove_cvref_t<full_parent_type>;
+	using parent_component_list = parent_type_list_t<stripped_parent_type>;
 
 	// The vector of unrolled arguments
 	std::vector<argument> arguments;
@@ -249,7 +249,7 @@ private:
 										   pool_entity_walker<TupPools, FirstComponent, Components...>>;
 	walker_type walker;
 
-	static constexpr int num_parent_components = std::tuple_size_v<decltype(parent_pools)>;
+	static constexpr int num_parent_components = type_list_size<parent_component_list>;
 	//static constexpr std::array<detail::type_hash, num_parent_components> parent_type_hashes =
 	//	get_type_hashes_array<is_entity<FirstComponent>, std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>();
 };
