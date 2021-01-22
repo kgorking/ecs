@@ -62,7 +62,7 @@ namespace ecs::detail {
             std::remove_cvref_t<B>>;
         using type2 = std::conditional_t<sizeof...(C)==0,
             std::remove_cvref_t<B>,
-            std::remove_cvref_t<std::tuple_element_t<0, std::tuple<C...>>>>;
+            std::remove_cvref_t<type_list_at<0, type_list<C...>>>>;
     };
 
     template<class T1, class T2>
