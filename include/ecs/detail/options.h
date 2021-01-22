@@ -2,6 +2,7 @@
 #define __DETAIL_OPTIONS_H
 
 #include "../options.h"
+#include "type_list.h"
 
 namespace ecs::detail {
     //
@@ -44,37 +45,37 @@ namespace ecs::detail {
 
     // Contains detectors for the options
     namespace detect {
-        template<int Index, template<class O> class Tester, class TupleOptions>
+        template<int Index, template<class O> class Tester, class ListOptions>
         constexpr int find_tester_index() {
-            if constexpr (Index == std::tuple_size_v<TupleOptions>) {
+            if constexpr (Index == type_list_size<ListOptions>) {
                 return -1; // type not found
-            } else if constexpr (Tester<std::tuple_element_t<Index, TupleOptions>>::value) {
+            } else if constexpr (Tester<type_list_at<Index, ListOptions>>::value) {
                 return Index;
             } else {
-                return find_tester_index<Index + 1, Tester, TupleOptions>();
+                return find_tester_index<Index + 1, Tester, ListOptions>();
             }
         }
 
-        template<int Index, typename Option, class TupleOptions>
+        template<int Index, typename Option, class ListOptions>
         constexpr int find_type_index() {
-            if constexpr (Index == std::tuple_size_v<TupleOptions>) {
+            if constexpr (Index == type_list_size<ListOptions>) {
                 return -1; // type not found
-            } else if constexpr (std::is_same_v<Option, std::tuple_element_t<Index, TupleOptions>>) {
+            } else if constexpr (std::is_same_v<Option, type_list_at<Index, ListOptions>>) {
                 return Index;
             } else {
-                return find_type_index<Index + 1, Option, TupleOptions>();
+                return find_type_index<Index + 1, Option, ListOptions>();
             }
         }
 
         // A detector that applies Tester to each option.
-        template<template<class O> class Tester, class TupleOptions, class NotFoundType = void>
+        template<template<class O> class Tester, class ListOptions, class NotFoundType = void>
         constexpr auto test_option() {
-            if constexpr (std::tuple_size_v<TupleOptions> == 0) {
+            if constexpr (type_list_size<ListOptions> == 0) {
                 return (NotFoundType*) 0;
             } else {
-                constexpr int option_index = find_tester_index<0, Tester, TupleOptions>();
+                constexpr int option_index = find_tester_index<0, Tester, ListOptions>();
                 if constexpr (option_index != -1) {
-                    using opt_type = std::tuple_element_t<option_index, TupleOptions>;
+                    using opt_type = type_list_at<option_index, ListOptions>;
                     return (opt_type*) 0;
                 } else {
                     return (NotFoundType*) 0;
@@ -82,12 +83,12 @@ namespace ecs::detail {
             }
         }
 
-        template<class Option, class TupleOptions>
+        template<class Option, class ListOptions>
         constexpr bool has_option() {
-            if constexpr (std::tuple_size_v<TupleOptions> == 0) {
+            if constexpr (type_list_size<ListOptions> == 0) {
                 return false;
             } else {
-                constexpr int option_index = find_type_index<0, Option, TupleOptions>();
+                constexpr int option_index = find_type_index<0, Option, ListOptions>();
                 return option_index != -1;
             }
         }

@@ -165,8 +165,8 @@ namespace ecs::detail {
         auto& create_system(UpdateFn update_func, SortFn sort_func) {
             // Find potential parent type
             using parent_type = test_option_type_or<is_parent,
-                std::tuple< std::remove_cvref_t<FirstComponent>,
-                            std::remove_cvref_t<Components>...>,
+                type_list<std::remove_cvref_t<FirstComponent>,
+                          std::remove_cvref_t<Components>...>,
                 void>;
 
             // Do some checks on the systems

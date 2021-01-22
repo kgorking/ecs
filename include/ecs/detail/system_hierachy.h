@@ -225,7 +225,7 @@ private:
 private:
 	// Extract the parent type
 	static constexpr int parent_index =
-		test_option_index<is_parent, std::tuple<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
+		test_option_index<is_parent, type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
 	static_assert(-1 != parent_index, "no parent component found");
 
 	using component_type_list = type_list<FirstComponent, Components...>;
