@@ -60,9 +60,6 @@ namespace ecs::detail {
         // Returns true if this system has a dependency on another system
         [[nodiscard]] virtual bool depends_on(system_base const*) const noexcept = 0;
 
-        // Returns true if this system writes data to any component
-        [[nodiscard]] virtual bool writes_to_any_components() const noexcept = 0;
-
         // Returns true if this system writes data to a specific component
         [[nodiscard]] virtual bool writes_to_component(detail::type_hash hash) const noexcept = 0;
 

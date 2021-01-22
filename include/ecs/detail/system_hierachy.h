@@ -120,16 +120,6 @@ private:
 		});
 	}
 
-	constexpr bool writes_to_any_components() const noexcept override {
-		if (base::writes_to_any_components())
-			return true;
-
-		// Check if parent types are written to
-		return M_any_of_type(parent_component_list, {
-			return !is_read_only<T>();
-		});
-	}
-
 	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
 		if (base::writes_to_component(hash))
 			return true;
