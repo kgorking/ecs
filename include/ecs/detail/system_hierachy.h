@@ -115,7 +115,7 @@ private:
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
-		return apply_type<parent_component_list>([this]<typename ...T>(T*...) {
+		return M_apply_type(parent_component_list, {
 			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
 		});
 	}
@@ -125,7 +125,7 @@ private:
 			return true;
 
 		// Check if parent types are written to
-		return any_of_type<parent_component_list>([]<typename T>(T*) {
+		return M_any_of_type(parent_component_list, {
 			return !is_read_only<T>();
 		});
 	}
@@ -134,7 +134,7 @@ private:
 		if (base::writes_to_component(hash))
 			return true;
 
-		return any_of_type<parent_component_list>([hash]<typename T>(T*) {
+		return M_any_of_type(parent_component_list, {
 			return get_type_hash<T>() == hash && !is_read_only<T>();
 		});
 	}
@@ -202,19 +202,18 @@ private:
 			// Does tests on the parent sub-components to see they satisfy the constraints
 			// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
 			// has an int.
-			bool const has_parent_types = any_of_type<parent_component_list>(
-				[&]<typename T>(T*) {
-					// Get the pool of the parent sub-component
-					auto const &sub_pool = get_pool<T>(this->pools);
+			bool const has_parent_types = M_any_of_type(parent_component_list, {
+				// Get the pool of the parent sub-component
+				auto const &sub_pool = get_pool<T>(this->pools);
 
-					if constexpr (std::is_pointer_v<T>) {
-						// The type is a filter, so the parent is _not_ allowed to have this component
-						return !sub_pool.has_entity(pid);
-					} else {
-						// The parent must have this component
-						return sub_pool.has_entity(pid);
-					}
-				});
+				if constexpr (std::is_pointer_v<T>) {
+					// The type is a filter, so the parent is _not_ allowed to have this component
+					return !sub_pool.has_entity(pid);
+				} else {
+					// The parent must have this component
+					return sub_pool.has_entity(pid);
+				}
+			});
 
 			return has_parent_types;
 		} else {

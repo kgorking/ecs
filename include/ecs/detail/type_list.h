@@ -64,7 +64,6 @@ constexpr size_t type_list_size = impl::type_list_size<Types>::value;
 template <size_t I, typename Types>
 using type_list_at = typename impl::type_list_at<I, Types>::type;
 
-// pass '[]<typename T>(T*) {}' to get at the type "easily"
 
 template <typename TypeList, typename F>
 constexpr void for_each_type(F &&f) {
@@ -85,6 +84,11 @@ template <typename TypeList, typename F>
 constexpr bool any_of_type(F &&f) {
 	return impl::any_of_type(f, static_cast<TypeList*>(nullptr));
 }
+
+#define M_for_each_type(typelist, code_for_T_in_braces) for_each_type<typelist>([&]<typename T>(T*) { code_for_T_in_braces } )
+#define M_apply_type(typelist, code_for_Tpack_in_braces) apply_type<typelist>([&]<typename ...T>(T*...) { code_for_Tpack_in_braces } )
+#define M_all_of_type(typelist, code_for_T_in_braces) all_of_type<typelist>([&]<typename T>(T*) { code_for_T_in_braces } )
+#define M_any_of_type(typelist, code_for_T_in_braces) any_of_type<typelist>([&]<typename T>(T*) { code_for_T_in_braces } )
 
 } // namespace ecs::detail
 #endif // !TYPE_LIST_H_
