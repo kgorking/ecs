@@ -51,16 +51,6 @@ struct parent_pool_detect<Parent<ParentComponents...>> {
 template <typename T>
 using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
 
-template <int Index, class TypeList>
-constexpr int count_ptrs_in_typelist() {
-	if constexpr (Index == std::tuple_size_v<TypeList>) {
-		return 0;
-	} else if constexpr (std::is_pointer_v<std::tuple_element_t<Index, TypeList>>) {
-		return 1 + count_ptrs_in_tuple<Index + 1, TypeList>();
-	} else {
-		return count_ptrs_in_tuple<Index + 1, TypeList>();
-	}
-}
 
 // Get a component pool from a component pool tuple.
 // Removes cvref and pointer from Component
