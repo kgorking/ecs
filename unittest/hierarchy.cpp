@@ -6,6 +6,14 @@
 
 using namespace ecs;
 
+void teste () {
+	using TL = detail::type_list<int, int&>;
+	constexpr bool x = detail::apply_type<TL>(
+		[&]<typename ...T>() { return (std::is_reference_v<T> || ...); }
+	);
+	static_assert(x);
+}
+
 void reset() {
 	ecs::detail::get_context().reset();
 }
@@ -332,7 +340,7 @@ TEST_CASE("Hierarchies") {
 		commit_changes();
 
 		using namespace ecs::opts;
-		make_system([](parent<int>& p) {
+		make_system<not_parallel>([](parent<int>& p) {
 			p.get<int>() += 1;
 		});
 

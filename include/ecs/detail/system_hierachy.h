@@ -115,8 +115,17 @@ private:
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
-		return M_apply_type(parent_component_list, {
+		return apply_type<parent_component_list>([this]<typename ...T>() {
 			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
+		});
+	}
+
+	constexpr bool has_component(detail::type_hash hash) const noexcept override {
+		if /*constexpr*/ (base::has_component(hash))
+			return true;
+
+		return any_of_type<parent_component_list>([hash]<typename T>() {
+			return get_type_hash<T>() == hash;
 		});
 	}
 
@@ -124,7 +133,7 @@ private:
 		if (base::writes_to_component(hash))
 			return true;
 
-		return M_any_of_type(parent_component_list, {
+		return any_of_type<parent_component_list>([hash]<typename T>() {
 			return get_type_hash<T>() == hash && !is_read_only<T>();
 		});
 	}
@@ -192,9 +201,9 @@ private:
 			// Does tests on the parent sub-components to see they satisfy the constraints
 			// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
 			// has an int.
-			bool const has_parent_types = M_any_of_type(parent_component_list, {
+			bool const has_parent_types = any_of_type<parent_component_list>([pid, pools = this->pools]<typename T>() {
 				// Get the pool of the parent sub-component
-				auto const &sub_pool = get_pool<T>(this->pools);
+				auto const &sub_pool = get_pool<T>(pools);
 
 				if constexpr (std::is_pointer_v<T>) {
 					// The type is a filter, so the parent is _not_ allowed to have this component
@@ -217,7 +226,7 @@ private:
 		test_option_index<is_parent, type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
 	static_assert(-1 != parent_index, "no parent component found");
 
-	using component_list = type_list<FirstComponent, Components...>;
+	using typename base::component_list;
 	using full_parent_type = type_list_at<parent_index, component_list>;
 	using stripped_parent_type = std::remove_cvref_t<full_parent_type>;
 	using parent_component_list = parent_type_list_t<stripped_parent_type>;

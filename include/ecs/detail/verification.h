@@ -98,7 +98,7 @@ namespace ecs::detail {
             if constexpr (total_subtypes > 0) {
                 // Count all the filters in the parent type
 				constexpr size_t num_subtype_filters = apply_type<parent_subtypes>(
-					[](auto *...types) { return (std::is_pointer_v<std::remove_pointer_t<decltype(types)>> + ...); });
+					[]<typename ...Types>() { return (std::is_pointer_v<Types> + ...); });
 
 				// Count all the types minus filters in the parent type
 				constexpr size_t num_parent_subtypes = total_subtypes - num_subtype_filters;

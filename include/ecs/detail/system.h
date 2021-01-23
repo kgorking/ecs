@@ -50,7 +50,7 @@ public:
 		if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
 			// Recurse into the parent types
 			for_each_type<parent_type_list_t<T>>(
-				[this](auto... parent_types) { (this->notify_pool_modifed<decltype(parent_types)>(), ...); });
+				[this]<typename ...ParentTypes>() { (this->notify_pool_modifed<ParentTypes>(), ...); });
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
 			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>().notify_components_modified();
 		}
@@ -81,7 +81,10 @@ public:
 	}
 
 	constexpr bool has_component(detail::type_hash hash) const noexcept override {
-		return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
+		return any_of_type<stripped_component_list>([hash]<typename T>() {
+			return get_type_hash<T>() == hash;
+		});
+		//return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
 	}
 
 	constexpr bool depends_on(system_base const *other) const noexcept override {
@@ -185,7 +188,10 @@ protected:
 	// A tuple of the fully typed component pools used by this system
 	TupPools const pools;
 
-private:
+	// List of components used
+	using component_list = type_list<FirstComponent, Components...>;
+	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
+
 	using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
 	frequency_limiter<user_freq::hz> frequency;
 

@@ -184,19 +184,15 @@ namespace ecs::detail {
             if constexpr (has_parent) {
 
                 // Find the component pools
-                auto const all_pools = apply_type<parent_type_list_t<parent_type>>(
-                    [this](auto* ...parent_types) {
+                auto const all_pools = apply_type<parent_type_list_t<parent_type>>([&]<typename ...T>() {
                         // The pools for the regular components
                         auto const pools = make_tuple_pools<
                             reduce_parent_t<std::remove_cvref_t<FirstComponent>>,
                             reduce_parent_t<std::remove_cvref_t<Components>>...>();
 
                         // Add the pools for the parents components
-                        if constexpr (sizeof...(parent_types) > 0) {
-                            return tuple_cat_unique(
-                                pools,
-                                &get_component_pool<std::remove_pointer_t<decltype(parent_types)>>()...
-                            );
+                        if constexpr (sizeof...(T) > 0) {
+                            return tuple_cat_unique(pools, &get_component_pool<T>()...);
                         } else {
                             return pools;
                         }
