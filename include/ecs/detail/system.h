@@ -208,6 +208,19 @@ protected:
 	// Hashes of stripped types used by this system ('int' instead of 'int const&')
 	static constexpr std::array<detail::type_hash, num_components> type_hashes =
 		get_type_hashes_array<is_entity<FirstComponent>, std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>();
+
+	//
+	// ecs::parent related stuff
+
+	// The index of potential ecs::parent<> component
+	static constexpr int parent_index = test_option_index<is_parent, stripped_component_list>;
+	static constexpr bool has_parent = (parent_index != -1);
+
+	// The parent type, or void
+	using full_parent_type = type_list_at_or<parent_index, component_list, void>;
+	using stripped_parent_type = std::remove_cvref_t<full_parent_type>;
+	using parent_component_list = parent_type_list_t<stripped_parent_type>;
+	static constexpr int num_parent_components = type_list_size<parent_component_list>;
 };
 } // namespace ecs::detail
 

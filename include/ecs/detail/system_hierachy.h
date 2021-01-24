@@ -221,15 +221,17 @@ private:
 	}
 
 private:
-	// Extract the parent type
-	static constexpr int parent_index =
-		test_option_index<is_parent, type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>>;
-	static_assert(-1 != parent_index, "no parent component found");
-
 	using typename base::component_list;
-	using full_parent_type = type_list_at<parent_index, component_list>;
-	using stripped_parent_type = std::remove_cvref_t<full_parent_type>;
-	using parent_component_list = parent_type_list_t<stripped_parent_type>;
+	using typename base::stripped_component_list;
+	using typename base::full_parent_type;
+	using typename base::stripped_parent_type;
+	using typename base::parent_component_list;
+	using base::has_parent;
+	using base::parent_index;
+	using base::num_parent_components;
+
+	// Ensure we have a parent type
+	static_assert(has_parent, "no parent component found");
 
 	// The vector of unrolled arguments
 	std::vector<argument> arguments;
@@ -247,10 +249,6 @@ private:
 	using walker_type = std::conditional_t<is_entity<FirstComponent>, pool_entity_walker<TupPools, Components...>,
 										   pool_entity_walker<TupPools, FirstComponent, Components...>>;
 	walker_type walker;
-
-	static constexpr int num_parent_components = type_list_size<parent_component_list>;
-	//static constexpr std::array<detail::type_hash, num_parent_components> parent_type_hashes =
-	//	get_type_hashes_array<is_entity<FirstComponent>, std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>();
 };
 } // namespace ecs::detail
 
