@@ -6,14 +6,6 @@
 
 using namespace ecs;
 
-void teste () {
-	using TL = detail::type_list<int, int&>;
-	constexpr bool x = detail::apply_type<TL>(
-		[&]<typename ...T>() { return (std::is_reference_v<T> || ...); }
-	);
-	static_assert(x);
-}
-
 void reset() {
 	ecs::detail::get_context().reset();
 }
