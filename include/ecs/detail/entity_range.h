@@ -41,7 +41,7 @@ namespace ecs::detail {
             v.back() = entity_range::merge(v.back(), r);
         else
             v.push_back(r);
-    };
+    }
 
     // Find the difference between two sets of ranges.
     // Removes ranges in b from a.
