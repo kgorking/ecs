@@ -65,6 +65,12 @@ private:
 		// map of entity info
 		info_map info;
 
+		size_t count = 0;
+		for (auto const &range : ranges)
+			count += range.count();
+		arguments.reserve(count);
+		info.reserve(count);
+
 		// Build the arguments for the ranges
 		// TODO optimize this further
 		int index = 0;
@@ -98,7 +104,7 @@ private:
 		std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
 
 		// Update the offsets in the spans
-		size_t count = 0;
+		count = 0;
 		for (std::span<argument> &current_span : argument_spans) {
 			current_span = std::span(arguments.data() + count, current_span.size());
 			count += current_span.size();
