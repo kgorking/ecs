@@ -75,6 +75,108 @@
         }
       ],
       "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+      "name": "WSL-GCC-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "cmake",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "variables": [
+        {
+          "name": "BENCHMARK_ENABLE_INSTALL",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "BENCHMARK_ENABLE_EXCEPTIONS",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/usr/bin/g++-10",
+          "type": "FILEPATH"
+        }
+      ]
+    },
+    {
+      "name": "WSL-Clang-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "cmake",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_clang_x64" ],
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "variables": []
+    },
+    {
+      "name": "WSL-GCC-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "cmake",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "variables": [
+        {
+          "name": "BENCHMARK_ENABLE_INSTALL",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "BENCHMARK_ENABLE_GTEST_TESTS",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "BENCHMARK_ENABLE_EXCEPTIONS",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/usr/bin/g++-10",
+          "type": "FILEPATH"
+        }
+      ],
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0"
+    },
+    {
+      "name": "WSL-Clang-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "cmake",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_clang_x64" ],
+      "variables": [],
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0"
     }
   ]
 }
