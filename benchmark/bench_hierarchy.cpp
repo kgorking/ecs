@@ -37,7 +37,7 @@ void build_hierarchy_with_components(benchmark::State &state) {
 		ecs::make_system([](int, ecs::parent<>) {});
 	}
 
-	state.SetItemsProcessed(state.iterations());
+	state.SetItemsProcessed(nentities * state.iterations());
 }
 ECS_BENCHMARK(build_hierarchy_with_components);
 
@@ -56,7 +56,7 @@ void build_hierarchy_with_sub_components(benchmark::State &state) {
 		ecs::make_system([](int, ecs::parent<int> const &) {});
 	}
 
-	state.SetItemsProcessed(state.iterations());
+	state.SetItemsProcessed(nentities * state.iterations());
 }
 ECS_BENCHMARK(build_hierarchy_with_sub_components);
 
