@@ -10,7 +10,7 @@ using namespace ecs;
 // A wrapper for the standard benchmark that forces a hierarchy to built
 void hierarch_lambda(entity_id id, int &i, parent<int> const& /*p*/) {
 	benchmark_system(id, i);
-};
+}
 
 void build_hierarchy_no_components(benchmark::State &state) {
 	for ([[maybe_unused]] auto const _ : state) {
