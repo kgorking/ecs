@@ -31,6 +31,11 @@ constexpr bool is_read_only() {
 template <typename T>
 struct parent_type_list; // primary template
 
+template <>
+struct parent_type_list<void> {
+	using type = void;
+}; // partial specialization for void
+
 template <template <class...> class Parent, class... ParentComponents> // partial specialization
 struct parent_type_list<Parent<ParentComponents...>> {
 	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");

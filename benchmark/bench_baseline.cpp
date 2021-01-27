@@ -25,7 +25,7 @@ void run_raw(benchmark::State &state) {
 // Simulates the hierarchial setup from system_hiearchy
 template <bool parallel>
 void run_raw_hierarchy(benchmark::State &state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<size_t>(state.range(0));
 
 	//
 	// Simulate the central storage.

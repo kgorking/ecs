@@ -35,6 +35,14 @@ namespace ecs::detail {
         return result;
     }
 
+    // Merges a range into the last range in the vector, or adds a new range
+    inline void merge_or_add(std::vector<entity_range>& v, entity_range r) {
+        if (!v.empty() && v.back().can_merge(r))
+            v.back() = entity_range::merge(v.back(), r);
+        else
+            v.push_back(r);
+    }
+
     // Find the difference between two sets of ranges.
     // Removes ranges in b from a.
     inline std::vector<entity_range> difference_ranges(entity_range_view view_a, entity_range_view view_b) {
@@ -47,13 +55,6 @@ namespace ecs::detail {
         auto it_a = view_a.begin();
         auto it_b = view_b.begin();
 
-        auto const add = [&result](entity_range r) {
-            if (!result.empty() && result.back().can_merge(r))
-                result.back() = entity_range::merge(result.back(), r);
-            else
-                result.push_back(r);
-        };
-
         auto range_a = *it_a;
         while (it_a != view_a.end() && it_b != view_b.end()) {
             if (it_b->contains(range_a)) {
@@ -63,7 +64,7 @@ namespace ecs::detail {
                     range_a = *it_a;
             } else if (range_a < *it_b) {
                 // The whole 'a' range is before 'b', so add range 'a'
-                add(range_a);
+                merge_or_add(result, range_a);
 
                 if (++it_a != view_a.end())
                     range_a = *it_a;
@@ -78,11 +79,11 @@ namespace ecs::detail {
                 if (res.second) {
                     // Range 'a' was split in two by range 'b'. Add the first range and update
                     // range 'a' with the second range
-                    add(res.first);
+                    merge_or_add(result, res.first);
                     range_a = *res.second;
 
                     if (++it_b == view_b.end())
-                        add(range_a);
+                        merge_or_add(result, range_a);
                 } else {
                     // Range 'b' removes some of range 'a'
 
@@ -91,10 +92,10 @@ namespace ecs::detail {
                         range_a = res.first;
 
                         if (++it_b == view_b.end())
-                            add(range_a);
+                            merge_or_add(result, range_a);
                     } else {
                         // Add the range
-                        add(res.first);
+                        merge_or_add(result, res.first);
 
                         if (++it_a != view_a.end())
                             range_a = *it_a;
