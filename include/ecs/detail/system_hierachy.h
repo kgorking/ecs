@@ -157,7 +157,7 @@ private:
 
 		// insert the entity info
 		auto const &[count, root_index] = parent_it->second;
-		auto const [it, $] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
+		auto const [it, _p] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
 		return it;
 	}
 
