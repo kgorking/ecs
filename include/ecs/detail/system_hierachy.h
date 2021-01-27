@@ -33,7 +33,6 @@ public:
 	system_hierarchy(UpdateFn update_func, TupPools pools)
 		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
 		, parent_pools{make_parent_types_tuple()}
-		, pool_parent_id{get_pool<parent_id>(pools)}
 		, walker(pools) {}
 
 private:
@@ -71,14 +70,6 @@ private:
 		int index = 0;
 		while (!walker.done()) {
 			entity_id const entity = walker.get_entity();
-
-			// TODO move this check to system::find_entities
-			if constexpr (has_parent_types()) {
-				if (!has_required_parent_types(entity)) {
-					walker.next();
-					continue;
-				}
-			}
 
 			info_iterator const ent_info = fill_entity_info(info, entity, index);
 
@@ -120,24 +111,6 @@ private:
 		});
 	}
 
-	constexpr bool has_component(detail::type_hash hash) const noexcept override {
-		if /*constexpr*/ (base::has_component(hash))
-			return true;
-
-		return any_of_type<parent_component_list>([hash]<typename T>() {
-			return get_type_hash<T>() == hash;
-		});
-	}
-
-	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
-		if (base::writes_to_component(hash))
-			return true;
-
-		return any_of_type<parent_component_list>([hash]<typename T>() {
-			return get_type_hash<T>() == hash && !is_read_only<T>();
-		});
-	}
-
 	// Extracts a component argument from a tuple
 	template <typename Component, typename Tuple>
 	static decltype(auto) extract(Tuple &tuple) {
@@ -171,7 +144,7 @@ private:
 			return ent_it;
 
 		// Get the parent id
-		entity_id const *parent_id = pool_parent_id.find_component_data(entity);
+		entity_id const *parent_id = pool_parent_id->find_component_data(entity);
 		if (parent_id == nullptr) {
 			// This entity does not have a 'parent_id' component,
 			// which means that this entity is a root
@@ -188,50 +161,19 @@ private:
 		return it;
 	}
 
-	constexpr static bool has_parent_types() {
-		return (0 != num_parent_components);
-	}
-
-	bool has_required_parent_types(entity_id const entity) const {
-		// If the parent has sub-components specified, verify them
-		if constexpr (has_parent_types()) {
-			// Get the parent components id
-			parent_id const pid = *pool_parent_id.find_component_data(entity);
-
-			// Does tests on the parent sub-components to see they satisfy the constraints
-			// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
-			// has an int.
-			bool const has_parent_types = any_of_type<parent_component_list>([pid, pools = this->pools]<typename T>() {
-				// Get the pool of the parent sub-component
-				auto const &sub_pool = get_pool<T>(pools);
-
-				if constexpr (std::is_pointer_v<T>) {
-					// The type is a filter, so the parent is _not_ allowed to have this component
-					return !sub_pool.has_entity(pid);
-				} else {
-					// The parent must have this component
-					return sub_pool.has_entity(pid);
-				}
-			});
-
-			return has_parent_types;
-		} else {
-			return true;
-		}
-	}
-
 private:
 	using typename base::component_list;
 	using typename base::stripped_component_list;
 	using typename base::full_parent_type;
 	using typename base::stripped_parent_type;
 	using typename base::parent_component_list;
-	using base::has_parent;
+	using base::pool_parent_id;
+	using base::has_parent_types;
 	using base::parent_index;
 	using base::num_parent_components;
 
 	// Ensure we have a parent type
-	static_assert(has_parent, "no parent component found");
+	static_assert(has_parent_types, "no parent component found");
 
 	// The vector of unrolled arguments
 	std::vector<argument> arguments;
@@ -241,9 +183,6 @@ private:
 
 	// A tuple of the fully typed component pools used the parent component
 	parent_pool_tuple_t<stripped_parent_type> const parent_pools;
-
-	// The pool that holds 'parent_id's
-	component_pool<parent_id> const &pool_parent_id;
 
 	// walker
 	using walker_type = std::conditional_t<is_entity<FirstComponent>, pool_entity_walker<TupPools, Components...>,

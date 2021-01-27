@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <unordered_set>
 
 #include "../entity_id.h"
 #include "../entity_range.h"
@@ -25,7 +26,15 @@ class system : public system_base {
 	virtual void do_build(entity_range_view) = 0;
 
 public:
-	system(UpdateFn update_func, TupPools pools) : update_func{update_func}, pools{pools} {}
+	system(UpdateFn update_func, TupPools pools)
+		: update_func{update_func}
+		, pools{pools}
+		, pool_parent_id{nullptr}
+	{
+		if constexpr (has_parent_types) {
+			pool_parent_id = &detail::get_pool<parent_id>(pools);
+		}
+	}
 
 	void run() override {
 		if (!is_enabled()) {
@@ -52,7 +61,7 @@ public:
 			for_each_type<parent_type_list_t<T>>(
 				[this]<typename ...ParentTypes>() { (this->notify_pool_modifed<ParentTypes>(), ...); });
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
-			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>().notify_components_modified();
+			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>(pools).notify_components_modified();
 		}
 	}
 
@@ -81,18 +90,26 @@ public:
 	}
 
 	constexpr bool has_component(detail::type_hash hash) const noexcept override {
-		return any_of_type<stripped_component_list>([hash]<typename T>() {
-			return get_type_hash<T>() == hash;
-		});
-		//return type_hashes.end() != std::find(type_hashes.begin(), type_hashes.end(), hash);
+		auto const check_hash = [hash]<typename T>() { return get_type_hash<T>() == hash; };
+
+		if (any_of_type<stripped_component_list>(check_hash))
+			return true;
+
+		if constexpr (has_parent_types) {
+			return any_of_type<parent_component_list>(check_hash);
+		} else {
+			return false;
+		}
 	}
 
 	constexpr bool depends_on(system_base const *other) const noexcept override {
-		for (auto hash : get_type_hashes()) {
+		return any_of_type<stripped_component_list>([this, other]<typename T>() {
+			constexpr auto hash = get_type_hash<T>();
+
 			// If the other system doesn't touch the same component,
 			// then there can be no dependecy
 			if (!other->has_component(hash))
-				continue;
+				return false;
 
 			bool const other_writes = other->writes_to_component(hash);
 			if (other_writes) {
@@ -111,32 +128,24 @@ public:
 					// These systems have a weak read/read dependency
 					// and can be scheduled concurrently
 					// Order does not need to be preserved.
-					continue;
+					return false;
 				}
 			}
-		}
-
-		return false;
+		});
 	}
 
 	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
-		auto const it = std::find(type_hashes.begin(), type_hashes.end(), hash);
-		if (it == type_hashes.end())
-			return false;
+		auto const check_writes = [hash]<typename T>() {
+			return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>();
+		};
 
-		// Contains true if a type is read-only
-		constexpr std::array<bool, num_components> type_read_only =
-			get_type_read_only<is_entity<FirstComponent>, FirstComponent, Components...>();
+		if (any_of_type<component_list>(check_writes))
+			return true;
 
-		return !type_read_only[std::distance(type_hashes.begin(), it)];
-	}
-
-	template <bool ignore_first_arg, typename First, typename... Types>
-	static constexpr auto get_type_read_only() {
-		if constexpr (!ignore_first_arg) {
-			return std::array<bool, 1 + sizeof...(Types)>{is_read_only<First>(), is_read_only<Types>()...};
+		if constexpr (has_parent_types) {
+			return any_of_type<parent_component_list>(check_writes);
 		} else {
-			return std::array<bool, sizeof...(Types)>{is_read_only<Types>()...};
+			return false;
 		}
 	}
 
@@ -162,7 +171,7 @@ private:
 	// Locate all the entities affected by this system
 	// and send them to the argument builder
 	void find_entities() {
-		if constexpr (num_components == 1) {
+		if constexpr (num_components == 1 && !has_parent_types) {
 			// Build the arguments
 			entity_range_view const entities = std::get<0>(pools)->get_entities();
 			do_build(entities);
@@ -170,15 +179,45 @@ private:
 			// When there are more than one component required for a system,
 			// find the intersection of the sets of entities that have those components
 
-			// Build the arguments
-			auto const ranges = find_entity_pool_intersections<FirstComponent, Components...>(pools);
+			std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(pools);
+
+			if constexpr (has_parent_types) {
+				// the vector of ranges to remove
+				std::vector<entity_range> ents_to_remove;
+
+				for (auto const& range : ranges) {
+					for (auto const ent : range) {
+						// Get the parent ids in the range
+						parent_id const pid = *pool_parent_id->find_component_data(ent);
+
+						// Does tests on the parent sub-components to see they satisfy the constraints
+						// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
+						// has an int.
+						for_each_type<parent_component_list>([&pid, this, ent, &ents_to_remove]<typename T>() {
+							// Get the pool of the parent sub-component
+							auto const &sub_pool = detail::get_pool<T>(this->pools);
+
+							if constexpr (std::is_pointer_v<T>) {
+								// The type is a filter, so the parent is _not_ allowed to have this component
+								if (sub_pool.has_entity(pid)) {
+									merge_or_add(ents_to_remove, entity_range{ent, ent});
+								}
+							} else {
+								// The parent must have this component
+								if (!sub_pool.has_entity(pid)) {
+									merge_or_add(ents_to_remove, entity_range{ent, ent});
+								}
+							}
+						});
+					}
+				}
+
+				// Remove entities from the result
+				ranges = difference_ranges(ranges, ents_to_remove);
+			}
+
 			do_build(ranges);
 		}
-	}
-
-	template <typename Component>
-	[[nodiscard]] component_pool<Component> &get_pool() const {
-		return detail::get_pool<Component>(pools);
 	}
 
 protected:
@@ -187,6 +226,9 @@ protected:
 
 	// A tuple of the fully typed component pools used by this system
 	TupPools const pools;
+
+	// The pool that holds 'parent_id's
+	component_pool<parent_id> const* pool_parent_id;
 
 	// List of components used
 	using component_list = type_list<FirstComponent, Components...>;
@@ -214,7 +256,7 @@ protected:
 
 	// The index of potential ecs::parent<> component
 	static constexpr int parent_index = test_option_index<is_parent, stripped_component_list>;
-	static constexpr bool has_parent = (parent_index != -1);
+	static constexpr bool has_parent_types = (parent_index != -1);
 
 	// The parent type, or void
 	using full_parent_type = type_list_at_or<parent_index, component_list, void>;
