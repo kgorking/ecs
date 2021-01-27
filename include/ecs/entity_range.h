@@ -30,11 +30,6 @@ namespace ecs {
             return {std::numeric_limits<detail::entity_type>::min(), std::numeric_limits<detail::entity_type>::max()};
         }
 
-        template<typename Component>
-        [[nodiscard]] std::span<Component> get() const {
-            return std::span(get_component<Component>(first_), count());
-        }
-
         [[nodiscard]] constexpr detail::entity_iterator begin() const {
             return detail::entity_iterator{first_};
         }

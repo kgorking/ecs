@@ -52,7 +52,7 @@ int main() {
 
     // Count the pixels equal to one
     size_t counter = 0;
-    for (size_t const& color : ents.get<size_t>())
+    for (size_t const& color : ecs::get_components<size_t>(ents))
         if (color == 1)
             counter++;
 
