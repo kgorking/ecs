@@ -9,7 +9,7 @@
 #include "pool_entity_walker.h"
 #include "system.h"
 #include "system_defs.h"
-
+#include "entity_offset.h"
 #include "type_list.h"
 
 namespace ecs::detail {
@@ -62,6 +62,8 @@ private:
 		pool_entity_walker<TupPools> walker(this->pools);
 		walker.reset(ranges);
 
+		entity_offset_conv conv{ranges};
+
 		// map of entity info
 		info_map info;
 
@@ -76,6 +78,10 @@ private:
 		int index = 0;
 		while (!walker.done()) {
 			entity_id const entity = walker.get_entity();
+
+			/*uint32_t const conv_offset = conv.to_offset(entity);
+			entity_id const conv_entity = conv.from_offset(conv_offset);
+			Expects(conv_entity == entity);*/
 
 			info_iterator const ent_info = fill_entity_info(info, entity, index);
 
