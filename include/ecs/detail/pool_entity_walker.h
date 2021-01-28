@@ -39,7 +39,7 @@ using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 
 // Linearly walks one-or-more component pools
 // TODO why is this not called an iterator?
-template <class Pools, class... Components>
+template <class Pools>
 struct pool_entity_walker {
 	pool_entity_walker(Pools pools) : pools(pools) {
 		ranges_it = ranges.end();

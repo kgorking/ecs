@@ -33,7 +33,7 @@ public:
 	system_hierarchy(UpdateFn update_func, TupPools pools)
 		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
 		, parent_pools{make_parent_types_tuple()}
-		, walker(pools) {}
+	{}
 
 private:
 	void do_run() override {
@@ -60,6 +60,7 @@ private:
 		}
 
 		// Reset the walker to the new entities
+		pool_entity_walker<TupPools> walker(this->pools);
 		walker.reset(ranges);
 
 		// map of entity info
@@ -189,11 +190,6 @@ private:
 
 	// A tuple of the fully typed component pools used the parent component
 	parent_pool_tuple_t<stripped_parent_type> const parent_pools;
-
-	// walker
-	using walker_type = std::conditional_t<is_entity<FirstComponent>, pool_entity_walker<TupPools, Components...>,
-										   pool_entity_walker<TupPools, FirstComponent, Components...>>;
-	walker_type walker;
 };
 } // namespace ecs::detail
 
