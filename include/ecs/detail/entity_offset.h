@@ -16,7 +16,7 @@ class entity_offset_conv {
 public:
 	entity_offset_conv(entity_range_view ranges) : ranges(ranges) {
 		range_offsets.resize(ranges.size());
-		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), 0, 
+		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), uint32_t{0}, 
 			[](uint32_t val, entity_range r) {
 				return static_cast<uint32_t>(val + r.count());
 			}
@@ -33,7 +33,7 @@ public:
 	entity_id from_offset(uint32_t offset) const {
 		auto const it = std::upper_bound(range_offsets.begin(), range_offsets.end(), offset);
 		auto const dist = std::distance(range_offsets.begin(), it);
-		auto const dist_prev = std::max(0ll, dist - 1);
+		auto const dist_prev = std::max(ptrdiff_t{0}, dist - 1);
 		return ranges[dist_prev].first() + offset - range_offsets[dist_prev];
 	}
 };
