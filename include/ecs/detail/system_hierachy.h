@@ -1,7 +1,6 @@
 #ifndef __SYSTEM_HIERARCHY_H_
 #define __SYSTEM_HIERARCHY_H_
 
-#include <map>
 #include <unordered_map>
 
 #include "../parent.h"
@@ -59,7 +58,7 @@ private:
 			return;
 		}
 
-		// Reset the walker to the new entities
+		// Create a walker
 		pool_entity_walker<TupPools> walker(this->pools);
 		walker.reset(ranges);
 
