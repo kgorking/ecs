@@ -26,12 +26,19 @@ void build_hierarchy_with_components(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
+		state.BeginIgnoreTiming();
 		ecs::detail::_context.reset();
 
-		state.BeginIgnoreTiming();
-		ecs::add_component({0, nentities - 1}, int{});
-		ecs::add_component({1, nentities}, int{}, [](ecs::entity_id id) { return ecs::parent{id - 1}; });
-		ecs::commit_changes();
+		// The number of children in hierarchies to test
+		const int num_children = 7;
+
+		detail::entity_type id = 0;
+		add_component({0, nentities}, int{0});
+		while (id < nentities) {
+			add_component({id + 1, id + num_children}, parent{id + 0});
+			id += 1 + num_children;
+		}
+		commit_changes();
 		state.EndIgnoreTiming();
 
 		ecs::make_system([](int, ecs::parent<>) {});
@@ -45,12 +52,19 @@ void build_hierarchy_with_sub_components(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
+		state.BeginIgnoreTiming();
 		ecs::detail::_context.reset();
 
-		state.BeginIgnoreTiming();
-		ecs::add_component({0, nentities - 1}, int{});
-		ecs::add_component({1, nentities}, int{}, [](ecs::entity_id id) { return ecs::parent{id - 1}; });
-		ecs::commit_changes();
+		// The number of children in hierarchies to test
+		const int num_children = 7;
+
+		detail::entity_type id = 0;
+		add_component({0, nentities}, int{0});
+		while (id < nentities) {
+			add_component({id + 1, id + num_children}, parent{id + 0});
+			id += 1 + num_children;
+		}
+		commit_changes();
 		state.EndIgnoreTiming();
 
 		ecs::make_system([](int, ecs::parent<int> const &) {});

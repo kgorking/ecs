@@ -103,7 +103,7 @@ TEST_CASE("Hierarchies") {
 	SECTION("works on lots of trees") {
 		reset();
 
-	    auto const nentities = 256 * 256;
+	    auto const nentities = 256;
 
 		// The set to verify the traversal order
 		std::unordered_set<int> traversal_order;
@@ -317,7 +317,7 @@ TEST_CASE("Hierarchies") {
 	SECTION("interactions with parents are correct") {
 		reset();
 
-		auto const nentities = 256 * 256;
+		auto const nentities = 256;
 
 		detail::entity_type id = 0;
 		while (id < nentities) {

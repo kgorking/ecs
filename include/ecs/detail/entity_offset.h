@@ -11,30 +11,38 @@ namespace ecs::detail {
 
 class entity_offset_conv {
 	entity_range_view ranges;
-	std::vector<uint32_t> range_offsets;
+	std::vector<int> range_offsets;
 
 public:
-	entity_offset_conv(entity_range_view ranges) : ranges(ranges) {
+	entity_offset_conv(entity_range_view ranges) noexcept : ranges(ranges) {
 		range_offsets.resize(ranges.size());
-		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), uint32_t{0}, 
-			[](uint32_t val, entity_range r) {
-				return static_cast<uint32_t>(val + r.count());
+		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), int{0}, 
+			[](int val, entity_range r) {
+				return static_cast<int>(val + r.count());
 			}
 		);
 	}
 
-	uint32_t to_offset(entity_id ent) const {
+	bool contains(entity_id ent) const noexcept {
 		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
-		Expects(it != ranges.end()); // Expects the entity to be in the ranges
+		if (it == ranges.end() || !it->contains(ent))
+			return false;
+		else
+			return true;
+	}
+
+	int to_offset(entity_id ent) const noexcept {
+		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
+		Expects(it != ranges.end() && it->contains(ent)); // Expects the entity to be in the ranges
 
 		return range_offsets[std::distance(ranges.begin(), it)] + (ent - it->first());
 	}
 
-	entity_id from_offset(uint32_t offset) const {
+	entity_id from_offset(int offset) const noexcept {
 		auto const it = std::upper_bound(range_offsets.begin(), range_offsets.end(), offset);
 		auto const dist = std::distance(range_offsets.begin(), it);
 		auto const dist_prev = std::max(ptrdiff_t{0}, dist - 1);
-		return ranges[dist_prev].first() + offset - range_offsets[dist_prev];
+		return static_cast<entity_id>(ranges[dist_prev].first() + offset - range_offsets[dist_prev]);
 	}
 };
 
