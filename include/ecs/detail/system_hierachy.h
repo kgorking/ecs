@@ -3,6 +3,7 @@
 
 #include <map>
 #include <unordered_map>
+#include <future>
 
 #include "../parent.h"
 #include "entity_range_iterator.h"
@@ -10,7 +11,7 @@
 #include "pool_entity_walker.h"
 #include "system.h"
 #include "system_defs.h"
-
+#include "entity_offset.h"
 #include "type_list.h"
 
 namespace ecs::detail {
@@ -24,7 +25,7 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 
 	using entity_info = std::pair<int, entity_type>; // parent count, root id
 	using info_map = std::unordered_map<entity_type, entity_info>;
-	using info_iterator = info_map::iterator;
+	using info_iterator = info_map::const_iterator;
 
 	using argument = decltype(
 		std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
@@ -59,57 +60,75 @@ private:
 			return;
 		}
 
-		// Reset the walker to the new entities
-		pool_entity_walker<TupPools> walker(this->pools);
-		walker.reset(ranges);
-
-		// map of entity info
-		info_map info;
-
 		size_t count = 0;
 		for (auto const &range : ranges)
 			count += range.count();
-		arguments.reserve(count);
-		info.reserve(count);
+		if constexpr (is_entity<FirstComponent>) {
+			argument arg{entity_id{0}, component_argument<Components>{0}..., entity_info{}};
+			arguments.resize(count, arg);
+		} else {
+			argument arg{entity_id{0}, component_argument<FirstComponent>{0}, component_argument<Components>{0}..., entity_info{}};
+			arguments.resize(count, arg);
+		}
+
+		// map of entity and root info
+		tls::splitter<std::map<entity_type, int>, component_list> tls_roots;
 
 		// Build the arguments for the ranges
-		// TODO optimize this further
-		int index = 0;
-		while (!walker.done()) {
-			entity_id const entity = walker.get_entity();
+		std::atomic<int> index = 0;
+		std::for_each(std::execution::par, ranges.begin(), ranges.end(), [this, &tls_roots, &index, conv = entity_offset_conv{ranges}](auto const &range) {
+			// Create a walker
+			thread_local pool_entity_walker<TupPools> walker(this->pools);
+			walker.reset(entity_range_view{{range}});
 
-			info_iterator const ent_info = fill_entity_info(info, entity, index);
+			info_map info;
+			std::map<entity_type, int> &roots = tls_roots.local();
 
-			// Add the argument for the entity
-			if constexpr (is_entity<FirstComponent>) {
-				arguments.emplace_back(entity, walker.template get<Components>()..., ent_info->second);
-			} else {
-				arguments.emplace_back(entity, walker.template get<FirstComponent>(), walker.template get<Components>()...,
-									   ent_info->second);
+			while (!walker.done()) {
+				entity_id const entity = walker.get_entity();
+				uint32_t const ent_offset = conv.to_offset(entity);
+
+				info_iterator const ent_info = fill_entity_info(info, entity, index);
+
+				// Add the argument for the entity
+				if constexpr (is_entity<FirstComponent>) {
+					arguments[ent_offset] = argument(entity, walker.template get<Components>()..., ent_info->second);
+				} else {
+					arguments[ent_offset] = argument(entity, walker.template get<FirstComponent>(), walker.template get<Components>()...,
+										   ent_info->second);
+				}
+
+				// Update the root child count
+				auto const root_index = ent_info->second.second;
+				roots[root_index] += 1;
+
+				walker.next();
+			}
+		});
+
+		auto const fut = std::async(std::launch::async, [&]() {
+			// Collapse the thread_local roots maps into the first map
+			auto const dest = tls_roots.begin();
+			auto current = std::next(dest);
+			while (current != tls_roots.end()) {
+				dest->merge(std::move(*current));
+				++current;
 			}
 
-			// Update the spans
-			size_t const root_index = ent_info->second.second;
-			if (root_index == argument_spans.size()) {
-				// New root of a tree has been started, so create its new span with a count of one
-				argument_spans.emplace_back((argument *)nullptr, 1);
-			} else {
-				// Update the child-count of an existing tree
-				auto& current_span = argument_spans[root_index];
-				current_span = std::span((argument *)nullptr, 1 + current_span.size());
+			// Create the argument spans
+			count = 0;
+			for (auto const &[id, child_count] : *dest) {
+				argument_spans.emplace_back(arguments.data() + count, child_count);
+				count += child_count;
 			}
 
-			walker.next();
-		}
+			dest->clear();
+		});
 
+		// Do the topological sort of the arguments
 		std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
 
-		// Update the offsets in the spans
-		count = 0;
-		for (std::span<argument> &current_span : argument_spans) {
-			current_span = std::span(arguments.data() + count, current_span.size());
-			count += current_span.size();
-		}
+		fut.wait();
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
@@ -145,7 +164,7 @@ private:
 			return depth_l < depth_r;
 	}
 
-	info_iterator fill_entity_info(info_map &info, entity_id const entity, int &index) {
+	info_iterator fill_entity_info_aux(info_map &info, entity_id const entity, std::atomic<int> &index) const {
 		auto const ent_it = info.find(entity);
 		if (ent_it != info.end())
 			return ent_it;
@@ -160,7 +179,20 @@ private:
 		}
 
 		// look up the parent info
-		info_iterator const parent_it = fill_entity_info(info, *parent_id, index);
+		info_iterator const parent_it = fill_entity_info_aux(info, *parent_id, index);
+
+		// insert the entity info
+		auto const &[count, root_index] = parent_it->second;
+		auto const [it, _p] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
+		return it;
+	}
+
+	info_iterator fill_entity_info(info_map &info, entity_id const entity, std::atomic<int> &index) const {
+		// Get the parent id
+		entity_id const *parent_id = pool_parent_id->find_component_data(entity);
+
+		// look up the parent info
+		info_iterator const parent_it = fill_entity_info_aux(info, *parent_id, index);
 
 		// insert the entity info
 		auto const &[count, root_index] = parent_it->second;

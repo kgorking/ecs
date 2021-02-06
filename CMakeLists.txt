@@ -35,9 +35,7 @@ if (MSVC)
 else()
     # lots of warnings
     target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -pedantic ${STDLIB})
-
-    # thread sanitizer
-    #target_compile_options(ecs INTERFACE -fsanitize=thread -g -O1)
+    target_link_options(ecs INTERFACE -pthread)
 
     # Disable C++ exceptions.
     # - fails to compile on gcc 10

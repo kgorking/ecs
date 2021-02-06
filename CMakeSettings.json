@@ -90,7 +90,8 @@
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "variables": [],
-      "intelliSenseMode": "windows-clang-x64"
+      "intelliSenseMode": "windows-msvc-x64",
+      "addressSanitizerEnabled": true
     },
     {
       "name": "WSL-GCC-Debug",
@@ -127,7 +128,8 @@
           "type": "FILEPATH"
         }
       ],
-      "intelliSenseMode": "linux-gcc-x64"
+      "intelliSenseMode": "windows-msvc-x64",
+      "addressSanitizerEnabled": true
     },
     {
       "name": "WSL-GCC-Release",
@@ -164,7 +166,8 @@
       ],
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
-      "intelliSenseMode": "linux-gcc-x64"
+      "intelliSenseMode": "windows-msvc-x64",
+      "addressSanitizerEnabled": false
     },
     {
       "name": "WSL-Clang-Release",
@@ -180,7 +183,8 @@
       "variables": [],
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
-      "intelliSenseMode": "windows-clang-x64"
+      "intelliSenseMode": "windows-msvc-x64",
+      "addressSanitizerEnabled": false
     },
     {
       "name": "x64-Profile",

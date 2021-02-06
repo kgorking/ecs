@@ -61,7 +61,8 @@ struct pool_entity_walker {
 		++ranges_it;
 		offset = 0;
 
-		update_pool_offsets();
+		if (!done())
+			update_pool_offsets();
 	}
 
 	void next() {
