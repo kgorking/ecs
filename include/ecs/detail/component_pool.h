@@ -1,5 +1,5 @@
-#ifndef __COMPONENT_POOL
-#define __COMPONENT_POOL
+#ifndef ECS_COMPONENT_POOL
+#define ECS_COMPONENT_POOL
 
 #include <functional>
 #include <tuple>
@@ -583,4 +583,4 @@ namespace ecs::detail {
     };
 } // namespace ecs::detail
 
-#endif // !__COMPONENT_POOL
+#endif // !ECS_COMPONENT_POOL

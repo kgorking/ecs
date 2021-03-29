@@ -1,5 +1,5 @@
-#ifndef __DETAIL_FLAGS_H
-#define __DETAIL_FLAGS_H
+#ifndef ECS_DETAIL_FLAGS_H
+#define ECS_DETAIL_FLAGS_H
 
 #include <type_traits>
 #include "../flags.h"
@@ -31,4 +31,4 @@ namespace ecs::detail {
     concept unbound = (tagged<T> || global<T>); // component is not bound to a specific entity (ie static)
 } // namespace ecs::detail
 
-#endif // !__DETAIL_COMPONENT_FLAGS_H
+#endif // !ECS_DETAIL_COMPONENT_FLAGS_H

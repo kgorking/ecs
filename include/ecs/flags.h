@@ -1,5 +1,5 @@
-#ifndef __FLAGS_H
-#define __FLAGS_H
+#ifndef ECS_FLAGS_H
+#define ECS_FLAGS_H
 
 // Add flags to a component to change its behaviour and memory usage.
 // Example:
@@ -34,4 +34,4 @@ namespace ecs::flag {
     struct global{};
 }
 
-#endif // !__COMPONENT_FLAGS_H
+#endif // !ECS_COMPONENT_FLAGS_H

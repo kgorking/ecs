@@ -1,5 +1,5 @@
-#ifndef __OPTIONS_H
-#define __OPTIONS_H
+#ifndef ECS_OPTIONS_H
+#define ECS_OPTIONS_H
 
 namespace ecs::opts {
     template<int I>
@@ -19,4 +19,4 @@ namespace ecs::opts {
 
 } // namespace ecs::opts
 
-#endif // !__OPTIONS_H
+#endif // !ECS_OPTIONS_H
