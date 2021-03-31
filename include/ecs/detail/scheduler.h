@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_SCHEDULER
-#define __SYSTEM_SCHEDULER
+#ifndef ECS_SYSTEM_SCHEDULER
+#define ECS_SYSTEM_SCHEDULER
 
 #include <algorithm>
 #include <atomic>
@@ -186,4 +186,4 @@ namespace ecs::detail {
     };
 } // namespace ecs::detail
 
-#endif // !__SYSTEM_SCHEDULER
+#endif // !ECS_SYSTEM_SCHEDULER

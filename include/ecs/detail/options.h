@@ -1,5 +1,5 @@
-#ifndef __DETAIL_OPTIONS_H
-#define __DETAIL_OPTIONS_H
+#ifndef ECS_DETAIL_OPTIONS_H
+#define ECS_DETAIL_OPTIONS_H
 
 #include "../options.h"
 #include "type_list.h"
@@ -117,4 +117,4 @@ namespace ecs::detail {
     }
 } // namespace ecs::detail
 
-#endif // !__DETAIL_OPTIONS_H
+#endif // !ECS_DETAIL_OPTIONS_H

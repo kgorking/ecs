@@ -1,5 +1,5 @@
-#ifndef __PARENT_H_
-#define __PARENT_H_
+#ifndef ECS_PARENT_H_
+#define ECS_PARENT_H_
 
 #include "detail/system_defs.h"
 #include "entity_id.h"
@@ -56,4 +56,4 @@ private:
 };
 } // namespace ecs
 
-#endif // !__PARENT_H_
+#endif // !ECS_PARENT_H_
