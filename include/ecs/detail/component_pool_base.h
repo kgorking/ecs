@@ -1,5 +1,5 @@
-#ifndef __COMPONENT_POOL_BASE
-#define __COMPONENT_POOL_BASE
+#ifndef ECS_COMPONENT_POOL_BASE
+#define ECS_COMPONENT_POOL_BASE
 
 namespace ecs::detail {
     // The baseclass of typed component pools
@@ -19,4 +19,4 @@ namespace ecs::detail {
     };
 } // namespace ecs::detail
 
-#endif // !__COMPONENT_POOL_BASE
+#endif // !ECS_COMPONENT_POOL_BASE

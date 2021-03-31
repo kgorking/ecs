@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_HIERARCHY_H_
-#define __SYSTEM_HIERARCHY_H_
+#ifndef ECS_SYSTEM_HIERARCHY_H_
+#define ECS_SYSTEM_HIERARCHY_H_
 
 #include <map>
 #include <unordered_map>
@@ -225,4 +225,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !__SYSTEM_HIERARCHY_H_
+#endif // !ECS_SYSTEM_HIERARCHY_H_

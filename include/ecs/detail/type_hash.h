@@ -1,5 +1,5 @@
-#ifndef __TYPE_HASH
-#define __TYPE_HASH
+#ifndef ECS_TYPE_HASH
+#define ECS_TYPE_HASH
 
 #include <cstdint>
 #include <string_view>
@@ -56,4 +56,4 @@ namespace ecs::detail {
 
 } // namespace ecs::detail
 
-#endif // !__TYPE_HASH
+#endif // !ECS_TYPE_HASH

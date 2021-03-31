@@ -1,5 +1,5 @@
-#ifndef __VERIFICATION
-#define __VERIFICATION
+#ifndef ECS_VERIFICATION
+#define ECS_VERIFICATION
 
 #include <concepts>
 #include <type_traits>
@@ -233,4 +233,4 @@ namespace ecs::detail {
 
 } // namespace ecs::detail
 
-#endif // !__VERIFICATION
+#endif // !ECS_VERIFICATION

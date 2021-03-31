@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_SORTED_H_
-#define __SYSTEM_SORTED_H_
+#ifndef ECS_SYSTEM_SORTED_H_
+#define ECS_SYSTEM_SORTED_H_
 
 #include "system.h"
 
@@ -91,4 +91,4 @@ namespace ecs::detail {
     };
 } // namespace ecs::detail
 
-#endif // !__SYSTEM_SORTED_H_
+#endif // !ECS_SYSTEM_SORTED_H_

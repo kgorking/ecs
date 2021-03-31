@@ -1,5 +1,5 @@
-#ifndef __DETAIL_PARENT_H
-#define __DETAIL_PARENT_H
+#ifndef ECS_DETAIL_PARENT_H
+#define ECS_DETAIL_PARENT_H
 
 #include "../entity_id.h"
 
@@ -9,4 +9,4 @@ namespace ecs::detail {
 }
 // namespace ecs::detail
 
-#endif // !__DETAIL_PARENT_H
+#endif // !ECS_DETAIL_PARENT_H

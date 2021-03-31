@@ -1,5 +1,5 @@
-#ifndef __SYSTEM_DEFS_H_
-#define __SYSTEM_DEFS_H_
+#ifndef ECS_SYSTEM_DEFS_H_
+#define ECS_SYSTEM_DEFS_H_
 
 // Contains definitions that are used by the system- and builder classes
 #include "component_pool.h"
@@ -161,4 +161,4 @@ using tup_pools = std::conditional_t<is_entity<FirstComponent>, std::tuple<pool<
 
 } // namespace ecs::detail
 
-#endif // !__SYSTEM_DEFS_H_
+#endif // !ECS_SYSTEM_DEFS_H_
