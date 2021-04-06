@@ -147,4 +147,25 @@ TEST_CASE("System specification", "[system]") {
         ecs::update(); // transient component is gone, so system wont run
         CHECK(run_counter == 1001 - 11);
     }
+
+    SECTION("Adding components during a system run works") {
+        // Added this test in response to a bug found by https://github.com/relick
+
+        ecs::detail::_context.reset();
+
+        struct local5 {
+            int c;
+        };
+
+        // Add a system for the local component
+		ecs::make_system([](int const &) { ecs::add_component(0, local5{5}); });
+
+        // Add an int component to trigger the system
+        ecs::add_component(0, int{0});
+        ecs::update();
+
+        // Verify that the local component was added
+		ecs::commit_changes();
+		CHECK(1 == ecs::get_component_count<local5>());
+    }
 }
