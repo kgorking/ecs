@@ -1,6 +1,7 @@
 #ifndef ECS_SYSTEM_SORTED_H_
 #define ECS_SYSTEM_SORTED_H_
 
+#include "verification.h"
 #include "system.h"
 
 namespace ecs::detail {
