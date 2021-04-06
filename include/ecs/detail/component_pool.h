@@ -56,7 +56,7 @@ namespace ecs::detail {
 
         // Keep track of which components to add/remove each cycle
         using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-        using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<T(entity_id)>>>;
+        using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
         tls::splitter<std::vector<entity_data>, component_pool<T>> deferred_adds;
         tls::splitter<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
         tls::splitter<std::vector<entity_range>, component_pool<T>> deferred_removes;
@@ -336,8 +336,14 @@ namespace ecs::detail {
                     auto a_rng = std::get<0>(a);
                     auto const b_rng = std::get<0>(b);
 
-                    auto /*const*/ a_func = std::get<1>(a); // fixed: clang on ms-stl can not compile if these are const.
-                    auto /*const*/ b_func = std::get<1>(b);
+                    #if defined(__clang__) && defined(_MSVC_STL_VERSION)
+                    // Clang with ms-stl fails if these are const
+                    auto a_func = std::get<1>(a);
+                    auto b_func = std::get<1>(b);
+                    #else
+                    auto const a_func = std::get<1>(a);
+                    auto const b_func = std::get<1>(b);
+                    #endif
 
                     if (a_rng.can_merge(b_rng) && (a_func.template target<T(entity_id)>() ==  b_func.template target<T(entity_id)>())) {
                         a_rng = entity_range::merge(a_rng, b_rng);
