@@ -1,7 +1,10 @@
 # Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
-# Get all the local include files from the ecs.h header
-$files = (type ecs.h) -replace '^.*?"(.*?)".*?$','$1'
+# Set output to utf-8
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+
+# Get all the needed include files from the ecs_sh_incudes text file
+$files = (type ecs_sh_includes.txt) -replace '^.*?"(.*?)".*?$','$1'
 
 # Remove empty lines
 $files = $files.trim() -ne ""

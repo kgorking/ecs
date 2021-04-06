@@ -1,0 +1,42 @@
+#include "../../tls/include/tls/cache.h"
+#include "../../tls/include/tls/splitter.h"
+
+#include "detail/type_list.h"
+#include "detail/contract.h"
+#include "detail/type_hash.h"
+
+#include "entity_id.h"
+#include "detail/entity_iterator.h"
+#include "entity_range.h"
+#include "parent.h"
+#include "detail/parent_id.h"
+
+#include "flags.h"
+#include "detail/flags.h"
+
+#include "options.h"
+#include "detail/options.h"
+
+#include "detail/component_pool_base.h"
+#include "detail/component_pool.h"
+
+#include "detail/frequency_limiter.h"
+
+#include "detail/system_defs.h"
+#include "detail/pool_entity_walker.h"
+#include "detail/pool_range_walker.h"
+#include "detail/entity_offset.h"
+#include "detail/verification.h"
+#include "detail/entity_range.h"
+#include "detail/find_entity_pool_intersections.h"
+
+#include "detail/system_base.h"
+#include "detail/system.h"
+#include "detail/system_sorted.h"
+#include "detail/system_ranged.h"
+#include "detail/system_hierachy.h"
+#include "detail/system_global.h"
+
+#include "detail/scheduler.h"
+#include "detail/context.h"
+#include "runtime.h"
