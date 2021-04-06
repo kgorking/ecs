@@ -26,7 +26,8 @@ namespace ecs::detail {
         std::map<type_hash, component_pool_base*> type_pool_lookup;
         scheduler sched;
 
-        mutable std::shared_mutex mutex;
+        mutable std::shared_mutex system_mutex;
+        mutable std::shared_mutex component_pool_mutex;
 
     public:
         // Commits the changes to the entities.
@@ -35,7 +36,9 @@ namespace ecs::detail {
             //  adding components
             //  registering new component types
             //  adding new systems
-            std::shared_lock lock(mutex);
+            std::shared_lock system_lock(system_mutex, std::defer_lock);
+            std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
+            std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
             auto constexpr process_changes = [](auto const& inst) { inst->process_changes(); };
 
@@ -54,7 +57,7 @@ namespace ecs::detail {
         // Calls the 'update' function on all the systems in the order they were added.
         void run_systems() {
             // Prevent other threads from adding new systems during the run
-            std::shared_lock lock(mutex);
+            std::shared_lock system_lock(system_mutex);
 
             // Run all the systems
             sched.run();
@@ -64,7 +67,7 @@ namespace ecs::detail {
         template<typename T>
         bool has_component_pool() const {
             // Prevent other threads from registering new component types
-            std::shared_lock lock(mutex);
+            std::shared_lock component_pool_lock(component_pool_mutex);
 
             constexpr auto hash = get_type_hash<T>();
             return type_pool_lookup.contains(hash);
@@ -72,7 +75,9 @@ namespace ecs::detail {
 
         // Resets the runtime state. Removes all systems, empties component pools
         void reset() {
-            std::unique_lock lock(mutex);
+            std::unique_lock system_lock(system_mutex, std::defer_lock);
+            std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
+            std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
             systems.clear();
             sched = scheduler();
@@ -91,7 +96,7 @@ namespace ecs::detail {
 
             constexpr auto hash = get_type_hash<std::remove_pointer_t<std::remove_cvref_t<T>>>();
             auto pool = cache.get_or(hash, [this](type_hash hash) {
-                std::shared_lock lock(mutex);
+                std::shared_lock component_pool_lock(component_pool_mutex);
 
                 // Look in the pool for the type
                 auto const it = type_pool_lookup.find(hash);
@@ -99,7 +104,7 @@ namespace ecs::detail {
                     // The pool wasn't found so create it.
                     // create_component_pool takes a unique lock, so unlock the
                     // shared lock during its call
-                    lock.unlock();
+                    component_pool_lock.unlock();
                     return create_component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>();
                 } else {
                     return it->second;
@@ -214,7 +219,7 @@ namespace ecs::detail {
                 sys = std::make_unique<typed_system>(update_func, pools);
             }
 
-            std::unique_lock lock(mutex);
+            std::unique_lock system_lock(system_mutex);
             sys->process_changes(true);
             systems.push_back(std::move(sys));
             detail::system_base* ptr_system = systems.back().get();
@@ -232,7 +237,7 @@ namespace ecs::detail {
         component_pool_base* create_component_pool() {
             // Create a new pool if one does not already exist
             if (!has_component_pool<T>()) {
-                std::unique_lock lock(mutex);
+                std::unique_lock component_pool_lock(component_pool_mutex);
 
                 auto pool = std::make_unique<component_pool<T>>();
                 constexpr auto hash = get_type_hash<T>();
