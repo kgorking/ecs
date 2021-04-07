@@ -93,7 +93,7 @@ namespace ecs::detail {
         template<typename T>
         auto& get_component_pool() {
             #if defined (__cpp_constinit)
-            //constinit // removes the need for guard variables
+            constinit // removes the need for guard variables
             #endif
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
