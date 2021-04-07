@@ -92,6 +92,9 @@ namespace ecs::detail {
         // If a pool doesn't exist, one will be created.
         template<typename T>
         auto& get_component_pool() {
+            #if defined (__cpp_constinit)
+            //constinit // removes the need for guard variables
+            #endif
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
             constexpr auto hash = get_type_hash<std::remove_pointer_t<std::remove_cvref_t<T>>>();
