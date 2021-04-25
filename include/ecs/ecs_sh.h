@@ -3444,6 +3444,11 @@ namespace ecs::detail {
         // If a pool doesn't exist, one will be created.
         template<typename T>
         auto& get_component_pool() {
+            // This assert is here to prevent calls like get_component_pool<T> and get_component_pool<T&>,
+            // which will produce the exact same code. It should help a bit with compilation times
+            // and prevent the compiler from generating duplicated code.
+			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "Use std::remove_cvref_t on types before passing them to this function");
+
             #if defined (__cpp_constinit)
             #if (_MSC_VER != 1929) // currently borked in msvc 19.10 preview 2
             constinit // removes the need for guard variables
@@ -3451,7 +3456,7 @@ namespace ecs::detail {
             #endif
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
-            constexpr auto hash = get_type_hash<std::remove_pointer_t<std::remove_cvref_t<T>>>();
+            constexpr auto hash = get_type_hash<std::remove_pointer_t<T>>();
             auto pool = cache.get_or(hash, [this](type_hash hash) {
                 std::shared_lock component_pool_lock(component_pool_mutex);
 
@@ -3462,13 +3467,13 @@ namespace ecs::detail {
                     // create_component_pool takes a unique lock, so unlock the
                     // shared lock during its call
                     component_pool_lock.unlock();
-                    return create_component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>();
+                    return create_component_pool<std::remove_pointer_t<T>>();
                 } else {
                     return it->second;
                 }
             });
 
-            return *static_cast<component_pool<std::remove_pointer_t<std::remove_cvref_t<T>>>*>(pool);
+            return *static_cast<component_pool<std::remove_pointer_t<T>>*>(pool);
         }
 
         // Regular function
@@ -3495,11 +3500,15 @@ namespace ecs::detail {
     private:
         template<typename T, typename... R>
         auto make_tuple_pools() {
-            if constexpr (!is_entity<T>) {
-                std::tuple<pool<T>, pool<R>...> t(&get_component_pool<T>(), &get_component_pool<R>()...);
+            using Tr = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
+            if constexpr (!is_entity<Tr>) {
+                std::tuple<pool<Tr>, pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>...> t(
+                    &get_component_pool<Tr>(),
+                    &get_component_pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>()...);
                 return t;
             } else {
-                std::tuple<pool<R>...> t(&get_component_pool<R>()...);
+                std::tuple<pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>...>
+                    t(&get_component_pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>()...);
                 return t;
             }
         }
@@ -3548,13 +3557,11 @@ namespace ecs::detail {
                 // Find the component pools
                 auto const all_pools = apply_type<parent_type_list_t<parent_type>>([&]<typename ...T>() {
                         // The pools for the regular components
-                        auto const pools = make_tuple_pools<
-                            reduce_parent_t<std::remove_cvref_t<FirstComponent>>,
-                            reduce_parent_t<std::remove_cvref_t<Components>>...>();
+                        auto const pools = make_tuple_pools<FirstComponent, Components...>();
 
                         // Add the pools for the parents components
                         if constexpr (sizeof...(T) > 0) {
-                            return tuple_cat_unique(pools, &get_component_pool<T>()...);
+                            return tuple_cat_unique(pools, &get_component_pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>>()...);
                         } else {
                             return pools;
                         }
@@ -3563,15 +3570,15 @@ namespace ecs::detail {
                 using typed_system = system_hierarchy<Options, UpdateFn, decltype(all_pools), FirstComponent, Components...>;
                 sys = std::make_unique<typed_system>(update_func, all_pools);
             } else if constexpr (is_global_sys) {
-                auto pools = make_tuple_pools<FirstComponent, Components...>();
+                auto const pools = make_tuple_pools<FirstComponent, Components...>();
                 using typed_system = system_global<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
                 sys = std::make_unique<typed_system>(update_func, pools);
             } else if constexpr (has_sort_func) {
-                auto pools = make_tuple_pools<FirstComponent, Components...>();
+                auto const pools = make_tuple_pools<FirstComponent, Components...>();
                 using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), FirstComponent, Components...>;
                 sys = std::make_unique<typed_system>(update_func, sort_func, pools);
             } else {
-                auto pools = make_tuple_pools<reduce_parent_t<FirstComponent>, reduce_parent_t<Components>...>();
+                auto const pools = make_tuple_pools<FirstComponent, Components...>();
                 using typed_system = system_ranged<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
                 sys = std::make_unique<typed_system>(update_func, pools);
             }
