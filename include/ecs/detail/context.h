@@ -93,7 +93,9 @@ namespace ecs::detail {
         template<typename T>
         auto& get_component_pool() {
             #if defined (__cpp_constinit)
+            #if (_MSC_VER != 1929) // currently borked in msvc 19.10 preview 2
             constinit // removes the need for guard variables
+            #endif
             #endif
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
