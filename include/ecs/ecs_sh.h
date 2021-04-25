@@ -44,9 +44,9 @@ namespace tls {
 
     protected:
         constexpr void insert_val(Key const k, Value const v) {
-            // Move all but last pair one step to the right
-            std::move_backward(keys, keys + num_entries - 1, keys + num_entries);
-            std::move_backward(values, values + num_entries - 1, values + num_entries);
+            // Move all pairs one step to the right
+            std::shift_right(keys, keys + num_entries, 1);
+            std::shift_right(values, values + num_entries, 1);
 
             // Insert the new pair at the front of the cache
             keys[0] = k;
