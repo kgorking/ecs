@@ -4,54 +4,65 @@
 #include <algorithm>
 
 namespace tls {
-    // A class using a cache-line to cache data
+    // A class using a cache-line to cache data.
     template <class Key, class Value, Key empty_slot = Key{}, size_t cache_line = 64UL>
     class cache {
-    public:
-        static constexpr size_t max_entries = (cache_line) / (sizeof(Key) + sizeof(Value));
+        // If you trigger this assert, then either your key- or value size is too large,
+        // or you cache_line size is too small.
+        // The cache should be able to hold at least 4 key/value pairs in order to be efficient.
+	    static_assert((sizeof(Key) + sizeof(Value)) <= (cache_line / 4), "key or value size too large");
 
-        constexpr cache() noexcept {
+        static constexpr size_t num_entries = (cache_line) / (sizeof(Key) + sizeof(Value));
+
+    public:
+        constexpr cache() {
             reset();
         }
 
+        // Returns the value if it exists in the cache,
+        // otherwise inserts 'or_fn(k)' in cache and returns it
         template <class Fn>
-        constexpr Value get_or(Key const& k, Fn or_fn) {
+        constexpr Value get_or(Key const k, Fn or_fn) {
             auto const index = find_index(k);
-            if (index < max_entries)
+            if (index < num_entries)
                 return values[index];
 
             insert_val(k, or_fn(k));
             return values[0];
         }
 
+        // Clears the cache
         constexpr void reset() {
-            std::fill(keys, keys + max_entries, empty_slot);
-            std::fill(values, values + max_entries, Value{});
+            std::fill(keys, keys + num_entries, empty_slot);
+            std::fill(values, values + num_entries, Value{});
+        }
+
+        // Returns the number of key/value pairs that can be cached
+        static constexpr size_t max_entries() {
+			return num_entries;
         }
 
     protected:
-        constexpr void insert_val(Key const& k, Value v) {
+        constexpr void insert_val(Key const k, Value const v) {
             // Move all but last pair one step to the right
-            //std::shift_right(keys, keys + max_entries, 1);
-            //std::shift_right(values, values + max_entries, 1);
-            std::move_backward(keys, keys + max_entries - 1, keys + max_entries);
-            std::move_backward(values, values + max_entries - 1, values + max_entries);
+            std::move_backward(keys, keys + num_entries - 1, keys + num_entries);
+            std::move_backward(values, values + num_entries - 1, values + num_entries);
 
             // Insert the new pair at the front of the cache
             keys[0] = k;
-            values[0] = std::move(v);
+            values[0] = v;
         }
 
-        constexpr std::size_t find_index(Key const& k) const {
-            auto const it = std::find(keys, keys + max_entries, k);
-            if (it == keys + max_entries)
-                return max_entries;
+        constexpr std::size_t find_index(Key const k) const {
+            auto const it = std::find(keys, keys + num_entries, k);
+            if (it == keys + num_entries)
+                return num_entries;
             return std::distance(keys, it);
         }
 
     private:
-        Key keys[max_entries];
-        Value values[max_entries];
+        Key keys[num_entries];
+        Value values[num_entries];
     };
 
 }
@@ -1559,29 +1570,36 @@ namespace ecs::detail {
 
 namespace ecs::detail {
 
-	template<size_t hz>
-	struct frequency_limiter {
-        bool can_run() {
-            if constexpr (hz == 0)
-                return true;
-            else {
-                using namespace std::chrono_literals;
+template <size_t hz>
+struct frequency_limiter {
+	bool can_run() {
+		if constexpr (hz == 0)
+			return true;
+		else {
+			using namespace std::chrono_literals;
 
-                auto const now = std::chrono::high_resolution_clock::now();
-                auto const diff = now - time;
-                if (diff >= (1'000'000'000ns / hz)) {
-                    time = now;
-                    return true;
-                } else {
-                    return false;
-                }
-            }
+			auto const now = std::chrono::high_resolution_clock::now();
+			auto const diff = now - time;
+			if (diff >= (1'000'000'000ns / hz)) {
+				time = now;
+				return true;
+			} else {
+				return false;
+			}
 		}
+	}
 
-    private:
-        std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
-    };
-}
+private:
+	std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
+};
+
+struct no_frequency_limiter {
+	constexpr bool can_run() {
+		return true;
+	}
+};
+
+} // namespace ecs::detail
 
 #endif // !ECS_FREQLIMIT_H
 #ifndef ECS_SYSTEM_DEFS_H_
@@ -2730,7 +2748,10 @@ protected:
 	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
 
 	using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
-	frequency_limiter<user_freq::hz> frequency;
+	using frequency_type = std::conditional_t<(user_freq::hz > 0),
+		frequency_limiter<user_freq::hz>,
+		no_frequency_limiter>;
+	frequency_type frequency;
 
 	// Number of arguments
 	static constexpr size_t num_arguments = 1 + sizeof...(Components);
