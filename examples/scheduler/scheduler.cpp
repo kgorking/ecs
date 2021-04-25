@@ -26,7 +26,7 @@ int main() {
         std::cout << "1 ";
         std::this_thread::sleep_for(20ms); // simulate work
     });
-    std::cout << "1 - " << sys1.get_signature() << '\n';
+    std::cout << "sys1 (type<0>&, type<1> const&)\n";
 
     //
     // Writes to type 1. This system must not execute until after sys1 is done,
@@ -35,7 +35,7 @@ int main() {
         std::cout << "2 ";
         std::this_thread::sleep_for(20ms);
     });
-    std::cout << "2 - " << sys2.get_signature() << '\n';
+    std::cout << "sys2 (type<1>&)\n";
     std::cout << " depends on 1? " << sys2.depends_on(&sys1) << '\n';
 
     //
@@ -45,7 +45,7 @@ int main() {
         std::cout << "3 ";
         std::this_thread::sleep_for(20ms);
     });
-    std::cout << "3 - " << sys3.get_signature() << '\n';
+    std::cout << "sys3 (type<2>&)\n";
     std::cout << " depends on 1? " << sys3.depends_on(&sys1) << '\n';
     std::cout << " depends on 2? " << sys3.depends_on(&sys2) << '\n';
 
@@ -55,7 +55,7 @@ int main() {
         std::cout << "4 ";
         std::this_thread::sleep_for(20ms);
     });
-    std::cout << "4 - " << sys4.get_signature() << '\n';
+    std::cout << "sys4 (type<0> const&)\n";
     std::cout << " depends on 1? " << sys4.depends_on(&sys1) << '\n';
     std::cout << " depends on 2? " << sys4.depends_on(&sys2) << '\n';
     std::cout << " depends on 3? " << sys4.depends_on(&sys3) << '\n';
@@ -67,7 +67,7 @@ int main() {
         std::cout << "5 ";
         std::this_thread::sleep_for(20ms);
     });
-    std::cout << "5 - " << sys5.get_signature() << '\n';
+    std::cout << "sys5 (type<2>&, type<0> const&)\n";
     std::cout << " depends on 1? " << sys5.depends_on(&sys1) << '\n';
     std::cout << " depends on 2? " << sys5.depends_on(&sys2) << '\n';
     std::cout << " depends on 3? " << sys5.depends_on(&sys3) << '\n';
@@ -79,7 +79,7 @@ int main() {
         std::cout << "6 ";
         std::this_thread::sleep_for(20ms);
     });
-    std::cout << "6 - " << sys6.get_signature() << '\n';
+    std::cout << "sys6 (type<2> const&)\n";
     std::cout << " depends on 1? " << sys6.depends_on(&sys1) << '\n';
     std::cout << " depends on 2? " << sys6.depends_on(&sys2) << '\n';
     std::cout << " depends on 3? " << sys6.depends_on(&sys3) << '\n';
