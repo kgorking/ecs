@@ -235,7 +235,10 @@ protected:
 	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
 
 	using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
-	frequency_limiter<user_freq::hz> frequency;
+	using frequency_type = std::conditional_t<(user_freq::hz > 0),
+		frequency_limiter<user_freq::hz>,
+		no_frequency_limiter>;
+	frequency_type frequency;
 
 	// Number of arguments
 	static constexpr size_t num_arguments = 1 + sizeof...(Components);
