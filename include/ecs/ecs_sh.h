@@ -807,9 +807,16 @@ namespace ecs::opts {
         static constexpr int group_id = I;
     };
 
-    template<size_t I>
+    // Sets a fixed execution frequency for a system.
+    // The system will be run atleast 1.0/Hertz times per second.
+    template<size_t Hertz>
     struct frequency {
-        static constexpr size_t hz = I;
+        static constexpr size_t hz = Hertz;
+    };
+
+    template<typename Duration>
+    struct interval {
+        static constexpr Duration duration{};
     };
 
     struct manual_update {};
@@ -3438,7 +3445,9 @@ namespace ecs::detail {
         template<typename T>
         auto& get_component_pool() {
             #if defined (__cpp_constinit)
+            #if (_MSC_VER != 1929) // currently borked in msvc 19.10 preview 2
             constinit // removes the need for guard variables
+            #endif
             #endif
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
