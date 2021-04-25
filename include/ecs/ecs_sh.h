@@ -23,10 +23,14 @@ namespace tls {
         // otherwise inserts 'or_fn(k)' in cache and returns it
         template <class Fn>
         constexpr Value get_or(Key const k, Fn or_fn) {
-            for (size_t index = 0; index < num_entries; index++) {
-				if (k == keys[index])
-                    return values[index];
+            size_t index = num_entries;
+			size_t i = 0;
+            for (; i < num_entries; i++) {
+				if (k == keys[i])
+                    index = i;
             }
+			if (index != num_entries)
+				return values[index];
 
             insert_val(k, or_fn(k));
             return values[0];
