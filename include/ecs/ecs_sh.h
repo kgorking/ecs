@@ -23,9 +23,10 @@ namespace tls {
         // otherwise inserts 'or_fn(k)' in cache and returns it
         template <class Fn>
         constexpr Value get_or(Key const k, Fn or_fn) {
-            auto const index = find_index(k);
-            if (index < num_entries)
-                return values[index];
+            for (size_t index = 0; index < num_entries; index++) {
+				if (k == keys[index])
+                    return values[index];
+            }
 
             insert_val(k, or_fn(k));
             return values[0];
@@ -51,13 +52,6 @@ namespace tls {
             // Insert the new pair at the front of the cache
             keys[0] = k;
             values[0] = v;
-        }
-
-        constexpr std::size_t find_index(Key const k) const {
-            auto const it = std::find(keys, keys + num_entries, k);
-            if (it == keys + num_entries)
-                return num_entries;
-            return std::distance(keys, it);
         }
 
     private:
@@ -3468,7 +3462,7 @@ namespace ecs::detail {
             // This assert is here to prevent calls like get_component_pool<T> and get_component_pool<T&>,
             // which will produce the exact same code. It should help a bit with compilation times
             // and prevent the compiler from generating duplicated code.
-			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "Use std::remove_cvref_t on types before passing them to this function");
+			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
             #if defined (__cpp_constinit)
             #if (_MSC_VER != 1929) // currently borked in msvc 19.10 preview 2
@@ -3477,7 +3471,7 @@ namespace ecs::detail {
             #endif
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
-            constexpr auto hash = get_type_hash<std::remove_pointer_t<T>>();
+            constexpr auto hash = get_type_hash<T>();
             auto pool = cache.get_or(hash, [this](type_hash hash) {
                 std::shared_lock component_pool_lock(component_pool_mutex);
 
@@ -3488,13 +3482,13 @@ namespace ecs::detail {
                     // create_component_pool takes a unique lock, so unlock the
                     // shared lock during its call
                     component_pool_lock.unlock();
-                    return create_component_pool<std::remove_pointer_t<T>>();
+                    return create_component_pool<T>();
                 } else {
                     return it->second;
                 }
             });
 
-            return *static_cast<component_pool<std::remove_pointer_t<T>>*>(pool);
+            return *static_cast<component_pool<T>*>(pool);
         }
 
         // Regular function
