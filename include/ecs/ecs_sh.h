@@ -816,16 +816,9 @@ namespace ecs::opts {
         static constexpr int group_id = I;
     };
 
-    // Sets a fixed execution frequency for a system.
-    // The system will be run atleast 1.0/Hertz times per second.
-    template<size_t Hertz>
+    template<size_t I>
     struct frequency {
-        static constexpr size_t hz = Hertz;
-    };
-
-    template<typename Duration>
-    struct interval {
-        static constexpr Duration duration{};
+        static constexpr size_t hz = I;
     };
 
     struct manual_update {};
@@ -3638,7 +3631,7 @@ namespace ecs::detail {
     }
 
     // The global reference to the context
-    inline context& _context = get_context();
+    static inline context& _context = get_context();
 } // namespace ecs::detail
 
 #endif // !ECS_CONTEXT
