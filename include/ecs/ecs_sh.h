@@ -381,11 +381,10 @@ namespace ecs::detail {
     constexpr type_hash get_type_hash() {
         constexpr type_hash prime = 0x100000001b3;
 #ifdef _MSC_VER
-        constexpr std::string_view string = __FUNCDNAME__; // has full type info, but is not very readable
+        std::string_view string = __FUNCDNAME__; // has full type info, but is not very readable
 #else
-        constexpr std::string_view string = __PRETTY_FUNCTION__ ;
+        std::string_view string = __PRETTY_FUNCTION__ ;
 #endif
-
         type_hash hash = 0xcbf29ce484222325;
         for (auto const value : string) {
             hash ^= value;
@@ -816,16 +815,9 @@ namespace ecs::opts {
         static constexpr int group_id = I;
     };
 
-    // Sets a fixed execution frequency for a system.
-    // The system will be run atleast 1.0/Hertz times per second.
-    template<size_t Hertz>
+    template<size_t I>
     struct frequency {
-        static constexpr size_t hz = Hertz;
-    };
-
-    template<typename Duration>
-    struct interval {
-        static constexpr Duration duration{};
+        static constexpr size_t hz = I;
     };
 
     struct manual_update {};
@@ -2489,9 +2481,6 @@ namespace ecs::detail {
         // Returns the group this system belongs to
         [[nodiscard]] virtual int get_group() const noexcept = 0;
 
-        // Get the signature of the system
-        [[nodiscard]] virtual std::string get_signature() const noexcept = 0;
-
         // Get the hashes of types used by the system with const/reference qualifiers removed
         [[nodiscard]] virtual std::span<detail::type_hash const>
         get_type_hashes() const noexcept = 0;
@@ -2579,21 +2568,6 @@ public:
 	constexpr int get_group() const noexcept override {
 		using group = test_option_type_or<is_group, Options, opts::group<0>>;
 		return group::group_id;
-	}
-
-	std::string get_signature() const noexcept override {
-		// Component names
-		constexpr std::array<std::string_view, num_arguments> argument_names{get_type_name<FirstComponent>(),
-																			 get_type_name<Components>()...};
-
-		std::string sig("system(");
-		for (size_t i = 0; i < num_arguments - 1; i++) {
-			sig += argument_names[i];
-			sig += ", ";
-		}
-		sig += argument_names[num_arguments - 1];
-		sig += ')';
-		return sig;
 	}
 
 	constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
@@ -3638,7 +3612,7 @@ namespace ecs::detail {
     }
 
     // The global reference to the context
-    inline context& _context = get_context();
+    static inline context& _context = get_context();
 } // namespace ecs::detail
 
 #endif // !ECS_CONTEXT
