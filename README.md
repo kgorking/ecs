@@ -7,7 +7,9 @@ An ecs library seemed like a good fit for both objectives.
 More detail on what ecs is can be found [here](http://gameprogrammingpatterns.com/component.html) and
 [here](https://github.com/EngineArchitectureClub/TalkSlides/blob/master/2012/05-Components-SeanMiddleditch/ComponentDesign.pdf).
 
-# An example
+Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-explorer logo next to them have a compiler-explorer example that you can play around with. Click the icon to open it.
+
+# An example [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/bz8Gx98Wa)
 The following example shows the basics of the library.
 
 ```cpp
@@ -36,8 +38,6 @@ int main() {
 Running this will do a Matthew McConaughey impression and print 'alright alright alright '.
 This is a fairly simplistic sample, but there are plenty of ways to extend it to do cooler things.
 
-Use this [Compiler explorer test link](https://godbolt.org/z/bz8Gx98Wa) to try it out for yourself, using the [single-include header](include/ecs/ecs_sh.h).
-
 # Getting the Source
 
 1. Clone this project
@@ -57,30 +57,30 @@ The CI build status for msvc, clang 10, and gcc 10 is currently:
 # Table of Contents
 - [Entities](#entities)
 - [Components](#components)
-  - [Adding components to entities](#adding-components-to-entities)
-  - [Generators](#generators)
-  - [Committing component changes](#committing-component-changes)
+  - [Adding components to entities](#adding-components-to-entities) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/PMTcc97cP)
+  - [Committing component changes](#committing-component-changes) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/KWWa1z9Pq)
+  - [Generators](#generators) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/xf9jP1rG6)
 - [Systems](#systems)
   - [Requirements and rules](#requirements-and-rules)
-  - [The current entity](#the-current-entity)
   - [Parallel-by-default systems](#parallel-by-default-systems)
   - [Automatic concurrency](#automatic-concurrency)
-  - [Sorting](#sorting)
-  - [Filtering](#filtering)
+  - [The current entity](#the-current-entity) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/YrTE8eKcE)
+  - [Sorting](#sorting) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/P9nvGM59s)
+  - [Filtering](#filtering) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ofGnzKTGf)
   - [Hierarchies](#hierarchies)
-    - [Accessing parent components](#Accessing-parent-components)
-    - [Filtering on parents components](#Filtering-on-parents-components)
+    - [Accessing parent components](#Accessing-parent-components) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/r8rThszfh)
+    - [Filtering on parents components](#Filtering-on-parents-components) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/E8Y7Y6KEj)
     - [Traversal and layout](#Traversal-and-layout)
 - [System options](#system-options)
-  - [`opts::frequency<hz>`](#optsfrequencyhz)
-  - [`opts::group<group number>`](#optsgroupgroup-number)
-  - [`opts::manual_update`](#optsmanual_update)
-  - [`opts::not_parallel`](#optsnot_parallel)
+  - [`opts::frequency<hz>`](#optsfrequencyhz) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TGxWd8fnx)
+  - [`opts::group<group number>`](#optsgroupgroup-number) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/13bKEEc5f)
+  - [`opts::manual_update`](#optsmanual_update) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/591e7Yqq3)
+  - [`opts::not_parallel`](#optsnot_parallel) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/zdjvqYhr1)
 - [Component Flags](#component-flags)
-  - [`tag`](#tag)
-  - [`immutable`](#immutable)
-  - [`transient`](#transient)
-  - [`global`](#global)
+  - [`tag`](#tag) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/9Gf4nWqK6)
+  - [`immutable`](#immutable) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/vo6T6YqK7)
+  - [`transient`](#transient) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/onGnjnxox)
+  - [`global`](#global) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/Tb8M7v8cb)
     - [Global systems](#Global-systems)
 
 
@@ -103,7 +103,7 @@ You can add as many different components to an entity as you need; there is no u
 
 <br>
 
-## Adding components to entities
+## Adding components to entities [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/PMTcc97cP)
 Adding components is done with the function `ecs::add_component()`.
 
 ```cpp
@@ -120,7 +120,13 @@ ecs::add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entiti
 
 <br>
 
-## Generators
+## Committing component changes [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/KWWa1z9Pq)
+Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
+
+By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
+
+
+## Generators [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/xf9jP1rG6)
 When adding components to entities, you can specify a generator instead of a default constructed component
 if you need the individual components to have different initial states. Generators have the signature
 of `T(ecs::entity_id)`, where `T` is the component type that the generator makes.
@@ -143,14 +149,6 @@ ecs::add_component({ 0, dimension * dimension},
     }
 );
 ```
-
-<br>
-
-## Committing component changes
-Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
-
-By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
-
 
 # Systems
 Systems holds the logic that operates on components that are attached to entities, and are built using `ecs::make_system` by passing it a lambda or a free-standing function.
@@ -188,22 +186,15 @@ There are a few requirements and restrictions put on the lambdas:
 * **At least one component parameter.** Systems operate on components, so if none is provided it will result in a compile time error.
 * **No duplicate components.** Having the same component more than once in the parameter list is likely an error on the programmers side, so a compile time error will be raised. 
 
-## The current entity
-If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
-
-```cpp
-ecs::make_system([](ecs::entity_id ent, greeting const& g) {
-    std::cout << "entity with id " << ent << " says: " << g.msg << '\n';
-});
-```
-
 
 ## Parallel-by-default systems
 Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up loosing performance instead. A good profiler can often help with this determination.
 
-The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code.
+The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code if your system accesses data outside the purview of ecs.
 
 Adding and removing components from entities in parallel systems is a thread-safe operation.
+
+To disable parallelism in a system, use [`opts::not_parallel`](#optsnot_parallel).
 
 
 ## Automatic concurrency
@@ -218,7 +209,17 @@ If a component is read from, the system that previously wrote to it becomes a de
 Multiple systems that read from the same component can safely run concurrently.
 
 
-## Sorting
+## The current entity [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/YrTE8eKcE)
+If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
+
+```cpp
+ecs::make_system([](ecs::entity_id ent, greeting const& g) {
+    std::cout << "entity with id " << ent << " says: " << g.msg << '\n';
+});
+```
+
+
+## Sorting [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/P9nvGM59s)
 An additional function object can be passed along to `ecs::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
@@ -240,14 +241,16 @@ auto &sys_pos = ecs::make_system(
 
 * Integers passed to `sys_dec` will arrive in descending order, from highest to lowest.
 * Integers passed to `sys_asc` will arrive in ascending order.
-* Positions passed to `sys_pos` will be sorted according to their length. You could also have sorted on the `some_component`.
+* Positions passed to `sys_pos` will be sorted according to their length.<br>
+  You could have sorted on the `some_component` instead.
 
 Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
 
 **Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
 
 
-## Filtering
+## Filtering [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ofGnzKTGf)
+
 Components can be filtered by marking the component you wish to filter as a pointer argument:
 ```cpp
 ecs::make_system([](int&, float*) { /* ... */ });
@@ -273,7 +276,7 @@ make_system([](entity_id id, parent<> const& p) {
 ```
 The angular brackets are needed because `ecs::parent` is a templated component which allows you to specify which, if any, of the parents components you would like access to.
 
-### Accessing parent components
+### Accessing parent components [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/r8rThszfh)
 A parents sub-components can be accessed by specifying them in a systems parent parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to accesss. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
 
 If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must always be taken as a reference in systems, or an error will be reported.
@@ -301,8 +304,8 @@ make_system([](ecs::parent<short, long> const& p) { // runs on entity 7
 //make_system([](ecs::parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
 ```
 
-### Filtering on parents components
-Filters work like regular system filters and can be specified on a parents sub-components:
+### Filtering on parents components [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/E8Y7Y6KEj)
+Filters work like regular component filters and can be specified on a parents sub-components:
 ```cpp
 make_system([](ecs::parent<short*> p) { });  // runs on entities 8-11
 ```
@@ -321,11 +324,12 @@ Hiearchies in this library are [topological sorted](https://en.wikipedia.org/wik
 # System options
 The following options can be passed along to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
 
-### `opts::frequency<hz>`
+### `opts::frequency<hz>` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/TGxWd8fnx)
 `opts::frequency` is used to limit the number of times per second a system will run. The number of times the system is run may be lower than the frequency passed, but it will never be higher.
 
 ```cpp
 #include <chrono>
+using namespace std::chrono_literals;
 // ...
 ecs::make_system<ecs::opts::frequency<10>>([](int const&) {
     std::cout << "at least 100ms has passed\n";
@@ -336,11 +340,11 @@ ecs::add_component(0, int{});
 // Run the system for 1 second (include <chrono>)
 auto const start = std::chrono::high_resolution_clock::now();
 while (std::chrono::high_resolution_clock::now() - start < 1s)
-    ecs::run_systems();
+    ecs::update();
 ```
 
 
-### `opts::group<group number>`
+### `opts::group<group number>` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/13bKEEc5f)
 Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
 
 ```cpp
@@ -366,7 +370,7 @@ Running the above code will print out
 **Note:** systems from different groups are never executed concurrently, and all systems in one group will run to completion before the next group is run.
 
 
-### `opts::manual_update`
+### `opts::manual_update` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/591e7Yqq3)
 Systems marked as being manually updated will not be added to scheduler, and will thus require the user to call the `system::run()` function themselves.
 Calls to `ecs::commit_changes()` will still cause the system to respond to changes in components.
 
@@ -378,16 +382,16 @@ ecs::update(); // will not run 'manual_sys'
 manual_sys.run(); // required to run the system
 ```
 
-### `opts::not_parallel`
+### `opts::not_parallel` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/zdjvqYhr1)
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
-It should not be used to avoid data races when writing to a shared variable. Use atomics or [`tls::splitter`](https://github.com/kgorking/tls/blob/master/include/tls/splitter.h) in these cases, if possible.
+It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::splitter`](https://github.com/kgorking/tls/blob/master/include/tls/splitter.h) in these cases, if possible.
 
 # Component Flags
 The behavior of components can be changed by using component flags, which can change how they are managed
 internally and can offer performance and memory benefits. Flags can be added to components using the `ecs_flags()` macro:
 
-### `tag`
+### `tag` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/9Gf4nWqK6)
 Marking a component as a *tag* is used for components that signal some kind of state, without needing to
 take up any memory. For instance, you could use it to tag certain entities as having some form of capability,
 like a 'freezable' tag to mark stuff that can be frozen.
@@ -399,7 +403,7 @@ struct freezable {
 ```
 
 Using tagged components in systems has a slightly different syntax to regular components, namely that they are
-passed by value. This is to discourage the use of tags to share some kind of data, which you should use the `global` flag
+always passed by value. This is to discourage the use of tags to share some kind of data, which you should use the `global` flag
 for instead.
 
 ```cpp
@@ -410,11 +414,11 @@ ecs::make_system([](greeting const& g, freezable) {
 
 If tag components are marked as anything other than pass-by-value, the compiler will drop a little error message to remind you.
 
-### `immutable`
+### `immutable` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/vo6T6YqK7)
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
 This is used for passing read-only data to systems. If a component is marked as `immutable` and is used in a system without being marked `const`, you will get a compile-time error reminding you to make it constant.
 
-### `transient`
+### `transient` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/onGnjnxox)
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
@@ -428,7 +432,7 @@ ecs::commit_changes(); // adds the 100 damage components
 ecs::commit_changes(); // removes the 100 damage components
 ```
 
-### `global`
+### `global` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Tb8M7v8cb)
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
@@ -445,6 +449,8 @@ ecs::make_system([](position& pos, velocity const& vel, frame_data const& fd) {
 ```
 **Note!** Beware of using mutable global components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
 to disallow systems modifying the global component, using `ecs_flags(ecs::flag::global, ecs::flag::immutable);`
+
+Global components can contain `std::atomic<>` types, unlike regular components, due to the fact that they are never copied.
 
 #### Global systems
 With [global components](#global) it is also possible to create *global systems*, which are a special kind of system that only operates on global components. Global systems are only run once per update cycle.
