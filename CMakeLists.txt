@@ -19,6 +19,7 @@ endif ()
 if (MSVC)
     # warning level 4
     target_compile_options(ecs INTERFACE /std:c++latest /W4 /wo4648)
+    #target_compile_options(ecs INTERFACE /fsanitize=address)
 
     # enable profiling
     #target_compile_options(ecs INTERFACE /Zi)
@@ -34,7 +35,7 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 else()
     # lots of warnings
-    target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -pedantic ${STDLIB})
+    target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -Wpedantic -Wshadow ${STDLIB})
     target_link_options(ecs INTERFACE -pthread)
 
     # Disable C++ exceptions.
