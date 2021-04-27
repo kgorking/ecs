@@ -2,8 +2,6 @@
 #define ECS_SYSTEM_BASE
 
 #include <span>
-#include <string>
-
 #include "type_hash.h"
 
 namespace ecs::detail {
