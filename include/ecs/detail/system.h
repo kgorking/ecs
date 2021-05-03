@@ -58,8 +58,9 @@ public:
 	void notify_pool_modifed() {
 		if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
 			// Recurse into the parent types
-			for_each_type<parent_type_list_t<T>>(
-				[this]<typename ...ParentTypes>() { (this->notify_pool_modifed<ParentTypes>(), ...); });
+			for_each_type<parent_type_list_t<T>>([this]<typename ...ParentTypes>() {
+				(this->notify_pool_modifed<ParentTypes>(), ...); }
+			);
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
 			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>(pools).notify_components_modified();
 		}
