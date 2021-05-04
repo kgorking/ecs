@@ -102,8 +102,11 @@ namespace ecs::detail {
             std::vector<scheduler_node> all_nodes;
             std::vector<std::size_t> entry_nodes{};
 
-            void run(size_t node_index) {
-                all_nodes[node_index].run(all_nodes);
+            // Runs the entry nodes in parallel
+            void run() {
+                std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
+                    all_nodes[node_id].run(all_nodes);
+                });
             }
         };
 
@@ -179,8 +182,7 @@ namespace ecs::detail {
 
             // Run the groups in succession
             for (auto& group : groups) {
-                std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(),
-                    [&group](auto node) { group.run(node); });
+                group.run();
             }
         }
     };
