@@ -98,6 +98,9 @@ namespace ecs {
     }
 
     // Returns the component from an entity, or nullptr if the entity is not found
+    // NOTE: Pointers to components are only guaranteed to be valid
+    //       until the next call to 'ecs::commit_changes' or 'ecs::update',
+    //       after which the component might be reallocated.
     template<detail::local T>
     T* get_component(entity_id const id) {
         // Get the component pool
@@ -107,7 +110,9 @@ namespace ecs {
 
     // Returns the components from an entity range, or an empty span if the entities are not found
     // or does not containg the component.
-    // The span might be invalidated after a call to 'ecs::commit_changes()'.
+    // NOTE: Pointers to components are only guaranteed to be valid
+    //       until the next call to ecs::commit_changes or ecs::update,
+    //       after which the component might be reallocated.
     template<detail::local T>
     std::span<T> get_components(entity_range const range) {
         if (!has_component<T>(range))
