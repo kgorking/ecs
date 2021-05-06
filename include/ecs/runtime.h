@@ -212,6 +212,13 @@ namespace ecs {
         auto &pool = detail::get_context().get_component_pool<Component>();
 		pool.set_memory_resource(resource);
     }
+
+    // Resets the memory resource to the default
+    template<class Component>
+    void reset_memory_resource() {
+        auto &pool = detail::get_context().get_component_pool<Component>();
+		pool.set_memory_resource(std::pmr::get_default_resource());
+    }
 } // namespace ecs
 
 #endif // !ECS_RUNTIME
