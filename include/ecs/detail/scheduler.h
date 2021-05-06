@@ -173,6 +173,11 @@ namespace ecs::detail {
             }
         }
 
+        // Clears all the schedulers data
+        void clear() {
+			groups.clear();
+        }
+
         void run() {
             // Reset the execution data
             for (auto& group : groups) {

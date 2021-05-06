@@ -83,7 +83,7 @@ namespace ecs::detail {
             std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
             systems.clear();
-            sched = scheduler();
+            sched.clear();
 			type_pool_lookup.clear();
             component_pools.clear();
 
