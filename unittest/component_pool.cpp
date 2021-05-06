@@ -258,7 +258,6 @@ TEST_CASE("Component pool specification", "[component]") {
             REQUIRE((diff >= 0 && diff < buffer_size));
         }
 
-
         SECTION("memory_resource is propagated to component members where supported") {
 			constexpr ptrdiff_t buffer_size = 1024;
 			std::byte buffer[buffer_size]{};
@@ -309,6 +308,24 @@ TEST_CASE("Component pool specification", "[component]") {
 
             // Verify the data was placed in the monotonic resource
             REQUIRE((diff >= 0 && diff < buffer_size));
+        }
+
+        SECTION("a context reset clears memory_resources") {
+            // get the unmodified memory resource
+			auto const res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+
+            // change the resource
+			std::pmr::monotonic_buffer_resource dummy;
+            ecs::set_memory_resource<int>(&dummy);
+            auto const changed_res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+			REQUIRE(&dummy == changed_res);
+
+            // reset
+            ecs::detail::_context.reset();
+
+            // verify resource is reverted
+            auto const reset_res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+			REQUIRE(res == reset_res);
         }
     }
 }
