@@ -110,7 +110,7 @@ Adding components is done with the function `ecs::add_component()`.
 ecs::add_component(0, 4UL, 3.14f, 6.28); // add an unsigned long, a float, and a double to entity 0
 
 ecs::entity_id ent{1};
-ecs::add_component(ent, "hello");        // add const char* to entity 1
+ecs::add_component(ent, "hello"sv);      // add std::string_view to entity 1
 
 ecs::entity_range more_ents{1,100};      // entity range of ids from 1 to (and including) 100
 ecs::add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 floats with value 0.1f
