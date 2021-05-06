@@ -102,11 +102,6 @@ namespace ecs::detail {
             // and prevent the compiler from generating duplicated code.
 			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-            #if defined (__cpp_constinit)
-            #if (_MSC_VER != 1929) // currently borked in msvc 19.10 preview 2
-            constinit // removes the need for guard variables
-            #endif
-            #endif
             thread_local auto& cache = type_caches.local();
 
             constexpr auto hash = get_type_hash<T>();
