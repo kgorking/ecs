@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <vector>
 #include <execution>
-#include <cstring> // for memcmp
+#include <memory_resource>
 
 #include "tls/splitter.h"
 
@@ -46,7 +46,7 @@ namespace ecs::detail {
 		static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
         // The components
-        std::vector<T> components;
+        std::pmr::vector<T> components;
 
         // The entities that have components in this storage.
         std::vector<entity_range> ranges;
@@ -67,6 +67,25 @@ namespace ecs::detail {
         bool components_modified = false;
 
     public:
+        // Sets the memory resource used to allocate components.
+        // If components are already allocated, they will be moved.
+        void set_memory_resource(std::pmr::memory_resource *resource) {
+            // Do nothing if the memory resource is already set
+			if (components.get_allocator().resource() == resource)
+				return;
+
+            // Move the current data out
+			auto copy{std::move(components)};
+
+            // Placement-new the data back with the new memory resource
+			new (&components) std::pmr::vector<T>{std::move(copy), resource};
+
+            // component addresses has changed, so make sure systems rebuilds their caches
+            components_added = true;
+			components_removed = true;
+            components_modified = true;
+        }
+
         // Add a component to a range of entities, initialized by the supplied user function
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.

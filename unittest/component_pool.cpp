@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
-
+#include <memory_resource>
 
 struct ctr_counter {
     inline static size_t def_ctr_count = 0;
@@ -228,6 +228,33 @@ TEST_CASE("Component pool specification", "[component]") {
 
             auto const ev = pool.get_entities();
             REQUIRE(ev.front().first() == -2);
+        }
+    }
+
+    SECTION("Allocators") {
+        SECTION("setting a memory_resource works") {
+			constexpr size_t buffer_size = 64;
+			std::byte buffer[buffer_size]{};
+			std::pmr::monotonic_buffer_resource resource(buffer, buffer_size);
+
+            struct test {
+				int x;
+            };
+
+            ecs::detail::component_pool<test> pool;
+
+            // no resource set
+			pool.add({0, 3}, {42});
+            pool.process_changes();
+
+            // set the memrory resource
+            // moves existing data into the new resource
+			pool.set_memory_resource(&resource);
+
+            std::byte const* t = reinterpret_cast<std::byte*>(pool.find_component_data(0));
+			ptrdiff_t const diff = (t - &buffer[0]);
+
+            REQUIRE((diff >= 0 && diff < buffer_size));
         }
     }
 }
