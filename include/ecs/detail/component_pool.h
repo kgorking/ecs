@@ -40,6 +40,19 @@ void combine_erase(Cont& cont, BinaryPredicate p) {
     cont.erase(end, cont.end());
 }
 
+// Helpre macro for components that wish to support pmr
+#define ECS_USE_PMR(ClassName) \
+    using allocator_type = std::pmr::polymorphic_allocator<>; \
+                                                              \
+    ClassName() : ClassName(allocator_type{}) {}              \
+    ClassName(ClassName &&t) noexcept = default;              \
+	~ClassName() = default;                                   \
+                                                              \
+    ClassName &operator=(ClassName const &) = default;        \
+    ClassName &operator=(ClassName &&) = default;
+
+
+
 namespace ecs::detail {
     template<typename T>
     class component_pool final : public component_pool_base {
@@ -68,6 +81,11 @@ namespace ecs::detail {
         bool components_modified = false;
 
     public:
+        // Returns the current memory resource
+        std::pmr::memory_resource* get_memory_resource() const {
+			return components.get_allocator().resource();
+        }
+
         // Sets the memory resource used to allocate components.
         // If components are already allocated, they will be moved.
         void set_memory_resource(std::pmr::memory_resource *resource) {
@@ -79,7 +97,7 @@ namespace ecs::detail {
 			auto copy{std::move(components)};
 
             // Placement-new the data back with the new memory resource
-			new (&components) std::pmr::vector<T>{std::move(copy), resource};
+			std::construct_at(&components, std::move(copy), resource);
 
             // component addresses has changed, so make sure systems rebuilds their caches
             components_added = true;
