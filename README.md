@@ -110,7 +110,7 @@ Adding components is done with the function `ecs::add_component()`.
 ecs::add_component(0, 4UL, 3.14f, 6.28); // add an unsigned long, a float, and a double to entity 0
 
 ecs::entity_id ent{1};
-ecs::add_component(ent, "hello");        // add const char* to entity 1
+ecs::add_component(ent, "hello"sv);      // add std::string_view to entity 1
 
 ecs::entity_range more_ents{1,100};      // entity range of ids from 1 to (and including) 100
 ecs::add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 floats with value 0.1f
@@ -385,7 +385,7 @@ manual_sys.run(); // required to run the system
 ### `opts::not_parallel` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/zdjvqYhr1)
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
-It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::splitter`](https://github.com/kgorking/tls/blob/master/include/tls/splitter.h) in these cases, if possible.
+It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::splitter`](https://github.com/kgorking/tls/blob/master/examples/splitter/accumulate/accumulate.cpp) in these cases, if possible.
 
 # Component Flags
 The behavior of components can be changed by using component flags, which can change how they are managed
