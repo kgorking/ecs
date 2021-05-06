@@ -26,9 +26,9 @@ class system : public system_base {
 	virtual void do_build(entity_range_view) = 0;
 
 public:
-	system(UpdateFn update_func, TupPools pools)
+	system(UpdateFn update_func, TupPools tup_pools)
 		: update_func{update_func}
-		, pools{pools}
+		, pools{tup_pools}
 		, pool_parent_id{nullptr}
 	{
 		if constexpr (has_parent_types) {
@@ -147,7 +147,7 @@ private:
 			return;
 		}
 
-		bool const modified = std::apply([](auto... pools) { return (pools->has_component_count_changed() || ...); }, pools);
+		bool const modified = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
 
 		if (modified) {
 			find_entities();

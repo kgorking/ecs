@@ -11,7 +11,7 @@ namespace ecs::detail {
 // Linearly walks one-or-more component pools
 template <class Pools>
 struct pool_range_walker {
-	pool_range_walker(Pools const pools) : pools(pools) {
+	pool_range_walker(Pools const _pools) : pools(_pools) {
 	}
 
 	void reset(entity_range_view view) {

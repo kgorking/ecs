@@ -41,7 +41,7 @@ using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 // TODO why is this not called an iterator?
 template <class Pools>
 struct pool_entity_walker {
-	pool_entity_walker(Pools pools) : pools(pools) {
+	pool_entity_walker(Pools _pools) : pools(_pools) {
 		ranges_it = ranges.end();
 	}
 

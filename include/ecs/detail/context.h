@@ -105,11 +105,11 @@ namespace ecs::detail {
             thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
 
             constexpr auto hash = get_type_hash<T>();
-            auto pool = cache.get_or(hash, [this](type_hash hash) {
+            auto pool = cache.get_or(hash, [this](type_hash _hash) {
                 std::shared_lock component_pool_lock(component_pool_mutex);
 
                 // Look in the pool for the type
-                auto const it = type_pool_lookup.find(hash);
+                auto const it = type_pool_lookup.find(_hash);
                 if (it == type_pool_lookup.end()) {
                     // The pool wasn't found so create it.
                     // create_component_pool takes a unique lock, so unlock the

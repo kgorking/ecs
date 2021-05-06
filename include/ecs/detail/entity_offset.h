@@ -14,7 +14,7 @@ class entity_offset_conv {
 	std::vector<int> range_offsets;
 
 public:
-	entity_offset_conv(entity_range_view ranges) noexcept : ranges(ranges) {
+	entity_offset_conv(entity_range_view _ranges) noexcept : ranges(_ranges) {
 		range_offsets.resize(ranges.size());
 		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), int{0}, 
 			[](int val, entity_range r) {
