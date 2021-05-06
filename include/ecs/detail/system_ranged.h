@@ -56,8 +56,8 @@ private:
 
 private:
 	// Holds the arguments for a range of entities
-	using argument = range_argument<FirstComponent, Components...>;
-	std::vector<argument> arguments;
+	using argument_type = range_argument<FirstComponent, Components...>;
+	std::vector<argument_type> arguments;
 
 	pool_range_walker<TupPools> walker;
 };

@@ -14,8 +14,8 @@ namespace ecs::detail {
     struct scheduler_node final {
         // Construct a node from a system.
         // The system can not be null
-        scheduler_node(detail::system_base* sys)
-            : sys(sys)
+        scheduler_node(detail::system_base* _sys)
+            : sys(_sys)
             , dependants{}
             , dependencies{0}
             , unfinished_dependencies{0} {
@@ -116,16 +116,16 @@ namespace ecs::detail {
         group& find_group(int id) {
             // Look for an existing group
             if (!groups.empty()) {
-                for (auto& group : groups) {
-                    if (group.id == id) {
-                        return group;
+                for (auto& g : groups) {
+                    if (g.id == id) {
+                        return g;
                     }
                 }
             }
 
             // No group found, so find an insertion point
             auto const insert_point =
-                std::upper_bound(groups.begin(), groups.end(), id, [](int id, group const& sg) { return id < sg.id; });
+                std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, group const& sg) { return group_id < sg.id; });
 
             // Insert the group and return it
             return *groups.insert(insert_point, group{id, {}, {}});

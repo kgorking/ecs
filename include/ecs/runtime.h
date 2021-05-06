@@ -25,7 +25,7 @@ namespace ecs {
         static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
         static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
 
-        auto const adder = []<class Type>(entity_range const range, Type&& val) {
+        auto const adder = [range]<class Type>(Type&& val) {
             if constexpr (std::is_invocable_v<Type, entity_id> && !detail::unbound<Type>) {
                 // Return type of 'func'
                 using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
@@ -61,8 +61,8 @@ namespace ecs {
             }
         };
 
-        adder(range, std::forward<First>(first_val));
-        (adder(range, std::forward<T>(vals)), ...);
+        adder(std::forward<First>(first_val));
+        (adder(std::forward<T>(vals)), ...);
     }
 
     // Add several components to an entity. Will not be added until 'commit_changes()' is called.
