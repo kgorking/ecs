@@ -24,7 +24,7 @@ struct pmr_greeting {
 	ECS_USE_PMR(pmr_greeting);
 
     // Implement required constructors for pmr support.
-    // These passes the allocator along to the pmr::string.
+    // These pass the allocator along to the pmr::string.
     // 'allocator_type' is declared by ECS_USE_PMR().
     explicit pmr_greeting(allocator_type alloc) noexcept : msg{alloc} {}
     pmr_greeting(pmr_greeting const &g, allocator_type alloc = {}) : msg{g.msg, alloc} {}
