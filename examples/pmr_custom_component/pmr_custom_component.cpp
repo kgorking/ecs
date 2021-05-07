@@ -10,24 +10,28 @@
 
 // The pmr allocator aware component
 struct pmr_greeting {
-    // use the pmr-aware string
-    std::pmr::string msg;
-
-    // Constructor that takes a c-string
-	explicit pmr_greeting(char const *sz) : msg(sz) {}
-
-    //
-    // Required PMR code
-    // 
-
     // Use helper macro to enable pmr support and declare defaults
 	ECS_USE_PMR(pmr_greeting);
 
-    // Implement required constructors for pmr support.
-    // These pass the allocator along to the pmr::string.
+    // use the pmr-aware string
+    std::pmr::string msg;
+
+    // Constructor that takes a c-string.
+    // Grab the current memory resource for the allocator; this allows temporary
+    // instances to also take advantage of the allocator
+	explicit pmr_greeting(char const *sz, allocator_type alloc = ecs::get_memory_resource<pmr_greeting>())
+        : msg(sz, alloc)
+    {}
+
+    //
+    // Required PMR constructors
+    // 
+
+    // Implement required constructors for pmr support. These are called from within other stl types,
+    // like std::pmr::vector, and pass the allocator along to the pmr::string.
     // 'allocator_type' is declared by ECS_USE_PMR().
-    explicit pmr_greeting(allocator_type alloc) noexcept : msg{alloc} {}
-    pmr_greeting(pmr_greeting const &g, allocator_type alloc = {}) : msg{g.msg, alloc} {}
+    explicit pmr_greeting(allocator_type alloc) : msg{alloc} {}
+    pmr_greeting(pmr_greeting const &g, allocator_type alloc) : msg{g.msg, alloc} {}
 	pmr_greeting(pmr_greeting &&g, allocator_type alloc) : msg{std::move(g.msg), alloc} {}
 };
 
@@ -46,7 +50,8 @@ int main() {
     });
 
 
-    // Add some components
+    // Add some components. The temp value is also created in the 
+    // memory resource, thanks to the constructor
     ecs::add_component({0, 3}, pmr_greeting{"some kind of semi large string"});
 	ecs::commit_changes();
 
