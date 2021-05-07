@@ -82,7 +82,8 @@ The CI build status for msvc, clang 10, and gcc 10 is currently:
   - [`transient`](#transient) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/onGnjnxox)
   - [`global`](#global) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/Tb8M7v8cb)
     - [Global systems](#Global-systems)
-
+- [PMR Allocator support](#PMR-Allocator-support)
+    - [Allocator aware components](#Allocator-aware-components)
 
 # Entities
 Entities are the scaffolding on which you build your objects, and there are two classes in the library for managing entities.
@@ -462,4 +463,52 @@ ecs::make_system([](frame_data& fd) {
     std::chrono::duration<double> const diff = clock_now - clock_last;
     fd.delta_time = clock_diff.count();
 });
+```
+
+
+# PMR Allocator support
+TODO: incomplete. See [pmr_allocator_support](https://github.com/kgorking/ecs/blob/pmr_allocators/examples/pmr_allocator_support/pmr_allocator_support.cpp) and [pmr_custom_component](https://github.com/kgorking/ecs/blob/pmr_allocators/examples/pmr_custom_component/pmr_custom_component.cpp) for usage examples.
+
+Polymorphic memory resources are used internally for component storage, so components can also take advantage of this.
+
+This allows users to provide `std::pmr::memory_resource` types for component storage to allow for custom memory management.
+
+```cpp
+// Set up a buffer on the stack for storage of 'std::pmr::string's
+constexpr size_t buf_size = 16384;
+char buffer[buf_size]{};
+std::pmr::monotonic_buffer_resource mono_resource(&buffer[0], buf_size);
+
+// Set the buffer resource to be used with components of type std::pmr::string
+ecs::set_memory_resource<std::pmr::string>(&mono_resource);
+
+// Add some components
+ecs::add_component({0, 3}, std::pmr::string{"some kind of semi large string"});
+
+// Creates the strings and string data in `buffer`.
+// The string data would normally go on the heap instead
+ecs::commit_changes();
+```
+### Allocator aware components
+```cpp
+struct pmr_greeting {
+    // Use helper macro to enable pmr support and declare defaults
+    ECS_USE_PMR(pmr_greeting);
+
+    // use the pmr-aware string
+    std::pmr::string msg;
+
+    // Constructor that takes a c-string.
+    explicit pmr_greeting(char const *sz) : msg(sz) {}
+
+    //
+    // Required PMR constructors
+    // 
+
+    // These are called from within other stl types, like std::pmr::vector, and pass the allocator along to the pmr::string.
+    // 'allocator_type' is declared by ECS_USE_PMR().
+    explicit pmr_greeting(allocator_type alloc) : msg{alloc} {}
+    pmr_greeting(pmr_greeting const &g, allocator_type alloc) : msg{g.msg, alloc} {}
+    pmr_greeting(pmr_greeting &&g, allocator_type alloc) : msg{std::move(g.msg), alloc} {}
+};
 ```
