@@ -97,7 +97,7 @@ namespace ecs::detail {
     // Schedules systems for concurrent execution based on their components.
     class scheduler final {
         // A group of systems with the same group id
-        struct group final {
+        struct systems_group final {
             int id;
             std::vector<scheduler_node> all_nodes;
             std::vector<std::size_t> entry_nodes{};
@@ -110,10 +110,10 @@ namespace ecs::detail {
             }
         };
 
-        std::vector<group> groups;
+        std::vector<systems_group> groups;
 
     protected:
-        group& find_group(int id) {
+        systems_group& find_group(int id) {
             // Look for an existing group
             if (!groups.empty()) {
                 for (auto& g : groups) {
@@ -125,10 +125,10 @@ namespace ecs::detail {
 
             // No group found, so find an insertion point
             auto const insert_point =
-                std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, group const& sg) { return group_id < sg.id; });
+                std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) { return group_id < sg.id; });
 
             // Insert the group and return it
-            return *groups.insert(insert_point, group{id, {}, {}});
+            return *groups.insert(insert_point, systems_group{id, {}, {}});
         }
 
     public:
