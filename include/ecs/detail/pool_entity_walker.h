@@ -123,13 +123,13 @@ private:
 		if (done())
 			return;
 
-		std::apply([this](auto *const... pools) {
+		std::apply([this](auto *const... in_pools) {
 				auto const f = [&](auto pool) {
 					using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
 					std::get<pool_inner_type *>(pointers) = pool->find_component_data(ranges_it->first());
 				};
 
-				(f(pools), ...);
+				(f(in_pools), ...);
 			},
 			pools);
 	}
