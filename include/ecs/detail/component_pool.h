@@ -40,12 +40,14 @@ void combine_erase(Cont& cont, BinaryPredicate p) {
     cont.erase(end, cont.end());
 }
 
-// Helpre macro for components that wish to support pmr
+// Helpre macro for components that wish to support pmr.
+// Declares the 'allocator_type' and default constructor/assignment
 #define ECS_USE_PMR(ClassName) \
     using allocator_type = std::pmr::polymorphic_allocator<>; \
                                                               \
     ClassName() : ClassName(allocator_type{}) {}              \
-    ClassName(ClassName &&t) noexcept = default;              \
+    ClassName(ClassName const&) = default;                    \
+    ClassName(ClassName &&) = default;                        \
 	~ClassName() = default;                                   \
                                                               \
     ClassName &operator=(ClassName const &) = default;        \
