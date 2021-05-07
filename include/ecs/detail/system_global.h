@@ -11,8 +11,8 @@ namespace ecs::detail {
         system_global(UpdateFn func, TupPools in_pools)
             : system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}
             , argument {
-                &get_pool<FirstComponent>(pools).get_shared_component(),
-                &get_pool<Components>(pools).get_shared_component()...}
+                &get_pool<FirstComponent>(in_pools).get_shared_component(),
+                &get_pool<Components>(in_pools).get_shared_component()...}
         {
         }
 
