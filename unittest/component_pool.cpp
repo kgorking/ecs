@@ -1,7 +1,8 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
-
+#include <memory_resource>
+#include <string>
 
 struct ctr_counter {
     inline static size_t def_ctr_count = 0;
@@ -228,6 +229,103 @@ TEST_CASE("Component pool specification", "[component]") {
 
             auto const ev = pool.get_entities();
             REQUIRE(ev.front().first() == -2);
+        }
+    }
+
+    SECTION("Allocators") {
+        SECTION("setting a memory_resource works") {
+			constexpr ptrdiff_t buffer_size = 64;
+			std::byte buffer[buffer_size]{};
+			std::pmr::monotonic_buffer_resource resource(buffer, buffer_size);
+
+            struct test {
+				int x;
+            };
+
+            ecs::detail::component_pool<test> pool;
+
+            // no resource set
+			pool.add({0, 3}, {42});
+            pool.process_changes();
+
+            // set the memory resource
+            // moves existing data into the new resource
+			pool.set_memory_resource(&resource);
+
+            std::byte const* t = reinterpret_cast<std::byte*>(pool.find_component_data(0));
+			ptrdiff_t const diff = (t - &buffer[0]);
+
+            REQUIRE((diff >= 0 && diff < buffer_size));
+        }
+
+        SECTION("memory_resource is propagated to component members where supported") {
+			constexpr ptrdiff_t buffer_size = 1024;
+			std::byte buffer[buffer_size]{};
+			std::pmr::monotonic_buffer_resource resource(buffer, buffer_size);
+
+            struct test {
+                int x;
+				std::pmr::string s;
+
+                test(int _x, std::pmr::string _s) : x{_x}, s{_s} {}
+
+                // implement pmr support
+				ECS_USE_PMR(test);
+                explicit test(allocator_type alloc) noexcept : x{}, s{alloc} {}
+                test(test const &t, allocator_type alloc = {}) : x{t.x}, s{t.s, alloc} {}
+				test(test &&t, allocator_type alloc) : x{t.x}, s{std::move(t.s), alloc} {}
+            };
+
+            ecs::detail::component_pool<test> pool;
+
+            // No resource set, data goes on the heap
+			pool.add({0, 3}, {42, "hello you saucy minx"});
+            pool.process_changes();
+
+            // Set the memory resource.
+            // Moves existing data into the new resource
+			pool.set_memory_resource(&resource);
+
+            test const* ptr_test = pool.find_component_data(0);
+            char const *ptr_string_data = ptr_test->s.data();
+
+            std::byte const* ptr = reinterpret_cast<std::byte const*>(ptr_string_data);
+			ptrdiff_t diff = (ptr - &buffer[0]);
+
+            // Verify the data was moved into the monotonic resource
+            REQUIRE((diff >= 0 && diff < buffer_size));
+
+
+            // Add another component. Should go into the monotonic resource
+			pool.add({4, 4}, {11, "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"});
+            pool.process_changes();
+
+            ptr_test = pool.find_component_data(4);
+            ptr_string_data = ptr_test->s.data();
+
+            ptr = reinterpret_cast<std::byte const*>(ptr_string_data);
+			diff = (ptr - &buffer[0]);
+
+            // Verify the data was placed in the monotonic resource
+            REQUIRE((diff >= 0 && diff < buffer_size));
+        }
+
+        SECTION("a context reset clears memory_resources") {
+            // get the unmodified memory resource
+			auto const res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+
+            // change the resource
+			std::pmr::monotonic_buffer_resource dummy;
+            ecs::set_memory_resource<int>(&dummy);
+            auto const changed_res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+			REQUIRE(&dummy == changed_res);
+
+            // reset
+            ecs::detail::_context.reset();
+
+            // verify resource is reverted
+            auto const reset_res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+			REQUIRE(res == reset_res);
         }
     }
 }

@@ -1,7 +1,7 @@
 #ifndef ECS_SYSTEM_DEFS_H_
 #define ECS_SYSTEM_DEFS_H_
 
-// Contains definitions that are used by the system- and builder classes
+// Contains definitions that are used by the systems classes
 #include "component_pool.h"
 #include "parent_id.h"
 #include "type_list.h"

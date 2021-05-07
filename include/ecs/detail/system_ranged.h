@@ -13,8 +13,8 @@ class system_ranged final : public system<Options, UpdateFn, TupPools, FirstComp
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn update_func, TupPools pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}, walker{pools} {}
+	system_ranged(UpdateFn func, TupPools in_pools)
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {}
 
 private:
 	void do_run() override {

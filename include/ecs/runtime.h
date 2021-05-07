@@ -205,6 +205,27 @@ namespace ecs {
             return invalid_system_type;
         }
     }
+
+    // Set the memory resource to use to store a specific type of component
+    template<class Component>
+    void set_memory_resource(std::pmr::memory_resource *resource) {
+        auto &pool = detail::get_context().get_component_pool<Component>();
+		pool.set_memory_resource(resource);
+    }
+
+    // Returns the memory resource used to store a specific type of component
+    template<class Component>
+    std::pmr::memory_resource* get_memory_resource() {
+        auto &pool = detail::get_context().get_component_pool<Component>();
+		return pool.get_memory_resource();
+    }
+
+    // Resets the memory resource to the default
+    template<class Component>
+    void reset_memory_resource() {
+        auto &pool = detail::get_context().get_component_pool<Component>();
+		pool.set_memory_resource(std::pmr::get_default_resource());
+    }
 } // namespace ecs
 
 #endif // !ECS_RUNTIME

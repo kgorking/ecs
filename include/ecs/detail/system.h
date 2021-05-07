@@ -26,8 +26,8 @@ class system : public system_base {
 	virtual void do_build(entity_range_view) = 0;
 
 public:
-	system(UpdateFn update_func, TupPools tup_pools)
-		: update_func{update_func}
+	system(UpdateFn func, TupPools tup_pools)
+		: update_func{func}
 		, pools{tup_pools}
 		, pool_parent_id{nullptr}
 	{
