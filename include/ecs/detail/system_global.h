@@ -8,8 +8,8 @@ namespace ecs::detail {
     template<class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
     class system_global final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
     public:
-        system_global(UpdateFn update_func, TupPools pools)
-            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
+        system_global(UpdateFn func, TupPools in_pools)
+            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}
             , argument {
                 &get_pool<FirstComponent>(pools).get_shared_component(),
                 &get_pool<Components>(pools).get_shared_component()...}
