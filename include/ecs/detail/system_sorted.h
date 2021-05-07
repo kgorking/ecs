@@ -15,8 +15,8 @@ namespace ecs::detail {
             std::execution::sequenced_policy, std::execution::parallel_policy>;
 
     public:
-        system_sorted(UpdateFn update_func, SortFunc sort, TupPools pools)
-            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>(update_func, pools)
+        system_sorted(UpdateFn func, SortFunc sort, TupPools pools)
+            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>(func, pools)
             , sort_func{sort} {
         }
 

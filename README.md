@@ -490,6 +490,8 @@ ecs::add_component({0, 3}, std::pmr::string{"some kind of semi large string"});
 ecs::commit_changes();
 ```
 ### Allocator aware components
+* don't use allocators in custom constructors; components go in temp storage until commit_changes()
+
 ```cpp
 struct pmr_greeting {
     // Use helper macro to enable pmr support and declare defaults

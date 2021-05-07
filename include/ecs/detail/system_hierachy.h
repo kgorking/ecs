@@ -31,8 +31,8 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 		std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
 
 public:
-	system_hierarchy(UpdateFn update_func, TupPools pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
+	system_hierarchy(UpdateFn func, TupPools pools)
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, pools}
 		, parent_pools{make_parent_types_tuple()}
 	{}
 
