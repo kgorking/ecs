@@ -252,7 +252,13 @@ TEST_CASE("Component pool specification", "[component]") {
             // moves existing data into the new resource
 			pool.set_memory_resource(&resource);
 
-            std::byte const* t = reinterpret_cast<std::byte*>(pool.find_component_data(0));
+            // Verify the data survived
+            test const *ent_0_data = pool.find_component_data(0);
+			REQUIRE(ent_0_data->x == 42);
+
+
+            // Verify the data is in the monotonic resource buffer
+            std::byte const* t = reinterpret_cast<std::byte const*>(ent_0_data);
 			ptrdiff_t const diff = (t - &buffer[0]);
 
             REQUIRE((diff >= 0 && diff < buffer_size));
