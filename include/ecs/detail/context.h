@@ -26,7 +26,7 @@ namespace ecs::detail {
         std::vector<std::unique_ptr<system_base>> systems;
         std::vector<std::unique_ptr<component_pool_base>> component_pools;
         std::map<type_hash, component_pool_base*> type_pool_lookup;
-		tls::splitter<tls::cache<type_hash, component_pool_base *, get_type_hash<void>()>, ecs::detail::context> type_caches;
+		tls::splitter<tls::cache<type_hash, component_pool_base *, get_type_hash<void>()>> type_caches;
         scheduler sched;
 
         mutable std::shared_mutex system_mutex;
@@ -102,7 +102,7 @@ namespace ecs::detail {
             // and prevent the compiler from generating duplicated code.
 			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-            thread_local auto& cache = type_caches.local();
+            /*constinit */thread_local auto& cache = type_caches.local();
 
             constexpr auto hash = get_type_hash<T>();
             auto pool = cache.get_or(hash, [this](type_hash _hash) {
