@@ -78,8 +78,8 @@ private:
 		std::atomic<int> index = 0;
 		std::for_each(std::execution::par, ranges.begin(), ranges.end(), [this, &tls_roots, &index, conv = entity_offset_conv{ranges}](auto const &range) {
 			// Create a walker
-			thread_local pool_entity_walker<TupPools> walker(this->pools);
-			walker.reset(entity_range_view{{range}});
+			thread_local pool_entity_walker<TupPools> walker;
+			walker.reset(&this->pools, entity_range_view{{range}});
 
 			info_map info;
 			std::map<entity_type, int> &roots = tls_roots.local();
