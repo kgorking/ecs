@@ -272,7 +272,7 @@ TEST_CASE("Component pool specification", "[component]") {
                 // implement pmr support
 				ECS_USE_PMR(test);
                 explicit test(allocator_type alloc) noexcept : x{}, s{alloc} {}
-                test(test const &t, allocator_type alloc = {}) : x{t.x}, s{t.s, alloc} {}
+                test(test const &t, allocator_type alloc) : x{t.x}, s{t.s, alloc} {}
 				test(test &&t, allocator_type alloc) : x{t.x}, s{std::move(t.s), alloc} {}
             };
 
