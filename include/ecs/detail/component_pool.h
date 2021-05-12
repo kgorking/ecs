@@ -51,7 +51,7 @@ void combine_erase(Cont& cont, BinaryPredicate p) {
 	~ClassName() = default;                                   \
                                                               \
     ClassName &operator=(ClassName const &) = default;        \
-    ClassName &operator=(ClassName &&) = default;
+    ClassName &operator=(ClassName &&) = default
 
 
 
