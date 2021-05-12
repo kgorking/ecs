@@ -98,6 +98,9 @@ namespace ecs::detail {
             // Move the current data out
 			auto copy{std::move(components)};
 
+            // Destroy the current container
+			std::destroy_at(&components);
+
             // Placement-new the data back with the new memory resource
 			std::construct_at(&components, std::move(copy), resource);
 
