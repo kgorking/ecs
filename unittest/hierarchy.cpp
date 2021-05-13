@@ -14,13 +14,13 @@ TEST_CASE("Hierarchies") {
 	SECTION("are traversed correctly") {
 		reset();
 
-		//     ______1_________
-		//    /      |         \
-        //   4       3          2
-		//  /|\     /|\       / | \
-        // 5 6 7   8 9 10   11  12 13
-		// |         |             |
-		// 14        15            16
+		/*     ______1_________              */
+		/*    /      |         \             */
+        /*   4       3          2            */
+		/*  /|\     /|\       / | \          */
+        /* 5 6 7   8 9 10   11  12 13        */
+		/* |         |             |         */
+		/* 14        15            16        */
 
 		// The root
 		add_component({1}, int{});
@@ -108,13 +108,13 @@ TEST_CASE("Hierarchies") {
 		// The set to verify the traversal order
 		std::unordered_set<int> traversal_order;
 
-		detail::entity_type id = 0;
-		while (id < nentities) {
-			traversal_order.insert(id + 0);
-			add_component({id + 0}, int{});
-			add_component({id + 1, id + 7}, int{}, parent{id + 0});
+		detail::entity_type i = 0;
+		while (i < nentities) {
+			traversal_order.insert(i + 0);
+			add_component({i + 0}, int{});
+			add_component({i + 1, i + 7}, int{}, parent{i + 0});
 
-			id += 8;
+			i += 8;
 		}
 
 		commit_changes();

@@ -252,7 +252,14 @@ TEST_CASE("Component pool specification", "[component]") {
             // moves existing data into the new resource
 			pool.set_memory_resource(&resource);
 
-            std::byte const* t = reinterpret_cast<std::byte*>(pool.find_component_data(0));
+            // Verify the data survived
+            test const *ent_0_data = pool.find_component_data(0);
+			REQUIRE(ent_0_data->x == 42);
+
+
+            // Verify the data is in the monotonic resource buffer
+            std::byte const* t = reinterpret_cast<std::byte const*>(ent_0_data);
+
 			ptrdiff_t const diff = (t - &buffer[0]);
 
             REQUIRE((diff >= 0 && diff < buffer_size));
@@ -272,7 +279,7 @@ TEST_CASE("Component pool specification", "[component]") {
                 // implement pmr support
 				ECS_USE_PMR(test);
                 explicit test(allocator_type alloc) noexcept : x{}, s{alloc} {}
-                test(test const &t, allocator_type alloc = {}) : x{t.x}, s{t.s, alloc} {}
+                test(test const &t, allocator_type alloc) : x{t.x}, s{t.s, alloc} {}
 				test(test &&t, allocator_type alloc) : x{t.x}, s{std::move(t.s), alloc} {}
             };
 

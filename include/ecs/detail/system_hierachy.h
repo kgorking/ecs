@@ -4,6 +4,7 @@
 #include <map>
 #include <unordered_map>
 #include <future>
+#include <tls/collect.h>
 
 #include "../parent.h"
 #include "entity_range_iterator.h"
@@ -72,14 +73,14 @@ private:
 		}
 
 		// map of entity and root info
-		tls::splitter<std::map<entity_type, int>, component_list> tls_roots;
+		tls::collect<std::map<entity_type, int>, component_list> tls_roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
 		std::for_each(std::execution::par, ranges.begin(), ranges.end(), [this, &tls_roots, &index, conv = entity_offset_conv{ranges}](auto const &range) {
 			// Create a walker
-			thread_local pool_entity_walker<TupPools> walker(this->pools);
-			walker.reset(entity_range_view{{range}});
+			thread_local pool_entity_walker<TupPools> walker;
+			walker.reset(&this->pools, entity_range_view{{range}});
 
 			info_map info;
 			std::map<entity_type, int> &roots = tls_roots.local();
@@ -108,9 +109,10 @@ private:
 
 		auto const fut = std::async(std::launch::async, [&]() {
 			// Collapse the thread_local roots maps into the first map
-			auto const dest = tls_roots.begin();
+			auto collection = tls_roots.gather();
+			auto const dest = collection.begin();
 			auto current = std::next(dest);
-			while (current != tls_roots.end()) {
+			while (current != collection.end()) {
 				dest->merge(std::move(*current));
 				++current;
 			}
