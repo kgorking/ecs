@@ -101,7 +101,7 @@ namespace ecs::detail {
             // Destroy the current container
 			std::destroy_at(&components);
 
-            // Placement-new the data back with the new memory resource
+          // Placement-new the data back with the new memory resource
 			std::construct_at(&components, std::move(copy), resource);
 
             // component addresses has changed, so make sure systems rebuilds their caches

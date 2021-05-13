@@ -259,6 +259,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
             // Verify the data is in the monotonic resource buffer
             std::byte const* t = reinterpret_cast<std::byte const*>(ent_0_data);
+
 			ptrdiff_t const diff = (t - &buffer[0]);
 
             REQUIRE((diff >= 0 && diff < buffer_size));
