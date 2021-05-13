@@ -4,6 +4,7 @@
 #include <map>
 #include <unordered_map>
 #include <future>
+#include <tls/collect.h>
 
 #include "../parent.h"
 #include "entity_range_iterator.h"
@@ -72,7 +73,7 @@ private:
 		}
 
 		// map of entity and root info
-		tls::splitter<std::map<entity_type, int>, component_list> tls_roots;
+		tls::collect<std::map<entity_type, int>, component_list> tls_roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
@@ -108,9 +109,10 @@ private:
 
 		auto const fut = std::async(std::launch::async, [&]() {
 			// Collapse the thread_local roots maps into the first map
-			auto const dest = tls_roots.begin();
+			auto collection = tls_roots.gather();
+			auto const dest = collection.begin();
 			auto current = std::next(dest);
-			while (current != tls_roots.end()) {
+			while (current != collection.end()) {
 				dest->merge(std::move(*current));
 				++current;
 			}

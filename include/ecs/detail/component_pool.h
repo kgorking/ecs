@@ -9,7 +9,7 @@
 #include <memory_resource>
 #include <cstring> // for memcmp
 
-#include "tls/splitter.h"
+#include "tls/collect.h"
 
 #include "../entity_id.h"
 #include "../entity_range.h"
@@ -73,9 +73,9 @@ namespace ecs::detail {
         // Keep track of which components to add/remove each cycle
         using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
         using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
-        tls::splitter<std::vector<entity_data>, component_pool<T>> deferred_adds;
-        tls::splitter<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
-        tls::splitter<std::vector<entity_range>, component_pool<T>> deferred_removes;
+        tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+        tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
+        tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
         // Status flags
         bool components_added = false;
@@ -329,13 +329,15 @@ namespace ecs::detail {
         // Add new queued entities and components to the main storage
         void process_add_components() {
             // Combine the components in to a single vector
+			auto collection = deferred_adds.gather();
             std::vector<entity_data> adds;
-            for (auto& vec : deferred_adds) {
+            for (auto& vec : collection) {
                 std::move(vec.begin(), vec.end(), std::back_inserter(adds));
             }
 
+			auto collection_inits = deferred_init_adds.gather();
             std::vector<entity_init> inits;
-            for (auto& vec : deferred_init_adds) {
+            for (auto& vec : collection_inits) {
                 std::move(vec.begin(), vec.end(), std::back_inserter(inits));
             }
 
@@ -522,8 +524,9 @@ namespace ecs::detail {
                 }
             } else {
                 // Combine the vectors
+				auto collection = deferred_removes.gather();
                 std::vector<entity_range> removes;
-                for (auto& vec : deferred_removes) {
+                for (auto& vec : collection) {
                     std::move(vec.begin(), vec.end(), std::back_inserter(removes));
                 }
 
