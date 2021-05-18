@@ -1,5 +1,6 @@
 #include "../../tls/include/tls/cache.h"
-#include "../../tls/include/tls/splitter.h"
+#include "../../tls/include/tls/split.h"
+#include "../../tls/include/tls/collect.h"
 
 #include "detail/type_list.h"
 #include "detail/contract.h"

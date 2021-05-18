@@ -4,222 +4,386 @@
 #include <algorithm>
 
 namespace tls {
-    // A class using a cache-line to cache data.
-    template <class Key, class Value, Key empty_slot = Key{}, size_t cache_line = 64UL>
-    class cache {
-        // If you trigger this assert, then either your key- or value size is too large,
-        // or you cache_line size is too small.
-        // The cache should be able to hold at least 4 key/value pairs in order to be efficient.
-	    static_assert((sizeof(Key) + sizeof(Value)) <= (cache_line / 4), "key or value size too large");
+// A class using a cache-line to cache data.
+template <class Key, class Value, Key empty_slot = Key{}, size_t cache_line = 64UL>
+class cache {
+	// If you trigger this assert, then either your key- or value size is too large,
+	// or you cache_line size is too small.
+	// The cache should be able to hold at least 4 key/value pairs in order to be efficient.
+	static_assert((sizeof(Key) + sizeof(Value)) <= (cache_line / 4), "key or value size too large");
 
-        static constexpr size_t num_entries = (cache_line) / (sizeof(Key) + sizeof(Value));
+	static constexpr size_t num_entries = (cache_line) / (sizeof(Key) + sizeof(Value));
 
-    public:
-        constexpr cache() {
-            reset();
-        }
+public:
+	constexpr cache() {
+		reset();
+	}
 
-        // Returns the value if it exists in the cache,
-        // otherwise inserts 'or_fn(k)' in cache and returns it
-        template <class Fn>
-        constexpr Value get_or(Key const k, Fn or_fn) {
-            size_t index = num_entries;
-			size_t i = 0;
-            for (; i < num_entries; i++) {
-				if (k == keys[i])
-                    index = i;
-            }
-			if (index != num_entries)
-				return values[index];
+	// Returns the value if it exists in the cache,
+	// otherwise inserts 'or_fn(k)' in cache and returns it
+	template <class Fn>
+	constexpr Value get_or(Key const k, Fn or_fn) {
+		size_t index = num_entries;
+		size_t i = 0;
+		for (; i < num_entries; i++) {
+			if (k == keys[i])
+				index = i;
+		}
+		if (index != num_entries)
+			return values[index];
 
-            insert_val(k, or_fn(k));
-            return values[0];
-        }
+		insert_val(k, or_fn(k));
+		return values[0];
+	}
 
-        // Clears the cache
-        constexpr void reset() {
-            std::fill(keys, keys + num_entries, empty_slot);
-            std::fill(values, values + num_entries, Value{});
-        }
+	// Clears the cache
+	constexpr void reset() {
+		std::fill(keys, keys + num_entries, empty_slot);
+		std::fill(values, values + num_entries, Value{});
+	}
 
-        // Returns the number of key/value pairs that can be cached
-        static constexpr size_t max_entries() {
-			return num_entries;
-        }
+	// Returns the number of key/value pairs that can be cached
+	static constexpr size_t max_entries() {
+		return num_entries;
+	}
 
-    protected:
-        constexpr void insert_val(Key const k, Value const v) {
-            // Move all pairs one step to the right
-            std::shift_right(keys, keys + num_entries, 1);
-            std::shift_right(values, values + num_entries, 1);
+protected:
+	constexpr void insert_val(Key const k, Value const v) {
+		// Move all pairs one step to the right
+		std::shift_right(keys, keys + num_entries, 1);
+		std::shift_right(values, values + num_entries, 1);
 
-            // Insert the new pair at the front of the cache
-            keys[0] = k;
-            values[0] = v;
-        }
+		// Insert the new pair at the front of the cache
+		keys[0] = k;
+		values[0] = v;
+	}
 
-    private:
-        Key keys[num_entries];
-        Value values[num_entries];
-    };
+private:
+	Key keys[num_entries];
+	Value values[num_entries];
+};
 
-}
+} // namespace tls
 
 #endif // !TLS_CACHE
-#ifndef TLS_SPLITTER_H
-#define TLS_SPLITTER_H
+#ifndef TLS_SPLIT_H
+#define TLS_SPLIT_H
+
+#include <mutex>
+
+namespace tls {
+// Provides a thread-local instance of the type T for each thread that
+// accesses it. Data is not preserved when threads die.
+// This class locks when a thread is created/destroyed.
+// The thread_local T's can be accessed through split::for_each.
+// Note: Two split<T> instances in the same thread will point to the same data.
+//       Differentiate between them by passing different types to 'UnusedDifferentiaterType'.
+//       As the name implies, it's not used internally, so just put whatever.
+template <typename T, typename UnusedDifferentiaterType = void>
+class split {
+	// This struct manages the instances that access the thread-local data.
+	// Its lifetime is marked as thread_local, which means that it can live longer than
+	// the split<> instance that spawned it.
+	struct thread_data {
+		// The destructor triggers when a thread dies and the thread_local
+		// instance is destroyed
+		~thread_data() noexcept {
+			if (owner != nullptr) {
+				owner->remove_thread(this);
+			}
+		}
+
+		// Return a reference to an instances local data
+		T &get(split *instance) noexcept {
+			// If the owner is null, (re-)initialize the instance.
+			// Data may still be present if the thread_local instance is still active
+			if (owner == nullptr) {
+				data = {};
+				owner = instance;
+				instance->init_thread(this);
+			}
+			return data;
+		}
+
+		void remove(split *instance) noexcept {
+			if (owner == instance) {
+				data = {};
+				owner = nullptr;
+				next = nullptr;
+			}
+		}
+
+		T *get_data() noexcept {
+			return &data;
+		}
+		T const *get_data() const noexcept {
+			return &data;
+		}
+
+		void set_next(thread_data *ia) noexcept {
+			next = ia;
+		}
+		thread_data *get_next() noexcept {
+			return next;
+		}
+		thread_data const *get_next() const noexcept {
+			return next;
+		}
+
+	private:
+		T data{};
+		split<T, UnusedDifferentiaterType> *owner{};
+		thread_data *next = nullptr;
+	};
+
+private:
+	// the head of the threads that access this split instance
+	thread_data *head{};
+
+	// Mutex for serializing access for adding/removing thread-local instances
+	std::mutex mtx_storage;
+
+protected:
+	// Adds a thread_data
+	void init_thread(thread_data *t) noexcept {
+		std::scoped_lock sl(mtx_storage);
+
+		t->set_next(head);
+		head = t;
+	}
+
+	// Remove the thread_data
+	void remove_thread(thread_data *t) noexcept {
+		std::scoped_lock sl(mtx_storage);
+
+		// Remove the thread from the linked list
+		if (head == t) {
+			head = t->get_next();
+		} else {
+			auto curr = head;
+			while (curr->get_next() != nullptr) {
+				if (curr->get_next() == t) {
+					curr->set_next(t->get_next());
+					return;
+				} else {
+					curr = curr->get_next();
+				}
+			}
+		}
+	}
+
+public:
+	split() noexcept = default;
+	split(split const &) = delete;
+	split(split &&) noexcept = default;
+	split &operator=(split const &) = delete;
+	split &operator=(split &&) noexcept = default;
+	~split() noexcept {
+		clear();
+	}
+
+	// Get the thread-local instance of T
+	T &local() noexcept {
+		thread_local thread_data var{};
+		return var.get(this);
+	}
+
+	// Performa an action on all each instance of the data
+	template<class Fn>
+	void for_each(Fn&& fn) {
+		std::scoped_lock sl(mtx_storage);
+
+		for (thread_data *instance = head; instance != nullptr; instance = instance->get_next()) {
+			fn(*instance->get_data());
+		}
+	}
+
+	// Clears all data and threads
+	void clear() noexcept {
+		std::scoped_lock sl(mtx_storage);
+
+		for (thread_data *instance = head; instance != nullptr;) {
+			auto next = instance->get_next();
+			instance->remove(this);
+			instance = next;
+		}
+
+		head = nullptr;
+	}
+};
+} // namespace tls
+
+#endif // !TLS_SPLIT_H
+#ifndef TLS_COLLECT_H
+#define TLS_COLLECT_H
 
 #include <mutex>
 #include <vector>
-#include <forward_list>
-#include <algorithm>
-#ifdef _MSC_VER
-#include <new>  // for std::hardware_destructive_interference_size
-#endif
 
 namespace tls {
+// Works like tls::split, except data is preserved when threads die.
+// You can collect the thread_local T's with collect::gather,
+// which also resets the data on the threads by moving it.
+// Note: Two collect<T> instances in the same thread will point to the same data.
+//       Differentiate between them by passing different types to 'UnusedDifferentiaterType'.
+//       As the name implies, it's not used internally, so just put whatever.
+template <typename T, typename UnusedDifferentiaterType = void>
+class collect {
+	// This struct manages the instances that access the thread-local data.
+	// Its lifetime is marked as thread_local, which means that it can live longer than
+	// the splitter<> instance that spawned it.
+	struct thread_data {
+		~thread_data() noexcept {
+			if (owner != nullptr) {
+				owner->remove_thread(this);
+			}
+		}
 
-    namespace detail {
-        // Cache-line aware allocator for std::forward_list
-        // This is needed to ensure that data is forced into seperate cache lines
-        template<class T> // T is the list node containing the type
-        struct cla_forward_list_allocator {
-            using value_type = T;
-            using size_type = std::size_t;
-            using difference_type = std::ptrdiff_t;
-            using is_always_equal = std::true_type;
+		// Return a reference to an instances local data
+		T &get(collect *instance) noexcept {
+			// If the owner is null, (re-)initialize the thread.
+			// Data may still be present if the thread_local instance is still active
+			if (owner == nullptr) {
+				data = {};
+				owner = instance;
+				instance->init_thread(this);
+			}
+			return data;
+		}
 
-#ifdef _MSC_VER
-            static constexpr auto cache_line_size = std::hardware_destructive_interference_size;
-            static constexpr auto alloc_size = sizeof(T); // msvc already keeps nodes on seperate cache lines
-#else // gcc/clang (libc++) needs some masaging
-            static constexpr auto cache_line_size = 64UL; // std::hardware_destructive_interference_size not implemented in libc++
-            static constexpr auto fl_node_size = 16UL; // size of a forward_list node
-            static constexpr auto alloc_size = std::max(sizeof(T), cache_line_size - fl_node_size);
-#endif
+		void remove(collect *instance) noexcept {
+			if (owner == instance) {
+				data = {};
+				owner = nullptr;
+				next = nullptr;
+			}
+		}
 
-            constexpr cla_forward_list_allocator() noexcept {}
-            constexpr cla_forward_list_allocator(const cla_forward_list_allocator&) noexcept = default;
-            template <class other>
-            constexpr cla_forward_list_allocator(const cla_forward_list_allocator<other>&) noexcept {}
+		T *get_data() noexcept {
+			return &data;
+		}
+		T const *get_data() const noexcept {
+			return &data;
+		}
 
-            T* allocate(std::size_t n) {
-                return static_cast<T*>(malloc(n * alloc_size));
-            }
+		void set_next(thread_data *ia) noexcept {
+			next = ia;
+		}
+		thread_data *get_next() noexcept {
+			return next;
+		}
+		thread_data const *get_next() const noexcept {
+			return next;
+		}
 
-            void deallocate(T* p, std::size_t /*n*/) {
-                free(p);
-            }
-        };
-    }
+	private:
+		T data{};
+		collect *owner{};
+		thread_data *next = nullptr;
+	};
 
-    // Provides a thread-local instance of the type T for each thread that
-    // accesses it. This avoid having to use locks to read/write data.
-    // This class only locks when a new thread is created/destroyed.
-    // The set of instances can be accessed through the begin()/end() iterators.
-    // Note: Two splitter<T> instances in the same thread will point to the same data.
-    //       Differentiate between them by passing different types to 'UnusedDifferentiaterType'.
-    //       As the name implies, it's not used internally, so just put whatever.
-    template <typename T, typename UnusedDifferentiaterType = void>
-    class splitter {
-        // This struct manages the instances that access the thread-local data.
-        // Its lifetime is marked as thread_local, which means that it can live longer than
-        // the splitter<> instance that spawned it.
-        struct instance_access {
-            // Return a reference to an instances local data
-            T& get(splitter<T, UnusedDifferentiaterType>* instance) {
-                if (owner == nullptr) {
-                    // First-time access
-                    owner = instance;
-                    data = instance->init_thread(this);
-                }
+private:
+	// the head of the threads that access this splitter instance
+	thread_data *head{};
 
-                return *data;
-            }
+	// All the data collected from threads
+	std::vector<T> data;
 
-            void remove(splitter<T, UnusedDifferentiaterType>* instance) noexcept {
-                if (owner == instance) {
-                    owner = nullptr;
-                    data = nullptr;
-                }
-            }
-
-        private:
-            splitter<T, UnusedDifferentiaterType>* owner{};
-            T* data{};
-        };
-        friend instance_access;
-
-        // the threads that access this instance
-        std::vector<instance_access*> instances;
-
-        // instance-data created by each thread.
-        // list contents are not invalidated when more items are added, unlike a vector
-        std::forward_list<T, detail::cla_forward_list_allocator<T>> data;
+	// Mutex for serializing access for adding/removing thread-local instances
+	std::mutex mtx_storage;
 
 protected:
-        // Adds a instance_access and allocates its data.
-        // Returns a pointer to the data
-        T* init_thread(instance_access* t) {
-            // Mutex for serializing access for creating/removing locals
-            static std::mutex mtx_storage;
-            std::scoped_lock sl(mtx_storage);
+	// Adds a new thread
+	void init_thread(thread_data *t) noexcept {
+		std::scoped_lock sl(mtx_storage);
 
-            instances.push_back(t);
-            data.emplace_front(T{});
-            return &data.front();
-        }
+		t->set_next(head);
+		head = t;
+	}
 
-        // Remove the instance_access. The data itself is preserved
-        void remove_thread(instance_access* t) noexcept {
-            auto it = std::find(instances.begin(), instances.end(), t);
-            if (it != instances.end()) {
-                std::swap(*it, instances.back());
-                instances.pop_back();
-            }
-        }
+	// Removes the thread
+	void remove_thread(thread_data *t) noexcept {
+		std::scoped_lock sl(mtx_storage);
 
-    public:
-        ~splitter() noexcept {
-            clear();
-        }
+		// Take the thread data
+		T *local_data = t->get_data();
+		data.push_back(std::move(*local_data));
 
-        using iterator = typename decltype(data)::iterator;
-        using const_iterator = typename decltype(data)::const_iterator;
+		// Reset the thread data
+		*local_data = T{};
 
-        iterator begin() noexcept { return data.begin(); }
-        iterator end() noexcept { return data.end(); }
-        const_iterator begin() const noexcept { return data.begin(); }
-        const_iterator end() const noexcept { return data.end(); }
+		// Remove the thread from the linked list
+		if (head == t) {
+			head = t->get_next();
+		} else {
+			auto curr = head;
+			while (curr->get_next() != nullptr) {
+				if (curr->get_next() == t) {
+					curr->set_next(t->get_next());
+					return;
+				} else {
+					curr = curr->get_next();
+				}
+			}
+		}
+	}
 
-        // Get the thread-local instance of T for the current instance
-        T& local() {
-            thread_local instance_access var{};
-            return var.get(this);
-        }
+public:
+	collect() noexcept = default;
+	collect(collect const &) = delete;
+	collect(collect &&) noexcept = default;
+	collect &operator=(collect const &) = delete;
+	collect &operator=(collect &&) noexcept = default;
+	~collect() noexcept {
+		clear();
+	}
 
-        // Clears all the thread instances and data
-        void clear() noexcept {
-            for (instance_access* instance : instances)
-                instance->remove(this);
-            instances.clear();
-            data.clear();
-        }
+	// Get the thread-local thread of T
+	T &local() noexcept {
+		thread_local thread_data var{};
+		return var.get(this);
+	}
 
-        // Sort the data using std::less<>
-        void sort() {
-            data.sort();
-        }
+	// Gethers all the threads data and returns it. This clears all stored data.
+	std::vector<T> gather() noexcept {
+		std::scoped_lock sl(mtx_storage);
 
-        // Sort the data using supplied predicate 'bool(auto const&, auto const&)'
-        template <class Predicate>
-        void sort(Predicate pred) {
-            data.sort(pred);
-        }
-    };
-}
+		for (thread_data *thread = head; thread != nullptr; thread = thread->get_next()) {
+			data.push_back(std::move(*thread->get_data()));
+		}
 
-#endif // !TLS_SPLITTER_H
+		return std::move(data);
+	}
+
+	// Perform an action on all threads data
+	template<class Fn>
+	void for_each(Fn&& fn) {
+		std::scoped_lock sl(mtx_storage);
+
+		for (thread_data *thread = head; thread != nullptr; thread = thread->get_next()) {
+			fn(*thread->get_data());
+		}
+
+		std::for_each(data.begin(), data.end(), fn);
+	}
+
+	// Clears all data and threads
+	void clear() noexcept {
+		std::scoped_lock sl(mtx_storage);
+
+		for (thread_data *thread = head; thread != nullptr;) {
+			auto next = thread->get_next();
+			thread->remove(this);
+			thread = next;
+		}
+
+		head = nullptr;
+		data.clear();
+	}
+};
+} // namespace tls
+
+#endif // !TLS_COLLECT_H
 #ifndef TYPE_LIST_H_
 #define TYPE_LIST_H_
 
@@ -976,6 +1140,7 @@ namespace ecs::detail {
 #include <type_traits>
 #include <vector>
 #include <execution>
+#include <memory_resource>
 #include <cstring> // for memcmp
 
 
@@ -1002,6 +1167,21 @@ void combine_erase(Cont& cont, BinaryPredicate p) {
     cont.erase(end, cont.end());
 }
 
+// Helpre macro for components that wish to support pmr.
+// Declares the 'allocator_type' and default constructor/assignment
+#define ECS_USE_PMR(ClassName) \
+    using allocator_type = std::pmr::polymorphic_allocator<>; \
+                                                              \
+    ClassName() : ClassName(allocator_type{}) {}              \
+    ClassName(ClassName const&) = default;                    \
+    ClassName(ClassName &&) = default;                        \
+	~ClassName() = default;                                   \
+                                                              \
+    ClassName &operator=(ClassName const &) = default;        \
+    ClassName &operator=(ClassName &&) = default
+
+
+
 namespace ecs::detail {
     template<typename T>
     class component_pool final : public component_pool_base {
@@ -1009,7 +1189,7 @@ namespace ecs::detail {
 		static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
         // The components
-        std::vector<T> components;
+        std::pmr::vector<T> components;
 
         // The entities that have components in this storage.
         std::vector<entity_range> ranges;
@@ -1020,9 +1200,9 @@ namespace ecs::detail {
         // Keep track of which components to add/remove each cycle
         using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
         using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
-        tls::splitter<std::vector<entity_data>, component_pool<T>> deferred_adds;
-        tls::splitter<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
-        tls::splitter<std::vector<entity_range>, component_pool<T>> deferred_removes;
+        tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+        tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
+        tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
         // Status flags
         bool components_added = false;
@@ -1030,6 +1210,33 @@ namespace ecs::detail {
         bool components_modified = false;
 
     public:
+        // Returns the current memory resource
+        std::pmr::memory_resource* get_memory_resource() const {
+			return components.get_allocator().resource();
+        }
+
+        // Sets the memory resource used to allocate components.
+        // If components are already allocated, they will be moved.
+        void set_memory_resource(std::pmr::memory_resource *resource) {
+            // Do nothing if the memory resource is already set
+			if (components.get_allocator().resource() == resource)
+				return;
+
+            // Move the current data out
+			auto copy{std::move(components)};
+
+            // Destroy the current container
+			std::destroy_at(&components);
+
+          // Placement-new the data back with the new memory resource
+			std::construct_at(&components, std::move(copy), resource);
+
+            // component addresses has changed, so make sure systems rebuilds their caches
+            components_added = true;
+			components_removed = true;
+            components_modified = true;
+        }
+
         // Add a component to a range of entities, initialized by the supplied user function
         // Pre: entities has not already been added, or is in queue to be added
         //      This condition will not be checked until 'process_changes' is called.
@@ -1249,13 +1456,15 @@ namespace ecs::detail {
         // Add new queued entities and components to the main storage
         void process_add_components() {
             // Combine the components in to a single vector
+			auto collection = deferred_adds.gather();
             std::vector<entity_data> adds;
-            for (auto& vec : deferred_adds) {
+            for (auto& vec : collection) {
                 std::move(vec.begin(), vec.end(), std::back_inserter(adds));
             }
 
+			auto collection_inits = deferred_init_adds.gather();
             std::vector<entity_init> inits;
-            for (auto& vec : deferred_init_adds) {
+            for (auto& vec : collection_inits) {
                 std::move(vec.begin(), vec.end(), std::back_inserter(inits));
             }
 
@@ -1442,8 +1651,9 @@ namespace ecs::detail {
                 }
             } else {
                 // Combine the vectors
+				auto collection = deferred_removes.gather();
                 std::vector<entity_range> removes;
-                for (auto& vec : deferred_removes) {
+                for (auto& vec : collection) {
                     std::move(vec.begin(), vec.end(), std::back_inserter(removes));
                 }
 
@@ -1595,7 +1805,7 @@ struct no_frequency_limiter {
 #ifndef ECS_SYSTEM_DEFS_H_
 #define ECS_SYSTEM_DEFS_H_
 
-// Contains definitions that are used by the system- and builder classes
+// Contains definitions that are used by the systems classes
 
 namespace ecs::detail {
 template <class T>
@@ -1792,11 +2002,8 @@ using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 // TODO why is this not called an iterator?
 template <class Pools>
 struct pool_entity_walker {
-	pool_entity_walker(Pools pools) : pools(pools) {
-		ranges_it = ranges.end();
-	}
-
-	void reset(entity_range_view view) {
+	void reset(Pools *_pools, entity_range_view view) {
+		pools = _pools;
 		ranges.assign(view.begin(), view.end());
 		ranges_it = ranges.begin();
 		offset = 0;
@@ -1852,7 +2059,7 @@ struct pool_entity_walker {
 
 		} else if constexpr (global<T>) {
 			// Global: return the shared component
-			return &get_pool<T>(pools).get_shared_component();
+			return &get_pool<T>(*pools).get_shared_component();
 
 		} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
 			// Parent component: return the parent with the types filled out
@@ -1860,7 +2067,7 @@ struct pool_entity_walker {
 			parent_id pid = *(std::get<parent_id*>(pointers) + offset);
 
 			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
-				[&]<typename ...ParentType>() { return std::make_tuple(get_entity_data<ParentType>(pid, pools)...); });
+				[&]<typename ...ParentType>() { return std::make_tuple(get_entity_data<ParentType>(pid, *pools)...); });
 
 			return parent_type{pid, tup_parent_ptrs};
 		} else {
@@ -1874,15 +2081,15 @@ private:
 		if (done())
 			return;
 
-		std::apply([this](auto *const... pools) {
+		std::apply([this](auto *const... in_pools) {
 				auto const f = [&](auto pool) {
 					using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
 					std::get<pool_inner_type *>(pointers) = pool->find_component_data(ranges_it->first());
 				};
 
-				(f(pools), ...);
+				(f(in_pools), ...);
 			},
-			pools);
+			*pools);
 	}
 
 private:
@@ -1899,7 +2106,7 @@ private:
 	entity_type offset;
 
 	// The tuple of pools in use
-	Pools pools;
+	Pools *pools;
 };
 
 } // namespace ecs::detail
@@ -1914,7 +2121,7 @@ namespace ecs::detail {
 // Linearly walks one-or-more component pools
 template <class Pools>
 struct pool_range_walker {
-	pool_range_walker(Pools const pools) : pools(pools) {
+	pool_range_walker(Pools const _pools) : pools(_pools) {
 	}
 
 	void reset(entity_range_view view) {
@@ -1996,7 +2203,7 @@ class entity_offset_conv {
 	std::vector<int> range_offsets;
 
 public:
-	entity_offset_conv(entity_range_view ranges) noexcept : ranges(ranges) {
+	entity_offset_conv(entity_range_view _ranges) noexcept : ranges(_ranges) {
 		range_offsets.resize(ranges.size());
 		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), int{0}, 
 			[](int val, entity_range r) {
@@ -2437,8 +2644,6 @@ namespace ecs::detail {
 #define ECS_SYSTEM_BASE
 
 #include <span>
-#include <string>
-
 
 namespace ecs::detail {
     class context;
@@ -2526,9 +2731,9 @@ class system : public system_base {
 	virtual void do_build(entity_range_view) = 0;
 
 public:
-	system(UpdateFn update_func, TupPools pools)
-		: update_func{update_func}
-		, pools{pools}
+	system(UpdateFn func, TupPools tup_pools)
+		: update_func{func}
+		, pools{tup_pools}
 		, pool_parent_id{nullptr}
 	{
 		if constexpr (has_parent_types) {
@@ -2558,8 +2763,9 @@ public:
 	void notify_pool_modifed() {
 		if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
 			// Recurse into the parent types
-			for_each_type<parent_type_list_t<T>>(
-				[this]<typename ...ParentTypes>() { (this->notify_pool_modifed<ParentTypes>(), ...); });
+			for_each_type<parent_type_list_t<T>>([this]<typename ...ParentTypes>() {
+				(this->notify_pool_modifed<ParentTypes>(), ...); }
+			);
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
 			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>(pools).notify_components_modified();
 		}
@@ -2646,7 +2852,7 @@ private:
 			return;
 		}
 
-		bool const modified = std::apply([](auto... pools) { return (pools->has_component_count_changed() || ...); }, pools);
+		bool const modified = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
 
 		if (modified) {
 			find_entities();
@@ -2770,8 +2976,8 @@ namespace ecs::detail {
             std::execution::sequenced_policy, std::execution::parallel_policy>;
 
     public:
-        system_sorted(UpdateFn update_func, SortFunc sort, TupPools pools)
-            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>(update_func, pools)
+        system_sorted(UpdateFn func, SortFunc sort, TupPools in_pools)
+            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>(func, in_pools)
             , sort_func{sort} {
         }
 
@@ -2861,17 +3067,19 @@ class system_ranged final : public system<Options, UpdateFn, TupPools, FirstComp
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn update_func, TupPools pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}, walker{pools} {}
+	system_ranged(UpdateFn func, TupPools in_pools)
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {}
 
 private:
 	void do_run() override {
 		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+
 		// Call the system for all the components that match the system signature
 		for (auto const &argument : arguments) {
-			auto const &range = std::get<entity_range>(argument);
+			entity_range const &range = std::get<entity_range>(argument);
 			std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 				auto const offset = ent - first_id;
+
 				if constexpr (is_entity<FirstComponent>) {
 					this->update_func(ent, extract_arg<Components>(argument, offset)...);
 				} else {
@@ -2902,8 +3110,8 @@ private:
 
 private:
 	// Holds the arguments for a range of entities
-	using argument = range_argument<FirstComponent, Components...>;
-	std::vector<argument> arguments;
+	using argument_type = range_argument<FirstComponent, Components...>;
+	std::vector<argument_type> arguments;
 
 	pool_range_walker<TupPools> walker;
 };
@@ -2916,6 +3124,7 @@ private:
 #include <map>
 #include <unordered_map>
 #include <future>
+#include <tls/collect.h>
 
 
 namespace ecs::detail {
@@ -2935,8 +3144,8 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 		std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
 
 public:
-	system_hierarchy(UpdateFn update_func, TupPools pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
+	system_hierarchy(UpdateFn func, TupPools in_pools)
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}
 		, parent_pools{make_parent_types_tuple()}
 	{}
 
@@ -2976,14 +3185,14 @@ private:
 		}
 
 		// map of entity and root info
-		tls::splitter<std::map<entity_type, int>, component_list> tls_roots;
+		tls::collect<std::map<entity_type, int>, component_list> tls_roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
 		std::for_each(std::execution::par, ranges.begin(), ranges.end(), [this, &tls_roots, &index, conv = entity_offset_conv{ranges}](auto const &range) {
 			// Create a walker
-			thread_local pool_entity_walker<TupPools> walker(this->pools);
-			walker.reset(entity_range_view{{range}});
+			thread_local pool_entity_walker<TupPools> walker;
+			walker.reset(&this->pools, entity_range_view{{range}});
 
 			info_map info;
 			std::map<entity_type, int> &roots = tls_roots.local();
@@ -3012,9 +3221,10 @@ private:
 
 		auto const fut = std::async(std::launch::async, [&]() {
 			// Collapse the thread_local roots maps into the first map
-			auto const dest = tls_roots.begin();
+			auto collection = tls_roots.gather();
+			auto const dest = collection.begin();
 			auto current = std::next(dest);
-			while (current != tls_roots.end()) {
+			while (current != collection.end()) {
 				dest->merge(std::move(*current));
 				++current;
 			}
@@ -3139,11 +3349,11 @@ namespace ecs::detail {
     template<class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
     class system_global final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
     public:
-        system_global(UpdateFn update_func, TupPools pools)
-            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}
+        system_global(UpdateFn func, TupPools in_pools)
+            : system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}
             , argument {
-                &get_pool<FirstComponent>(pools).get_shared_component(),
-                &get_pool<Components>(pools).get_shared_component()...}
+                &get_pool<FirstComponent>(in_pools).get_shared_component(),
+                &get_pool<Components>(in_pools).get_shared_component()...}
         {
         }
 
@@ -3180,8 +3390,8 @@ namespace ecs::detail {
     struct scheduler_node final {
         // Construct a node from a system.
         // The system can not be null
-        scheduler_node(detail::system_base* sys)
-            : sys(sys)
+        scheduler_node(detail::system_base* _sys)
+            : sys(_sys)
             , dependants{}
             , dependencies{0}
             , unfinished_dependencies{0} {
@@ -3263,35 +3473,38 @@ namespace ecs::detail {
     // Schedules systems for concurrent execution based on their components.
     class scheduler final {
         // A group of systems with the same group id
-        struct group final {
+        struct systems_group final {
             int id;
             std::vector<scheduler_node> all_nodes;
             std::vector<std::size_t> entry_nodes{};
 
-            void run(size_t node_index) {
-                all_nodes[node_index].run(all_nodes);
+            // Runs the entry nodes in parallel
+            void run() {
+                std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
+                    all_nodes[node_id].run(all_nodes);
+                });
             }
         };
 
-        std::vector<group> groups;
+        std::vector<systems_group> groups;
 
     protected:
-        group& find_group(int id) {
+        systems_group& find_group(int id) {
             // Look for an existing group
             if (!groups.empty()) {
-                for (auto& group : groups) {
-                    if (group.id == id) {
-                        return group;
+                for (auto& g : groups) {
+                    if (g.id == id) {
+                        return g;
                     }
                 }
             }
 
             // No group found, so find an insertion point
             auto const insert_point =
-                std::upper_bound(groups.begin(), groups.end(), id, [](int id, group const& sg) { return id < sg.id; });
+                std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) { return group_id < sg.id; });
 
             // Insert the group and return it
-            return *groups.insert(insert_point, group{id, {}, {}});
+            return *groups.insert(insert_point, systems_group{id, {}, {}});
         }
 
     public:
@@ -3336,6 +3549,11 @@ namespace ecs::detail {
             }
         }
 
+        // Clears all the schedulers data
+        void clear() {
+			groups.clear();
+        }
+
         void run() {
             // Reset the execution data
             for (auto& group : groups) {
@@ -3345,8 +3563,7 @@ namespace ecs::detail {
 
             // Run the groups in succession
             for (auto& group : groups) {
-                std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(),
-                    [&group](auto node) { group.run(node); });
+                group.run();
             }
         }
     };
@@ -3361,6 +3578,9 @@ namespace ecs::detail {
 #include <shared_mutex>
 #include <vector>
 
+#include <tls/cache.h>
+#include <tls/split.h>
+
 
 namespace ecs::detail {
     // The central class of the ecs implementation. Maintains the state of the system.
@@ -3369,6 +3589,7 @@ namespace ecs::detail {
         std::vector<std::unique_ptr<system_base>> systems;
         std::vector<std::unique_ptr<component_pool_base>> component_pools;
         std::map<type_hash, component_pool_base*> type_pool_lookup;
+		tls::split<tls::cache<type_hash, component_pool_base *, get_type_hash<void>()>> type_caches;
         scheduler sched;
 
         mutable std::shared_mutex system_mutex;
@@ -3425,12 +3646,13 @@ namespace ecs::detail {
             std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
             systems.clear();
-            sched = scheduler();
-            // context::component_pools.clear(); // this will cause an exception in
-            // get_component_pool() due to the cache
-            for (auto& pool : component_pools) {
-                pool->clear();
-            }
+            sched.clear();
+			type_pool_lookup.clear();
+            component_pools.clear();
+
+            type_caches.for_each([](auto &cache) { cache.reset(); });
+			//type_caches.clear();  // DON'T! It will remove access to existing thread_local vars,
+                                    // which means they can't be reached and reset
         }
 
         // Returns a reference to a components pool.
@@ -3442,19 +3664,14 @@ namespace ecs::detail {
             // and prevent the compiler from generating duplicated code.
 			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-            #if defined (__cpp_constinit)
-            #if (_MSC_VER != 1929) // currently borked in msvc 19.10 preview 2
-            constinit // removes the need for guard variables
-            #endif
-            #endif
-            thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
+            /*constinit */thread_local auto& cache = type_caches.local();
 
             constexpr auto hash = get_type_hash<T>();
-            auto pool = cache.get_or(hash, [this](type_hash hash) {
+            auto pool = cache.get_or(hash, [this](type_hash _hash) {
                 std::shared_lock component_pool_lock(component_pool_mutex);
 
                 // Look in the pool for the type
-                auto const it = type_pool_lookup.find(hash);
+                auto const it = type_pool_lookup.find(_hash);
                 if (it == type_pool_lookup.end()) {
                     // The pool wasn't found so create it.
                     // create_component_pool takes a unique lock, so unlock the
@@ -3636,7 +3853,7 @@ namespace ecs {
         static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
         static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
 
-        auto const adder = []<class Type>(entity_range const range, Type&& val) {
+        auto const adder = [range]<class Type>(Type&& val) {
             if constexpr (std::is_invocable_v<Type, entity_id> && !detail::unbound<Type>) {
                 // Return type of 'func'
                 using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
@@ -3672,8 +3889,8 @@ namespace ecs {
             }
         };
 
-        adder(range, std::forward<First>(first_val));
-        (adder(range, std::forward<T>(vals)), ...);
+        adder(std::forward<First>(first_val));
+        (adder(std::forward<T>(vals)), ...);
     }
 
     // Add several components to an entity. Will not be added until 'commit_changes()' is called.
@@ -3709,6 +3926,9 @@ namespace ecs {
     }
 
     // Returns the component from an entity, or nullptr if the entity is not found
+    // NOTE: Pointers to components are only guaranteed to be valid
+    //       until the next call to 'ecs::commit_changes' or 'ecs::update',
+    //       after which the component might be reallocated.
     template<detail::local T>
     T* get_component(entity_id const id) {
         // Get the component pool
@@ -3718,7 +3938,9 @@ namespace ecs {
 
     // Returns the components from an entity range, or an empty span if the entities are not found
     // or does not containg the component.
-    // The span might be invalidated after a call to 'ecs::commit_changes()'.
+    // NOTE: Pointers to components are only guaranteed to be valid
+    //       until the next call to ecs::commit_changes or ecs::update,
+    //       after which the component might be reallocated.
     template<detail::local T>
     std::span<T> get_components(entity_range const range) {
         if (!has_component<T>(range))
@@ -3810,6 +4032,27 @@ namespace ecs {
             } invalid_system_type;
             return invalid_system_type;
         }
+    }
+
+    // Set the memory resource to use to store a specific type of component
+    template<class Component>
+    void set_memory_resource(std::pmr::memory_resource *resource) {
+        auto &pool = detail::get_context().get_component_pool<Component>();
+		pool.set_memory_resource(resource);
+    }
+
+    // Returns the memory resource used to store a specific type of component
+    template<class Component>
+    std::pmr::memory_resource* get_memory_resource() {
+        auto &pool = detail::get_context().get_component_pool<Component>();
+		return pool.get_memory_resource();
+    }
+
+    // Resets the memory resource to the default
+    template<class Component>
+    void reset_memory_resource() {
+        auto &pool = detail::get_context().get_component_pool<Component>();
+		pool.set_memory_resource(std::pmr::get_default_resource());
     }
 } // namespace ecs
 
