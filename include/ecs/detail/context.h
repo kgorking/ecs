@@ -6,8 +6,8 @@
 #include <shared_mutex>
 #include <vector>
 
-#include <tls/cache.h>
-#include <tls/split.h>
+#include "tls/cache.h"
+#include "tls/split.h"
 
 #include "component_pool.h"
 #include "scheduler.h"

@@ -3578,8 +3578,6 @@ namespace ecs::detail {
 #include <shared_mutex>
 #include <vector>
 
-#include <tls/cache.h>
-#include <tls/split.h>
 
 
 namespace ecs::detail {
