@@ -1,6 +1,7 @@
 [submodule "tls"]
 	path = tls
 	url = https://github.com/kgorking/tls
+	branch = origin/master
 [submodule "benchmark/gbench"]
 	path = benchmark/gbench
 	branch = lightweight_timer_suspension
