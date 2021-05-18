@@ -32,22 +32,24 @@ struct pmr_greeting {
 
 
 int main() {
+	ecs::runtime ecs;
+
     // Set up a buffer on the stack for storage of 'pmr_greeting's
     constexpr size_t buf_size = 16384;
     char buffer[buf_size]{};
     std::pmr::monotonic_buffer_resource mono_resource(&buffer[0], buf_size);
-	ecs::set_memory_resource<pmr_greeting>(&mono_resource);
+	ecs.set_memory_resource<pmr_greeting>(&mono_resource);
 
 
     // System that prints out the distance in bytes from the greeting to the string data
-    auto &pmr_sys = ecs::make_system<ecs::opts::not_parallel>([](pmr_greeting const& g) {
+    auto &pmr_sys = ecs.make_system<ecs::opts::not_parallel>([](pmr_greeting const& g) {
 		std::cout << std::distance(reinterpret_cast<char const*>(&g), reinterpret_cast<char const*>(g.msg.data())) << ' ';
     });
 
 
     // Add some components.
-    ecs::add_component({0, 3}, pmr_greeting{"some kind of semi large string"});
-	ecs::commit_changes();
+    ecs.add_component({0, 3}, pmr_greeting{"some kind of semi large string"});
+	ecs.commit_changes();
 
 
     // Run the system
@@ -56,5 +58,5 @@ int main() {
 	std::cout << '\n';
 
     // The buffer is about to go out of scope, so restore the default resource
-	ecs::reset_memory_resource<pmr_greeting>();
+	ecs.reset_memory_resource<pmr_greeting>();
 }

@@ -309,9 +309,6 @@ protected:
 		T *local_data = t->get_data();
 		data.push_back(std::move(*local_data));
 
-		// Reset the thread data
-		*local_data = T{};
-
 		// Remove the thread from the linked list
 		if (head == t) {
 			head = t->get_next();
@@ -326,6 +323,9 @@ protected:
 				}
 			}
 		}
+
+		// Reset the thread data
+		*local_data = T{};
 	}
 
 public:
@@ -1201,7 +1201,7 @@ namespace ecs::detail {
         using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
         using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
         tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-        tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
+		tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds{};
         tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
         // Status flags
@@ -3662,7 +3662,7 @@ namespace ecs::detail {
             // and prevent the compiler from generating duplicated code.
 			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-            /*constinit */thread_local auto& cache = type_caches.local();
+            /*constinit thread_local*/ auto& cache = type_caches.local();
 
             constexpr auto hash = get_type_hash<T>();
             auto pool = cache.get_or(hash, [this](type_hash _hash) {
@@ -3820,14 +3820,6 @@ namespace ecs::detail {
                 return &get_component_pool<T>();
         }
     };
-
-    inline context& get_context() {
-        static context ctx;
-        return ctx;
-    }
-
-    // The global reference to the context
-    static inline context& _context = get_context();
 } // namespace ecs::detail
 
 #endif // !ECS_CONTEXT
@@ -3841,217 +3833,221 @@ namespace ecs::detail {
 
 
 namespace ecs {
-    // Add several components to a range of entities. Will not be added until 'commit_changes()' is
-    // called. Initializers can be used with the function signature 'T(ecs::entity_id)'
-    //   where T is the component type returned by the function.
-    // Pre: entity does not already have the component, or have it in queue to be added
-    template<typename First, typename... T>
-    void add_component(entity_range const range, First&& first_val, T&&... vals) {
-        static_assert(detail::unique<First, T...>, "the same component was specified more than once");
-        static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
-        static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
+class runtime {
+public:
+	// Add several components to a range of entities. Will not be added until 'commit_changes()' is
+	// called. Initializers can be used with the function signature 'T(ecs::entity_id)'
+	//   where T is the component type returned by the function.
+	// Pre: entity does not already have the component, or have it in queue to be added
+	template <typename First, typename... T>
+	void add_component(entity_range const range, First &&first_val, T &&...vals) {
+		static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+		static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
+		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
+					  "can not add pointers to entities; wrap them in a struct");
 
-        auto const adder = [range]<class Type>(Type&& val) {
-            if constexpr (std::is_invocable_v<Type, entity_id> && !detail::unbound<Type>) {
-                // Return type of 'func'
-                using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
-                static_assert(!std::is_same_v<ComponentType, void>,
-                    "Initializer functions must return a component");
+		auto const adder = [this, range]<class Type>(Type &&val) {
+			if constexpr (std::is_invocable_v<Type, entity_id> && !detail::unbound<Type>) {
+				// Return type of 'func'
+				using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
+				static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
 
-                if constexpr (detail::is_parent<std::remove_cvref_t<ComponentType>>::value) {
-                    auto const converter = [val](entity_id id) { return detail::parent_id{val(id).id()}; };
+				if constexpr (detail::is_parent<std::remove_cvref_t<ComponentType>>::value) {
+					auto const converter = [val](entity_id id) { return detail::parent_id{val(id).id()}; };
 
-                    auto& pool = detail::_context.get_component_pool<detail::parent_id>();
-                    pool.add_init(range, converter);
-                } else {
-                    auto& pool = detail::_context.get_component_pool<ComponentType>();
-                    pool.add_init(range, std::forward<Type>(val));
-                }
-            } else {
-                // Add it to the component pool
+					auto &pool = ctx.get_component_pool<detail::parent_id>();
+					pool.add_init(range, converter);
+				} else {
+					auto &pool = ctx.get_component_pool<ComponentType>();
+					pool.add_init(range, std::forward<Type>(val));
+				}
+			} else {
+				// Add it to the component pool
 				if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
-                    auto& pool = detail::_context.get_component_pool<detail::parent_id>();
-                    pool.add(range, detail::parent_id{val.id()});
-                } else if constexpr (std::is_reference_v<Type>) {
-                    using DerefT = std::remove_reference_t<Type>;
-                    static_assert(std::copyable<DerefT>, "Type must be copyable");
+					auto &pool = ctx.get_component_pool<detail::parent_id>();
+					pool.add(range, detail::parent_id{val.id()});
+				} else if constexpr (std::is_reference_v<Type>) {
+					using DerefT = std::remove_reference_t<Type>;
+					static_assert(std::copyable<DerefT>, "Type must be copyable");
 
-                    detail::component_pool<DerefT>& pool = detail::_context.get_component_pool<DerefT>();
-                    pool.add(range, std::forward<DerefT>(val));
-                } else {
-                    static_assert(std::copyable<Type>, "Type must be copyable");
+					detail::component_pool<DerefT> &pool = ctx.get_component_pool<DerefT>();
+					pool.add(range, std::forward<DerefT>(val));
+				} else {
+					static_assert(std::copyable<Type>, "Type must be copyable");
 
-                    detail::component_pool<Type>& pool = detail::_context.get_component_pool<Type>();
-                    pool.add(range, std::forward<Type>(val));
-                }
-            }
-        };
+					detail::component_pool<Type> &pool = ctx.get_component_pool<Type>();
+					pool.add(range, std::forward<Type>(val));
+				}
+			}
+		};
 
-        adder(std::forward<First>(first_val));
-        (adder(std::forward<T>(vals)), ...);
-    }
+		adder(std::forward<First>(first_val));
+		(adder(std::forward<T>(vals)), ...);
+	}
 
-    // Add several components to an entity. Will not be added until 'commit_changes()' is called.
-    // Pre: entity does not already have the component, or have it in queue to be added
-    template<typename First, typename... T>
-    void add_component(entity_id const id, First&& first_val, T&&... vals) {
-        add_component(
-            entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
-    }
+	// Add several components to an entity. Will not be added until 'commit_changes()' is called.
+	// Pre: entity does not already have the component, or have it in queue to be added
+	template <typename First, typename... T>
+	void add_component(entity_id const id, First &&first_val, T &&...vals) {
+		add_component(entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
+	}
 
-    // Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
-    // called. Pre: entity has the component
-    template<detail::persistent T>
-    void remove_component(entity_range const range, T const& = T{}) {
-        static_assert(!detail::global<T>, "can not remove or add global components to entities");
+	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
+	// called. Pre: entity has the component
+	template <detail::persistent T>
+	void remove_component(entity_range const range, T const & = T{}) {
+		static_assert(!detail::global<T>, "can not remove or add global components to entities");
 
-        // Remove the entities from the components pool
-        detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-        pool.remove_range(range);
-    }
+		// Remove the entities from the components pool
+		detail::component_pool<T> &pool = ctx.get_component_pool<T>();
+		pool.remove_range(range);
+	}
 
-    // Removes a component from an entity. Will not be removed until 'commit_changes()' is called.
-    // Pre: entity has the component
-    template<typename T>
-    void remove_component(entity_id const id, T const& = T{}) {
-        remove_component<T>({id, id});
-    }
+	// Removes a component from an entity. Will not be removed until 'commit_changes()' is called.
+	// Pre: entity has the component
+	template <typename T>
+	void remove_component(entity_id const id, T const & = T{}) {
+		remove_component<T>({id, id});
+	}
 
-    // Returns a global component.
-    template<detail::global T>
-    T& get_global_component() {
-        return detail::_context.get_component_pool<T>().get_shared_component();
-    }
+	// Returns a global component.
+	template <detail::global T>
+	T &get_global_component() {
+		return ctx.get_component_pool<T>().get_shared_component();
+	}
 
-    // Returns the component from an entity, or nullptr if the entity is not found
-    // NOTE: Pointers to components are only guaranteed to be valid
-    //       until the next call to 'ecs::commit_changes' or 'ecs::update',
-    //       after which the component might be reallocated.
-    template<detail::local T>
-    T* get_component(entity_id const id) {
-        // Get the component pool
-        detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-        return pool.find_component_data(id);
-    }
+	// Returns the component from an entity, or nullptr if the entity is not found
+	// NOTE: Pointers to components are only guaranteed to be valid
+	//       until the next call to 'ecs::commit_changes' or 'ecs::update',
+	//       after which the component might be reallocated.
+	template <detail::local T>
+	T *get_component(entity_id const id) {
+		// Get the component pool
+		detail::component_pool<T> &pool = ctx.get_component_pool<T>();
+		return pool.find_component_data(id);
+	}
 
-    // Returns the components from an entity range, or an empty span if the entities are not found
-    // or does not containg the component.
-    // NOTE: Pointers to components are only guaranteed to be valid
-    //       until the next call to ecs::commit_changes or ecs::update,
-    //       after which the component might be reallocated.
-    template<detail::local T>
-    std::span<T> get_components(entity_range const range) {
-        if (!has_component<T>(range))
-            return {};
+	// Returns the components from an entity range, or an empty span if the entities are not found
+	// or does not containg the component.
+	// NOTE: Pointers to components are only guaranteed to be valid
+	//       until the next call to ecs::commit_changes or ecs::update,
+	//       after which the component might be reallocated.
+	template <detail::local T>
+	std::span<T> get_components(entity_range const range) {
+		if (!has_component<T>(range))
+			return {};
 
-        // Get the component pool
-        detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-        return {pool.find_component_data(range.first()), range.count()};
-    }
+		// Get the component pool
+		detail::component_pool<T> &pool = ctx.get_component_pool<T>();
+		return {pool.find_component_data(range.first()), range.count()};
+	}
 
-    // Returns the number of active components for a specific type of components
-    template<typename T>
-    size_t get_component_count() {
-        if (!detail::_context.has_component_pool<T>())
-            return 0;
+	// Returns the number of active components for a specific type of components
+	template <typename T>
+	size_t get_component_count() {
+		if (!ctx.has_component_pool<T>())
+			return 0;
 
-        // Get the component pool
-        detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-        return pool.num_components();
-    }
+		// Get the component pool
+		detail::component_pool<T> const &pool = ctx.get_component_pool<T>();
+		return pool.num_components();
+	}
 
-    // Returns the number of entities that has the component.
-    template<typename T>
-    size_t get_entity_count() {
-        if (!detail::_context.has_component_pool<T>())
-            return 0;
+	// Returns the number of entities that has the component.
+	template <typename T>
+	size_t get_entity_count() {
+		if (!ctx.has_component_pool<T>())
+			return 0;
 
-        // Get the component pool
-        detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-        return pool.num_entities();
-    }
+		// Get the component pool
+		detail::component_pool<T> const &pool = ctx.get_component_pool<T>();
+		return pool.num_entities();
+	}
 
-    // Return true if an entity contains the component
-    template<typename T>
-    bool has_component(entity_id const id) {
-        if (!detail::_context.has_component_pool<T>())
-            return false;
+	// Return true if an entity contains the component
+	template <typename T>
+	bool has_component(entity_id const id) {
+		if (!ctx.has_component_pool<T>())
+			return false;
 
-        detail::component_pool<T> const& pool = detail::_context.get_component_pool<T>();
-        return pool.has_entity(id);
-    }
+		detail::component_pool<T> const &pool = ctx.get_component_pool<T>();
+		return pool.has_entity(id);
+	}
 
-    // Returns true if all entities in a range has the component.
-    template<typename T>
-    bool has_component(entity_range const range) {
-        if (!detail::_context.has_component_pool<T>())
-            return false;
+	// Returns true if all entities in a range has the component.
+	template <typename T>
+	bool has_component(entity_range const range) {
+		if (!ctx.has_component_pool<T>())
+			return false;
 
-        detail::component_pool<T>& pool = detail::_context.get_component_pool<T>();
-        return pool.has_entity(range);
-    }
+		detail::component_pool<T> &pool = ctx.get_component_pool<T>();
+		return pool.has_entity(range);
+	}
 
-    // Commits the changes to the entities.
-    inline void commit_changes() {
-        detail::_context.commit_changes();
-    }
+	// Commits the changes to the entities.
+	inline void commit_changes() {
+		ctx.commit_changes();
+	}
 
-    // Calls the 'update' function on all the systems in the order they were added.
-    inline void run_systems() {
-        detail::_context.run_systems();
-    }
+	// Calls the 'update' function on all the systems in the order they were added.
+	inline void run_systems() {
+		ctx.run_systems();
+	}
 
-    // Commits all changes and calls the 'update' function on all the systems in the order they were
-    // added. Same as calling commit_changes() and run_systems().
-    inline void update() {
-        commit_changes();
-        run_systems();
-    }
+	// Commits all changes and calls the 'update' function on all the systems in the order they were
+	// added. Same as calling commit_changes() and run_systems().
+	inline void update() {
+		commit_changes();
+		run_systems();
+	}
 
-    // Make a new system
-    template<typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
-    auto& make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
-        using opts = detail::type_list<Options...>;
+	// Make a new system
+	template <typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
+	auto &make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
+		using opts = detail::type_list<Options...>;
 
-        // verify the input
-        detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
+		// verify the input
+		detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
 
-        if constexpr (ecs::detail::type_is_function<SystemFunc>) {
-            // Build from regular function
-            return detail::_context.create_system<opts, SystemFunc, SortFn>(sys_func, sort_func, sys_func);
-        } else if constexpr (ecs::detail::type_is_lambda<SystemFunc>) {
-            // Build from lambda
-            return detail::_context.create_system<opts, SystemFunc, SortFn>(
-                sys_func, sort_func, &SystemFunc::operator());
-        } else {
-            (void) sys_func;
-            (void) sort_func;
-            struct _invalid_system_type {
-            } invalid_system_type;
-            return invalid_system_type;
-        }
-    }
+		if constexpr (ecs::detail::type_is_function<SystemFunc>) {
+			// Build from regular function
+			return ctx.create_system<opts, SystemFunc, SortFn>(sys_func, sort_func, sys_func);
+		} else if constexpr (ecs::detail::type_is_lambda<SystemFunc>) {
+			// Build from lambda
+			return ctx.create_system<opts, SystemFunc, SortFn>(sys_func, sort_func, &SystemFunc::operator());
+		} else {
+			(void)sys_func;
+			(void)sort_func;
+			struct _invalid_system_type {
+			} invalid_system_type;
+			return invalid_system_type;
+		}
+	}
 
-    // Set the memory resource to use to store a specific type of component
-    template<class Component>
-    void set_memory_resource(std::pmr::memory_resource *resource) {
-        auto &pool = detail::get_context().get_component_pool<Component>();
+	// Set the memory resource to use to store a specific type of component
+	template <class Component>
+	void set_memory_resource(std::pmr::memory_resource *resource) {
+		auto &pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(resource);
-    }
+	}
 
-    // Returns the memory resource used to store a specific type of component
-    template<class Component>
-    std::pmr::memory_resource* get_memory_resource() {
-        auto &pool = detail::get_context().get_component_pool<Component>();
+	// Returns the memory resource used to store a specific type of component
+	template <class Component>
+	std::pmr::memory_resource *get_memory_resource() {
+		auto &pool = ctx.get_component_pool<Component>();
 		return pool.get_memory_resource();
-    }
+	}
 
-    // Resets the memory resource to the default
-    template<class Component>
-    void reset_memory_resource() {
-        auto &pool = detail::get_context().get_component_pool<Component>();
+	// Resets the memory resource to the default
+	template <class Component>
+	void reset_memory_resource() {
+		auto &pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(std::pmr::get_default_resource());
-    }
+	}
+
+private:
+	detail::context ctx;
+};
 } // namespace ecs
 
 #endif // !ECS_RUNTIME

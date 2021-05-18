@@ -36,23 +36,24 @@ void mandelbrot_system(size_t& color, pos const& p) {
 }
 
 int main() {
+	ecs::runtime ecs;
     // Add the system
-    ecs::make_system(mandelbrot_system);
+    ecs.make_system(mandelbrot_system);
 
     // Add the size_t component to the pixels/entities
     ecs::entity_range const ents{0, dimension * dimension - 1};
-    ecs::add_component(ents, size_t{0}, [](ecs::entity_id ent) -> pos {
+    ecs.add_component(ents, size_t{0}, [](ecs::entity_id ent) -> pos {
         int const x = ent % dimension;
         int const y = ent / dimension;
         return {x, y};
     });
 
     // Commit all component changes and run the system
-    ecs::update();
+    ecs.update();
 
     // Count the pixels equal to one
     size_t counter = 0;
-    for (size_t const& color : ecs::get_components<size_t>(ents))
+    for (size_t const& color : ecs.get_components<size_t>(ents))
         if (color == 1)
             counter++;
 

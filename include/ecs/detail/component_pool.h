@@ -74,7 +74,7 @@ namespace ecs::detail {
         using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
         using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
         tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-        tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
+		tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds{};
         tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
         // Status flags
