@@ -101,7 +101,7 @@ namespace ecs::detail {
             // and prevent the compiler from generating duplicated code.
 			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-            /*constinit */thread_local auto& cache = type_caches.local();
+            /*constinit thread_local*/ auto& cache = type_caches.local();
 
             constexpr auto hash = get_type_hash<T>();
             auto pool = cache.get_or(hash, [this](type_hash _hash) {
