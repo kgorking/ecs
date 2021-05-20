@@ -309,6 +309,9 @@ protected:
 		T *local_data = t->get_data();
 		data.push_back(std::move(*local_data));
 
+		// Reset the thread data
+		*local_data = T{};
+
 		// Remove the thread from the linked list
 		if (head == t) {
 			head = t->get_next();
@@ -323,9 +326,6 @@ protected:
 				}
 			}
 		}
-
-		// Reset the thread data
-		*local_data = T{};
 	}
 
 public:
@@ -1201,7 +1201,7 @@ namespace ecs::detail {
         using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
         using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
         tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-		tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds{};
+        tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
         tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
         // Status flags
