@@ -59,30 +59,30 @@ The CI build status for msvc, clang 10, and gcc 10 is currently:
 # Table of Contents
 - [Entities](#entities)
 - [Components](#components)
-  - [Adding components to entities](#adding-components-to-entities) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/YevhxoPn7)
-  - [Committing component changes](#committing-component-changes) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/8sTcG9YYv)
-  - [Generators](#generators) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/GoMdKobx5)
+  - [Adding components to entities](#adding-components-to-entities)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/YevhxoPn7)
+  - [Committing component changes](#committing-component-changes)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/8sTcG9YYv)
+  - [Generators](#generators)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/GoMdKobx5)
 - [Systems](#systems)
   - [Requirements and rules](#requirements-and-rules)
   - [Parallel-by-default systems](#parallel-by-default-systems)
   - [Automatic concurrency](#automatic-concurrency)
-  - [The current entity](#the-current-entity) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/z9xYvd4Gc)
-  - [Sorting](#sorting) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ocnoPW9dT)
-  - [Filtering](#filtering) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/zE9Yh5Kbh)
+  - [The current entity](#the-current-entity)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/z9xYvd4Gc)
+  - [Sorting](#sorting)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ocnoPW9dT)
+  - [Filtering](#filtering)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/zE9Yh5Kbh)
   - [Hierarchies](#hierarchies)
-    - [Accessing parent components](#Accessing-parent-components) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/Toxc5MTbj)
-    - [Filtering on parents components](#Filtering-on-parents-components) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/v14T1efbK)
+    - [Accessing parent components](#Accessing-parent-components)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/Toxc5MTbj)
+    - [Filtering on parents components](#Filtering-on-parents-components)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/v14T1efbK)
     - [Traversal and layout](#Traversal-and-layout)
 - [System options](#system-options)
-  - [`opts::frequency<hz>`](#optsfrequencyhz) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/r6xY6ra1Y)
-  - [`opts::group<group number>`](#optsgroupgroup-number) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ezoq17fbr)
-  - [`opts::manual_update`](#optsmanual_update) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TxvndcTEq)
-  - [`opts::not_parallel`](#optsnot_parallel) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/MK9xcTedq)
+  - [`opts::frequency<hz>`](#optsfrequencyhz)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/r6xY6ra1Y)
+  - [`opts::group<group number>`](#optsgroupgroup-number)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ezoq17fbr)
+  - [`opts::manual_update`](#optsmanual_update)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TxvndcTEq)
+  - [`opts::not_parallel`](#optsnot_parallel)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/MK9xcTedq)
 - [Component Flags](#component-flags)
-  - [`tag`](#tag) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/dj8WjTWbE)
-  - [`immutable`](#immutable) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/rnbsooorb)
-  - [`transient`](#transient) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/W7hvrnjT6)
-  - [`global`](#global) [<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ETjKzbE7o)
+  - [`tag`](#tag)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/dj8WjTWbE)
+  - [`immutable`](#immutable)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/rnbsooorb)
+  - [`transient`](#transient)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/W7hvrnjT6)
+  - [`global`](#global)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ETjKzbE7o)
     - [Global systems](#Global-systems)
 - [PMR Allocator support](#PMR-Allocator-support)
     - [Allocator aware components](#Allocator-aware-components)
@@ -106,7 +106,7 @@ You can add as many different components to an entity as you need; there is no u
 
 <br>
 
-## Adding components to entities [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/YevhxoPn7)
+## Adding components to entities[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/YevhxoPn7)
 Adding components is done with the function `ecs::add_component()`.
 
 ```cpp
@@ -123,13 +123,13 @@ ecs.add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entitie
 
 <br>
 
-## Committing component changes [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/8sTcG9YYv)
+## Committing component changes[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/8sTcG9YYv)
 Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
 
 By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
 
 
-## Generators [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/GoMdKobx5)
+## Generators[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/GoMdKobx5)
 When adding components to entities, you can specify a generator instead of a default constructed component
 if you need the individual components to have different initial states. Generators have the signature
 of `T(ecs::entity_id)`, where `T` is the component type that the generator makes.
@@ -213,7 +213,7 @@ If a component is read from, the system that previously wrote to it becomes a de
 Multiple systems that read from the same component can safely run concurrently.
 
 
-## The current entity [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/z9xYvd4Gc)
+## The current entity[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/z9xYvd4Gc)
 If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
 
 ```cpp
@@ -223,7 +223,7 @@ ecs.make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Sorting [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ocnoPW9dT)
+## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ocnoPW9dT)
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
