@@ -390,7 +390,7 @@ manual_sys.run(); // required to run the system
 ### `opts::not_parallel`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/MK9xcTedq)
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
-It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::splitter`](https://github.com/kgorking/tls/blob/master/examples/splitter/accumulate/accumulate.cpp) in these cases, if possible.
+It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::collect`](https://github.com/kgorking/tls/blob/master/examples/collect/accumulate/accumulate.cpp) in these cases, if possible.
 
 # Component Flags
 The behavior of components can be changed by using component flags, which can change how they are managed
