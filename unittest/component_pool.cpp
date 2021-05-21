@@ -31,13 +31,11 @@ struct ctr_counter {
 
 // A bunch of tests to ensure that the component_pool behaves as expected
 TEST_CASE("Component pool specification", "[component]") {
-    SECTION("A new component pool") {
-        SECTION("is empty") {
-            ecs::detail::component_pool<int> pool;
-            CHECK(pool.num_entities() == 0);
-            CHECK(pool.num_components() == 0);
-            CHECK(pool.has_component_count_changed() == false);
-        }
+    SECTION("A new component pool is empty") {
+        ecs::detail::component_pool<int> pool;
+        CHECK(pool.num_entities() == 0);
+        CHECK(pool.num_components() == 0);
+        CHECK(pool.has_component_count_changed() == false);
     }
 
     SECTION("An empty pool") {
@@ -317,21 +315,22 @@ TEST_CASE("Component pool specification", "[component]") {
             REQUIRE((diff >= 0 && diff < buffer_size));
         }
 
-        SECTION("a context reset clears memory_resources") {
+        SECTION("reseting memory_resource works") {
+			ecs::runtime ecs;
             // get the unmodified memory resource
-			auto const res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+			auto const res = ecs.get_memory_resource<int>();
 
             // change the resource
 			std::pmr::monotonic_buffer_resource dummy;
-            ecs::set_memory_resource<int>(&dummy);
-            auto const changed_res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+            ecs.set_memory_resource<int>(&dummy);
+            auto const changed_res = ecs.get_memory_resource<int>();
 			REQUIRE(&dummy == changed_res);
 
             // reset
-            ecs::detail::_context.reset();
+			ecs.reset_memory_resource<int>();
 
             // verify resource is reverted
-            auto const reset_res = ecs::detail::_context.get_component_pool<int>().get_memory_resource();
+            auto const reset_res = ecs.get_memory_resource<int>();
 			REQUIRE(res == reset_res);
         }
     }

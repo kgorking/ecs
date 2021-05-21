@@ -259,14 +259,6 @@ namespace ecs::detail {
                 return &get_component_pool<T>();
         }
     };
-
-    inline context& get_context() {
-        static context ctx;
-        return ctx;
-    }
-
-    // The global reference to the context
-    static inline context& _context = get_context();
 } // namespace ecs::detail
 
 #endif // !ECS_CONTEXT

@@ -11,15 +11,16 @@ int main() {
     auto constexpr sys_sleep = [](short const&) { std::this_thread::sleep_for(50ms); };
 
     // Make the systems
-    auto& serial_sys = ecs::make_system<ecs::opts::not_parallel>(sys_sleep);
-    auto& parallel_sys = ecs::make_system(sys_sleep);
+	ecs::runtime ecs;
+    auto& serial_sys = ecs.make_system<ecs::opts::not_parallel>(sys_sleep);
+    auto& parallel_sys = ecs.make_system(sys_sleep);
 
     // Create a range of entities that would
     // take 5 seconds to process serially
-    ecs::add_component({0, 20 - 1}, short{0});
+    ecs.add_component({0, 20 - 1}, short{0});
 
     // Commit the components (does not run the systems)
-    ecs::commit_changes();
+    ecs.commit_changes();
 
     // Time the serial system
     std::cout << "Running serial system: ";
