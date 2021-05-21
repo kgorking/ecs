@@ -59,7 +59,7 @@ The CI build status for msvc, clang 10, and gcc 10 is currently:
 # Table of Contents
 - [Entities](#entities)
 - [Components](#components)
-  - [Adding components to entities](#adding-components-to-entities)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/YevhxoPn7)
+  - [Adding components to entities](#adding-components-to-entities)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/E3hrxEez8)
   - [Committing component changes](#committing-component-changes)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/8sTcG9YYv)
   - [Generators](#generators)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/GoMdKobx5)
 - [Systems](#systems)
@@ -106,7 +106,7 @@ You can add as many different components to an entity as you need; there is no u
 
 <br>
 
-## Adding components to entities[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/YevhxoPn7)
+## Adding components to entities[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/E3hrxEez8)
 Adding components is done with the function `ecs::add_component()`.
 
 ```cpp
