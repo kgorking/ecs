@@ -1,18 +1,19 @@
 #include <iostream>
 #include <ecs/ecs.h>
 
-using namespace ecs;
 using std::cout;
 
 // Print children, filtered on their parent
-auto constexpr print_roots          = [](entity_id id, double, parent<>*) { cout << id << ' '; };
-auto constexpr print_all_children   = [](entity_id id, parent<> /*p*/) { cout << id << ' '; };
-auto constexpr print_short_children = [](entity_id id, parent<short> const& p) { cout << id << '(' << p.get<short>() << ") "; };
-auto constexpr print_long_children  = [](entity_id id, parent<long> const& p) { cout << id << '(' << p.get<long>() << ") "; };
-auto constexpr print_float_children = [](entity_id id, parent<float> const& p) { cout << id << '(' << p.get<float>() << ") "; };
-auto constexpr print_double_children = [](entity_id id, parent<double> const& p) { cout << id << '(' << p.get<double>() << ") "; };
+auto constexpr print_roots          = [](ecs::entity_id id, double, ecs::parent<>*) { cout << id << ' '; };
+auto constexpr print_all_children   = [](ecs::entity_id id, ecs::parent<> /*p*/) { cout << id << ' '; };
+auto constexpr print_short_children = [](ecs::entity_id id, ecs::parent<short> const& p) { cout << id << '(' << p.get<short>() << ") "; };
+auto constexpr print_long_children  = [](ecs::entity_id id, ecs::parent<long> const& p) { cout << id << '(' << p.get<long>() << ") "; };
+auto constexpr print_float_children = [](ecs::entity_id id, ecs::parent<float> const& p) { cout << id << '(' << p.get<float>() << ") "; };
+auto constexpr print_double_children = [](ecs::entity_id id, ecs::parent<double> const& p) { cout << id << '(' << p.get<double>() << ") "; };
 
 int main() {
+	ecs::runtime ecs;
+
     // Print the hierarchies
     cout <<
         "     ______1_________              100-101    \n"
@@ -24,38 +25,38 @@ int main() {
         " 14        15            16                    \n\n\n";
 
     // A root
-    add_component({1}, double{});
+    ecs.add_component({1}, double{});
 
     // The children
-    add_component(4, parent{1}, int{}, short{10});
-    add_component(3, parent{1}, int{}, long{20});
-    add_component(2, parent{1}, int{}, float{30});
+    ecs.add_component(4, ecs::parent{1}, int{}, short{10});
+    ecs.add_component(3, ecs::parent{1}, int{}, long{20});
+    ecs.add_component(2, ecs::parent{1}, int{}, float{30});
 
     // The grandchildren
-    add_component({5, 7}, parent{4}, int{});  // short children, parent 4 has a short
-    add_component({8, 10}, parent{3}, int{}); // long children, parent 3 has a long
-    add_component({11, 13}, parent{2}, int{});// float children, parent 2 has a float
+    ecs.add_component({5, 7}, ecs::parent{4}, int{});  // short children, parent 4 has a short
+    ecs.add_component({8, 10}, ecs::parent{3}, int{}); // long children, parent 3 has a long
+    ecs.add_component({11, 13}, ecs::parent{2}, int{});// float children, parent 2 has a float
 
     // The great-grandchildren
-    add_component(14, parent{5}, int{});
-    add_component(15, parent{9}, int{});
-    add_component(16, parent{13}, int{});
+    ecs.add_component(14, ecs::parent{5}, int{});
+    ecs.add_component(15, ecs::parent{9}, int{});
+    ecs.add_component(16, ecs::parent{13}, int{});
 
     // second small tree
-    add_component({100}, double{0});
-    add_component({101}, double{1}, parent{100});
-    add_component({102}, double{2}, parent{101});
-    add_component({103}, double{3}, parent{102});
+    ecs.add_component({100}, double{0});
+    ecs.add_component({101}, double{1}, ecs::parent{100});
+    ecs.add_component({102}, double{2}, ecs::parent{101});
+    ecs.add_component({103}, double{3}, ecs::parent{102});
 
     // Make the systems
-    auto& sys_roots = make_system(print_roots);
-    auto& sys_all = make_system(print_all_children);
-    auto& sys_short = make_system(print_short_children);
-    auto& sys_long = make_system(print_long_children);
-    auto& sys_float = make_system(print_float_children);
-    auto& sys_double = make_system(print_double_children);
+    auto& sys_roots = ecs.make_system(print_roots);
+    auto& sys_all = ecs.make_system(print_all_children);
+    auto& sys_short = ecs.make_system(print_short_children);
+    auto& sys_long = ecs.make_system(print_long_children);
+    auto& sys_float = ecs.make_system(print_float_children);
+    auto& sys_double = ecs.make_system(print_double_children);
 
-    commit_changes();
+    ecs.commit_changes();
 
     // Run the systems
     cout << "All roots        : ";   sys_roots.run();  cout << '\n'; // 1
