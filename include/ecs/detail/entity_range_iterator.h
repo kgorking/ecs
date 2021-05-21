@@ -22,8 +22,8 @@ namespace ecs::detail {
 
         constexpr entity_range_iterator() noexcept {};
 
-        constexpr entity_range_iterator(entity_range_view ranges) noexcept
-            : ranges(ranges) {
+        constexpr entity_range_iterator(entity_range_view _ranges) noexcept
+            : ranges(_ranges) {
             if (ranges.size() > 0) {
                 range_it = ranges.front().begin();
                 range_end = ranges.front().end();

@@ -26,9 +26,9 @@ class system : public system_base {
 	virtual void do_build(entity_range_view) = 0;
 
 public:
-	system(UpdateFn update_func, TupPools pools)
-		: update_func{update_func}
-		, pools{pools}
+	system(UpdateFn func, TupPools tup_pools)
+		: update_func{func}
+		, pools{tup_pools}
 		, pool_parent_id{nullptr}
 	{
 		if constexpr (has_parent_types) {
@@ -58,8 +58,9 @@ public:
 	void notify_pool_modifed() {
 		if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
 			// Recurse into the parent types
-			for_each_type<parent_type_list_t<T>>(
-				[this]<typename ...ParentTypes>() { (this->notify_pool_modifed<ParentTypes>(), ...); });
+			for_each_type<parent_type_list_t<T>>([this]<typename ...ParentTypes>() {
+				(this->notify_pool_modifed<ParentTypes>(), ...); }
+			);
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
 			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>(pools).notify_components_modified();
 		}
@@ -68,21 +69,6 @@ public:
 	constexpr int get_group() const noexcept override {
 		using group = test_option_type_or<is_group, Options, opts::group<0>>;
 		return group::group_id;
-	}
-
-	std::string get_signature() const noexcept override {
-		// Component names
-		constexpr std::array<std::string_view, num_arguments> argument_names{get_type_name<FirstComponent>(),
-																			 get_type_name<Components>()...};
-
-		std::string sig("system(");
-		for (size_t i = 0; i < num_arguments - 1; i++) {
-			sig += argument_names[i];
-			sig += ", ";
-		}
-		sig += argument_names[num_arguments - 1];
-		sig += ')';
-		return sig;
 	}
 
 	constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
@@ -161,7 +147,7 @@ private:
 			return;
 		}
 
-		bool const modified = std::apply([](auto... pools) { return (pools->has_component_count_changed() || ...); }, pools);
+		bool const modified = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
 
 		if (modified) {
 			find_entities();

@@ -13,17 +13,19 @@ class system_ranged final : public system<Options, UpdateFn, TupPools, FirstComp
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn update_func, TupPools pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{update_func, pools}, walker{pools} {}
+	system_ranged(UpdateFn func, TupPools in_pools)
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {}
 
 private:
 	void do_run() override {
 		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+
 		// Call the system for all the components that match the system signature
 		for (auto const &argument : arguments) {
-			auto const &range = std::get<entity_range>(argument);
+			entity_range const &range = std::get<entity_range>(argument);
 			std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 				auto const offset = ent - first_id;
+
 				if constexpr (is_entity<FirstComponent>) {
 					this->update_func(ent, extract_arg<Components>(argument, offset)...);
 				} else {
@@ -54,8 +56,8 @@ private:
 
 private:
 	// Holds the arguments for a range of entities
-	using argument = range_argument<FirstComponent, Components...>;
-	std::vector<argument> arguments;
+	using argument_type = range_argument<FirstComponent, Components...>;
+	std::vector<argument_type> arguments;
 
 	pool_range_walker<TupPools> walker;
 };

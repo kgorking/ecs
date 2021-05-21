@@ -41,11 +41,8 @@ using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 // TODO why is this not called an iterator?
 template <class Pools>
 struct pool_entity_walker {
-	pool_entity_walker(Pools pools) : pools(pools) {
-		ranges_it = ranges.end();
-	}
-
-	void reset(entity_range_view view) {
+	void reset(Pools *_pools, entity_range_view view) {
+		pools = _pools;
 		ranges.assign(view.begin(), view.end());
 		ranges_it = ranges.begin();
 		offset = 0;
@@ -101,7 +98,7 @@ struct pool_entity_walker {
 
 		} else if constexpr (global<T>) {
 			// Global: return the shared component
-			return &get_pool<T>(pools).get_shared_component();
+			return &get_pool<T>(*pools).get_shared_component();
 
 		} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
 			// Parent component: return the parent with the types filled out
@@ -109,7 +106,7 @@ struct pool_entity_walker {
 			parent_id pid = *(std::get<parent_id*>(pointers) + offset);
 
 			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
-				[&]<typename ...ParentType>() { return std::make_tuple(get_entity_data<ParentType>(pid, pools)...); });
+				[&]<typename ...ParentType>() { return std::make_tuple(get_entity_data<ParentType>(pid, *pools)...); });
 
 			return parent_type{pid, tup_parent_ptrs};
 		} else {
@@ -123,15 +120,15 @@ private:
 		if (done())
 			return;
 
-		std::apply([this](auto *const... pools) {
+		std::apply([this](auto *const... in_pools) {
 				auto const f = [&](auto pool) {
 					using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
 					std::get<pool_inner_type *>(pointers) = pool->find_component_data(ranges_it->first());
 				};
 
-				(f(pools), ...);
+				(f(in_pools), ...);
 			},
-			pools);
+			*pools);
 	}
 
 private:
@@ -148,7 +145,7 @@ private:
 	entity_type offset;
 
 	// The tuple of pools in use
-	Pools pools;
+	Pools *pools;
 };
 
 } // namespace ecs::detail

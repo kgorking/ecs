@@ -50,18 +50,18 @@ auto constexpr life_init = [](ecs::entity_id) -> life {
 	return {0.2f + x*2}; // [0.2, 0.4]
 };
 
-void make_systems() {
+void make_systems(ecs::runtime &ecs) {
     // Apply gravity to the velocity
-    ecs::make_system([](velocity& vel, gravity const& grav) { vel.y -= grav.g * delta_time; });
+    ecs.make_system([](velocity& vel, gravity const& grav) { vel.y -= grav.g * delta_time; });
 
     // Update a particles position from its velocity
-    ecs::make_system([](particle& par, velocity const& vel) {
+    ecs.make_system([](particle& par, velocity const& vel) {
         par.x += vel.x * delta_time;
         par.y += vel.y * delta_time;
     });
 
     // Make sure the particles stay within the bounds.
-    ecs::make_system([](particle& par, velocity& vel) {
+    ecs.make_system([](particle& par, velocity& vel) {
         if (par.x > 1) {
             par.x = 1;
             float const p = 2 * vel.x * -1;
@@ -84,7 +84,7 @@ void make_systems() {
     });
 
     // Paint particles purple if they are in range of (0.0, 0.0)
-    ecs::make_system([](color& col, particle const& par) {
+    ecs.make_system([](color& col, particle const& par) {
         float const len_sqr = par.x * par.x + par.y * par.y;
 
         if (len_sqr > 0.0005f)
@@ -96,15 +96,15 @@ void make_systems() {
     });
 
     // Decrease life of live particles
-    ecs::make_system([](ecs::entity_id ent, life& l, dead_tag*) {
+    ecs.make_system([&ecs](ecs::entity_id ent, life& l, dead_tag*) {
         l.val -= delta_time;
         if (l.val < 0) {
-            ecs::add_component(ent, dead_tag{});
+            ecs.add_component(ent, dead_tag{});
         }
     });
 
     // Necromance dead particles
-    ecs::make_system([](ecs::entity_id ent, dead_tag, particle& par, velocity& vel, color& col, life& l) {
+    ecs.make_system([](ecs::entity_id ent, dead_tag, particle& par, velocity& vel, color& col, life& l) {
         par = particle_init(ent);
         vel = velocity_init(ent);
         col = color_init(ent);
@@ -115,13 +115,13 @@ void make_systems() {
 void particles(benchmark::State& state) {
 	auto const num_particles = static_cast<ecs::detail::entity_type>(state.range(0));
 
-    ecs::detail::_context.reset();
-    make_systems();
-	ecs::add_component({0, num_particles}, particle_init, velocity_init, color_init, life_init);
-    ecs::commit_changes();
+    ecs::runtime ecs;
+    make_systems(ecs);
+	ecs.add_component({0, num_particles}, particle_init, velocity_init, color_init, life_init);
+    ecs.commit_changes();
 
     for ([[maybe_unused]] auto const _ : state) {
-		ecs::update();
+		ecs.update();
 	}
 
 	state.SetItemsProcessed(state.iterations() * num_particles);

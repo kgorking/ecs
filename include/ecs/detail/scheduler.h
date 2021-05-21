@@ -14,8 +14,8 @@ namespace ecs::detail {
     struct scheduler_node final {
         // Construct a node from a system.
         // The system can not be null
-        scheduler_node(detail::system_base* sys)
-            : sys(sys)
+        scheduler_node(detail::system_base* _sys)
+            : sys(_sys)
             , dependants{}
             , dependencies{0}
             , unfinished_dependencies{0} {
@@ -97,35 +97,38 @@ namespace ecs::detail {
     // Schedules systems for concurrent execution based on their components.
     class scheduler final {
         // A group of systems with the same group id
-        struct group final {
+        struct systems_group final {
             int id;
             std::vector<scheduler_node> all_nodes;
             std::vector<std::size_t> entry_nodes{};
 
-            void run(size_t node_index) {
-                all_nodes[node_index].run(all_nodes);
+            // Runs the entry nodes in parallel
+            void run() {
+                std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
+                    all_nodes[node_id].run(all_nodes);
+                });
             }
         };
 
-        std::vector<group> groups;
+        std::vector<systems_group> groups;
 
     protected:
-        group& find_group(int id) {
+        systems_group& find_group(int id) {
             // Look for an existing group
             if (!groups.empty()) {
-                for (auto& group : groups) {
-                    if (group.id == id) {
-                        return group;
+                for (auto& g : groups) {
+                    if (g.id == id) {
+                        return g;
                     }
                 }
             }
 
             // No group found, so find an insertion point
             auto const insert_point =
-                std::upper_bound(groups.begin(), groups.end(), id, [](int id, group const& sg) { return id < sg.id; });
+                std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) { return group_id < sg.id; });
 
             // Insert the group and return it
-            return *groups.insert(insert_point, group{id, {}, {}});
+            return *groups.insert(insert_point, systems_group{id, {}, {}});
         }
 
     public:
@@ -170,6 +173,11 @@ namespace ecs::detail {
             }
         }
 
+        // Clears all the schedulers data
+        void clear() {
+			groups.clear();
+        }
+
         void run() {
             // Reset the execution data
             for (auto& group : groups) {
@@ -179,8 +187,7 @@ namespace ecs::detail {
 
             // Run the groups in succession
             for (auto& group : groups) {
-                std::for_each(std::execution::par, group.entry_nodes.begin(), group.entry_nodes.end(),
-                    [&group](auto node) { group.run(node); });
+                group.run();
             }
         }
     };

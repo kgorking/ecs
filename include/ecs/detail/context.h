@@ -6,6 +6,9 @@
 #include <shared_mutex>
 #include <vector>
 
+#include "tls/cache.h"
+#include "tls/split.h"
+
 #include "component_pool.h"
 #include "scheduler.h"
 #include "system.h"
@@ -13,7 +16,6 @@
 #include "system_hierachy.h"
 #include "system_ranged.h"
 #include "system_sorted.h"
-#include "tls/cache.h"
 #include "type_hash.h"
 #include "type_list.h"
 
@@ -24,6 +26,7 @@ namespace ecs::detail {
         std::vector<std::unique_ptr<system_base>> systems;
         std::vector<std::unique_ptr<component_pool_base>> component_pools;
         std::map<type_hash, component_pool_base*> type_pool_lookup;
+		tls::split<tls::cache<type_hash, component_pool_base *, get_type_hash<void>()>> type_caches;
         scheduler sched;
 
         mutable std::shared_mutex system_mutex;
@@ -80,12 +83,13 @@ namespace ecs::detail {
             std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
             systems.clear();
-            sched = scheduler();
-            // context::component_pools.clear(); // this will cause an exception in
-            // get_component_pool() due to the cache
-            for (auto& pool : component_pools) {
-                pool->clear();
-            }
+            sched.clear();
+			type_pool_lookup.clear();
+            component_pools.clear();
+
+            type_caches.for_each([](auto &cache) { cache.reset(); });
+			//type_caches.clear();  // DON'T! It will remove access to existing thread_local vars,
+                                    // which means they can't be reached and reset
         }
 
         // Returns a reference to a components pool.
@@ -97,19 +101,14 @@ namespace ecs::detail {
             // and prevent the compiler from generating duplicated code.
 			static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>, "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-            #if defined (__cpp_constinit)
-            #if (_MSC_VER != 1929) // currently borked in msvc 19.10 preview 2
-            constinit // removes the need for guard variables
-            #endif
-            #endif
-            thread_local tls::cache<type_hash, component_pool_base*, get_type_hash<void>()> cache;
+            /*constinit thread_local*/ auto& cache = type_caches.local();
 
             constexpr auto hash = get_type_hash<T>();
-            auto pool = cache.get_or(hash, [this](type_hash hash) {
+            auto pool = cache.get_or(hash, [this](type_hash _hash) {
                 std::shared_lock component_pool_lock(component_pool_mutex);
 
                 // Look in the pool for the type
-                auto const it = type_pool_lookup.find(hash);
+                auto const it = type_pool_lookup.find(_hash);
                 if (it == type_pool_lookup.end()) {
                     // The pool wasn't found so create it.
                     // create_component_pool takes a unique lock, so unlock the
@@ -260,14 +259,6 @@ namespace ecs::detail {
                 return &get_component_pool<T>();
         }
     };
-
-    inline context& get_context() {
-        static context ctx;
-        return ctx;
-    }
-
-    // The global reference to the context
-    inline context& _context = get_context();
 } // namespace ecs::detail
 
 #endif // !ECS_CONTEXT

@@ -2,8 +2,6 @@
 #define ECS_SYSTEM_BASE
 
 #include <span>
-#include <string>
-
 #include "type_hash.h"
 
 namespace ecs::detail {
@@ -46,9 +44,6 @@ namespace ecs::detail {
 
         // Returns the group this system belongs to
         [[nodiscard]] virtual int get_group() const noexcept = 0;
-
-        // Get the signature of the system
-        [[nodiscard]] virtual std::string get_signature() const noexcept = 0;
 
         // Get the hashes of types used by the system with const/reference qualifiers removed
         [[nodiscard]] virtual std::span<detail::type_hash const>
