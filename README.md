@@ -376,7 +376,7 @@ Running the above code will print out
 
 
 ### `opts::manual_update`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/TxvndcTEq)
-Systems marked as being manually updated will not be added to scheduler, and will thus require the user to call the `system::run()` function themselves.
+Systems marked as being manually updated will not be added to the scheduler, and will thus require the user to call the `system::run()` function themselves.
 Calls to `ecs::runtime::commit_changes()` will still cause the system to respond to changes in components.
 
 ```cpp
