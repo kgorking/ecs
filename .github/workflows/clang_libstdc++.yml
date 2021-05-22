@@ -7,12 +7,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install clang 12
-      run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install clang-12
-        /usr/bin/clang++-12 --version
-      shell: bash
+#    - name: Install clang 12
+#      run: |
+#        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+#        sudo apt install clang-12
+#        /usr/bin/clang++-12 --version
+#      shell: bash
       
     - uses: actions/checkout@v1
 
