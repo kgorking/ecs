@@ -41,7 +41,7 @@ struct parent : entity_id {
 	}
 
 	// used internally by detectors
-	static constexpr int _ecs_parent {};
+	struct _ecs_parent {};
 
 private:
 	template <typename Component, typename Pools>
