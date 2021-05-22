@@ -18,7 +18,7 @@ endif ()
 
 if (MSVC)
     # warning level 4
-    target_compile_options(ecs INTERFACE /std:c++20 /W4 /wo4648)
+    target_compile_options(ecs INTERFACE /std:c++latest /W4 /wo4648)
     #target_compile_options(ecs INTERFACE /fsanitize=address)
 
     # enable profiling
