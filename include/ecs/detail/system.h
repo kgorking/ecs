@@ -41,7 +41,7 @@ public:
 			return;
 		}
 
-		if (!interval.can_run()) {
+		if (!interval_checker.can_run()) {
 			return;
 		}
 
@@ -224,7 +224,7 @@ protected:
 	using interval_type = std::conditional_t<(user_interval::_ecs_duration > 0.0),
 		interval_limiter<user_interval::_ecs_duration>,
 		no_interval_limiter>;
-	interval_type interval;
+	interval_type interval_checker;
 
 	// Number of arguments
 	static constexpr size_t num_arguments = 1 + sizeof...(Components);
