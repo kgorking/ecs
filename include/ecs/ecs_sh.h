@@ -94,7 +94,7 @@ class split {
 		}
 
 		// Return a reference to an instances local data
-		T& get(split* instance) noexcept {
+		T &get(split *instance) noexcept {
 			// If the owner is null, (re-)initialize the instance.
 			// Data may still be present if the thread_local instance is still active
 			if (owner == nullptr) {
@@ -105,7 +105,7 @@ class split {
 			return data;
 		}
 
-		void remove(split* instance) noexcept {
+		void remove(split *instance) noexcept {
 			if (owner == instance) {
 				data = {};
 				owner = nullptr;
@@ -113,39 +113,39 @@ class split {
 			}
 		}
 
-		T* get_data() noexcept {
+		T *get_data() noexcept {
 			return &data;
 		}
-		T const* get_data() const noexcept {
+		T const *get_data() const noexcept {
 			return &data;
 		}
 
-		void set_next(thread_data* ia) noexcept {
+		void set_next(thread_data *ia) noexcept {
 			next = ia;
 		}
-		thread_data* get_next() noexcept {
+		thread_data *get_next() noexcept {
 			return next;
 		}
-		thread_data const* get_next() const noexcept {
+		thread_data const *get_next() const noexcept {
 			return next;
 		}
 
 	private:
 		T data{};
-		split<T, UnusedDifferentiaterType>* owner{};
-		thread_data* next = nullptr;
+		split<T, UnusedDifferentiaterType> *owner{};
+		thread_data *next = nullptr;
 	};
 
 private:
 	// the head of the threads that access this split instance
-	thread_data* head{};
+	thread_data *head{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
 	std::mutex mtx_storage;
 
 protected:
 	// Adds a thread_data
-	void init_thread(thread_data* t) noexcept {
+	void init_thread(thread_data *t) noexcept {
 		std::scoped_lock sl(mtx_storage);
 
 		t->set_next(head);
@@ -153,7 +153,7 @@ protected:
 	}
 
 	// Remove the thread_data
-	void remove_thread(thread_data* t) noexcept {
+	void remove_thread(thread_data *t) noexcept {
 		std::scoped_lock sl(mtx_storage);
 
 		// Remove the thread from the linked list
@@ -174,26 +174,26 @@ protected:
 
 public:
 	split() noexcept = default;
-	split(split const&) = delete;
-	split(split&&) noexcept = default;
-	split& operator=(split const&) = delete;
-	split& operator=(split&&) noexcept = default;
+	split(split const &) = delete;
+	split(split &&) noexcept = default;
+	split &operator=(split const &) = delete;
+	split &operator=(split &&) noexcept = default;
 	~split() noexcept {
 		clear();
 	}
 
 	// Get the thread-local instance of T
-	T& local() noexcept {
+	T &local() noexcept {
 		thread_local thread_data var{};
 		return var.get(this);
 	}
 
 	// Performa an action on all each instance of the data
-	template <class Fn>
+	template<class Fn>
 	void for_each(Fn&& fn) {
 		std::scoped_lock sl(mtx_storage);
 
-		for (thread_data* instance = head; instance != nullptr; instance = instance->get_next()) {
+		for (thread_data *instance = head; instance != nullptr; instance = instance->get_next()) {
 			fn(*instance->get_data());
 		}
 	}
@@ -202,7 +202,7 @@ public:
 	void clear() noexcept {
 		std::scoped_lock sl(mtx_storage);
 
-		for (thread_data* instance = head; instance != nullptr;) {
+		for (thread_data *instance = head; instance != nullptr;) {
 			auto next = instance->get_next();
 			instance->remove(this);
 			instance = next;
@@ -240,7 +240,7 @@ class collect {
 		}
 
 		// Return a reference to an instances local data
-		T& get(collect* instance) noexcept {
+		T &get(collect *instance) noexcept {
 			// If the owner is null, (re-)initialize the thread.
 			// Data may still be present if the thread_local instance is still active
 			if (owner == nullptr) {
@@ -251,7 +251,7 @@ class collect {
 			return data;
 		}
 
-		void remove(collect* instance) noexcept {
+		void remove(collect *instance) noexcept {
 			if (owner == instance) {
 				data = {};
 				owner = nullptr;
@@ -259,32 +259,32 @@ class collect {
 			}
 		}
 
-		T* get_data() noexcept {
+		T *get_data() noexcept {
 			return &data;
 		}
-		T const* get_data() const noexcept {
+		T const *get_data() const noexcept {
 			return &data;
 		}
 
-		void set_next(thread_data* ia) noexcept {
+		void set_next(thread_data *ia) noexcept {
 			next = ia;
 		}
-		thread_data* get_next() noexcept {
+		thread_data *get_next() noexcept {
 			return next;
 		}
-		thread_data const* get_next() const noexcept {
+		thread_data const *get_next() const noexcept {
 			return next;
 		}
 
 	private:
 		T data{};
-		collect* owner{};
-		thread_data* next = nullptr;
+		collect *owner{};
+		thread_data *next = nullptr;
 	};
 
 private:
 	// the head of the threads that access this splitter instance
-	thread_data* head{};
+	thread_data *head{};
 
 	// All the data collected from threads
 	std::vector<T> data;
@@ -294,7 +294,7 @@ private:
 
 protected:
 	// Adds a new thread
-	void init_thread(thread_data* t) noexcept {
+	void init_thread(thread_data *t) noexcept {
 		std::scoped_lock sl(mtx_storage);
 
 		t->set_next(head);
@@ -302,11 +302,11 @@ protected:
 	}
 
 	// Removes the thread
-	void remove_thread(thread_data* t) noexcept {
+	void remove_thread(thread_data *t) noexcept {
 		std::scoped_lock sl(mtx_storage);
 
 		// Take the thread data
-		T* local_data = t->get_data();
+		T *local_data = t->get_data();
 		data.push_back(std::move(*local_data));
 
 		// Reset the thread data
@@ -330,16 +330,16 @@ protected:
 
 public:
 	collect() noexcept = default;
-	collect(collect const&) = delete;
-	collect(collect&&) noexcept = default;
-	collect& operator=(collect const&) = delete;
-	collect& operator=(collect&&) noexcept = default;
+	collect(collect const &) = delete;
+	collect(collect &&) noexcept = default;
+	collect &operator=(collect const &) = delete;
+	collect &operator=(collect &&) noexcept = default;
 	~collect() noexcept {
 		clear();
 	}
 
 	// Get the thread-local thread of T
-	T& local() noexcept {
+	T &local() noexcept {
 		thread_local thread_data var{};
 		return var.get(this);
 	}
@@ -348,7 +348,7 @@ public:
 	std::vector<T> gather() noexcept {
 		std::scoped_lock sl(mtx_storage);
 
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+		for (thread_data *thread = head; thread != nullptr; thread = thread->get_next()) {
 			data.push_back(std::move(*thread->get_data()));
 		}
 
@@ -356,11 +356,11 @@ public:
 	}
 
 	// Perform an action on all threads data
-	template <class Fn>
+	template<class Fn>
 	void for_each(Fn&& fn) {
 		std::scoped_lock sl(mtx_storage);
 
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+		for (thread_data *thread = head; thread != nullptr; thread = thread->get_next()) {
 			fn(*thread->get_data());
 		}
 
@@ -371,7 +371,7 @@ public:
 	void clear() noexcept {
 		std::scoped_lock sl(mtx_storage);
 
-		for (thread_data* thread = head; thread != nullptr;) {
+		for (thread_data *thread = head; thread != nullptr;) {
 			auto next = thread->get_next();
 			thread->remove(this);
 			thread = next;
@@ -532,6 +532,7 @@ constexpr bool any_of_type(F&& f) {
 // https://developercommunity.visualstudio.com/content/problem/1010773/-funcsig-missing-data-from-locally-defined-structs.html
 
 namespace ecs::detail {
+
 using type_hash = std::uint64_t;
 
 template <class T>
@@ -689,6 +690,7 @@ private:
 #include <limits>
 #include <optional>
 #include <span>
+
 
 namespace ecs {
 // Defines a range of entities.
@@ -890,11 +892,13 @@ private:
 #ifndef ECS_DETAIL_PARENT_H
 #define ECS_DETAIL_PARENT_H
 
+
 namespace ecs::detail {
+
 // The parent type stored internally in component pools
 struct parent_id : entity_id {};
+
 } // namespace ecs::detail
-// namespace ecs::detail
 
 #endif // !ECS_DETAIL_PARENT_H
 #ifndef ECS_FLAGS_H
@@ -933,7 +937,7 @@ struct immutable {};
 struct global {};
 } // namespace ecs::flag
 
-#endif // !ECS_COMPONENT_FLAGS_H
+#endif // !ECS_FLAGS_H
 #ifndef ECS_DETAIL_FLAGS_H
 #define ECS_DETAIL_FLAGS_H
 
@@ -941,6 +945,7 @@ struct global {};
 
 // Some helpers concepts to detect flags
 namespace ecs::detail {
+
 template <typename T>
 using flags = typename std::remove_cvref_t<T>::_ecs_flags;
 
@@ -964,6 +969,7 @@ concept persistent = !transient<T>;
 
 template <typename T>
 concept unbound = (tagged<T> || global<T>); // component is not bound to a specific entity (ie static)
+
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_FLAGS_H
@@ -976,9 +982,14 @@ struct group {
 	static constexpr int group_id = I;
 };
 
-template <size_t I>
-struct frequency {
-	static constexpr size_t hz = I;
+template <int Milliseconds, int Microseconds = 0>
+struct interval {
+	static_assert(Milliseconds >= 0, "invalid time values specified");
+	static_assert(Microseconds >= 0 && Microseconds < 1000, "invalid time values specified");
+
+	static constexpr double _ecs_duration = (1.0 * Milliseconds) + (Microseconds / 1000.0);
+	static constexpr int _ecs_duration_ms = Milliseconds;
+	static constexpr int _ecs_duration_us = Microseconds;
 };
 
 struct manual_update {};
@@ -992,7 +1003,9 @@ struct not_parallel {};
 #ifndef ECS_DETAIL_OPTIONS_H
 #define ECS_DETAIL_OPTIONS_H
 
+
 namespace ecs::detail {
+
 //
 // Check if type is a group
 template <typename T>
@@ -1008,16 +1021,16 @@ struct is_group<T> {
 };
 
 //
-// Check if type is a frequency
+// Check if type is an interval
 template <typename T>
-struct is_frequency {
+struct is_interval {
 	static constexpr bool value = false;
 };
 template <typename T>
 requires requires {
-	T::hz;
+	T::_ecs_duration;
 }
-struct is_frequency<T> {
+struct is_interval<T> {
 	static constexpr bool value = true;
 };
 
@@ -1106,6 +1119,7 @@ template <class Option, class TupleOptions>
 constexpr bool has_option() {
 	return detect::has_option<Option, TupleOptions>();
 }
+
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_OPTIONS_H
@@ -1114,7 +1128,6 @@ constexpr bool has_option() {
 
 namespace ecs::detail {
 // The baseclass of typed component pools
-// TODO try and get rid of this baseclass
 class component_pool_base {
 public:
 	component_pool_base() = default;
@@ -1141,6 +1154,9 @@ public:
 #include <tuple>
 #include <type_traits>
 #include <vector>
+
+
+
 
 template <class ForwardIt, class BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) {
@@ -1761,22 +1777,19 @@ private:
 
 namespace ecs::detail {
 
-template <size_t hz>
-struct frequency_limiter {
+template <int milliseconds, int microseconds>
+struct interval_limiter {
 	bool can_run() {
-		if constexpr (hz == 0)
-			return true;
-		else {
-			using namespace std::chrono_literals;
+		using namespace std::chrono_literals;
+		constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
 
-			auto const now = std::chrono::high_resolution_clock::now();
-			auto const diff = now - time;
-			if (diff >= (1'000'000'000ns / hz)) {
-				time = now;
-				return true;
-			} else {
-				return false;
-			}
+		auto const now = std::chrono::high_resolution_clock::now();
+		auto const diff = now - time;
+		if (diff >= interval_size) {
+			time = now;
+			return true;
+		} else {
+			return false;
 		}
 	}
 
@@ -1784,7 +1797,7 @@ private:
 	std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
 };
 
-struct no_frequency_limiter {
+struct no_interval_limiter {
 	constexpr bool can_run() {
 		return true;
 	}
@@ -1957,6 +1970,7 @@ using tup_pools = std::conditional_t<is_entity<FirstComponent>, std::tuple<pool<
 #ifndef POOL_ENTITY_WALKER_H_
 #define POOL_ENTITY_WALKER_H_
 
+
 namespace ecs::detail {
 
 // The type of a single component argument
@@ -2105,6 +2119,7 @@ private:
 #ifndef POOL_RANGE_WALKER_H_
 #define POOL_RANGE_WALKER_H_
 
+
 namespace ecs::detail {
 
 // Linearly walks one-or-more component pools
@@ -2225,13 +2240,15 @@ public:
 } // namespace ecs::detail
 
 #endif // !_ENTITY_OFFSET_H
-#ifndef ECS_VERIFICATION
-#define ECS_VERIFICATION
+#ifndef ECS_VERIFICATION_H
+#define ECS_VERIFICATION_H
 
 #include <concepts>
 #include <type_traits>
 
+
 namespace ecs::detail {
+
 // Given a type T, if it is callable with an entity argument,
 // resolve to the return type of the callable. Otherwise assume the type T.
 template <typename T>
@@ -2449,9 +2466,10 @@ void make_system_parameter_verifier() {
 
 } // namespace ecs::detail
 
-#endif // !ECS_VERIFICATION
+#endif // !ECS_VERIFICATION_H
 #ifndef ECS_DETAIL_ENTITY_RANGE
 #define ECS_DETAIL_ENTITY_RANGE
+
 
 namespace ecs::detail {
 // Find the intersectsions between two sets of ranges
@@ -2700,6 +2718,7 @@ private:
 #include <utility>
 #include <vector>
 
+
 namespace ecs::detail {
 // The implementation of a system specialized on its components
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
@@ -2719,7 +2738,7 @@ public:
 			return;
 		}
 
-		if (!frequency.can_run()) {
+		if (!interval_checker.can_run()) {
 			return;
 		}
 
@@ -2894,9 +2913,11 @@ protected:
 	using component_list = type_list<FirstComponent, Components...>;
 	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
 
-	using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
-	using frequency_type = std::conditional_t<(user_freq::hz > 0), frequency_limiter<user_freq::hz>, no_frequency_limiter>;
-	frequency_type frequency;
+	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
+	using interval_type =
+		std::conditional_t<(user_interval::_ecs_duration > 0.0),
+						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
+	interval_type interval_checker;
 
 	// Number of arguments
 	static constexpr size_t num_arguments = 1 + sizeof...(Components);
@@ -2930,6 +2951,7 @@ protected:
 #endif // !ECS_SYSTEM
 #ifndef ECS_SYSTEM_SORTED_H_
 #define ECS_SYSTEM_SORTED_H_
+
 
 namespace ecs::detail {
 // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
@@ -3019,6 +3041,7 @@ private:
 #ifndef ECS_SYSTEM_RANGED_H_
 #define ECS_SYSTEM_RANGED_H_
 
+
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
@@ -3085,6 +3108,8 @@ private:
 #include <future>
 #include <map>
 #include <unordered_map>
+
+
 
 namespace ecs::detail {
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
@@ -3301,6 +3326,7 @@ private:
 #ifndef ECS_SYSTEM_GLOBAL_H
 #define ECS_SYSTEM_GLOBAL_H
 
+
 namespace ecs::detail {
 // The implementation of a system specialized on its components
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
@@ -3336,7 +3362,9 @@ private:
 #include <execution>
 #include <vector>
 
+
 namespace ecs::detail {
+
 // Describes a node in the scheduler execution graph
 struct scheduler_node final {
 	// Construct a node from a system.
@@ -3511,6 +3539,7 @@ public:
 		}
 	}
 };
+
 } // namespace ecs::detail
 
 #endif // !ECS_SYSTEM_SCHEDULER
@@ -3521,6 +3550,8 @@ public:
 #include <memory>
 #include <shared_mutex>
 #include <vector>
+
+
 
 namespace ecs::detail {
 // The central class of the ecs implementation. Maintains the state of the system.
@@ -3605,7 +3636,7 @@ public:
 		static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>,
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-		/*constinit thread_local*/ auto& cache = type_caches.local();
+		auto& cache = type_caches.local();
 
 		constexpr auto hash = get_type_hash<T>();
 		auto pool = cache.get_or(hash, [this](type_hash _hash) {
@@ -3768,6 +3799,7 @@ private:
 #include <execution>
 #include <type_traits>
 #include <utility>
+
 
 namespace ecs {
 class runtime {
