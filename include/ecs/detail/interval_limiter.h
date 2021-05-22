@@ -5,11 +5,11 @@
 
 namespace ecs::detail {
 
-template <double milliseconds>
+template <int milliseconds, int microseconds>
 struct interval_limiter {
 	bool can_run() {
 		using namespace std::chrono_literals;
-		constexpr std::chrono::nanoseconds interval_size = 1ns * static_cast<std::int64_t>(1'000'000 * milliseconds);
+		constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
 
 		auto const now = std::chrono::high_resolution_clock::now();
 		auto const diff = now - time;

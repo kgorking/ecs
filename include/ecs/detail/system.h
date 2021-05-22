@@ -220,9 +220,9 @@ protected:
 	using component_list = type_list<FirstComponent, Components...>;
 	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
 
-	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0.0>>;
+	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
 	using interval_type = std::conditional_t<(user_interval::_ecs_duration > 0.0),
-		interval_limiter<user_interval::_ecs_duration>,
+		interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>,
 		no_interval_limiter>;
 	interval_type interval_checker;
 
