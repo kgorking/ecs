@@ -18,14 +18,14 @@ namespace ecs::detail {
     };
 
     //
-    // Check if type is a frequency
+    // Check if type is an interval
     template<typename T>
-    struct is_frequency {
+    struct is_interval {
         static constexpr bool value = false;
     };
     template<typename T>
-    requires requires { T::hz; }
-    struct is_frequency<T> {
+    requires requires { T::_ecs_duration; }
+    struct is_interval<T> {
         static constexpr bool value = true;
     };
 

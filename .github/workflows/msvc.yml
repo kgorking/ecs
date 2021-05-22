@@ -1,4 +1,4 @@
-name: msvc 19.26
+name: MSVC
 
 on: [push]
 

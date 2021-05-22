@@ -51,10 +51,10 @@ The latter command will fetch the submodules required to build this library.
 # Building 
 #### Tested compilers
 The CI build status for msvc, clang 10, and gcc 10 is currently:
-* ![msvc](https://github.com/kgorking/ecs/workflows/msvc%2019.26/badge.svg?branch=master)
-* ![gcc 10](https://github.com/kgorking/ecs/workflows/gcc%2010.1/badge.svg?branch=master)
+* ![msvc](https://github.com/kgorking/ecs/workflows/msvc/badge.svg?branch=master)
+* ![gcc 11](https://github.com/kgorking/ecs/workflows/gcc%2011/badge.svg?branch=master)
 * ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg?branch=master)
-* ![clang 10 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libstdc++/badge.svg?branch=master)
+* ![clang 12 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2012%20libstdc++/badge.svg?branch=master)
 
 # Table of Contents
 - [Entities](#entities)
@@ -329,20 +329,22 @@ Hiearchies in this library are [topological sorted](https://en.wikipedia.org/wik
 # System options
 The following options can be passed along to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
 
-### `opts::frequency<hz>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/r6xY6ra1Y)
-`opts::frequency` is used to limit the number of times per second a system will run. The number of times the system is run may be lower than the frequency passed, but it will never be higher.
+### `opts::interval<ms, us>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/r6xY6ra1Y)
+`opts::interval` is used to specify how often a system will run. The time duration between two runs may be higher than the specified times, but it will never be lower.
+
+`opts::interval` takes a millisecond count and an optional microsecond count (defaults to zero). An `opts::interval<0, 0>` is considered to have no interval and will run every cycle.
 
 ```cpp
 #include <chrono>
 using namespace std::chrono_literals;
 // ...
-ecs.make_system<ecs::opts::frequency<10>>([](int const&) {
-    std::cout << "at least 100ms has passed\n";
+ecs.make_system<ecs::opts::interval<16, 667>>([](int const&) {
+    std::cout << "at least 16.667 ms has passed\n";
 });
 // ...
 ecs.add_component(0, int{});
 
-// Run the system for 1 second (include <chrono>)
+// Run the system for 1 second
 auto const start = std::chrono::high_resolution_clock::now();
 while (std::chrono::high_resolution_clock::now() - start < 1s)
     ecs.update();

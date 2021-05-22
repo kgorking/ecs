@@ -21,7 +21,7 @@ int main() {
 	ecs::runtime ecs;
 
     // Handle damage logic
-    ecs.make_system<ecs::opts::frequency<infection::dmg_tick>>([](ecs::entity_id self, health& h, infection const&) {
+    ecs.make_system<ecs::opts::interval<1000 / infection::dmg_tick>>([](ecs::entity_id self, health& h, infection const&) {
         // Subtract the damage from the health component
         h.hp -= infection::dmg;
 
@@ -29,7 +29,7 @@ int main() {
     });
 
     // Handle spread logic
-    ecs.make_system<ecs::opts::frequency<infection::spread_tick>>([&ecs](ecs::entity_id self, infection const& p) {
+    ecs.make_system<ecs::opts::interval<1000 / infection::spread_tick>>([&ecs](ecs::entity_id self, infection const& p) {
         // Do a spread tick. Use hardcoded entities for simplicitys sake
         auto const ents_in_range = {
             ecs::entity_id{1},
@@ -50,7 +50,7 @@ int main() {
     });
 
     // Handle spell logic
-    ecs.make_system<ecs::opts::frequency<10>>([&ecs](ecs::entity_id self, infection& p, health const& h) {
+    ecs.make_system<ecs::opts::interval<1000 / 10>>([&ecs](ecs::entity_id self, infection& p, health const& h) {
         p.duration -= 100;
         bool remove_spell = false;
 

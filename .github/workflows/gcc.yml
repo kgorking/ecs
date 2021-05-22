@@ -1,4 +1,4 @@
-name: gcc 10.1
+name: gcc 11
 
 on: [push]
 
@@ -7,11 +7,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Update to gcc 10
+    - name: Update to gcc 11
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install gcc-10 g++-10
-        /usr/bin/g++-10 --version
+        sudo apt install gcc-11 g++-11
+        /usr/bin/g++-11 --version
       shell: bash
       
     - uses: actions/checkout@v1
@@ -33,8 +33,8 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/gcc-10")
-        set(ENV{CXX} "/usr/bin/g++-10")
+        set(ENV{CC} "/usr/bin/gcc-11")
+        set(ENV{CXX} "/usr/bin/g++-11")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 

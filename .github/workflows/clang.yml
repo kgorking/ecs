@@ -1,6 +1,6 @@
 name: clang 10 ms-stl
 
-on: [push]
+on: workflow_dispatch
 
 jobs:
   build:
