@@ -51,10 +51,10 @@ The latter command will fetch the submodules required to build this library.
 # Building 
 #### Tested compilers
 The CI build status for msvc, clang 10, and gcc 10 is currently:
-* ![msvc](https://github.com/kgorking/ecs/workflows/msvc%2019.26/badge.svg?branch=master)
-* ![gcc 10](https://github.com/kgorking/ecs/workflows/gcc%2010.1/badge.svg?branch=master)
+* ![msvc](https://github.com/kgorking/ecs/workflows/msvc/badge.svg?branch=master)
+* ![gcc 11](https://github.com/kgorking/ecs/workflows/gcc%2011/badge.svg?branch=master)
 * ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg?branch=master)
-* ![clang 10 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2010%20libstdc++/badge.svg?branch=master)
+* ![clang 12 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2012%20libstdc++/badge.svg?branch=master)
 
 # Table of Contents
 - [Entities](#entities)
