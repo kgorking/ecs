@@ -74,7 +74,7 @@ The CI build status for msvc, clang 10, and gcc 10 is currently:
     - [Filtering on parents components](#Filtering-on-parents-components)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/v14T1efbK)
     - [Traversal and layout](#Traversal-and-layout)
 - [System options](#system-options)
-  - [`opts::interval<ms, us>`](#optsintervalms-us)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/r6xY6ra1Y)
+  - [`opts::interval<ms, us>`](#optsintervalms-us)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/aGM86KWdf)
   - [`opts::group<group number>`](#optsgroupgroup-number)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ezoq17fbr)
   - [`opts::manual_update`](#optsmanual_update)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TxvndcTEq)
   - [`opts::not_parallel`](#optsnot_parallel)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/MK9xcTedq)
@@ -329,7 +329,7 @@ Hiearchies in this library are [topological sorted](https://en.wikipedia.org/wik
 # System options
 The following options can be passed along to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
 
-### `opts::interval<ms, us>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/r6xY6ra1Y)
+### `opts::interval<ms, us>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/aGM86KWdf)
 `opts::interval` is used to specify how often a system will run. The time duration between two runs may be higher than the specified times, but it will never be lower.
 
 `opts::interval` takes a millisecond count and an optional microsecond count (defaults to zero). An `opts::interval<0, 0>` is considered to have no interval and will run every cycle.
