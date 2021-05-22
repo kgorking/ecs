@@ -335,19 +335,9 @@ The following options can be passed along to `make_system` calls in order to cha
 `opts::interval` takes a millisecond count and an optional microsecond count (defaults to zero). An `opts::interval<0, 0>` is considered to have no interval and will run every cycle.
 
 ```cpp
-#include <chrono>
-using namespace std::chrono_literals;
-// ...
 ecs.make_system<ecs::opts::interval<16, 667>>([](int const&) {
     std::cout << "at least 16.667 ms has passed\n";
 });
-// ...
-ecs.add_component(0, int{});
-
-// Run the system for 1 second
-auto const start = std::chrono::high_resolution_clock::now();
-while (std::chrono::high_resolution_clock::now() - start < 1s)
-    ecs.update();
 ```
 
 
