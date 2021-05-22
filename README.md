@@ -74,7 +74,7 @@ The CI build status for msvc, clang 10, and gcc 10 is currently:
     - [Filtering on parents components](#Filtering-on-parents-components)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/v14T1efbK)
     - [Traversal and layout](#Traversal-and-layout)
 - [System options](#system-options)
-  - [`opts::interval<ms, us>`](#optsfrequencyhz)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/r6xY6ra1Y)
+  - [`opts::interval<ms, us>`](#optsintervalms-us)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/r6xY6ra1Y)
   - [`opts::group<group number>`](#optsgroupgroup-number)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ezoq17fbr)
   - [`opts::manual_update`](#optsmanual_update)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TxvndcTEq)
   - [`opts::not_parallel`](#optsnot_parallel)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/MK9xcTedq)
