@@ -329,20 +329,22 @@ Hiearchies in this library are [topological sorted](https://en.wikipedia.org/wik
 # System options
 The following options can be passed along to `make_system` calls in order to change the behaviour of a system. If an option is added more than once, only the first option is used.
 
-### `opts::frequency<hz>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/r6xY6ra1Y)
-`opts::frequency` is used to limit the number of times per second a system will run. The number of times the system is run may be lower than the frequency passed, but it will never be higher.
+### `opts::interval<ms, us>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/r6xY6ra1Y)
+`opts::interval` is used to specify how often a system will run. The time duration between two runs may be higher than the specified times, but it will never be lower.
+
+`opts::interval` takes a millisecond count and an optional microsecond count (defaults to zero). An `opts::interval<0, 0>` is considered to have no interval and will run every cycle.
 
 ```cpp
 #include <chrono>
 using namespace std::chrono_literals;
 // ...
-ecs.make_system<ecs::opts::frequency<10>>([](int const&) {
-    std::cout << "at least 100ms has passed\n";
+ecs.make_system<ecs::opts::interval<16, 667>>([](int const&) {
+    std::cout << "at least 16.667 ms has passed\n";
 });
 // ...
 ecs.add_component(0, int{});
 
-// Run the system for 1 second (include <chrono>)
+// Run the system for 1 second
 auto const start = std::chrono::high_resolution_clock::now();
 while (std::chrono::high_resolution_clock::now() - start < 1s)
     ecs.update();
