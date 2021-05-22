@@ -1,4 +1,4 @@
-name: gcc 10.1
+name: gcc 11
 
 on: [push]
 
