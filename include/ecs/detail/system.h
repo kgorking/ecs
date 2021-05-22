@@ -12,7 +12,7 @@
 #include "../entity_range.h"
 #include "component_pool.h"
 #include "entity_range.h"
-#include "frequency_limiter.h"
+#include "interval_limiter.h"
 #include "options.h"
 #include "system_base.h"
 #include "system_defs.h"
@@ -41,7 +41,7 @@ public:
 			return;
 		}
 
-		if (!frequency.can_run()) {
+		if (!interval.can_run()) {
 			return;
 		}
 
@@ -220,11 +220,11 @@ protected:
 	using component_list = type_list<FirstComponent, Components...>;
 	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
 
-	using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
-	using frequency_type = std::conditional_t<(user_freq::hz > 0),
-		frequency_limiter<user_freq::hz>,
-		no_frequency_limiter>;
-	frequency_type frequency;
+	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0>>;
+	using interval_type = std::conditional_t<(user_interval::_ecs_duration > 0),
+		interval_limiter<user_interval::_ecs_duration>,
+		no_interval_limiter>;
+	interval_type interval;
 
 	// Number of arguments
 	static constexpr size_t num_arguments = 1 + sizeof...(Components);
