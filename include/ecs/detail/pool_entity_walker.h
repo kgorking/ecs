@@ -10,8 +10,7 @@ namespace ecs::detail {
 
 // The type of a single component argument
 template <typename Component>
-using walker_argument = reduce_parent_t<std::remove_cvref_t<Component>> *;
-
+using walker_argument = reduce_parent_t<std::remove_cvref_t<Component>>*;
 
 template <typename T>
 struct pool_type_detect; // primary template
@@ -21,17 +20,16 @@ struct pool_type_detect<Pool<Type>> {
 	using type = Type;
 };
 template <template <class> class Pool, class Type>
-struct pool_type_detect<Pool<Type> *> {
+struct pool_type_detect<Pool<Type>*> {
 	using type = Type;
 };
 
-
 template <typename T>
-struct tuple_pool_type_detect;											   // primary template
+struct tuple_pool_type_detect; // primary template
 
-template <template<class...> class Tuple, class... PoolTypes> // partial specialization
-struct tuple_pool_type_detect<const Tuple<PoolTypes *const...>> {
-	using type = std::tuple<typename pool_type_detect<PoolTypes>::type * ...>;
+template <template <class...> class Tuple, class... PoolTypes> // partial specialization
+struct tuple_pool_type_detect<const Tuple<PoolTypes* const...>> {
+	using type = std::tuple<typename pool_type_detect<PoolTypes>::type*...>;
 };
 
 template <typename T>
@@ -41,7 +39,7 @@ using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 // TODO why is this not called an iterator?
 template <class Pools>
 struct pool_entity_walker {
-	void reset(Pools *_pools, entity_range_view view) {
+	void reset(Pools* _pools, entity_range_view view) {
 		pools = _pools;
 		ranges.assign(view.begin(), view.end());
 		ranges_it = ranges.begin();
@@ -94,7 +92,7 @@ struct pool_entity_walker {
 		} else if constexpr (tagged<T>) {
 			// Tag: return a pointer to some dummy storage
 			thread_local char dummy_arr[sizeof(T)];
-			return reinterpret_cast<T *>(dummy_arr);
+			return reinterpret_cast<T*>(dummy_arr);
 
 		} else if constexpr (global<T>) {
 			// Global: return the shared component
@@ -105,13 +103,14 @@ struct pool_entity_walker {
 			using parent_type = std::remove_cvref_t<Component>;
 			parent_id pid = *(std::get<parent_id*>(pointers) + offset);
 
-			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
-				[&]<typename ...ParentType>() { return std::make_tuple(get_entity_data<ParentType>(pid, *pools)...); });
+			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>([&]<typename... ParentType>() {
+				return std::make_tuple(get_entity_data<ParentType>(pid, *pools)...);
+			});
 
 			return parent_type{pid, tup_parent_ptrs};
 		} else {
 			// Standard: return the component from the pool
-			return (std::get<T *>(pointers) + offset);
+			return (std::get<T*>(pointers) + offset);
 		}
 	}
 
@@ -120,10 +119,11 @@ private:
 		if (done())
 			return;
 
-		std::apply([this](auto *const... in_pools) {
+		std::apply(
+			[this](auto* const... in_pools) {
 				auto const f = [&](auto pool) {
 					using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
-					std::get<pool_inner_type *>(pointers) = pool->find_component_data(ranges_it->first());
+					std::get<pool_inner_type*>(pointers) = pool->find_component_data(ranges_it->first());
 				};
 
 				(f(in_pools), ...);
@@ -140,12 +140,12 @@ private:
 
 	// Pointers to the start of each pools data
 	tuple_pool_type_detect_t<Pools> pointers;
-	
+
 	// Entity id and pool-pointers offset
 	entity_type offset;
 
 	// The tuple of pools in use
-	Pools *pools;
+	Pools* pools;
 };
 
 } // namespace ecs::detail

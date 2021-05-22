@@ -7,7 +7,7 @@
 
 namespace ecs::detail {
 template <typename Component, typename Pools>
-auto get_component(entity_id const, Pools const &);
+auto get_component(entity_id const, Pools const&);
 
 template <class Pools>
 struct pool_entity_walker;
@@ -21,23 +21,23 @@ struct parent : entity_id {
 
 	explicit parent(entity_id id) : entity_id(id) {}
 
-	parent(parent const &) = default;
-	parent &operator=(parent const &) = default;
+	parent(parent const&) = default;
+	parent& operator=(parent const&) = default;
 
 	entity_id id() const {
 		return (entity_id) * this;
 	}
 
 	template <typename T>
-	T &get() {
+	T& get() {
 		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
-		return *std::get<T *>(parent_components);
+		return *std::get<T*>(parent_components);
 	}
 
 	template <typename T>
-	T const &get() const {
+	T const& get() const {
 		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
-		return *std::get<T *>(parent_components);
+		return *std::get<T*>(parent_components);
 	}
 
 	// used internally by detectors
@@ -45,14 +45,14 @@ struct parent : entity_id {
 
 private:
 	template <typename Component, typename Pools>
-	friend auto detail::get_component(entity_id const, Pools const &);
+	friend auto detail::get_component(entity_id const, Pools const&);
 
 	template <class Pools>
 	friend struct detail::pool_entity_walker;
 
-	parent(entity_id id, std::tuple<ParentTypes *...> tup) : entity_id(id), parent_components(tup) {}
+	parent(entity_id id, std::tuple<ParentTypes*...> tup) : entity_id(id), parent_components(tup) {}
 
-	std::tuple<ParentTypes *...> parent_components;
+	std::tuple<ParentTypes*...> parent_components;
 };
 } // namespace ecs
 

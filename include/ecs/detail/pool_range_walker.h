@@ -11,8 +11,7 @@ namespace ecs::detail {
 // Linearly walks one-or-more component pools
 template <class Pools>
 struct pool_range_walker {
-	pool_range_walker(Pools const _pools) : pools(_pools) {
-	}
+	pool_range_walker(Pools const _pools) : pools(_pools) {}
 
 	void reset(entity_range_view view) {
 		ranges.assign(view.begin(), view.end());
@@ -47,7 +46,7 @@ struct pool_range_walker {
 			// Tag: return a pointer to some dummy storage
 		} else if constexpr (tagged<T>) {
 			static char dummy_arr[sizeof(T)];
-			return reinterpret_cast<T *>(dummy_arr);
+			return reinterpret_cast<T*>(dummy_arr);
 
 			// Global: return the shared component
 		} else if constexpr (global<T>) {
@@ -59,9 +58,11 @@ struct pool_range_walker {
 			parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
 			parent_type_list_t<parent_type> pt;
-			auto const tup_parent_ptrs = apply([&](auto* ...parent_types) {
-				return std::make_tuple(get_entity_data<std::remove_pointer_t<decltype(parent_types)>>(pid, pools)...); }
-			, pt);
+			auto const tup_parent_ptrs = apply(
+				[&](auto*... parent_types) {
+					return std::make_tuple(get_entity_data<std::remove_pointer_t<decltype(parent_types)>>(pid, pools)...);
+				},
+				pt);
 
 			return parent_type{pid, tup_parent_ptrs};
 
