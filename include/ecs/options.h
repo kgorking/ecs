@@ -9,7 +9,8 @@ namespace ecs::opts {
 
     template<int Milliseconds, int Microseconds = 0>
     struct interval {
-		static_assert(Milliseconds >= 0 && Microseconds >= 0, "invalid time values specified");
+		static_assert(Milliseconds >= 0, "invalid time values specified");
+		static_assert(Microseconds >= 0 && Microseconds < 1000, "invalid time values specified");
 
         static constexpr double _ecs_duration = (1.0 * Milliseconds) + (Microseconds / 1000.0);
         static constexpr int _ecs_duration_ms = Milliseconds;
