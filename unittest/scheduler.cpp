@@ -58,7 +58,7 @@ TEST_CASE("Scheduler") {
 		std::atomic_int sys5 = 0;
 		std::atomic_int sys6 = 0;
 
-		constexpr int num_entities = 1024 * 256;
+		int const num_entities = 1024 * 256;
 
 		ecs.make_system([&](type<0>&, type<1> const&) {
 			++sys1;
