@@ -65,7 +65,8 @@ TEST_CASE("Scheduler") {
 		});
 
 		ecs.make_system([&](type<1>&) {
-			REQUIRE(sys1 == num_entities);
+			CHECK(sys1 == num_entities);
+			sys1 = num_entities;
 			++sys2;
 		});
 
@@ -74,30 +75,27 @@ TEST_CASE("Scheduler") {
 		});
 
 		ecs.make_system([&](type<0> const&) {
-			REQUIRE(sys1 == num_entities);
+			CHECK(sys1 == num_entities);
+			sys1 = num_entities;
 			++sys4;
 		});
 
 		ecs.make_system([&](type<2>&, type<0> const&) {
-			REQUIRE(sys3 == num_entities);
-			REQUIRE(sys1 == num_entities);
+			CHECK(sys3 == num_entities);
+			CHECK(sys1 == num_entities);
+			sys3 = num_entities;
+			sys1 = num_entities;
 			++sys5;
 		});
 
 		ecs.make_system([&](type<2> const&) {
-			REQUIRE(sys5 == num_entities);
+			CHECK(sys5 == num_entities);
+			sys5 = num_entities;
 			++sys6;
 		});
 
 		// test on a bunch of entities
 		ecs.add_component({1, num_entities}, type<0>{}, type<1>{}, type<2>{});
 		ecs.update();
-
-		CHECK(sys1 == num_entities);
-		CHECK(sys2 == num_entities);
-		CHECK(sys3 == num_entities);
-		CHECK(sys4 == num_entities);
-		CHECK(sys5 == num_entities);
-		CHECK(sys6 == num_entities);
 	}
 }
