@@ -2,116 +2,49 @@
 #define ECS_SYSTEM_SCHEDULER
 
 #include <algorithm>
-#include <atomic>
-#include <execution>
+#include <semaphore>
+#include <barrier>
 #include <thread>
 #include <vector>
 
 #include "contract.h"
-#include "system_base.h"
 #include "scheduler_job.h"
+#include "system_base.h"
 
 namespace ecs::detail {
-
-// Describes a node in the scheduler execution graph
-struct scheduler_node final {
-	// Construct a node from a system.
-	// The system can not be null
-	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, dependencies{0}, unfinished_dependencies{0} {
-		Expects(sys != nullptr);
-	}
-
-	scheduler_node(scheduler_node const& other) {
-		sys = other.sys;
-		dependants = other.dependants;
-		dependencies = other.dependencies;
-		unfinished_dependencies = other.unfinished_dependencies.load();
-	}
-
-	detail::system_base* get_system() const noexcept {
-		return sys;
-	}
-
-	// Add a dependant to this system. This system has to run to
-	// completion before the dependants can run.
-	void add_dependant(size_t node_index) {
-		dependants.push_back(node_index);
-	}
-
-	// Increase the dependency counter of this system. These dependencies has to
-	// run to completion before this system can run.
-	void increase_dependency_count() {
-		Expects(dependencies != std::numeric_limits<int16_t>::max());
-		dependencies += 1;
-	}
-
-	// Resets the unfinished dependencies to the total number of dependencies.
-	void reset_unfinished_dependencies() {
-		unfinished_dependencies = dependencies;
-	}
-
-	// Called from systems we depend on when they have run to completion.
-	void dependency_done() {
-		unfinished_dependencies.fetch_sub(1, std::memory_order_release);
-	}
-
-	void run(std::vector<struct scheduler_node>& nodes) {
-		// If we are not the last node here, leave
-		if (unfinished_dependencies.load(std::memory_order_acquire) != 0)
-			return;
-
-		// Run the system
-		sys->run();
-
-		// Notify the dependants that we are done
-		for (size_t const node : dependants)
-			nodes[node].dependency_done();
-
-		// Run the dependants in parallel
-		std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](size_t node) { nodes[node].run(nodes); });
-	}
-
-	scheduler_node& operator=(scheduler_node const& other) {
-		sys = other.sys;
-		dependants = other.dependants;
-		dependencies = other.dependencies;
-		unfinished_dependencies = other.unfinished_dependencies.load();
-		return *this;
-	}
-
-private:
-	// The system to execute
-	detail::system_base* sys{};
-
-	// The systems that depend on this
-	std::vector<size_t> dependants{};
-
-	// The number of systems this depends on
-	int16_t dependencies = 0;
-	std::atomic<int16_t> unfinished_dependencies = 0;
-};
 
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
 	// A group of systems with the same group id
 	struct systems_group final {
 		int id;
-		std::vector<scheduler_node> all_nodes;
-		std::vector<std::size_t> entry_nodes{};
+		std::vector<system_base*> all_nodes;
+		std::vector<system_base*> entry_nodes{};
 
 		// Runs the entry nodes in parallel
-		void run() {
-			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(),
-						  [this](size_t node_id) { all_nodes[node_id].run(all_nodes); });
-		}
+		void run() {}
 	};
 
 	std::vector<systems_group> groups;
 
 	std::vector<std::jthread> threads;
-	std::vector<scheduler_job> jobs;
+	std::vector<std::vector<scheduler_job>> jobs;
+
+	// Semaphore used to tell threads to start their work
+	std::counting_semaphore<> smph_start_signal{0};
+
+	// Barrier used to tell the main thread when the workers are done
+	std::barrier<> smph_workers_finished{1 + std::thread::hardware_concurrency()};
 
 protected:
+	void worker_thread() {
+		// Wait for a signal from the main thread
+		smph_start_signal.acquire();
+
+		// Signal the main thread back
+		smph_workers_finished.arrive_and_wait();
+	}
+
 	systems_group& find_group(int id) {
 		// Look for an existing group
 		if (!groups.empty()) {
@@ -131,13 +64,18 @@ protected:
 	}
 
 public:
-	void insert(detail::system_base* sys) {
+	scheduler() {
+		for(unsigned i=0; i<std::thread::hardware_concurrency(); i++) {
+			threads.emplace_back(&scheduler::worker_thread, this);
+		}
+	}
+
+	void insert(system_base* sys) {
 		// Find the group
 		auto& group = find_group(sys->get_group());
 
 		// Create a new node with the system
-		size_t const node_index = group.all_nodes.size();
-		scheduler_node& node = group.all_nodes.emplace_back(sys);
+		group.all_nodes.push_back(sys);
 
 		// Find a dependant system for each component
 		bool inserted = false;
@@ -145,16 +83,16 @@ public:
 		for (auto const hash : sys->get_type_hashes()) {
 			auto it = std::next(group.all_nodes.rbegin()); // 'next' to skip the newly added system
 			while (it != end) {
-				scheduler_node& dep_node = *it;
+				system_base* dep_sys = *it;
 				// If the other system doesn't touch the same component,
 				// then there can be no dependecy
-				if (dep_node.get_system()->has_component(hash)) {
-					if (dep_node.get_system()->writes_to_component(hash) || sys->writes_to_component(hash)) {
+				if (dep_sys->has_component(hash)) {
+					if (dep_sys->writes_to_component(hash) || sys->writes_to_component(hash)) {
 						// The system writes to the component,
 						// so there is a strong dependency here.
 						inserted = true;
-						dep_node.add_dependant(node_index);
-						node.increase_dependency_count();
+						dep_sys->add_predecessor(sys);
+						sys->add_sucessor(dep_sys);
 						break;
 					} else { // 'other' reads component
 							 // These systems have a weak read/read dependency
@@ -168,26 +106,28 @@ public:
 
 		// The system has no dependencies, so make it an entry node
 		if (!inserted) {
-			group.entry_nodes.push_back(node_index);
+			group.entry_nodes.push_back(sys);
 		}
 	}
 
 	// Clears all the schedulers data
 	void clear() {
 		groups.clear();
+		jobs.clear();
+	}
+
+	// Build the schedule
+	void make() {
+		for (systems_group& group : groups) {
+		}
 	}
 
 	void run() {
-		// Reset the execution data
-		for (auto& group : groups) {
-			for (auto& node : group.all_nodes)
-				node.reset_unfinished_dependencies();
-		}
+		// Tell threads to start working
+		smph_start_signal.release(std::thread::hardware_concurrency());
 
-		// Run the groups in succession
-		for (auto& group : groups) {
-			group.run();
-		}
+		// Wait for all threads to finish
+		smph_workers_finished.arrive_and_wait();
 	}
 };
 

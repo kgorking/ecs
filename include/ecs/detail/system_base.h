@@ -42,6 +42,18 @@ public:
 		return enabled;
 	}
 
+	void add_predecessor(system_base* sys) {
+		predecessors.push_back(sys);
+	}
+
+	void add_sucessor(system_base* sys) {
+		sucessors.push_back(sys);
+	}
+
+	std::span<system_base *const> get_predecessors() const {
+		return {predecessors.begin(), predecessors.size()};
+	}
+
 	// Returns the group this system belongs to
 	[[nodiscard]] virtual int get_group() const noexcept = 0;
 
@@ -66,6 +78,9 @@ private:
 
 	// Whether this system is enabled or disabled. Disabled systems are neither updated nor run.
 	bool enabled = true;
+
+	std::vector<system_base*> predecessors;
+	std::vector<system_base*> sucessors;
 };
 } // namespace ecs::detail
 
