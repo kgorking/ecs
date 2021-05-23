@@ -63,7 +63,7 @@ jobs:
         ProcessorCount(N)
 
         execute_process(
-          COMMAND cmake -j ${N} --build build
+          COMMAND cmake --build build -j ${N}
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
