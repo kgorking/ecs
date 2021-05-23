@@ -18,31 +18,15 @@ public:
 
 private:
 	void do_run() override {
-		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-
-		// Call the system for all the components that match the system signature
-		for (auto const& argument : arguments) {
-			entity_range const& range = std::get<entity_range>(argument);
-			std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
-				auto const offset = ent - first_id;
-
-				if constexpr (is_entity<FirstComponent>) {
-					this->update_func(ent, extract_arg<Components>(argument, offset)...);
-				} else {
-					this->update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
-				}
-			});
-		}
+		job();
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build(entity_range_view entities) override {
-		// Clear current arguments
-		arguments.clear();
-
 		// Reset the walker
 		walker.reset(entities);
 
+		std::vector<argument_type> arguments;
 		while (!walker.done()) {
 			if constexpr (is_entity<FirstComponent>) {
 				arguments.emplace_back(walker.get_range(), walker.template get<Components>()...);
@@ -52,12 +36,29 @@ private:
 
 			walker.next();
 		}
+
+		job = scheduler_job([arguments = std::move(arguments), func = this->update_func]() mutable {
+			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+			// Call the system for all the components that match the system signature
+			for (auto const& argument : arguments) {
+				entity_range const& range = std::get<entity_range>(argument);
+				std::for_each(e_p, range.begin(), range.end(), [&, first_id = range.first()](entity_id ent) {
+					auto const offset = ent - first_id;
+
+					if constexpr (is_entity<FirstComponent>) {
+						func(ent, extract_arg<Components>(argument, offset)...);
+					} else {
+						func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+					}
+				});
+			}
+		});
 	}
 
 private:
 	// Holds the arguments for a range of entities
 	using argument_type = range_argument<FirstComponent, Components...>;
-	std::vector<argument_type> arguments;
+	scheduler_job job;
 
 	pool_range_walker<TupPools> walker;
 };

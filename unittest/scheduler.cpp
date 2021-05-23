@@ -2,7 +2,6 @@
 #include "catch.hpp"
 #include <atomic>
 #include <ecs/ecs.h>
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -52,50 +51,51 @@ TEST_CASE("Scheduler") {
 	SECTION("Correct concurrency") {
 		ecs::runtime ecs;
 
-		std::atomic_bool sys1 = false;
-		std::atomic_bool sys2 = false;
-		std::atomic_bool sys3 = false;
-		std::atomic_bool sys4 = false;
-		std::atomic_bool sys5 = false;
-		std::atomic_bool sys6 = false;
+		std::atomic_int sys1 = 0;
+		std::atomic_int sys2 = 0;
+		std::atomic_int sys3 = 0;
+		std::atomic_int sys4 = 0;
+		std::atomic_int sys5 = 0;
+		std::atomic_int sys6 = 0;
 
-		ecs.make_system([&sys1](type<0>&, type<1> const&) { sys1 = true; });
+		constexpr int num_entities = 1024*256;
+
+		ecs.make_system([&sys1](type<0>&, type<1> const&) { ++sys1; });
 
 		ecs.make_system([&sys2, &sys1](type<1>&) {
-			CHECK(sys1 == true);
-			sys2 = true;
+			CHECK(sys1 == num_entities);
+			++sys2;
 		});
 
 		ecs.make_system([&sys3](type<2>&) {
-			std::this_thread::sleep_for(20ms);
-			sys3 = true;
+			++sys3;
 		});
 
 		ecs.make_system([&sys4, &sys1, &sys3](type<0> const&) {
-			CHECK(sys3 == false);
-			CHECK(sys1 == true);
-			sys4 = true;
+			CHECK(sys1 == num_entities);
+			++sys4;
 		});
 
 		ecs.make_system([&sys5, &sys3, &sys1](type<2>&, type<0> const&) {
-			CHECK(sys3 == true);
-			CHECK(sys1 == true);
-			sys5 = true;
+			CHECK(sys3 == num_entities);
+			CHECK(sys1 == num_entities);
+			++sys5;
 		});
 
 		ecs.make_system([&sys6, &sys5](type<2> const&) {
-			CHECK(sys5 == true);
-			sys6 = true;
+			CHECK(sys5 == num_entities);
+			++sys6;
 		});
 
-		ecs.add_component(0, type<0>{}, type<1>{}, type<2>{});
+		// test on a bunch of entities
+		ecs.add_component({1, num_entities}, type<0>{}, type<1>{}, type<2>{});
 		ecs.update();
 
-		CHECK(sys1 == true);
-		CHECK(sys2 == true);
-		CHECK(sys3 == true);
-		CHECK(sys4 == true);
-		CHECK(sys5 == true);
-		CHECK(sys6 == true);
+		CHECK(sys1 == num_entities);
+		CHECK(sys2 == num_entities);
+		CHECK(sys3 == num_entities);
+		CHECK(sys4 == num_entities);
+		CHECK(sys5 == num_entities);
+		CHECK(sys6 == num_entities);
 	}
 }

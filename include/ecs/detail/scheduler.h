@@ -4,10 +4,12 @@
 #include <algorithm>
 #include <atomic>
 #include <execution>
+#include <thread>
 #include <vector>
 
 #include "contract.h"
 #include "system_base.h"
+#include "scheduler_job.h"
 
 namespace ecs::detail {
 
@@ -105,6 +107,9 @@ class scheduler final {
 	};
 
 	std::vector<systems_group> groups;
+
+	std::vector<std::jthread> threads;
+	std::vector<scheduler_job> jobs;
 
 protected:
 	systems_group& find_group(int id) {
