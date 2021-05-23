@@ -6,6 +6,7 @@
 
 namespace ecs::detail {
 class context;
+class scheduler;
 
 class system_base {
 public:
@@ -42,18 +43,6 @@ public:
 		return enabled;
 	}
 
-	void add_predecessor(system_base* sys) {
-		predecessors.push_back(sys);
-	}
-
-	void add_sucessor(system_base* sys) {
-		sucessors.push_back(sys);
-	}
-
-	std::span<system_base *const> get_predecessors() const {
-		return {predecessors.begin(), predecessors.size()};
-	}
-
 	// Returns the group this system belongs to
 	[[nodiscard]] virtual int get_group() const noexcept = 0;
 
@@ -69,9 +58,40 @@ public:
 	// Returns true if this system writes data to a specific component
 	[[nodiscard]] virtual bool writes_to_component(detail::type_hash hash) const noexcept = 0;
 
+	std::span<system_base *const> get_predecessors() const {
+		return {predecessors.begin(), predecessors.size()};
+	}
+
+	std::span<system_base *const> get_sucessors() const {
+		return {sucessors.begin(), sucessors.size()};
+	}
+
+	bool has_predecessors() const {
+		return predecessors.size() > 0;
+	}
+
+	bool has_sucessors() const {
+		return sucessors.size() > 0;
+	}
+
+protected:
+	void add_predecessor(system_base* sys) {
+		predecessors.push_back(sys);
+	}
+
+	void add_sucessor(system_base* sys) {
+		sucessors.push_back(sys);
+	}
+
+
+	virtual void do_run() = 0;
+	virtual void do_build(entity_range_view) = 0;
+	virtual void do_job_generation(scheduler&) = 0;
+
 private:
 	// Only allow the context class to call 'process_changes'
 	friend class detail::context;
+	friend class detail::scheduler;
 
 	// Process changes to component layouts
 	virtual void process_changes(bool force_rebuild = false) = 0;

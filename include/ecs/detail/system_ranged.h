@@ -18,7 +18,6 @@ public:
 
 private:
 	void do_run() override {
-		job();
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
@@ -26,8 +25,11 @@ private:
 		// Reset the walker
 		walker.reset(entities);
 
-		std::vector<argument_type> arguments;
+		total_arguments = 0;
+
 		while (!walker.done()) {
+			total_arguments += walker.get_range().count();
+
 			if constexpr (is_entity<FirstComponent>) {
 				arguments.emplace_back(walker.get_range(), walker.template get<Components>()...);
 			} else {
@@ -36,13 +38,14 @@ private:
 
 			walker.next();
 		}
+	}
 
-		job = scheduler_job([arguments = std::move(arguments), func = this->update_func]() mutable {
-			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+	void do_job_generation(scheduler &s) override {
+		s.submit_job([arguments = std::move(arguments), func = this->update_func]() mutable {
 			// Call the system for all the components that match the system signature
 			for (auto const& argument : arguments) {
 				entity_range const& range = std::get<entity_range>(argument);
-				std::for_each(e_p, range.begin(), range.end(), [&, first_id = range.first()](entity_id ent) {
+				std::for_each(range.begin(), range.end(), [&, first_id = range.first()](entity_id ent) {
 					auto const offset = ent - first_id;
 
 					if constexpr (is_entity<FirstComponent>) {
@@ -58,7 +61,8 @@ private:
 private:
 	// Holds the arguments for a range of entities
 	using argument_type = range_argument<FirstComponent, Components...>;
-	scheduler_job job;
+	std::vector<argument_type> arguments;
+	size_t total_arguments{0};
 
 	pool_range_walker<TupPools> walker;
 };

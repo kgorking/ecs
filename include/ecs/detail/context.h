@@ -51,6 +51,9 @@ public:
 		// Let the systems respond to any changes in the component pools
 		std::for_each(std::execution::par, systems.begin(), systems.end(), process_changes);
 
+		// Create the execution schedule
+		sched.make();
+
 		// Reset any dirty flags on pools
 		for (auto const& pool : component_pools) {
 			pool->clear_flags();

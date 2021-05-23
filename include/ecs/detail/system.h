@@ -22,9 +22,6 @@ namespace ecs::detail {
 // The implementation of a system specialized on its components
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
 class system : public system_base {
-	virtual void do_run() = 0;
-	virtual void do_build(entity_range_view) = 0;
-
 public:
 	system(UpdateFn func, TupPools tup_pools) : update_func{func}, pools{tup_pools}, pool_parent_id{nullptr} {
 		if constexpr (has_parent_types) {
