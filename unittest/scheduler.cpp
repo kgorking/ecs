@@ -60,31 +60,31 @@ TEST_CASE("Scheduler") {
 
 		constexpr int num_entities = 1024 * 256;
 
-		ecs.make_system([&sys1](type<0>&, type<1> const&) {
+		ecs.make_system([&](type<0>&, type<1> const&) {
 			++sys1;
 		});
 
-		ecs.make_system([&sys2, &sys1](type<1>&) {
+		ecs.make_system([&](type<1>&) {
 			REQUIRE(sys1 == num_entities);
 			++sys2;
 		});
 
-		ecs.make_system([&sys3](type<2>&) {
+		ecs.make_system([&](type<2>&) {
 			++sys3;
 		});
 
-		ecs.make_system([&sys4, &sys1, &sys3](type<0> const&) {
+		ecs.make_system([&](type<0> const&) {
 			REQUIRE(sys1 == num_entities);
 			++sys4;
 		});
 
-		ecs.make_system([&sys5, &sys3, &sys1](type<2>&, type<0> const&) {
+		ecs.make_system([&](type<2>&, type<0> const&) {
 			REQUIRE(sys3 == num_entities);
 			REQUIRE(sys1 == num_entities);
 			++sys5;
 		});
 
-		ecs.make_system([&sys6, &sys5](type<2> const&) {
+		ecs.make_system([&](type<2> const&) {
 			REQUIRE(sys5 == num_entities);
 			++sys6;
 		});
