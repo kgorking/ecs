@@ -58,12 +58,14 @@ TEST_CASE("Scheduler") {
 		std::atomic_int sys5 = 0;
 		std::atomic_int sys6 = 0;
 
-		constexpr int num_entities = 1024*256;
+		constexpr int num_entities = 1024 * 256;
 
-		ecs.make_system([&sys1](type<0>&, type<1> const&) { ++sys1; });
+		ecs.make_system([&sys1](type<0>&, type<1> const&) {
+			++sys1;
+		});
 
 		ecs.make_system([&sys2, &sys1](type<1>&) {
-			CHECK(sys1 == num_entities);
+			REQUIRE(sys1 == num_entities);
 			++sys2;
 		});
 
@@ -72,18 +74,18 @@ TEST_CASE("Scheduler") {
 		});
 
 		ecs.make_system([&sys4, &sys1, &sys3](type<0> const&) {
-			CHECK(sys1 == num_entities);
+			REQUIRE(sys1 == num_entities);
 			++sys4;
 		});
 
 		ecs.make_system([&sys5, &sys3, &sys1](type<2>&, type<0> const&) {
-			CHECK(sys3 == num_entities);
-			CHECK(sys1 == num_entities);
+			REQUIRE(sys3 == num_entities);
+			REQUIRE(sys1 == num_entities);
 			++sys5;
 		});
 
 		ecs.make_system([&sys6, &sys5](type<2> const&) {
-			CHECK(sys5 == num_entities);
+			REQUIRE(sys5 == num_entities);
 			++sys6;
 		});
 
