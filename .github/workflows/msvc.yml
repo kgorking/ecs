@@ -34,7 +34,7 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=Release
+            -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
           RESULT_VARIABLE result
         )
@@ -55,8 +55,11 @@ jobs:
           endif()
         endforeach()
 
+        include(ProcessorCount)
+        ProcessorCount(N)
+
         execute_process(
-          COMMAND cmake --build build
+          COMMAND cmake -j ${N} --build build
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)

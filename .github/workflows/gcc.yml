@@ -42,7 +42,7 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=Release
+            -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
           RESULT_VARIABLE result
@@ -57,8 +57,11 @@ jobs:
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %e sec] ")
 
+        include(ProcessorCount)
+        ProcessorCount(N)
+
         execute_process(
-          COMMAND cmake --build build
+          COMMAND cmake -j ${N} --build build
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
