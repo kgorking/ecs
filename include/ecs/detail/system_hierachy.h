@@ -72,7 +72,7 @@ private:
 		}
 
 		// map of entity and root info
-		tls::collect<std::map<entity_type, int>, component_list> tls_roots;
+		tls::collect<std::map<entity_type, int>, decltype(*this)> tls_roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
