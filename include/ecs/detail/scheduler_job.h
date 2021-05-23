@@ -36,6 +36,7 @@ public:
 	scheduler_job& operator=(scheduler_job const&) = delete;
 
 	void operator ()() {
+		Expects(nullptr != job.get());
 		job->call();
 	}
 
