@@ -1,8 +1,6 @@
 #include <ecs/ecs.h>
 #include <iostream>
-#include <thread>
 
-using namespace std::chrono_literals;
 
 // A small example that creates 6 systems with dependencies on 3 components.
 //
@@ -12,6 +10,41 @@ using namespace std::chrono_literals;
 // Systems without dependencies are executed concurrently,
 // while systems with dependencies will only be executed
 // after other systems are done with them.
+
+//           |--------------|
+//           |---------|    |
+// 1----2    3    4    5----6
+// |--------------|    |
+// |-------------------|
+//
+// sys1 (write type<0>, read type<1>)
+// 
+// sys2 (write type<1>)
+//  depends on 1? true
+// 
+// sys3 (write type<2>)
+//  depends on 1? false
+//  depends on 2? false
+// 
+// sys4 (read type<0>)
+//  depends on 1? true
+//  depends on 2? false
+//  depends on 3? false
+// 
+// sys5 (write type<2>, read type<0>)
+//  depends on 1? true
+//  depends on 2? false
+//  depends on 3? true
+//  depends on 4? false
+// 
+// sys6 (read type<2>)
+//  depends on 1? false
+//  depends on 2? false
+//  depends on 3? true
+//  depends on 4? false
+//  depends on 5? true
+
+// 1 2 4 3 5 6
 
 template <size_t I>
 struct type {};
@@ -60,6 +93,15 @@ int main() {
 	std::cout << " depends on 3? " << sys4.depends_on(&sys3) << '\n';
 
 	//
+	// Systems that can run parallel to all the other systems.
+	auto const& sys7 = ecs.make_system([](type<7>&) {
+		std::cout << "* ";
+	});
+	auto const& sys8 = ecs.make_system([](type<7> const&) {
+		std::cout << "X ";
+	});
+
+	//
 	// Writes to type 2 and reads from type 0.
 	// Must not execute until after sys3 and sys1 is done.
 	auto const& sys5 = ecs.make_system([](type<2>&, type<0> const&) {
@@ -86,7 +128,7 @@ int main() {
 	//
 	// Add the components to an entitiy and run the systems.
 	std::cout << "\nrunning systems on 10 entities with all three types:\n";
-	ecs.add_component({0, 9}, type<0>{}, type<1>{}, type<2>{});
+	ecs.add_component({0, 9}, type<0>{}, type<1>{}, type<2>{}, type<7>{});
 	ecs.update();
 	std::cout << '\n';
 }

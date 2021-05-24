@@ -22,11 +22,6 @@ class scheduler final {
 		std::vector<system_base*> entry_nodes{};
 	};
 
-	struct jobs_layout {
-		int start = 0;
-		int count = 0;
-	};
-
 public:
 	scheduler() : jobs(std::thread::hardware_concurrency()) {
 		// Create threads
@@ -93,39 +88,58 @@ public:
 	}
 
 	template<class F>
-	void submit_job(F&& f) {
-		jobs[current_job_index].emplace_back(std::forward<F>(f));
+	void submit_job(jobs_layout &layout, F&& f) {
+		// if layout.start == -1 find best starting point
 
-		current_job_index = (1 + current_job_index) % std::thread::hardware_concurrency();
+		auto const index = (layout.start + layout.count) % std::thread::hardware_concurrency();
+		jobs[index].emplace_back(std::forward<F>(f));
+
 		layout.count += 1;
 	}
 
 	// Build the schedule
 	void make() {
 		clear_jobs();
-		layout.start = 0;
 		for (systems_group const& group : groups) {
-			for (system_base *sys : group.entry_nodes) {
-				layout.count = 0;
-				generate_sys_jobs(sys);
+			for (system_base *sys : group.all_nodes) {
+				// skip systems that are already done
+				if (sys->get_jobs_done())
+					continue;
+
+				auto it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+				jobs_layout layout{std::distance(jobs.begin(), it), 0};
+				generate_sys_jobs(sys, layout);
 			}
 		}
 	}
 
 	void run() {
+		/*int index = 0;
+		while (index < jobs[0].size()) {
+			for (auto& job : jobs) {
+				if (job.empty() || index >= job.size())
+					break;
+				job[index]();
+			}
+			putchar('\n');
+			index++;
+		}
+		return;*/
+
 		start_threads();
 		std::this_thread::yield();
 		wait_for_threads();
+
 	}
 
 protected:
 	// Tell threads to start working
-	void start_threads() {
+	void start_threads() noexcept {
 		smph_start_signal.release(std::thread::hardware_concurrency());
 	}
 
 	// Wait for all threads to finish
-	void wait_for_threads() {
+	void wait_for_threads() noexcept {
 		smph_workers_finished.arrive_and_wait();
 	}
 
@@ -165,15 +179,28 @@ protected:
 		return *groups.insert(insert_point, systems_group{id, {}, {}});
 	}
 
-	void generate_sys_jobs(system_base *sys) {
-		sys->do_job_generation(*this);
+	void generate_sys_jobs(system_base *sys, jobs_layout &layout) {
+		// Leave if this system is already processed
+		if (sys->get_jobs_done()) {
+			return;
+		}
 
+		// Prevent re-entrance
+		sys->set_jobs_done(true);
+
+		// Generate predecessors
+		for (system_base* predecessor : sys->get_predecessors()) {
+			generate_sys_jobs(predecessor, layout);
+		}
+
+		// Generate the jobs, which will be filled in
+		// according to the layout
+		sys->do_job_generation(*this, layout);
+		layout.count = 0;
+
+		// Generate successors
 		for (system_base* sucessor : sys->get_sucessors()) {
-			// Start from the index as out predecessor
-			current_job_index = layout.start;
-
-			// Recursively generate jobs
-			generate_sys_jobs(sucessor);
+			generate_sys_jobs(sucessor, layout);
 		}
 	}
 
@@ -182,8 +209,6 @@ private:
 
 	std::vector<std::jthread> threads;
 	std::vector<std::vector<scheduler_job>> jobs;
-	int current_job_index = 0;
-	jobs_layout layout;
 
 	// Semaphore used to tell threads to start their work
 	std::counting_semaphore<> smph_start_signal{0};

@@ -8,6 +8,11 @@ namespace ecs::detail {
 class context;
 class scheduler;
 
+struct jobs_layout {
+	int start = 0;
+	int count = 0;
+};
+
 class system_base {
 public:
 	system_base() = default;
@@ -83,10 +88,17 @@ protected:
 		sucessors.push_back(sys);
 	}
 
+	void set_jobs_done(bool done) {
+		jobs_done = done;
+	}
+
+	bool get_jobs_done() const {
+		return jobs_done;
+	}
 
 	virtual void do_run() = 0;
 	virtual void do_build(entity_range_view) = 0;
-	virtual void do_job_generation(scheduler&) = 0;
+	virtual void do_job_generation(scheduler&, jobs_layout&) = 0;
 
 private:
 	// Only allow the context class to call 'process_changes'
@@ -98,6 +110,9 @@ private:
 
 	// Whether this system is enabled or disabled. Disabled systems are neither updated nor run.
 	bool enabled = true;
+
+	// Marked when this system has generated jobs via do_job_generation
+	bool jobs_done = false;
 
 	std::vector<system_base*> predecessors;
 	std::vector<system_base*> sucessors;

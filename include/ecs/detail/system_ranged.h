@@ -38,27 +38,52 @@ private:
 
 			walker.next();
 		}
+
+		set_jobs_done(false);
 	}
 
-	void do_job_generation(scheduler &s) override {
-		s.submit_job([arguments = std::move(arguments), func = this->update_func]() mutable {
-			// Call the system for all the components that match the system signature
-			for (auto const& argument : arguments) {
-				entity_range const& range = std::get<entity_range>(argument);
-				std::for_each(range.begin(), range.end(), [&, first_id = range.first()](entity_id ent) {
-					auto const offset = ent - first_id;
+	void do_job_generation(scheduler &s, jobs_layout &layout) override {
+		if (arguments.size() == 1 && std::get<entity_range>(arguments[0]).count() < std::thread::hardware_concurrency()) {
+			entity_range const& range = std::get<entity_range>(arguments[0]);
+			auto first_id = range.first();
 
+			for(entity_id ent : range) {
+				auto const offset = ent - first_id;
+
+				s.submit_job(layout, [ent, offset, func = this->update_func, arg = arguments[0]]() {
 					if constexpr (is_entity<FirstComponent>) {
-						func(ent, extract_arg<Components>(argument, offset)...);
+						func(ent, extract_arg<Components>(arg, offset)...);
 					} else {
-						func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+						func(extract_arg<FirstComponent>(arg, offset), extract_arg<Components>(arg, offset)...);
 					}
 				});
 			}
-		});
+		}
+		else {
+			s.submit_job(layout, [arguments = std::move(arguments), func = this->update_func]() mutable {
+				// Call the system for all the components that match the system signature
+				for (auto const& argument : arguments) {
+					entity_range const& range = std::get<entity_range>(argument);
+					std::for_each(range.begin(), range.end(), [&, first_id = range.first()](entity_id ent) {
+						auto const offset = ent - first_id;
+
+						if constexpr (is_entity<FirstComponent>) {
+							func(ent, extract_arg<Components>(argument, offset)...);
+						} else {
+							func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+						}
+					});
+				}
+			});
+		}
+
+		set_jobs_done(true);
 	}
 
 private:
+	using system_base::set_jobs_done;
+	using system_base::get_jobs_done;
+
 	// Holds the arguments for a range of entities
 	using argument_type = range_argument<FirstComponent, Components...>;
 	std::vector<argument_type> arguments;

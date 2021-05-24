@@ -21,7 +21,10 @@ TEST_CASE("Scheduler") {
 
 		// The lambda to run after the 100 systems. Has a dependency on 'lambda'
 		std::atomic_int num_checks = 0;
-		auto const checker = [&](sched_test&) { num_checks++; };
+		auto const checker = [&](sched_test&) {
+			REQUIRE(100 == counter);
+			num_checks++;
+		};
 
 		// Create 100 systems that will execute concurrently,
 		// because they have no dependencies on each other.
@@ -41,7 +44,6 @@ TEST_CASE("Scheduler") {
 		// Run it 500 times
 		for (int i = 0; i < 500; i++) {
 			ecs.run_systems();
-			CHECK(100 == counter);
 			CHECK(1 == num_checks);
 			counter = 0;
 			num_checks = 0;
