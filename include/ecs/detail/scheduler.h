@@ -14,7 +14,7 @@
 
 namespace ecs::detail {
 
-#define MAX_THREADS (std::thread::hardware_concurrency())
+#define MAX_THREADS static_cast<size_t>(std::thread::hardware_concurrency())
 
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
@@ -61,7 +61,7 @@ public:
 						inserted = true;
 						dep_sys->add_sucessor(sys);
 						sys->add_predecessor(dep_sys);
-						break;
+						//break;
 					} else { // 'other' reads component
 							 // These systems have a weak read/read dependency
 							 // and can be scheduled concurrently
@@ -88,6 +88,60 @@ public:
 	void clear_jobs() noexcept {
 		for (auto &vec : jobs)
 			vec.clear();
+	}
+
+	std::barrier<>* create_barrier_arrive_and_wait(std::ptrdiff_t expected, job_location loc) {
+		auto barrier = std::make_unique<std::barrier<>>(expected);
+		std::barrier<>* barrier_ptr = barrier.get();
+
+		auto const where = std::next(jobs[loc.thread_index].begin(), loc.job_position);
+
+		scheduler_job job{[barrier = std::move(barrier)]() {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+			putchar('X');
+			putchar(' ');
+#else
+			barrier->arrive_and_wait();
+#endif
+		}};
+
+		jobs[loc.thread_index].insert(where, std::move(job));
+
+		return barrier_ptr;
+	}
+
+	void insert_barrier_arrive_and_wait(std::barrier<> *barrier, job_location loc) {
+		Expects(barrier != nullptr);
+
+		auto const where = std::next(jobs[loc.thread_index].begin(), loc.job_position);
+
+		scheduler_job job{[barrier]() {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+			putchar('x');
+			putchar(' ');
+#else
+			barrier->arrive_and_wait();
+#endif
+		}};
+
+		jobs[loc.thread_index].insert(where, std::move(job));
+	}
+
+	void insert_barrier_arrive(std::barrier<> *barrier, job_location loc) {
+		Expects(barrier != nullptr);
+
+		scheduler_job job{[barrier]() {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+			putchar('|');
+			putchar(' ');
+#else
+			[[maybe_unused]] auto const unused_arrival_token = barrier->arrive();
+			//barrier->arrive_and_wait();
+#endif
+		}};
+
+		auto const where = std::next(jobs[loc.thread_index].begin(), loc.job_position);
+		jobs[loc.thread_index].insert(where, std::move(job));
 	}
 
 	template<class F>

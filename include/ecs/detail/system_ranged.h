@@ -1,6 +1,7 @@
 #ifndef ECS_SYSTEM_RANGED_H
 #define ECS_SYSTEM_RANGED_H
 
+#include <unordered_set>
 #include "pool_range_walker.h"
 #include "system.h"
 
@@ -73,15 +74,69 @@ private:
 	}
 
 	void do_job_generation(scheduler& scheduler) override {
+		// Find the entities this system spans
+		std::vector<entity_range> entities = super::find_entities();
+		if (entities.size() == 0) {
+			// No etities, so bail
+			clear_job_details();
+			set_jobs_done(true);
+			return;
+		}
+
 		set_jobs_done(false);
 		clear_job_details();
 
-		// Find the entities this system spans
-		std::vector<entity_range> entities = super::find_entities();
-
 		if (has_predecessors()) {
-			for (system_base* const pre : get_predecessors()) {
+			auto predecessors = get_predecessors();
+			for (auto pred_it = predecessors.begin(); pred_it != predecessors.end(); ++pred_it) {
+
+				// All entities matched, create barrier shunt
+				if (entities.size() == 0) {
+					// Get the jobs already created
+					auto job_details = get_job_details();
+					auto job_it = job_details.begin();
+
+					std::unordered_set<int> threads;
+					std::vector<job_location> waits;
+					std::vector<job_location> arrives;
+
+					threads.insert(job_it->loc.thread_index);
+
+					for (job_it = std::next(job_it); job_it != job_details.end(); ++job_it) {
+						if (!threads.contains(job_it->loc.thread_index)) {
+							waits.push_back(job_it->loc);
+							threads.insert(job_it->loc.thread_index);
+						}
+					}
+
+					for (; pred_it != predecessors.end(); ++pred_it) {
+						for (job_detail const& pred_job_details : (*pred_it)->get_job_details()) {
+							if (!threads.contains(pred_job_details.loc.thread_index)) {
+								arrives.push_back(pred_job_details.loc);
+								threads.insert(pred_job_details.loc.thread_index);
+							}
+						}
+					}
+
+					// Create the barrier before the first job and arrive and wait
+					std::barrier<>* barrier_ptr = scheduler.create_barrier_arrive_and_wait(threads.size(), job_details.begin()->loc);
+
+					// all preceding jobs need to arrive and wait
+					for (job_location const& loc : waits) {
+						scheduler.insert_barrier_arrive_and_wait(barrier_ptr, loc);
+					}
+
+					// all following predecessors can just arrive
+					for (job_location const& loc : arrives) {
+						scheduler.insert_barrier_arrive(barrier_ptr, loc);
+					}
+
+					// Leave the loop
+					break;
+				}
+
 				// get all ranges
+				system_base* const pre = *pred_it;
 				std::vector<entity_range> predecessor_ranges;
 				for (auto const job_d : pre->get_job_details()) {
 					predecessor_ranges.push_back(job_d.entities);
@@ -117,7 +172,7 @@ private:
 			}
 		}
 
-		// Reset the walker and build remaining args
+		// Reset the walker and build remaining non-dependant args
 		walker.reset(entities);
 
 		// Count the entities

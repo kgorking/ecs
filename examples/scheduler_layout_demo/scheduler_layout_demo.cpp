@@ -1,4 +1,4 @@
-#define ECS_SCHEDULER_LAYOUT_DEMO
+//#define ECS_SCHEDULER_LAYOUT_DEMO
 #include <ecs/ecs.h>
 #include <iostream>
 
@@ -115,13 +115,50 @@ void demo8() {
 	// - - - - - 2 2 - - - - - - - - - - - - - - - - -
 }
 
+void demo9() {
+	ecs::runtime ecs;
+
+	struct sched_test {};
+
+	// Create 100 systems that will execute concurrently,
+	// because they have no dependencies on each other.
+	for (int i = 0; i < 100; i++) {
+		ecs.make_system([](sched_test const&) { std::cout << "- "; });
+	}
+
+	// Create a system that will only run after the 100 systems.
+	// It can not run concurrently with the other 100 systems,
+	// because it has a read/write dependency on all 100 systems.
+	ecs.make_system([](sched_test&) {
+		// Expects(100 == counter);
+		std::cout << "X ";
+	});
+
+
+	// Create another 100 systems that will execute concurrently,
+	// because they have no dependencies on each other.
+	for (int i = 0; i < 100; i++) {
+		ecs.make_system([](sched_test const&) { std::cout << "| "; });
+	}
+	// Add a component to trigger the systems
+	ecs.add_component(0, sched_test{});
+	ecs.commit_changes();
+
+	// Run the systems
+	for (int i = 0; i < 1; i++) {
+		ecs.run_systems();
+	}
+}
+
+
 int main() {
-	demo1(); // ok
-	demo2(); // ok
-	demo3(); // ok
-	demo4(); // ok
-	demo5(); // ok
-	demo6(); // ok
-	demo7(); // ok
-	demo8(); // ok
+	//demo1(); // ok
+	//demo2(); // ok
+	//demo3(); // ok
+	//demo4(); // ok
+	//demo5(); // ok
+	//demo6(); // ok
+	//demo7(); // ok
+	//demo8(); // ok
+	demo9();
 }
