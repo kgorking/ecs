@@ -2,16 +2,12 @@
 #define ECS_SYSTEM_BASE
 
 #include "type_hash.h"
+#include "job_detail.h"
 #include <span>
 
 namespace ecs::detail {
 class context;
 class scheduler;
-
-struct jobs_layout {
-	int start = 0;
-	int count = 0;
-};
 
 class system_base {
 public:
@@ -79,6 +75,10 @@ public:
 		return sucessors.size() > 0;
 	}
 
+	std::span<job_detail const> get_job_details() const {
+		return job_details;
+	}
+
 protected:
 	void add_predecessor(system_base* sys) {
 		predecessors.push_back(sys);
@@ -96,9 +96,17 @@ protected:
 		return jobs_done;
 	}
 
+	void add_job_detail(entity_range rng, job_location loc) {
+		job_details.emplace_back(rng, loc);
+	}
+
+	void clear_job_details() {
+		job_details.clear();
+	}
+
 	virtual void do_run() = 0;
 	virtual void do_build(entity_range_view) = 0;
-	virtual void do_job_generation(scheduler&, jobs_layout&) = 0;
+	virtual void do_job_generation(scheduler&) = 0;
 
 private:
 	// Only allow the context class to call 'process_changes'
@@ -116,6 +124,7 @@ private:
 
 	std::vector<system_base*> predecessors;
 	std::vector<system_base*> sucessors;
+	std::vector<job_detail> job_details;
 };
 } // namespace ecs::detail
 

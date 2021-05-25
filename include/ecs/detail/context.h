@@ -52,7 +52,7 @@ public:
 		std::for_each(std::execution::par, systems.begin(), systems.end(), process_changes);
 
 		// Create the execution schedule
-		sched.make();
+		sched.process_changes();
 
 		// Reset any dirty flags on pools
 		for (auto const& pool : component_pools) {

@@ -95,10 +95,10 @@ int main() {
 	//
 	// Systems that can run parallel to all the other systems.
 	auto const& sys7 = ecs.make_system([](type<7>&) {
-		std::cout << "* ";
+		std::cout << "7 ";
 	});
 	auto const& sys8 = ecs.make_system([](type<7> const&) {
-		std::cout << "X ";
+		std::cout << "8 ";
 	});
 
 	//
@@ -128,7 +128,10 @@ int main() {
 	//
 	// Add the components to an entitiy and run the systems.
 	std::cout << "\nrunning systems on 10 entities with all three types:\n";
-	ecs.add_component({0, 9}, type<0>{}, type<1>{}, type<2>{}, type<7>{});
+	ecs.add_component({0, 9}, type<0>{});
+	ecs.add_component({4, 9}, type<1>{});
+	ecs.add_component({7, 9}, type<2>{});
+	ecs.add_component({0, 9}, type<7>{});
 	ecs.update();
 	std::cout << '\n';
 }

@@ -39,8 +39,6 @@ public:
 		Expects(nullptr != job.get());
 		job->call();
 	}
-
-
 };
 
 }

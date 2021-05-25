@@ -128,7 +128,7 @@ private:
 	// Handle changes when the component pools change
 	void process_changes(bool force_rebuild) override {
 		if (force_rebuild) {
-			find_entities();
+			needs_rebuild = true;
 			return;
 		}
 
@@ -136,20 +136,17 @@ private:
 			return;
 		}
 
-		bool const modified = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
-
-		if (modified) {
-			find_entities();
-		}
+		needs_rebuild = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
 	}
 
+protected:
 	// Locate all the entities affected by this system
 	// and send them to the argument builder
-	void find_entities() {
+	std::vector<entity_range> find_entities() {
 		if constexpr (num_components == 1 && !has_parent_types) {
 			// Build the arguments
 			entity_range_view const entities = std::get<0>(pools)->get_entities();
-			do_build(entities);
+			return {entities.begin(), entities.end()};
 		} else {
 			// When there are more than one component required for a system,
 			// find the intersection of the sets of entities that have those components
@@ -191,7 +188,7 @@ private:
 				ranges = difference_ranges(ranges, ents_to_remove);
 			}
 
-			do_build(ranges);
+			return ranges;
 		}
 	}
 
@@ -204,6 +201,9 @@ protected:
 
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const* pool_parent_id;
+
+	// Set to true if the systems pools have changed
+	bool needs_rebuild = true;
 
 	// List of components used
 	using component_list = type_list<FirstComponent, Components...>;

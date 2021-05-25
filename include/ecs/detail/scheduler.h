@@ -8,8 +8,9 @@
 #include <vector>
 
 #include "contract.h"
-#include "scheduler_job.h"
 #include "system_base.h"
+#include "scheduler_job.h"
+#include "job_detail.h"
 
 namespace ecs::detail {
 
@@ -88,17 +89,28 @@ public:
 	}
 
 	template<class F>
-	void submit_job(jobs_layout &layout, F&& f) {
-		// if layout.start == -1 find best starting point
+	[[nodiscard]] job_location submit_job(F&& f, int thread_index = -1) {
+		job_location loc{0, 0};
+		if (thread_index != -1) {
+			loc.thread_index = thread_index;
+			loc.job_position = static_cast<int>(jobs[thread_index].size());
 
-		auto const index = (layout.start + layout.count) % std::thread::hardware_concurrency();
-		jobs[index].emplace_back(std::forward<F>(f));
+			jobs[thread_index].emplace_back(std::forward<F>(f));
+		} else {
+			// Place the job the smallest vector
+			auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+			auto const index = std::distance(jobs.begin(), it);
 
-		layout.count += 1;
+			loc.thread_index = static_cast<int>(index);
+			loc.job_position = static_cast<int>(jobs[index].size());
+
+			jobs[index].emplace_back(std::forward<F>(f));
+		}
+		return loc;
 	}
 
 	// Build the schedule
-	void make() {
+	void process_changes() {
 		clear_jobs();
 		for (systems_group const& group : groups) {
 			for (system_base *sys : group.all_nodes) {
@@ -106,30 +118,34 @@ public:
 				if (sys->get_jobs_done())
 					continue;
 
-				auto it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
-				jobs_layout layout{std::distance(jobs.begin(), it), 0};
-				generate_sys_jobs(sys, layout);
+				//auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+				generate_sys_jobs(sys);
 			}
 		}
 	}
 
 	void run() {
-		/*int index = 0;
-		while (index < jobs[0].size()) {
-			for (auto& job : jobs) {
-				if (job.empty() || index >= job.size())
-					break;
-				job[index]();
+#if 1//def ECS_SCHEDULER_LAYOUT_DEMO
+		auto const it = std::ranges::max_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+		int index = 0;
+		while (index < it->size()) {
+			for (size_t i = 0; i < std::thread::hardware_concurrency(); i++) {
+				auto& job = jobs[i];
+				if (job.empty() || index >= job.size()) {
+					putchar('-');
+					putchar(' ');
+				} else {
+					job[index]();
+				}
 			}
 			putchar('\n');
 			index++;
 		}
-		return;*/
-
+#else
 		start_threads();
 		std::this_thread::yield();
 		wait_for_threads();
-
+#endif
 	}
 
 protected:
@@ -179,28 +195,26 @@ protected:
 		return *groups.insert(insert_point, systems_group{id, {}, {}});
 	}
 
-	void generate_sys_jobs(system_base *sys, jobs_layout &layout) {
+	void generate_sys_jobs(system_base *sys) {
 		// Leave if this system is already processed
 		if (sys->get_jobs_done()) {
 			return;
+		} else {
+			sys->set_jobs_done(true);
 		}
-
-		// Prevent re-entrance
-		sys->set_jobs_done(true);
 
 		// Generate predecessors
 		for (system_base* predecessor : sys->get_predecessors()) {
-			generate_sys_jobs(predecessor, layout);
+			generate_sys_jobs(predecessor);
 		}
 
 		// Generate the jobs, which will be filled in
 		// according to the layout
-		sys->do_job_generation(*this, layout);
-		layout.count = 0;
+		sys->do_job_generation(*this);
 
 		// Generate successors
 		for (system_base* sucessor : sys->get_sucessors()) {
-			generate_sys_jobs(sucessor, layout);
+			generate_sys_jobs(sucessor);
 		}
 	}
 
