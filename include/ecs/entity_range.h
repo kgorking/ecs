@@ -79,6 +79,11 @@ public:
 		return range.first() >= first_ && range.last() <= last_;
 	}
 
+	// Returns true if the range touches this range
+	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
+		return first_ <= other.last_ && other.first_ <= last_;
+	}
+
 	// Returns the offset of an entity into this range
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
@@ -90,8 +95,13 @@ public:
 		return last_ + 1 == other.first();
 	}
 
-	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
-		return first_ <= other.last_ && other.first_ <= last_;
+	// Splits the range in two at pos. This range keeps pos.
+	// Pre: 'pos' must be in the range
+	[[nodiscard]] constexpr entity_range split(entity_id pos) {
+		Expects(contains(pos));
+		entity_range rest{pos + 1, last_};
+		last_ = pos;
+		return rest;
 	}
 
 	// Removes a range from another range.
