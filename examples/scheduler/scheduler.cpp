@@ -1,3 +1,4 @@
+#define ECS_SCHEDULER_LAYOUT_DEMO
 #include <ecs/ecs.h>
 #include <iostream>
 
@@ -44,30 +45,33 @@
 //  depends on 4? false
 //  depends on 5? true
 
-// 1 2 4 3 5 6
-
-template <size_t I>
-struct type {};
+template <size_t I> struct type {};
 
 int main() {
 	ecs::runtime ecs;
 
 	std::cout << std::boolalpha;
-	std::cout << "creating systems:\n";
 
 	//
 	// Assumes that type 0 is writte to, and type 1 is only read from.
-	auto const& sys1 = ecs.make_system([](type<0>&, type<1> const&) {
-		std::cout << "1 ";
+	auto const& sys1 = ecs.make_system([once=true](type<0>&, type<1> const&) mutable {
+		if (once) {
+			std::cout << "1 ";
+			once = false;
+		}
 	});
 	std::cout << "\nsys1 (write type<0>, read type<1>)\n";
+	std::cout << " depends on no systems\n";
 
 	//
 	// Writes to type 1. This system must not execute until after sys1 is done.
 	// None of the following system use type 1, so sys2 can run parallel with
 	// all of them.
-	auto const& sys2 = ecs.make_system([](type<1>&) {
-		std::cout << "2 ";
+	auto const& sys2 = ecs.make_system([once = true](type<1>&) mutable {
+		if (once) {
+			std::cout << "2 ";
+			once = false;
+		}
 	});
 	std::cout << "\nsys2 (write type<1>)\n";
 	std::cout << " depends on 1? " << sys2.depends_on(&sys1) << '\n';
@@ -75,8 +79,11 @@ int main() {
 	//
 	// Writes to type 2. This has no dependencies on type 0 or 1, so it can be run
 	// concurrently with sys1 and sys2.
-	auto const& sys3 = ecs.make_system([](type<2>&) {
-		std::cout << "3 ";
+	auto const& sys3 = ecs.make_system([once = true](type<2>&) mutable {
+		if (once) {
+			std::cout << "3 ";
+			once = false;
+		}
 	});
 	std::cout << "\nsys3 (write type<2>)\n";
 	std::cout << " depends on 1? " << sys3.depends_on(&sys1) << '\n';
@@ -84,8 +91,11 @@ int main() {
 
 	//
 	// Reads from type 0. Must not execute until sys1 is done.
-	auto const& sys4 = ecs.make_system([](type<0> const&) {
-		std::cout << "4 ";
+	auto const& sys4 = ecs.make_system([once = true](type<0> const&) mutable {
+		if (once) {
+			std::cout << "4 ";
+			once = false;
+		}
 	});
 	std::cout << "\nsys4 (read type<0>)\n";
 	std::cout << " depends on 1? " << sys4.depends_on(&sys1) << '\n';
@@ -93,19 +103,13 @@ int main() {
 	std::cout << " depends on 3? " << sys4.depends_on(&sys3) << '\n';
 
 	//
-	// Systems that can run parallel to all the other systems.
-	auto const& sys7 = ecs.make_system([](type<7>&) {
-		std::cout << "7 ";
-	});
-	auto const& sys8 = ecs.make_system([](type<7> const&) {
-		std::cout << "8 ";
-	});
-
-	//
 	// Writes to type 2 and reads from type 0.
 	// Must not execute until after sys3 and sys1 is done.
-	auto const& sys5 = ecs.make_system([](type<2>&, type<0> const&) {
-		std::cout << "5 ";
+	auto const& sys5 = ecs.make_system([once = true](type<2>&, type<0> const&) mutable {
+		if (once) {
+			std::cout << "5 ";
+			once = false;
+		}
 	});
 	std::cout << "\nsys5 (write type<2>, read type<0>)\n";
 	std::cout << " depends on 1? " << sys5.depends_on(&sys1) << '\n';
@@ -115,8 +119,11 @@ int main() {
 
 	//
 	// Reads from type 2. Must not execute until sys5 is done.
-	auto const& sys6 = ecs.make_system([](type<2> const&) {
-		std::cout << "6 ";
+	auto const& sys6 = ecs.make_system([once = true](type<2> const&) mutable {
+		if (once) {
+			std::cout << "6 ";
+			once = false;
+		}
 	});
 	std::cout << "\nsys6 (read type<2>)\n";
 	std::cout << " depends on 1? " << sys6.depends_on(&sys1) << '\n';
@@ -127,11 +134,18 @@ int main() {
 
 	//
 	// Add the components to an entitiy and run the systems.
-	std::cout << "\nrunning systems on 10 entities with all three types:\n";
+	std::cout << "\nrunning systems on entities:\n";
+	std::cout << " dependcy chains: 124, 356\n\n";
 	ecs.add_component({0, 9}, type<0>{});
 	ecs.add_component({4, 9}, type<1>{});
 	ecs.add_component({7, 9}, type<2>{});
-	ecs.add_component({0, 9}, type<7>{});
 	ecs.update();
 	std::cout << '\n';
+
+	// System 1 should run 6 times
+	// System 2 should run 6 times
+	// System 3 should run 3 times
+	// System 4 should run 6+4 times
+	// System 5 should run 3 times
+	// System 6 should run 3 times
 }

@@ -14,6 +14,8 @@
 
 namespace ecs::detail {
 
+#define MAX_THREADS (std::thread::hardware_concurrency())
+
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
 	// A group of systems with the same group id
@@ -24,9 +26,9 @@ class scheduler final {
 	};
 
 public:
-	scheduler() : jobs(std::thread::hardware_concurrency()) {
+	scheduler() : jobs(MAX_THREADS) {
 		// Create threads
-		for(unsigned i=0; i<std::thread::hardware_concurrency(); i++) {
+		for (unsigned i = 0; i < MAX_THREADS; i++) {
 			threads.emplace_back(&scheduler::worker_thread, this, i);
 		}
 	}
@@ -90,6 +92,8 @@ public:
 
 	template<class F>
 	[[nodiscard]] job_location submit_job(F&& f, int thread_index = -1) {
+		Expects(thread_index == -1 || thread_index < static_cast<int>(MAX_THREADS));
+
 		job_location loc{0, 0};
 		if (thread_index != -1) {
 			loc.thread_index = thread_index;
@@ -125,21 +129,27 @@ public:
 	}
 
 	void run() {
-#if 1//def ECS_SCHEDULER_LAYOUT_DEMO
-		auto const it = std::ranges::max_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
 		int index = 0;
-		while (index < it->size()) {
-			for (size_t i = 0; i < std::thread::hardware_concurrency(); i++) {
-				auto& job = jobs[i];
-				if (job.empty() || index >= job.size()) {
+		while (true) {
+			size_t jobs_empty = 0;
+
+			for (size_t thread_index = 0; thread_index < MAX_THREADS; thread_index++) {
+				auto& job_vec = jobs.at(thread_index);
+				if (index < job_vec.size()) {
+					job_vec.at(index)();
+				} else {
+					jobs_empty += 1;
 					putchar('-');
 					putchar(' ');
-				} else {
-					job[index]();
 				}
 			}
+
 			putchar('\n');
 			index++;
+
+			if (jobs_empty == MAX_THREADS)
+				break;
 		}
 #else
 		start_threads();
@@ -151,7 +161,7 @@ public:
 protected:
 	// Tell threads to start working
 	void start_threads() noexcept {
-		smph_start_signal.release(std::thread::hardware_concurrency());
+		smph_start_signal.release(MAX_THREADS);
 	}
 
 	// Wait for all threads to finish
@@ -228,7 +238,7 @@ private:
 	std::counting_semaphore<> smph_start_signal{0};
 
 	// Barrier used to tell the main thread when the workers are done
-	std::barrier<> smph_workers_finished{1 + std::thread::hardware_concurrency()};
+	std::barrier<> smph_workers_finished{1 + MAX_THREADS};
 
 	bool done = false;
 };

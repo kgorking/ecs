@@ -96,11 +96,11 @@ public:
 	}
 
 	// Splits the range in two at pos. This range keeps pos.
-	// Pre: 'pos' must be in the range
-	[[nodiscard]] constexpr entity_range split(entity_id pos) {
-		Expects(contains(pos));
-		entity_range rest{pos + 1, last_};
-		last_ = pos;
+	// Pre: 'size' must smaller than the range
+	[[nodiscard]] constexpr entity_range split(int size) {
+		Expects(size != 0 && size < count()-1);
+		entity_range rest{first_ + size + 1, last_};
+		last_ = first_ + size;
 		return rest;
 	}
 
