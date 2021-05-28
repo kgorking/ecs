@@ -137,6 +137,9 @@ private:
 		}
 
 		needs_rebuild = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
+
+		// TODO optimize
+		set_jobs_done(false);
 	}
 
 protected:

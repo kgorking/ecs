@@ -49,7 +49,7 @@ TEST_CASE("Scheduler") {
 			num_checks = 0;
 		}
 	}
-/*
+
 	SECTION("Correct concurrency") {
 		ecs::runtime ecs;
 
@@ -99,5 +99,5 @@ TEST_CASE("Scheduler") {
 		// test on a bunch of entities
 		ecs.add_component({1, num_entities}, type<0>{}, type<1>{}, type<2>{});
 		ecs.update();
-	}*/
+	}
 }

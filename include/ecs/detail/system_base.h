@@ -4,6 +4,10 @@
 #include "type_hash.h"
 #include "job_detail.h"
 #include <span>
+#include <barrier>
+#include <semaphore>
+#include <memory>
+#include <unordered_set>
 
 namespace ecs::detail {
 class context;
@@ -59,11 +63,11 @@ public:
 	// Returns true if this system writes data to a specific component
 	[[nodiscard]] virtual bool writes_to_component(detail::type_hash hash) const noexcept = 0;
 
-	std::span<system_base *const> get_predecessors() const {
+	std::span<system_base* const> get_predecessors() const {
 		return {predecessors.begin(), predecessors.size()};
 	}
 
-	std::span<system_base *const> get_sucessors() const {
+	std::span<system_base* const> get_sucessors() const {
 		return {sucessors.begin(), sucessors.size()};
 	}
 
@@ -116,15 +120,15 @@ private:
 	// Process changes to component layouts
 	virtual void process_changes(bool force_rebuild = false) = 0;
 
+	std::vector<system_base*> predecessors;
+	std::vector<system_base*> sucessors;
+	std::vector<job_detail> job_details;
+
 	// Whether this system is enabled or disabled. Disabled systems are neither updated nor run.
 	bool enabled = true;
 
 	// Marked when this system has generated jobs via do_job_generation
 	bool jobs_done = false;
-
-	std::vector<system_base*> predecessors;
-	std::vector<system_base*> sucessors;
-	std::vector<job_detail> job_details;
 };
 } // namespace ecs::detail
 

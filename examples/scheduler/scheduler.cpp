@@ -135,7 +135,7 @@ int main() {
 	//
 	// Add the components to an entitiy and run the systems.
 	std::cout << "\nrunning systems on entities:\n";
-	std::cout << " dependcy chains: 124, 356\n\n";
+	std::cout << " dependcy chains: 12, 14, 135, 356\n\n";
 	ecs.add_component({0, 9}, type<0>{});
 	ecs.add_component({4, 9}, type<1>{});
 	ecs.add_component({7, 9}, type<2>{});

@@ -2,15 +2,15 @@
 #define ECS_SYSTEM_SCHEDULER
 
 #include <algorithm>
-#include <semaphore>
 #include <barrier>
+#include <semaphore>
 #include <thread>
 #include <vector>
 
 #include "contract.h"
-#include "system_base.h"
-#include "scheduler_job.h"
 #include "job_detail.h"
+#include "scheduler_job.h"
+#include "system_base.h"
 
 namespace ecs::detail {
 
@@ -61,7 +61,7 @@ public:
 						inserted = true;
 						dep_sys->add_sucessor(sys);
 						sys->add_predecessor(dep_sys);
-						//break;
+						// break;
 					} else { // 'other' reads component
 							 // These systems have a weak read/read dependency
 							 // and can be scheduled concurrently
@@ -86,97 +86,70 @@ public:
 
 	// Clears the schedulers jobs
 	void clear_jobs() noexcept {
-		for (auto &vec : jobs)
+		for (auto& vec : jobs)
 			vec.clear();
 	}
 
-	std::barrier<>* create_barrier_arrive_and_wait(std::ptrdiff_t expected, job_location loc) {
-		auto barrier = std::make_unique<std::barrier<>>(expected);
-		std::barrier<>* barrier_ptr = barrier.get();
+	template <class F>
+	[[nodiscard]]
+	job_location submit_job(F&& f) {
+		job_location loc{0, 0};
+	
+		// Place the job the smallest vector
+		auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+		auto const thread_index = std::distance(jobs.begin(), it);
 
-		auto const where = std::next(jobs[loc.thread_index].begin(), loc.job_position);
+		loc.thread_index = static_cast<int>(thread_index);
+		loc.job_position = static_cast<int>(jobs[thread_index].size());
 
-		scheduler_job job{[barrier = std::move(barrier)]() {
-#ifdef ECS_SCHEDULER_LAYOUT_DEMO
-			putchar('X');
-			putchar(' ');
-#else
-			barrier->arrive_and_wait();
-#endif
-		}};
-
-		jobs[loc.thread_index].insert(where, std::move(job));
-
-		return barrier_ptr;
+		jobs[thread_index].emplace_back(std::forward<F>(f));
+		return loc;
 	}
 
-	void insert_barrier_arrive_and_wait(std::barrier<> *barrier, job_location loc) {
-		Expects(barrier != nullptr);
+	template <class F, class Args>
+	[[nodiscard]] job_location submit_job_ranged(entity_range range, Args args, F&& f, job_location const* from = nullptr) {
+		int thread_index = -1;
+		if (from == nullptr) {
+			thread_index = find_thread_index(range, args);
 
-		auto const where = std::next(jobs[loc.thread_index].begin(), loc.job_position);
+			// Place the job the smallest vector
+			if (thread_index == -1) {
+				auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+				thread_index = static_cast<int>(std::distance(jobs.begin(), it));
+			}
+		} else {
+			// Schedule the job on the same thread as another job
+			thread_index = from->thread_index;
+		}
 
-		scheduler_job job{[barrier]() {
-#ifdef ECS_SCHEDULER_LAYOUT_DEMO
-			putchar('x');
-			putchar(' ');
-#else
-			barrier->arrive_and_wait();
-#endif
-		}};
-
-		jobs[loc.thread_index].insert(where, std::move(job));
-	}
-
-	void insert_barrier_arrive(std::barrier<> *barrier, job_location loc) {
-		Expects(barrier != nullptr);
-
-		scheduler_job job{[barrier]() {
-#ifdef ECS_SCHEDULER_LAYOUT_DEMO
-			putchar('|');
-			putchar(' ');
-#else
-			[[maybe_unused]] auto const unused_arrival_token = barrier->arrive();
-			//barrier->arrive_and_wait();
-#endif
-		}};
-
-		auto const where = std::next(jobs[loc.thread_index].begin(), loc.job_position);
-		jobs[loc.thread_index].insert(where, std::move(job));
-	}
-
-	template<class F>
-	[[nodiscard]] job_location submit_job(F&& f, int thread_index = -1) {
-		Expects(thread_index == -1 || thread_index < static_cast<int>(MAX_THREADS));
+		insert_type_thread_index(range, args, thread_index);
 
 		job_location loc{0, 0};
-		if (thread_index != -1) {
-			loc.thread_index = thread_index;
-			loc.job_position = static_cast<int>(jobs[thread_index].size());
+		loc.thread_index = static_cast<int>(thread_index);
+		loc.job_position = static_cast<int>(jobs[thread_index].size());
 
-			jobs[thread_index].emplace_back(std::forward<F>(f));
-		} else {
-			// Place the job the smallest vector
-			auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
-			auto const index = std::distance(jobs.begin(), it);
+		jobs[thread_index].emplace_back(range, args, std::forward<F>(f));
 
-			loc.thread_index = static_cast<int>(index);
-			loc.job_position = static_cast<int>(jobs[index].size());
-
-			jobs[index].emplace_back(std::forward<F>(f));
-		}
 		return loc;
+	}
+
+	// Get a job
+	scheduler_job& get_job(job_location loc) {
+		Expects(loc.thread_index < jobs.size());
+		Expects(loc.job_position < jobs[loc.thread_index].size());
+
+		return jobs[loc.thread_index][loc.job_position];
 	}
 
 	// Build the schedule
 	void process_changes() {
 		clear_jobs();
 		for (systems_group const& group : groups) {
-			for (system_base *sys : group.all_nodes) {
+			for (system_base* sys : group.all_nodes) {
 				// skip systems that are already done
 				if (sys->get_jobs_done())
 					continue;
 
-				//auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
 				generate_sys_jobs(sys);
 			}
 		}
@@ -229,10 +202,11 @@ protected:
 			smph_start_signal.acquire();
 
 			// Bust out early if requested
-			if (done) break;
+			if (done)
+				break;
 
 			// Run the jobs
-			for (auto &job : jobs[index]) {
+			for (auto& job : jobs[index]) {
 				job();
 			}
 
@@ -259,7 +233,7 @@ protected:
 		return *groups.insert(insert_point, systems_group{id, {}, {}});
 	}
 
-	void generate_sys_jobs(system_base *sys) {
+	void generate_sys_jobs(system_base* sys) {
 		// Leave if this system is already processed
 		if (sys->get_jobs_done()) {
 			return;
@@ -268,31 +242,104 @@ protected:
 		}
 
 		// Generate predecessors
-		for (system_base* predecessor : sys->get_predecessors()) {
+		/*for (system_base* predecessor : sys->get_predecessors()) {
 			generate_sys_jobs(predecessor);
-		}
+		}*/
 
 		// Generate the jobs, which will be filled in
 		// according to the layout
 		sys->do_job_generation(*this);
 
 		// Generate successors
-		for (system_base* sucessor : sys->get_sucessors()) {
-			generate_sys_jobs(sucessor);
-		}
+		//for (system_base* sucessor : sys->get_sucessors()) {
+		//	generate_sys_jobs(sucessor);
+		//}
+
+	}
+
+	// Find a possible thread index for a type and range
+	// template<class Args>
+	int find_thread_index(entity_range range, auto args) {
+		if (type_thread_map.size() == 0)
+			return -1;
+
+		auto const find_type_thread_index = [&](auto single_arg) {
+			using arg_type = decltype(single_arg);
+
+			if constexpr (std::is_pointer_v<arg_type>) {
+				constexpr type_hash hash = get_type_hash<arg_type>();
+				auto const it = type_thread_map.find(hash);
+				if (it != type_thread_map.end()) {
+					for (auto const& pair : it->second) {
+						if (pair.first.overlaps(range))
+							return pair.second;
+					}
+				}
+			}
+
+			return -1;
+		};
+
+		return std::apply(
+			[&](auto... split_args) {
+				int const indices[] = {find_type_thread_index(split_args)...};
+				for (int const index : indices) {
+					if (index != -1)
+						return index;
+				}
+
+				return -1;
+			},
+			args);
+	}
+
+	// template<class Args>
+	void insert_type_thread_index(entity_range range, auto args, int thread_index) {
+		auto const insert_type_thread_index = [&](auto single_arg) {
+			using arg_type = decltype(single_arg);
+
+			if constexpr (std::is_pointer_v<arg_type>) {
+				constexpr type_hash hash = get_type_hash<arg_type>();
+				auto it = type_thread_map.find(hash);
+				if (it != type_thread_map.end()) {
+					for (auto const& pair : it->second) {
+						if (pair.first.overlaps(range)) {
+							// Type is already mapped, so do nothing
+							return;
+						}
+					}
+				} else {
+					// Map new type to thread
+					auto const result = type_thread_map.emplace(hash, std::vector<std::pair<entity_range, int>>{});
+					Expects(result.second);
+					it = result.first;
+				}
+
+				it->second.emplace_back(range, thread_index);
+			}
+		};
+
+		std::apply(
+			[&](auto ... split_args) {
+				(insert_type_thread_index(split_args), ...);
+			},
+			args);
 	}
 
 private:
 	std::vector<systems_group> groups;
 
 	std::vector<std::jthread> threads;
-	std::vector<std::vector<scheduler_job>> jobs;
+	std::vector<std::vector<scheduler_job>> jobs; // TODO pmr
 
 	// Semaphore used to tell threads to start their work
 	std::counting_semaphore<> smph_start_signal{0};
 
 	// Barrier used to tell the main thread when the workers are done
 	std::barrier<> smph_workers_finished{1 + MAX_THREADS};
+
+	// Cache of which threads has accessed which types and their ranges
+	std::unordered_map<type_hash, std::vector<std::pair<entity_range, int>>> type_thread_map;
 
 	bool done = false;
 };

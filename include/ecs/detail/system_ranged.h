@@ -1,7 +1,13 @@
 #ifndef ECS_SYSTEM_RANGED_H
 #define ECS_SYSTEM_RANGED_H
 
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+#include <format>
+#include <iostream>
+#endif
+#include <ranges>
 #include <unordered_set>
+
 #include "pool_range_walker.h"
 #include "system.h"
 
@@ -36,142 +42,146 @@ private:
 		}
 	}
 
-	void submit_range(scheduler& scheduler, argument_type argument, int thread_index = -1) {
+	job_location submit_range(scheduler& scheduler, argument_type argument, job_location const* from = nullptr) {
 		entity_range const range = std::get<entity_range>(argument);
-		job_location const loc = scheduler.submit_job(
-			[argument, range, func = this->update_func]() mutable {
-				for (entity_id ent : range) {
-					auto const offset = ent - range.first();
+		job_location const loc = scheduler.submit_job_ranged(
+			range, argument, [first = range.first(), func = this->update_func](entity_id ent, auto argument) mutable {
+				auto const offset = ent - first;
 
-					if constexpr (is_entity<FirstComponent>) {
-						func(ent, extract_arg<Components>(argument, offset)...);
-					} else {
-						func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
-					}
+				if constexpr (is_entity<FirstComponent>) {
+					func(ent, extract_arg<Components>(argument, offset)...);
+				} else {
+					func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
 				}
-			},
-			thread_index);
-
+			}, from);
 		system_base::add_job_detail(range, loc);
+
+		// Link jobs
+		if (from != nullptr) {
+			link_jobs(scheduler, *from, loc);
+		}
+
+		return loc;
 	}
 
-	void submit_individual(scheduler& scheduler, argument_type argument, int thread_index = -1) {
+	void submit_individual(scheduler& scheduler, argument_type argument) {
 		entity_range const range = std::get<entity_range>(argument);
 		for (entity_id ent : range) {
-			job_location const loc = scheduler.submit_job(
-				[ent, argument, range, func = this->update_func]() mutable {
-					auto const offset = ent - range.first();
+			job_location const loc = scheduler.submit_job_ranged(
+				{ent, ent}, argument, [first = range.first(), func = this->update_func](entity_id const ent, auto argument) mutable {
+					auto const offset = ent - first;
 
 					if constexpr (is_entity<FirstComponent>) {
 						func(ent, extract_arg<Components>(argument, offset)...);
 					} else {
 						func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
 					}
-				},
-				thread_index);
-			system_base::add_job_detail(entity_range{ent,ent}, loc);
+				});
+			system_base::add_job_detail(entity_range{ent, ent}, loc);
 		}
 	}
 
-	void do_job_generation(scheduler& scheduler) override {
-		// Find the entities this system spans
-		std::vector<entity_range> entities = super::find_entities();
-		if (entities.size() == 0) {
-			// No etities, so bail
-			clear_job_details();
-			set_jobs_done(true);
+	void link_jobs(scheduler& scheduler, job_location const& from, job_location const& to) {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+		std::cout << std::format("({},{}) -> ({},{}): ", to.thread_index, to.job_position, from.thread_index,
+								 from.job_position);
+#endif
+		// Dont synchronize on same thread
+		if (from.thread_index == to.thread_index) {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+			std::cout << "on same thread; do nothing\n";
+#endif
 			return;
 		}
 
-		set_jobs_done(false);
-		clear_job_details();
+		auto& to_job = scheduler.get_job(to);
+		auto& from_job = scheduler.get_job(from);
 
-		if (has_predecessors()) {
-			auto predecessors = get_predecessors();
-			for (auto pred_it = predecessors.begin(); pred_it != predecessors.end(); ++pred_it) {
+		// Threads already linked
+		if (to_job.test_incoming_thread(from.thread_index)) {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+			std::cout << "already waits\n";
+#endif
+			return;
+		}
 
-				// All entities matched, create barrier shunt
-				if (entities.size() == 0) {
-					// Get the jobs already created
-					auto job_details = get_job_details();
-					auto job_it = job_details.begin();
+		// Link the two threads
+		to_job.set_incoming_thread(from.thread_index);
 
-					std::unordered_set<int> threads;
-					std::vector<job_location> waits;
-					std::vector<job_location> arrives;
+		// Update the 'from' threads outgoing threads
+		if (!from_job.test_outgoing_thread(to.thread_index)) {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+			std::cout << "waits\n";
+#endif
+			from_job.set_outgoing_thread(to.thread_index);
+			from_job.add_outgoing_barrier(to_job.get_barrier());
+		}
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+		else {
+			std::cout << "already waits\n";
+		}
+#endif
+	}
 
-					threads.insert(job_it->loc.thread_index);
+	// Generate jobs for entities that overlap predecessors
+	void predecessor_job_generation(scheduler& scheduler, std::vector<entity_range>& entities) {
+		// Remember what thread each range is scheduled on
+		std::unordered_map<entity_range, job_location> range_thread_map;
 
-					for (job_it = std::next(job_it); job_it != job_details.end(); ++job_it) {
-						if (!threads.contains(job_it->loc.thread_index)) {
-							waits.push_back(job_it->loc);
-							threads.insert(job_it->loc.thread_index);
-						}
-					}
+		// Get any work from the predecessor that overlaps the
+		// entity range of this system
+		for (system_base* const pre : get_predecessors()) {
+			// get all entity ranges
+			std::vector<entity_range> predecessor_ranges;
+			for (auto const job_d : pre->get_job_details()) {
+				predecessor_ranges.push_back(job_d.entities);
+			}
 
-					for (; pred_it != predecessors.end(); ++pred_it) {
-						for (job_detail const& pred_job_details : (*pred_it)->get_job_details()) {
-							if (!threads.contains(pred_job_details.loc.thread_index)) {
-								arrives.push_back(pred_job_details.loc);
-								threads.insert(pred_job_details.loc.thread_index);
-							}
-						}
-					}
+			// Find the overlapping ranges
+			predecessor_ranges = intersect_ranges(predecessor_ranges, entities);
 
-					// Create the barrier before the first job and arrive and wait
-					std::barrier<>* barrier_ptr = scheduler.create_barrier_arrive_and_wait(threads.size(), job_details.begin()->loc);
+			// If there are no overlaps between the predecessors
+			// entity ranges and this systems ranges, do nothing.
+			if (predecessor_ranges.empty()) {
+				continue;
+			}
 
-					// all preceding jobs need to arrive and wait
-					for (job_location const& loc : waits) {
-						scheduler.insert_barrier_arrive_and_wait(barrier_ptr, loc);
-					}
+			// Build args
+			walker.reset(predecessor_ranges);
+			for (auto const job_d : pre->get_job_details()) {
+				// skip this range ahead to predecessor ranges if needed
+				if (job_d.entities < walker.get_range())
+					continue;
 
-					// all following predecessors can just arrive
-					for (job_location const& loc : arrives) {
-						scheduler.insert_barrier_arrive(barrier_ptr, loc);
-					}
+				// skip predecessor range to this range
+				while (!walker.done() && walker.get_range() < job_d.entities)
+					walker.next();
 
-					// Leave the loop
+				if (walker.done())
 					break;
-				}
 
-				// get all ranges
-				system_base* const pre = *pred_it;
-				std::vector<entity_range> predecessor_ranges;
-				for (auto const job_d : pre->get_job_details()) {
-					predecessor_ranges.push_back(job_d.entities);
-				}
-				
-				if (predecessor_ranges.empty())
-					break;
+				auto const map = range_thread_map.find(walker.get_range());
+				if (map == range_thread_map.end()) {
+					job_location const loc = submit_range(scheduler, get_argument_from_walker());
+					range_thread_map[walker.get_range()] = loc;
 
-				// Find the overlapping ranges
-				predecessor_ranges = intersect_ranges(predecessor_ranges, entities);
-
-				// build args + job_location
-				if (predecessor_ranges.size()) {
-					walker.reset(predecessor_ranges);
-					for (auto const job_d : pre->get_job_details()) {
-						// skip this range ahead to predecessor ranges if needed
-						if (job_d.entities < walker.get_range())
-							continue;
-
-						// skip predecessor range to this range
-						while (!walker.done() && walker.get_range() < job_d.entities)
-							walker.next();
-
-						if (walker.done())
-							break;
-
-						submit_range(scheduler, get_argument_from_walker(), job_d.loc.thread_index);
+					// 
+					if (loc.thread_index != job_d.loc.thread_index) {
+						link_jobs(scheduler, job_d.loc, loc);
 					}
+				} else {
+					link_jobs(scheduler, job_d.loc, map->second);
 				}
-
-				// Removed the processed ranges
-				entities = difference_ranges(entities, predecessor_ranges);
 			}
 		}
 
+		// Remove the processed ranges
+		for (auto const [range, _] : range_thread_map) {
+			entities = difference_ranges(entities, {&range, 1});
+		}
+	}
+
+	void job_generation(scheduler& scheduler, std::vector<entity_range>& entities) {
 		// Reset the walker and build remaining non-dependant args
 		walker.reset(entities);
 
@@ -193,13 +203,13 @@ private:
 
 			while (!walker.done()) {
 				argument_type argument = get_argument_from_walker();
-				entity_range &range = std::get<entity_range>(argument); // REF
+				entity_range& range = std::get<entity_range>(argument); // REF
 
 				if (range.count() <= batch_size) {
 					submit_range(scheduler, argument);
 				} else {
 					// large batch, so split it up
-					while (range.count() > batch_size+1) {
+					while (range.count() > batch_size + 1) {
 						// Split the range.
 						auto const next_range = range.split(static_cast<int>(batch_size));
 
@@ -208,15 +218,16 @@ private:
 
 						// Advance the pointers in the arguments
 						std::apply(
-							[batch_size](auto &... args) {
-								auto const advancer = [&](auto &arg) { 
+							[batch_size](auto&... args) {
+								auto const advancer = [&](auto& arg) {
 									if constexpr (std::is_pointer_v<decltype(arg)>) {
 										arg += batch_size;
 									};
 								};
 
 								(advancer(args), ...);
-							}, argument);
+							},
+							argument);
 
 						// Update the range
 						range = next_range;
@@ -229,6 +240,26 @@ private:
 				walker.next();
 			}
 		}
+	}
+
+	void do_job_generation(scheduler& scheduler) override {
+		// Find the entities this system spans
+		std::vector<entity_range> entities = super::find_entities();
+		if (entities.size() == 0) {
+			// No entities, so bail
+			clear_job_details();
+			set_jobs_done(true);
+			return;
+		}
+
+		set_jobs_done(false);
+		clear_job_details();
+
+		if (has_predecessors()) {
+			predecessor_job_generation(scheduler, entities);
+		}
+
+		job_generation(scheduler, entities);
 
 		set_jobs_done(true);
 	}

@@ -5,6 +5,7 @@
 #include <limits>
 #include <optional>
 #include <span>
+#include <utility>
 
 #include "detail/contract.h"
 #include "detail/entity_iterator.h"
@@ -159,4 +160,12 @@ using entity_range_view = std::span<entity_range const>;
 
 } // namespace ecs
 
+namespace std {
+template <>
+struct hash<ecs::entity_range> {
+	std::size_t operator()(ecs::entity_range const& range) const noexcept {
+		return (size_t(range.first()) << 32) | range.last();
+	}
+};
+} // namespace std
 #endif // !ECS_ENTITTY_RANGE
