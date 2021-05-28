@@ -94,6 +94,7 @@ if (ECS_STANDALONE_PROJECT)
     add_subdirectory ("examples/pmr_allocator_support")
     add_subdirectory ("examples/pmr_custom_component")
     add_subdirectory ("examples/scheduler")
+    add_subdirectory ("examples/scheduler_layout_demo")
     add_subdirectory ("examples/sorting")
     add_subdirectory ("examples/tagged_components")
 

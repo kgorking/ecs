@@ -2,111 +2,219 @@
 #define ECS_SYSTEM_SCHEDULER
 
 #include <algorithm>
-#include <atomic>
-#include <execution>
+#include <barrier>
+#include <semaphore>
+#include <thread>
 #include <vector>
 
 #include "contract.h"
+#include "job_detail.h"
+#include "scheduler_job.h"
 #include "system_base.h"
 
 namespace ecs::detail {
 
-// Describes a node in the scheduler execution graph
-struct scheduler_node final {
-	// Construct a node from a system.
-	// The system can not be null
-	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, dependencies{0}, unfinished_dependencies{0} {
-		Expects(sys != nullptr);
-	}
-
-	scheduler_node(scheduler_node const& other) {
-		sys = other.sys;
-		dependants = other.dependants;
-		dependencies = other.dependencies;
-		unfinished_dependencies = other.unfinished_dependencies.load();
-	}
-
-	detail::system_base* get_system() const noexcept {
-		return sys;
-	}
-
-	// Add a dependant to this system. This system has to run to
-	// completion before the dependants can run.
-	void add_dependant(size_t node_index) {
-		dependants.push_back(node_index);
-	}
-
-	// Increase the dependency counter of this system. These dependencies has to
-	// run to completion before this system can run.
-	void increase_dependency_count() {
-		Expects(dependencies != std::numeric_limits<int16_t>::max());
-		dependencies += 1;
-	}
-
-	// Resets the unfinished dependencies to the total number of dependencies.
-	void reset_unfinished_dependencies() {
-		unfinished_dependencies = dependencies;
-	}
-
-	// Called from systems we depend on when they have run to completion.
-	void dependency_done() {
-		unfinished_dependencies.fetch_sub(1, std::memory_order_release);
-	}
-
-	void run(std::vector<struct scheduler_node>& nodes) {
-		// If we are not the last node here, leave
-		if (unfinished_dependencies.load(std::memory_order_acquire) != 0)
-			return;
-
-		// Run the system
-		sys->run();
-
-		// Notify the dependants that we are done
-		for (size_t const node : dependants)
-			nodes[node].dependency_done();
-
-		// Run the dependants in parallel
-		std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](size_t node) { nodes[node].run(nodes); });
-	}
-
-	scheduler_node& operator=(scheduler_node const& other) {
-		sys = other.sys;
-		dependants = other.dependants;
-		dependencies = other.dependencies;
-		unfinished_dependencies = other.unfinished_dependencies.load();
-		return *this;
-	}
-
-private:
-	// The system to execute
-	detail::system_base* sys{};
-
-	// The systems that depend on this
-	std::vector<size_t> dependants{};
-
-	// The number of systems this depends on
-	int16_t dependencies = 0;
-	std::atomic<int16_t> unfinished_dependencies = 0;
-};
+#define MAX_THREADS static_cast<size_t>(std::thread::hardware_concurrency())
 
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
 	// A group of systems with the same group id
 	struct systems_group final {
 		int id;
-		std::vector<scheduler_node> all_nodes;
-		std::vector<std::size_t> entry_nodes{};
-
-		// Runs the entry nodes in parallel
-		void run() {
-			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(),
-						  [this](size_t node_id) { all_nodes[node_id].run(all_nodes); });
-		}
+		std::vector<system_base*> all_nodes;
+		std::vector<system_base*> entry_nodes{};
 	};
 
-	std::vector<systems_group> groups;
+public:
+	scheduler() : jobs(MAX_THREADS) {
+		// Create threads
+		for (unsigned i = 0; i < MAX_THREADS; i++) {
+			threads.emplace_back(&scheduler::worker_thread, this, i);
+		}
+	}
+
+	~scheduler() {
+		done = true;
+		start_threads();
+	}
+
+	void insert(system_base* sys) {
+		// Find the group
+		auto& group = find_group(sys->get_group());
+
+		// Create a new node with the system
+		group.all_nodes.push_back(sys);
+
+		// Find a dependant system for each component
+		bool inserted = false;
+		auto const end = group.all_nodes.rend();
+		for (auto const hash : sys->get_type_hashes()) {
+			auto it = std::next(group.all_nodes.rbegin()); // 'next' to skip the newly added system
+			while (it != end) {
+				system_base* dep_sys = *it;
+				// If the other system doesn't touch the same component,
+				// then there can be no dependecy
+				if (dep_sys->has_component(hash)) {
+					if (dep_sys->writes_to_component(hash) || sys->writes_to_component(hash)) {
+						// The system writes to the component,
+						// so there is a strong dependency here.
+						inserted = true;
+						dep_sys->add_sucessor(sys);
+						sys->add_predecessor(dep_sys);
+						// break;
+					} else { // 'other' reads component
+							 // These systems have a weak read/read dependency
+							 // and can be scheduled concurrently
+					}
+				}
+
+				++it;
+			}
+		}
+
+		// The system has no dependencies, so make it an entry node
+		if (!inserted) {
+			group.entry_nodes.push_back(sys);
+		}
+	}
+
+	// Clears all the schedulers data
+	void clear() noexcept {
+		groups.clear();
+		jobs.clear();
+	}
+
+	// Clears the schedulers jobs
+	void clear_jobs() noexcept {
+		for (auto& vec : jobs)
+			vec.clear();
+	}
+
+	template <class F>
+	[[nodiscard]]
+	job_location submit_job(F&& f) {
+		job_location loc{0, 0};
+	
+		// Place the job the smallest vector
+		auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+		auto const thread_index = std::distance(jobs.begin(), it);
+
+		loc.thread_index = static_cast<int>(thread_index);
+		loc.job_position = static_cast<int>(jobs[thread_index].size());
+
+		jobs[thread_index].emplace_back(std::forward<F>(f));
+		return loc;
+	}
+
+	template <class F, class Args>
+	[[nodiscard]] job_location submit_job_ranged(entity_range range, Args args, F&& f, job_location const* from = nullptr) {
+		int thread_index = -1;
+		if (from == nullptr) {
+			thread_index = find_thread_index(range, args);
+
+			// Place the job the smallest vector
+			if (thread_index == -1) {
+				auto const it = std::ranges::min_element(jobs, [](auto const& vl, auto const& vr) { return vl.size() < vr.size(); });
+				thread_index = static_cast<int>(std::distance(jobs.begin(), it));
+			}
+		} else {
+			// Schedule the job on the same thread as another job
+			thread_index = from->thread_index;
+		}
+
+		insert_type_thread_index(range, args, thread_index);
+
+		job_location loc{0, 0};
+		loc.thread_index = static_cast<int>(thread_index);
+		loc.job_position = static_cast<int>(jobs[thread_index].size());
+
+		jobs[thread_index].emplace_back(range, args, std::forward<F>(f));
+
+		return loc;
+	}
+
+	// Get a job
+	scheduler_job& get_job(job_location loc) {
+		Expects(loc.thread_index < jobs.size());
+		Expects(loc.job_position < jobs[loc.thread_index].size());
+
+		return jobs[loc.thread_index][loc.job_position];
+	}
+
+	// Build the schedule
+	void process_changes() {
+		clear_jobs();
+		for (systems_group const& group : groups) {
+			for (system_base* sys : group.all_nodes) {
+				// skip systems that are already done
+				if (sys->get_jobs_done())
+					continue;
+
+				generate_sys_jobs(sys);
+			}
+		}
+	}
+
+	void run() {
+#ifdef ECS_SCHEDULER_LAYOUT_DEMO
+		int index = 0;
+		while (true) {
+			size_t jobs_empty = 0;
+
+			for (size_t thread_index = 0; thread_index < MAX_THREADS; thread_index++) {
+				auto& job_vec = jobs.at(thread_index);
+				if (index < job_vec.size()) {
+					job_vec.at(index)();
+				} else {
+					jobs_empty += 1;
+					putchar('-');
+					putchar(' ');
+				}
+			}
+
+			putchar('\n');
+			index++;
+
+			if (jobs_empty == MAX_THREADS)
+				break;
+		}
+#else
+		start_threads();
+		std::this_thread::yield();
+		wait_for_threads();
+#endif
+	}
 
 protected:
+	// Tell threads to start working
+	void start_threads() noexcept {
+		smph_start_signal.release(MAX_THREADS);
+	}
+
+	// Wait for all threads to finish
+	void wait_for_threads() noexcept {
+		smph_workers_finished.arrive_and_wait();
+	}
+
+	void worker_thread(unsigned index) {
+		while (true) {
+			// Wait for a signal from the main thread
+			smph_start_signal.acquire();
+
+			// Bust out early if requested
+			if (done)
+				break;
+
+			// Run the jobs
+			for (auto& job : jobs[index]) {
+				job();
+			}
+
+			// Signal the main thread back
+			smph_workers_finished.arrive_and_wait();
+		}
+	}
+
 	systems_group& find_group(int id) {
 		// Look for an existing group
 		if (!groups.empty()) {
@@ -125,65 +233,115 @@ protected:
 		return *groups.insert(insert_point, systems_group{id, {}, {}});
 	}
 
-public:
-	void insert(detail::system_base* sys) {
-		// Find the group
-		auto& group = find_group(sys->get_group());
+	void generate_sys_jobs(system_base* sys) {
+		// Leave if this system is already processed
+		if (sys->get_jobs_done()) {
+			return;
+		} else {
+			sys->set_jobs_done(true);
+		}
 
-		// Create a new node with the system
-		size_t const node_index = group.all_nodes.size();
-		scheduler_node& node = group.all_nodes.emplace_back(sys);
+		// Generate predecessors
+		/*for (system_base* predecessor : sys->get_predecessors()) {
+			generate_sys_jobs(predecessor);
+		}*/
 
-		// Find a dependant system for each component
-		bool inserted = false;
-		auto const end = group.all_nodes.rend();
-		for (auto const hash : sys->get_type_hashes()) {
-			auto it = std::next(group.all_nodes.rbegin()); // 'next' to skip the newly added system
-			while (it != end) {
-				scheduler_node& dep_node = *it;
-				// If the other system doesn't touch the same component,
-				// then there can be no dependecy
-				if (dep_node.get_system()->has_component(hash)) {
-					if (dep_node.get_system()->writes_to_component(hash) || sys->writes_to_component(hash)) {
-						// The system writes to the component,
-						// so there is a strong dependency here.
-						inserted = true;
-						dep_node.add_dependant(node_index);
-						node.increase_dependency_count();
-						break;
-					} else { // 'other' reads component
-							 // These systems have a weak read/read dependency
-							 // and can be scheduled concurrently
+		// Generate the jobs, which will be filled in
+		// according to the layout
+		sys->do_job_generation(*this);
+
+		// Generate successors
+		//for (system_base* sucessor : sys->get_sucessors()) {
+		//	generate_sys_jobs(sucessor);
+		//}
+
+	}
+
+	// Find a possible thread index for a type and range
+	// template<class Args>
+	int find_thread_index(entity_range range, auto args) {
+		if (type_thread_map.size() == 0)
+			return -1;
+
+		auto const find_type_thread_index = [&](auto single_arg) {
+			using arg_type = decltype(single_arg);
+
+			if constexpr (std::is_pointer_v<arg_type>) {
+				constexpr type_hash hash = get_type_hash<arg_type>();
+				auto const it = type_thread_map.find(hash);
+				if (it != type_thread_map.end()) {
+					for (auto const& pair : it->second) {
+						if (pair.first.overlaps(range))
+							return pair.second;
 					}
 				}
-
-				++it;
 			}
-		}
 
-		// The system has no dependencies, so make it an entry node
-		if (!inserted) {
-			group.entry_nodes.push_back(node_index);
-		}
+			return -1;
+		};
+
+		return std::apply(
+			[&](auto... split_args) {
+				int const indices[] = {find_type_thread_index(split_args)...};
+				for (int const index : indices) {
+					if (index != -1)
+						return index;
+				}
+
+				return -1;
+			},
+			args);
 	}
 
-	// Clears all the schedulers data
-	void clear() {
-		groups.clear();
+	// template<class Args>
+	void insert_type_thread_index(entity_range range, auto args, int thread_index) {
+		auto const insert_type_thread_index = [&](auto single_arg) {
+			using arg_type = decltype(single_arg);
+
+			if constexpr (std::is_pointer_v<arg_type>) {
+				constexpr type_hash hash = get_type_hash<arg_type>();
+				auto it = type_thread_map.find(hash);
+				if (it != type_thread_map.end()) {
+					for (auto const& pair : it->second) {
+						if (pair.first.overlaps(range)) {
+							// Type is already mapped, so do nothing
+							return;
+						}
+					}
+				} else {
+					// Map new type to thread
+					auto const result = type_thread_map.emplace(hash, std::vector<std::pair<entity_range, int>>{});
+					Expects(result.second);
+					it = result.first;
+				}
+
+				it->second.emplace_back(range, thread_index);
+			}
+		};
+
+		std::apply(
+			[&](auto ... split_args) {
+				(insert_type_thread_index(split_args), ...);
+			},
+			args);
 	}
 
-	void run() {
-		// Reset the execution data
-		for (auto& group : groups) {
-			for (auto& node : group.all_nodes)
-				node.reset_unfinished_dependencies();
-		}
+private:
+	std::vector<systems_group> groups;
 
-		// Run the groups in succession
-		for (auto& group : groups) {
-			group.run();
-		}
-	}
+	std::vector<std::jthread> threads;
+	std::vector<std::vector<scheduler_job>> jobs; // TODO pmr
+
+	// Semaphore used to tell threads to start their work
+	std::counting_semaphore<> smph_start_signal{0};
+
+	// Barrier used to tell the main thread when the workers are done
+	std::barrier<> smph_workers_finished{1 + MAX_THREADS};
+
+	// Cache of which threads has accessed which types and their ranges
+	std::unordered_map<type_hash, std::vector<std::pair<entity_range, int>>> type_thread_map;
+
+	bool done = false;
 };
 
 } // namespace ecs::detail

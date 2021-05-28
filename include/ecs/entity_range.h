@@ -5,6 +5,7 @@
 #include <limits>
 #include <optional>
 #include <span>
+#include <utility>
 
 #include "detail/contract.h"
 #include "detail/entity_iterator.h"
@@ -79,6 +80,11 @@ public:
 		return range.first() >= first_ && range.last() <= last_;
 	}
 
+	// Returns true if the range touches this range
+	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
+		return first_ <= other.last_ && other.first_ <= last_;
+	}
+
 	// Returns the offset of an entity into this range
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
@@ -90,8 +96,13 @@ public:
 		return last_ + 1 == other.first();
 	}
 
-	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
-		return first_ <= other.last_ && other.first_ <= last_;
+	// Splits the range in two at pos. This range keeps pos.
+	// Pre: 'size' must smaller than the range
+	[[nodiscard]] constexpr entity_range split(int size) {
+		Expects(size != 0 && size < count()-1);
+		entity_range rest{first_ + size + 1, last_};
+		last_ = first_ + size;
+		return rest;
 	}
 
 	// Removes a range from another range.
@@ -149,4 +160,12 @@ using entity_range_view = std::span<entity_range const>;
 
 } // namespace ecs
 
+namespace std {
+template <>
+struct hash<ecs::entity_range> {
+	std::size_t operator()(ecs::entity_range const& range) const noexcept {
+		return (size_t(range.first()) << 32) | range.last();
+	}
+};
+} // namespace std
 #endif // !ECS_ENTITTY_RANGE
