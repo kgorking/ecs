@@ -11,7 +11,7 @@ template <size_t I> struct type {};
 // A helper printer that only print on the first entity in a range,
 // ie. once per thread
 void print(char const* sz, bool& once) {
-	if (once) {
+	/*if (once)*/ {
 		std::cout << sz;
 		once = false;
 	}
@@ -28,6 +28,19 @@ void demo1() {
 }
 
 void demo2() {
+	ecs::runtime ecs;
+
+	ecs.make_system([once = true](type<0>&) mutable { print("0 ", once); });
+	ecs.make_system([once = true](type<0>&) mutable { print("1 ", once); });
+
+	ecs.add_component({0, 9}, type<0>{});
+	for (int i = 0; i < 10; i++) {
+		ecs.update();
+		std::cout << "\n";
+	}
+}
+
+void demo2_1() {
 	ecs::runtime ecs;
 
 	ecs.make_system([once = true](type<0>&) mutable { print("0 ", once); });
@@ -66,6 +79,19 @@ void demo4() {
 void demo4_1() {
 	ecs::runtime ecs;
 
+	ecs.make_system([once = true](type<0>&) mutable { once = true; print("0 ", once); });
+	ecs.make_system([once = true](type<1>&) mutable { once = true; print("1 ", once); });
+	ecs.make_system([once = true](type<0> const&, type<1> const&) mutable { once = true; print("2 ", once); });
+
+	ecs.add_component({0, 2}, type<0>{});
+	ecs.add_component({0, 2}, type<1>{});
+	ecs.update();
+	std::cout << "\n";
+}
+
+void demo4_2() {
+	ecs::runtime ecs;
+
 	ecs.make_system([once = true](type<0>&) mutable { print("0 ", once); });
 	ecs.make_system([once = true](type<1>&) mutable { print("1 ", once); });
 	ecs.make_system([once = true](type<2>&, type<0> const&, type<1> const&) mutable { print("2 ", once); });
@@ -82,6 +108,19 @@ void demo5() {
 
 	ecs.make_system([once = true](type<0>&) mutable { print("0 ", once); });
 	ecs.make_system([once = true](type<1>&, type<0> const&) mutable { print("1 ", once); });
+
+	ecs.add_component({0, 9}, type<0>{});
+	ecs.add_component({4, 9}, type<1>{});
+	ecs.update();
+	std::cout << "\n";
+}
+
+void demo5_1() {
+	ecs::runtime ecs;
+
+	ecs.make_system([once = true](type<0>&) mutable { print("0 ", once); });
+	ecs.make_system([once = true](type<1>&, type<0> const&) mutable { print("1 ", once); });
+	ecs.make_system([once = true](type<1>*, type<0> const&) mutable { print("2 ", once); });
 
 	ecs.add_component({0, 9}, type<0>{});
 	ecs.add_component({4, 9}, type<1>{});
@@ -251,6 +290,7 @@ int main() {
 	demo4(); // ok
 	demo4_1(); // ok
 	demo5(); // ok
+	demo5_1(); // ok
 	demo6(); // ok
 	demo7(); // ok
 	demo8(); // ok

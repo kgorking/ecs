@@ -3,101 +3,183 @@
 #include <atomic>
 #include <ecs/ecs.h>
 
-using namespace std::chrono_literals;
-
 template <size_t I>
 struct type {};
 
 // Tests to make sure the scheduler works as intended.
+// Test are done with operator precedence, so tests run
+// in the wrong order will produce the wrong result
+// ie. (0+1)*100 instead of (0*100)+1
 TEST_CASE("Scheduler") {
-	SECTION("verify wide dependency chains work") {
+	SECTION("no dependency") {
 		ecs::runtime ecs;
 
-		struct sched_test {};
+		ecs.make_system([](int& i) {
+			i += 1;
+		});
 
-		// The lambda to execute in the 100 systems
-		std::atomic_int counter = 0;
-		auto const incrementor = [&](sched_test const&) { counter++; };
-
-		// The lambda to run after the 100 systems. Has a dependency on 'lambda'
-		std::atomic_int num_checks = 0;
-		auto const checker = [&](sched_test&) {
-			REQUIRE(100 == counter);
-			num_checks++;
-		};
-
-		// Create 100 systems that will execute concurrently,
-		// because they have no dependencies on each other.
-		for (int i = 0; i < 100; i++) {
-			ecs.make_system(incrementor);
+		ecs.add_component({0, 9}, int{0});
+		for (int i = 0; i < 10; i++) {
+			ecs.update();
 		}
 
-		// Create a system that will only run after the 100 systems.
-		// It can not run concurrently with the other 100 systems,
-		// because it has a read/write dependency on all 100 systems.
-		ecs.make_system(checker);
-
-		// Add a component to trigger the systems
-		ecs.add_component(0, sched_test{});
-		ecs.commit_changes();
-
-		// Run it 500 times
-		for (int i = 0; i < 1; i++) {
-			ecs.run_systems();
-			CHECK(1 == num_checks);
-			counter = 0;
-			num_checks = 0;
-		}
+		for (int const i : ecs.get_components<int>({0, 9}))
+			REQUIRE(i == 10);
 	}
 
-	SECTION("Correct concurrency") {
+	SECTION("simple dependency") {
 		ecs::runtime ecs;
 
-		std::atomic_int sys1 = 0;
-		std::atomic_int sys2 = 0;
-		std::atomic_int sys3 = 0;
-		std::atomic_int sys4 = 0;
-		std::atomic_int sys5 = 0;
-		std::atomic_int sys6 = 0;
-
-		int const num_entities = 1024 * 256;
-
-		ecs.make_system([&](type<0>&, type<1> const&) {
-			++sys1;
+		ecs.make_system([](int& i) {
+			i += 1;
+		});
+		ecs.make_system([](int& i) {
+			i *= 100;
 		});
 
-		ecs.make_system([&](type<1>&) {
-			REQUIRE(sys1 == num_entities);
-			sys1 = num_entities;
-			++sys2;
-		});
-
-		ecs.make_system([&](type<2>&) {
-			++sys3;
-		});
-
-		ecs.make_system([&](type<0> const&) {
-			REQUIRE(sys1 == num_entities);
-			sys1 = num_entities;
-			++sys4;
-		});
-
-		ecs.make_system([&](type<2>&, type<0> const&) {
-			REQUIRE(sys3 == num_entities);
-			REQUIRE(sys1 == num_entities);
-			sys3 = num_entities;
-			sys1 = num_entities;
-			++sys5;
-		});
-
-		ecs.make_system([&](type<2> const&) {
-			REQUIRE(sys5 == num_entities);
-			sys5 = num_entities;
-			++sys6;
-		});
-
-		// test on a bunch of entities
-		ecs.add_component({1, num_entities}, type<0>{}, type<1>{}, type<2>{});
+		ecs.add_component({0, 9}, int{0});
 		ecs.update();
+
+		for (int const i : ecs.get_components<int>({0, 9}))
+			REQUIRE(i == 100);
+	}
+
+	SECTION("double dependency") {
+		ecs::runtime ecs;
+
+		ecs.make_system([](int& i) {
+			i += 1;
+		});
+		ecs.make_system([](long& l) {
+			l += 10;
+		});
+		ecs.make_system([](int& i, long& l) {
+			i *= 2;
+			l *= 2;
+		});
+
+		ecs.add_component({0, 9}, long{0}, int{0});
+		ecs.update();
+
+		for (int const i : ecs.get_components<int>({0, 9}))
+			REQUIRE(i == 2);
+		for (long const i : ecs.get_components<long>({0, 9}))
+			REQUIRE(i == 20);
+	}
+
+	SECTION("partial dependency") {
+		ecs::runtime ecs;
+
+		ecs.make_system([](int& i) {
+			i += 1;
+		});
+		ecs.make_system([](long& l) {
+			l += 10;
+		});
+		ecs.make_system([](int& i, long& l) {
+			i *= 2;
+			l *= 2;
+		});
+		ecs.make_system([](int& i, long*) {
+			i *= -1;
+		});
+
+		ecs.add_component({0, 9}, int{0});
+		ecs.add_component({4, 9}, long{0});
+		ecs.update();
+
+		for (int const i : ecs.get_components<int>({0, 3}))
+			REQUIRE(i == -1);
+		for (int const i : ecs.get_components<int>({4, 9}))
+			REQUIRE(i == 2);
+		for (long const i : ecs.get_components<long>({4, 9}))
+			REQUIRE(i == 20);
+	}
+
+	SECTION("many-to-one dependency") {
+		ecs::runtime ecs;
+
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](int& i) {
+				i += 1;
+			});
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](long& l) {
+				l += 10;
+			});
+
+		ecs.make_system([](int& i, long& l) {
+			i *= 2;
+			l *= 2;
+		});
+
+		ecs.add_component({0, 9}, int{0}, long{0});
+		ecs.update();
+
+		for (int const i : ecs.get_components<int>({0, 9}))
+			REQUIRE(i == 4);
+		for (long const i : ecs.get_components<long>({0, 9}))
+			REQUIRE(i == 40);
+	}
+
+	SECTION("one-to-many dependency") {
+		ecs::runtime ecs;
+
+		ecs.make_system([](int& i, long& l) {
+			i += 1;
+			l += 10;
+		});
+
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](int& i) {
+				i *= 2;
+			});
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](long& l) {
+				l *= 2;
+			});
+
+		ecs.add_component({0, 9}, int{0}, long{0});
+		ecs.update();
+
+		for (int const i : ecs.get_components<int>({0, 9}))
+			REQUIRE(i == 4);
+		for (long const i : ecs.get_components<long>({0, 9}))
+			REQUIRE(i == 40);
+	}
+
+	SECTION("many-to-one-to-many dependency") {
+		ecs::runtime ecs;
+
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](int& i) {
+				i += 1;
+			});
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](long& l) {
+				l += 10;
+			});
+
+		ecs.make_system([](int& i, long& l) {
+			i *= 2;
+			l *= 2;
+		});
+
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](int& i) {
+				i -= 1;
+			});
+		for (int i = 0; i < 2; i++)
+			ecs.make_system([](long& l) {
+				l -= 1;
+			});
+
+		ecs.add_component({0, 9}, int{0}, long{0});
+		ecs.update();
+
+		for (int const i : ecs.get_components<int>({0, 9}))
+			REQUIRE(i == 2);
+		for (long const i : ecs.get_components<long>({0, 9}))
+			REQUIRE(i == 38);
 	}
 }

@@ -2,7 +2,7 @@
 #define ECS_SYSTEM_RANGED_H
 
 #ifdef ECS_SCHEDULER_LAYOUT_DEMO
-#include <format>
+//#include <format>
 #include <iostream>
 #endif
 #include <ranges>
@@ -44,14 +44,14 @@ private:
 
 	job_location submit_range(scheduler& scheduler, argument_type argument, job_location const* from = nullptr) {
 		entity_range const range = std::get<entity_range>(argument);
-		job_location const loc = scheduler.submit_job_ranged(
-			range, argument, [first = range.first(), func = this->update_func](entity_id ent, auto argument) mutable {
+		job_location const loc = scheduler.submit_job_ranged(range, argument,
+			[first = range.first(), this](entity_id ent, auto& argument) mutable {
 				auto const offset = ent - first;
 
 				if constexpr (is_entity<FirstComponent>) {
-					func(ent, extract_arg<Components>(argument, offset)...);
+					update_func(ent, extract_arg<Components>(argument, offset)...);
 				} else {
-					func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+					update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
 				}
 			}, from);
 		system_base::add_job_detail(range, loc);
@@ -68,13 +68,13 @@ private:
 		entity_range const range = std::get<entity_range>(argument);
 		for (entity_id ent : range) {
 			job_location const loc = scheduler.submit_job_ranged(
-				{ent, ent}, argument, [first = range.first(), func = this->update_func](entity_id const ent, auto argument) mutable {
+				{ent, ent}, argument, [first = range.first(), this](entity_id const ent, auto& argument) mutable {
 					auto const offset = ent - first;
 
 					if constexpr (is_entity<FirstComponent>) {
-						func(ent, extract_arg<Components>(argument, offset)...);
+						update_func(ent, extract_arg<Components>(argument, offset)...);
 					} else {
-						func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+						update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
 					}
 				});
 			system_base::add_job_detail(entity_range{ent, ent}, loc);
@@ -83,49 +83,32 @@ private:
 
 	void link_jobs(scheduler& scheduler, job_location const& from, job_location const& to) {
 #ifdef ECS_SCHEDULER_LAYOUT_DEMO
-		std::cout << std::format("({},{}) -> ({},{}): ", to.thread_index, to.job_position, from.thread_index,
-								 from.job_position);
+		//std::cout << '(' << from.thread_index << "," << from.job_position << ") -> (" << to.thread_index << "," << to.job_position << "): ";
+		//std::cout << std::format("({},{}) -> ({},{}): ", from.thread_index,
+		//						 from.job_position, to.thread_index, to.job_position);
 #endif
 		// Dont synchronize on same thread
 		if (from.thread_index == to.thread_index) {
 #ifdef ECS_SCHEDULER_LAYOUT_DEMO
-			std::cout << "on same thread; do nothing\n";
+			//std::cout << "on same thread; do nothing\n";
 #endif
 			return;
 		}
 
-		auto& to_job = scheduler.get_job(to);
 		auto& from_job = scheduler.get_job(from);
+		auto& to_job = scheduler.get_job(to);
 
-		// Threads already linked
-		if (to_job.test_incoming_thread(from.thread_index)) {
+		to_job.increase_incoming_job_count();
+		from_job.add_outgoing_barrier(to_job.get_barrier());
 #ifdef ECS_SCHEDULER_LAYOUT_DEMO
-			std::cout << "already waits\n";
-#endif
-			return;
-		}
-
-		// Link the two threads
-		to_job.set_incoming_thread(from.thread_index);
-
-		// Update the 'from' threads outgoing threads
-		if (!from_job.test_outgoing_thread(to.thread_index)) {
-#ifdef ECS_SCHEDULER_LAYOUT_DEMO
-			std::cout << "waits\n";
-#endif
-			from_job.set_outgoing_thread(to.thread_index);
-			from_job.add_outgoing_barrier(to_job.get_barrier());
-		}
-#ifdef ECS_SCHEDULER_LAYOUT_DEMO
-		else {
-			std::cout << "already waits\n";
-		}
+		//std::cout << "\n";
 #endif
 	}
 
 	// Generate jobs for entities that overlap predecessors
 	void predecessor_job_generation(scheduler& scheduler, std::vector<entity_range>& entities) {
 		// Remember what thread each range is scheduled on
+		// TODO stick in scheduler_context
 		std::unordered_map<entity_range, job_location> range_thread_map;
 
 		// Get any work from the predecessor that overlaps the
@@ -166,9 +149,7 @@ private:
 					range_thread_map[walker.get_range()] = loc;
 
 					// 
-					if (loc.thread_index != job_d.loc.thread_index) {
-						link_jobs(scheduler, job_d.loc, loc);
-					}
+					link_jobs(scheduler, job_d.loc, loc);
 				} else {
 					link_jobs(scheduler, job_d.loc, map->second);
 				}
@@ -193,6 +174,7 @@ private:
 
 		if (num_entities <= MAX_THREADS) {
 			while (!walker.done()) {
+				num_entities -= walker.get_range().count();
 				argument_type const argument = get_argument_from_walker();
 				submit_individual(scheduler, argument);
 				walker.next();
@@ -205,22 +187,24 @@ private:
 				argument_type argument = get_argument_from_walker();
 				entity_range& range = std::get<entity_range>(argument); // REF
 
-				if (range.count() <= batch_size) {
+				if (true/*range.count() <= batch_size*/) {
+					num_entities -= range.count();
 					submit_range(scheduler, argument);
 				} else {
 					// large batch, so split it up
-					while (range.count() > batch_size + 1) {
+					while (range.count() > batch_size) {
 						// Split the range.
 						auto const next_range = range.split(static_cast<int>(batch_size));
 
 						// Submit the work
+						num_entities -= range.count();
 						submit_range(scheduler, argument);
 
 						// Advance the pointers in the arguments
 						std::apply(
 							[batch_size](auto&... args) {
 								auto const advancer = [&](auto& arg) {
-									if constexpr (std::is_pointer_v<decltype(arg)>) {
+									if constexpr (std::is_pointer_v<std::remove_reference_t<decltype(arg)>>) {
 										arg += batch_size;
 									};
 								};
@@ -235,10 +219,13 @@ private:
 
 					// Submit the remaining work
 					submit_range(scheduler, argument);
+					num_entities -= range.count();
 				}
 
 				walker.next();
 			}
+
+			Expects(num_entities == 0);
 		}
 	}
 

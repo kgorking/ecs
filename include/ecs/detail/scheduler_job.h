@@ -41,57 +41,32 @@ class scheduler_job {
 	};
 
 	std::unique_ptr<job_base> job;
-	void (scheduler_job::*pre_job)(void) = &scheduler_job::init_pre_job;
 
-	std::unique_ptr<std::barrier<>> incoming_barrier{std::make_unique<std::barrier<>>(1)};
+	std::unique_ptr<std::barrier<>> incoming_barrier{nullptr};
 	std::vector<std::barrier<>*> outgoing_barriers;
 
-	std::bitset<256> threads_in;
-	std::bitset<256> threads_out;
+	int jobs_in{0};
 
 
 private:
-	void do_pre_job() {
-#ifndef ECS_SCHEDULER_LAYOUT_DEMO
-		incoming_barrier->arrive_and_wait();
-#endif
-	}
-
-	void init_pre_job() {
-		static std::mutex m;
-		std::scoped_lock sl(m);
-
-		if (pre_job == &scheduler_job::init_pre_job) {
-			auto const num_threads = threads_in.count();
-			if (num_threads > 1) {
-				// Other threads are arriving here, so set up a barrier
-				//incoming_barrier = std::make_unique<std::barrier<>>(num_threads);
-				update_barrier_counter();
-				pre_job = &scheduler_job::do_pre_job;
-			} else {
-				// No synchronization needed, do nothing
-				pre_job = &scheduler_job::do_nothing;
-			}
-		}
-
-		// Call the job
-		Ensures(pre_job != &scheduler_job::init_pre_job);
-		(this->*pre_job)();
-	}
-	void do_nothing() {}
-
 	void update_barrier_counter() {
-		std::destroy_at(incoming_barrier.get());
-		std::construct_at(incoming_barrier.get(), threads_in.count());
+		if (!incoming_barrier) {
+			incoming_barrier = std::make_unique<std::barrier<>>(1 + jobs_in);
+		} else {
+			std::destroy_at(incoming_barrier.get());
+			// arrive and wait on this thread, arrive on other threads
+			std::construct_at(incoming_barrier.get(), 1 + jobs_in);
+		}
 	}
 
 public:
 	scheduler_job() = default;
+	~scheduler_job() = default;
 	scheduler_job(scheduler_job&&) = default;
-	scheduler_job& operator=(scheduler_job&&) = default;
 	scheduler_job(scheduler_job const&) = delete;
 	scheduler_job(scheduler_job&) = delete;
 	scheduler_job& operator=(scheduler_job const&) = delete;
+	scheduler_job& operator=(scheduler_job&&) = default;
 
 	template <class F, class Args>
 	scheduler_job(entity_range range, Args args, F&& f)
@@ -100,11 +75,15 @@ public:
 	void operator()() {
 		Expects(nullptr != job.get());
 
-		(this->*pre_job)();
+		if (incoming_barrier) {
+			incoming_barrier->arrive_and_wait();
+		}
+
 		job->call();
 
-		for (auto b : outgoing_barriers) {
-			[[maybe_unused]] auto const x = b->arrive();
+		for (std::barrier<>* barrier : outgoing_barriers) {
+			// Notify other threads that our work here is done
+			(void) barrier->arrive();
 		}
 	}
 
@@ -113,27 +92,14 @@ public:
 	}
 
 	void add_outgoing_barrier(std::barrier<>* outgoing_barrier) {
+		Expects(incoming_barrier.get() != outgoing_barrier);
+		Expects(std::ranges::find(outgoing_barriers, outgoing_barrier) == outgoing_barriers.end());
 		outgoing_barriers.push_back(outgoing_barrier);
 	}
 
-	void set_incoming_thread(int thread_index) {
-		Expects(thread_index >= 0 && thread_index < 256);
-		threads_in.set(thread_index);
-	}
-
-	bool test_incoming_thread(int thread_index) {
-		Expects(thread_index >= 0 && thread_index < 256);
-		return threads_in.test(thread_index);
-	}
-
-	void set_outgoing_thread(int thread_index) {
-		Expects(thread_index >= 0 && thread_index < 256);
-		threads_out.set(thread_index);
-	}
-
-	bool test_outgoing_thread(int thread_index) {
-		Expects(thread_index >= 0 && thread_index < 256);
-		return threads_out.test(thread_index);
+	void increase_incoming_job_count() {
+		jobs_in += 1;
+		update_barrier_counter();
 	}
 };
 

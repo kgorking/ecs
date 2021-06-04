@@ -1,7 +1,6 @@
-#define ECS_SCHEDULER_LAYOUT_DEMO
+//#define ECS_SCHEDULER_LAYOUT_DEMO
 #include <ecs/ecs.h>
 #include <iostream>
-
 
 // A small example that creates 6 systems with dependencies on 3 components.
 //
@@ -19,25 +18,25 @@
 // |-------------------|
 //
 // sys1 (write type<0>, read type<1>)
-// 
+//
 // sys2 (write type<1>)
 //  depends on 1? true
-// 
+//
 // sys3 (write type<2>)
 //  depends on 1? false
 //  depends on 2? false
-// 
+//
 // sys4 (read type<0>)
 //  depends on 1? true
 //  depends on 2? false
 //  depends on 3? false
-// 
+//
 // sys5 (write type<2>, read type<0>)
 //  depends on 1? true
 //  depends on 2? false
 //  depends on 3? true
 //  depends on 4? false
-// 
+//
 // sys6 (read type<2>)
 //  depends on 1? false
 //  depends on 2? false
@@ -45,7 +44,8 @@
 //  depends on 4? false
 //  depends on 5? true
 
-template <size_t I> struct type {};
+template <size_t I>
+struct type {};
 
 int main() {
 	ecs::runtime ecs;
@@ -54,12 +54,7 @@ int main() {
 
 	//
 	// Assumes that type 0 is writte to, and type 1 is only read from.
-	auto const& sys1 = ecs.make_system([once=true](type<0>&, type<1> const&) mutable {
-		if (once) {
-			std::cout << "1 ";
-			once = false;
-		}
-	});
+	auto const& sys1 = ecs.make_system([](type<0>&, type<1> const&) mutable { std::cout << "1 "; });
 	std::cout << "\nsys1 (write type<0>, read type<1>)\n";
 	std::cout << " depends on no systems\n";
 
@@ -67,36 +62,21 @@ int main() {
 	// Writes to type 1. This system must not execute until after sys1 is done.
 	// None of the following system use type 1, so sys2 can run parallel with
 	// all of them.
-	auto const& sys2 = ecs.make_system([once = true](type<1>&) mutable {
-		if (once) {
-			std::cout << "2 ";
-			once = false;
-		}
-	});
+	auto const& sys2 = ecs.make_system([](type<1>&) mutable { std::cout << "2 "; });
 	std::cout << "\nsys2 (write type<1>)\n";
 	std::cout << " depends on 1? " << sys2.depends_on(&sys1) << '\n';
 
 	//
 	// Writes to type 2. This has no dependencies on type 0 or 1, so it can be run
 	// concurrently with sys1 and sys2.
-	auto const& sys3 = ecs.make_system([once = true](type<2>&) mutable {
-		if (once) {
-			std::cout << "3 ";
-			once = false;
-		}
-	});
+	auto const& sys3 = ecs.make_system([](type<2>&) mutable { std::cout << "3 "; });
 	std::cout << "\nsys3 (write type<2>)\n";
 	std::cout << " depends on 1? " << sys3.depends_on(&sys1) << '\n';
 	std::cout << " depends on 2? " << sys3.depends_on(&sys2) << '\n';
 
 	//
 	// Reads from type 0. Must not execute until sys1 is done.
-	auto const& sys4 = ecs.make_system([once = true](type<0> const&) mutable {
-		if (once) {
-			std::cout << "4 ";
-			once = false;
-		}
-	});
+	auto const& sys4 = ecs.make_system([](type<0> const&) mutable { std::cout << "4 "; });
 	std::cout << "\nsys4 (read type<0>)\n";
 	std::cout << " depends on 1? " << sys4.depends_on(&sys1) << '\n';
 	std::cout << " depends on 2? " << sys4.depends_on(&sys2) << '\n';
@@ -105,12 +85,7 @@ int main() {
 	//
 	// Writes to type 2 and reads from type 0.
 	// Must not execute until after sys3 and sys1 is done.
-	auto const& sys5 = ecs.make_system([once = true](type<2>&, type<0> const&) mutable {
-		if (once) {
-			std::cout << "5 ";
-			once = false;
-		}
-	});
+	auto const& sys5 = ecs.make_system([](type<2>&, type<0> const&) mutable { std::cout << "5 "; });
 	std::cout << "\nsys5 (write type<2>, read type<0>)\n";
 	std::cout << " depends on 1? " << sys5.depends_on(&sys1) << '\n';
 	std::cout << " depends on 2? " << sys5.depends_on(&sys2) << '\n';
@@ -119,12 +94,7 @@ int main() {
 
 	//
 	// Reads from type 2. Must not execute until sys5 is done.
-	auto const& sys6 = ecs.make_system([once = true](type<2> const&) mutable {
-		if (once) {
-			std::cout << "6 ";
-			once = false;
-		}
-	});
+	auto const& sys6 = ecs.make_system([](type<2> const&) { std::cout << "6 "; });
 	std::cout << "\nsys6 (read type<2>)\n";
 	std::cout << " depends on 1? " << sys6.depends_on(&sys1) << '\n';
 	std::cout << " depends on 2? " << sys6.depends_on(&sys2) << '\n';

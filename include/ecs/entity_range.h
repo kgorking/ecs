@@ -96,12 +96,12 @@ public:
 		return last_ + 1 == other.first();
 	}
 
-	// Splits the range in two at pos. This range keeps pos.
+	// Splits the range in two at pos. Resulting range keeps pos.
 	// Pre: 'size' must smaller than the range
 	[[nodiscard]] constexpr entity_range split(int size) {
-		Expects(size != 0 && size < count()-1);
-		entity_range rest{first_ + size + 1, last_};
-		last_ = first_ + size;
+		Expects(size > 0 && size < count());
+		entity_range rest{first_ + size, last_};
+		last_ = first_ + size - 1;
 		return rest;
 	}
 
