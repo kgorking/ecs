@@ -84,13 +84,13 @@ private:
 	void link_jobs(scheduler& scheduler, job_location const& from, job_location const& to) {
 #ifdef ECS_SCHEDULER_LAYOUT_DEMO
 		//std::cout << '(' << from.thread_index << "," << from.job_position << ") -> (" << to.thread_index << "," << to.job_position << "): ";
-		//std::cout << std::format("({},{}) -> ({},{}): ", from.thread_index,
-		//						 from.job_position, to.thread_index, to.job_position);
+		std::cout << std::format("({},{}) -> ({},{}): ", from.thread_index,
+								 from.job_position, to.thread_index, to.job_position);
 #endif
 		// Dont synchronize on same thread
 		if (from.thread_index == to.thread_index) {
 #ifdef ECS_SCHEDULER_LAYOUT_DEMO
-			//std::cout << "on same thread; do nothing\n";
+			std::cout << "on same thread; do nothing\n";
 #endif
 			return;
 		}
@@ -101,7 +101,7 @@ private:
 		to_job.increase_incoming_job_count();
 		from_job.add_outgoing_barrier(to_job.get_barrier());
 #ifdef ECS_SCHEDULER_LAYOUT_DEMO
-		//std::cout << "\n";
+		std::cout << "\n";
 #endif
 	}
 

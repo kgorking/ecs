@@ -20,7 +20,8 @@ struct interval {
 struct manual_update {};
 
 struct not_parallel {};
-// struct not_concurrent {};
+
+// sched_ignore_cache_temporality
 
 } // namespace ecs::opts
 

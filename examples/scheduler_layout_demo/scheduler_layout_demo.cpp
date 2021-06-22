@@ -292,8 +292,8 @@ int main() {
 	demo5(); // ok
 	demo5_1(); // ok
 	demo6(); // ok
-	demo7(); // ok
-	demo8(); // ok
+	//demo7(); // ok
+	//demo8(); // ok
 	demo9(); // ok
 	demo10(); // ok
 	demo11(); // ok
