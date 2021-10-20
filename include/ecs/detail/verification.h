@@ -20,23 +20,16 @@ using get_type_t = std::conditional_t<std::invocable<T, entity_type>,
 
 // Returns true if all types passed are unique
 template <typename First, typename... T>
-constexpr bool unique_types() {
+consteval bool is_unique_types() {
 	if constexpr ((std::is_same_v<First, T> || ...))
 		return false;
 	else {
 		if constexpr (sizeof...(T) == 0)
 			return true;
 		else
-			return unique_types<T...>();
+			return is_unique_types<T...>();
 	}
 }
-
-template <typename First, typename... T>
-constexpr static bool unique_types_v = unique_types<get_type_t<First>, get_type_t<T>...>();
-
-// Ensure that any type in the parameter pack T is only present once.
-template <typename First, typename... T>
-concept unique = unique_types_v<First, T...>;
 
 // Gets the type a sorting function operates on.
 template <class R, class A, class B, class... C>
@@ -126,7 +119,7 @@ template <class R, class FirstArg, class... Args>
 constexpr void system_verifier() {
 	static_assert(std::is_same_v<R, void>, "systems can not have returnvalues");
 
-	static_assert(unique_types_v<FirstArg, Args...>, "component parameter types can only be specified once");
+	static_assert(is_unique_types<FirstArg, Args...>(), "component parameter types can only be specified once");
 
 	if constexpr (is_entity<FirstArg>) {
 		static_assert(sizeof...(Args) > 0, "systems must take at least one component argument");
