@@ -166,6 +166,6 @@ TEST_CASE("System specification", "[system]") {
 
 		// Verify that the local component was added
 		ecs.commit_changes();
-		CHECK(1 == ecs.get_component_count<local5>());
+		CHECK(size_t{1} == ecs.get_component_count<local5>());
 	}
 }
