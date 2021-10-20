@@ -101,9 +101,9 @@ target_link_libraries(ecs INTERFACE tls)
 
 if (ECS_STANDALONE_PROJECT)
     # Benchmark
-    #set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
-    #add_subdirectory ("benchmark/gbench")
-    #add_subdirectory ("benchmark")
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
+    add_subdirectory ("benchmark/gbench")
+    add_subdirectory ("benchmark")
 
     # Examples
     add_subdirectory ("examples/entt_example")
