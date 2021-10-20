@@ -84,7 +84,7 @@ private:
 	// True if the data needs to be sorted
 	bool needs_sorting = false;
 
-	using sort_types = typename decltype(get_sorter_types(SortFunc{}))::type1;
+	using sort_types = sorter_predicate_type_t<SortFunc>;
 };
 } // namespace ecs::detail
 

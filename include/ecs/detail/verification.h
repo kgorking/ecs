@@ -18,6 +18,7 @@ using get_type_t = std::conditional_t<std::invocable<T, entity_type>,
 	std::invoke_result<T, entity_type>,
 	std::type_identity<T>>;
 
+
 // Returns true if all types passed are unique
 template <typename First, typename... T>
 consteval bool is_unique_types() {
@@ -31,43 +32,28 @@ consteval bool is_unique_types() {
 	}
 }
 
-// Gets the type a sorting function operates on.
-template <class R, class A, class B, class... C>
-struct get_sorter_types_impl {
-	explicit get_sorter_types_impl(R (*)(A, B)) {
-		static_assert(sizeof...(C) == 0, "two arguments expected in sorting predicate");
-		static_assert(std::is_same_v<A, B>, "types must be identical");
-	}
-	explicit get_sorter_types_impl(R (A::*)(B, C...) const) {
-		static_assert(sizeof...(C) == 1, "two arguments expected in sorting predicate");
-		static_assert(std::is_same_v<B, C...>, "types must be identical");
-	}
 
-	using type1 = std::conditional_t<sizeof...(C) == 0, std::remove_cvref_t<A>, std::remove_cvref_t<B>>;
-	using type2 = std::conditional_t<sizeof...(C) == 0, std::remove_cvref_t<B>, std::remove_cvref_t<type_list_at<0, type_list<C...>>>>;
-};
+// Find the types a sorting predicate takes
+template <class R, class T>
+constexpr T get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
-template <class T1, class T2>
-struct get_sorter_types {
-	template <class T>
-	requires requires {
-		&T::operator();
-	}
-	explicit get_sorter_types(T) {}
+template <class R, class C, class T>
+constexpr T get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
+template <class R, class C, class T>
+constexpr T get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
 
-	template <class R, class A, class B>
-	explicit get_sorter_types(R (*)(A, B)) {}
-
-	using type1 = std::remove_cvref_t<T1>;
-	using type2 = std::remove_cvref_t<T2>;
-};
-
-template <class R, class A, class B>
-get_sorter_types(R (*)(A, B)) -> get_sorter_types<A, B>;
 
 template <class T>
-get_sorter_types(T) -> get_sorter_types< // get_sorter_types(&T::operator()) // deduction guides can't refer to other guides :/
-	typename decltype(get_sorter_types_impl(&T::operator()))::type1, typename decltype(get_sorter_types_impl(&T::operator()))::type2>;
+constexpr auto get_sorter_type() {
+	if constexpr (requires { &T::operator(); })
+		return get_sorter_type(&T::operator());
+	else
+		return get_sorter_type(T{});
+}
+
+template <class T>
+using sorter_predicate_type_t = decltype(get_sorter_type<T>());
+
 
 // Implement the requirements for ecs::parent components
 template <typename C>
@@ -200,14 +186,8 @@ void make_system_parameter_verifier() {
 
 		static_assert(is_sort_lambda || is_sort_func, "invalid sorting function");
 
-		using sort_types = decltype(get_sorter_types(SortFunc{}));
-		if constexpr (is_sort_lambda) {
-			static_assert(std::predicate<SortFunc, typename sort_types::type1, typename sort_types::type2>,
-						  "Sorting function is not a predicate");
-		} else if constexpr (is_sort_func) {
-			static_assert(std::predicate<SortFunc, typename sort_types::type1, typename sort_types::type2>,
-						  "Sorting function is not a predicate");
-		}
+		using sort_types = sorter_predicate_type_t<SortFunc>;
+		static_assert(std::predicate<SortFunc, sort_types, sort_types>, "Sorting function is not a predicate");
 	}
 }
 
