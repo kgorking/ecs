@@ -188,8 +188,8 @@ void make_system_parameter_verifier() {
 
 	// verify the sort function
 	if constexpr (!std::is_same_v<std::nullptr_t, SortFunc>) {
-		bool constexpr is_sort_lambda = type_is_lambda<SystemFunc>;
-		bool constexpr is_sort_func = type_is_function<SystemFunc>;
+		bool constexpr is_sort_lambda = type_is_lambda<SortFunc>;
+		bool constexpr is_sort_func = type_is_function<SortFunc>;
 
 		static_assert(is_sort_lambda || is_sort_func, "invalid sorting function");
 
