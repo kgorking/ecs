@@ -33,7 +33,7 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=Release
+            -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
           RESULT_VARIABLE result
         )
