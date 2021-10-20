@@ -35,16 +35,16 @@ consteval bool is_unique_types() {
 
 // Find the types a sorting predicate takes
 template <class R, class T>
-constexpr T get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
+consteval T get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
 template <class R, class C, class T>
-constexpr T get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
+consteval T get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
 template <class R, class C, class T>
-constexpr T get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
+consteval T get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
 
 
 template <class T>
-constexpr auto get_sorter_type() {
+consteval auto get_sorter_type() {
 	// Verify predicate
 	static_assert(
 		requires {
@@ -65,7 +65,7 @@ using sorter_predicate_type_t = decltype(get_sorter_type<T>());
 
 // Implement the requirements for ecs::parent components
 template <typename C>
-constexpr void verify_parent_component() {
+consteval void verify_parent_component() {
 	if constexpr (detail::is_parent<C>::value) {
 		using parent_subtypes = parent_type_list_t<std::remove_cvref_t<C>>;
 		constexpr size_t total_subtypes = type_list_size<parent_subtypes>;
@@ -89,27 +89,27 @@ constexpr void verify_parent_component() {
 
 // Implement the requirements for tagged components
 template <typename C>
-constexpr void verify_tagged_component() {
+consteval void verify_tagged_component() {
 	if constexpr (detail::tagged<C>)
 		static_assert(!std::is_reference_v<C> && (sizeof(C) == 1), "components flagged as 'tag' must not be references");
 }
 
 // Implement the requirements for global components
 template <typename C>
-constexpr void verify_global_component() {
+consteval void verify_global_component() {
 	if constexpr (detail::global<C>)
 		static_assert(!detail::tagged<C> && !detail::transient<C>, "components flagged as 'global' must not be 'tag's or 'transient'");
 }
 
 // Implement the requirements for immutable components
 template <typename C>
-constexpr void verify_immutable_component() {
+consteval void verify_immutable_component() {
 	if constexpr (detail::immutable<C>)
 		static_assert(std::is_const_v<std::remove_reference_t<C>>, "components flagged as 'immutable' must also be const");
 }
 
 template <class R, class FirstArg, class... Args>
-constexpr void system_verifier() {
+consteval void system_verifier() {
 	static_assert(std::is_same_v<R, void>, "systems can not have returnvalues");
 
 	static_assert(is_unique_types<FirstArg, Args...>(), "component parameter types can only be specified once");
@@ -137,16 +137,16 @@ constexpr void system_verifier() {
 // A small bridge to allow the Lambda to activate the system verifier
 template <class R, class C, class FirstArg, class... Args>
 struct system_to_lambda_bridge {
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) {
+	explicit consteval system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) {
 		system_verifier<R, FirstArg, Args...>();
 	};
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) {
+	explicit consteval system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) {
 		system_verifier<R, FirstArg, Args...>();
 	};
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) {
+	explicit consteval system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) {
 		system_verifier<R, FirstArg, Args...>();
 	};
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) {
+	explicit consteval system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) {
 		system_verifier<R, FirstArg, Args...>();
 	};
 };
@@ -154,10 +154,10 @@ struct system_to_lambda_bridge {
 // A small bridge to allow the function to activate the system verifier
 template <class R, class FirstArg, class... Args>
 struct system_to_func_bridge {
-	explicit system_to_func_bridge(R (*)(FirstArg, Args...)) {
+	explicit consteval system_to_func_bridge(R (*)(FirstArg, Args...)) {
 		system_verifier<R, FirstArg, Args...>();
 	};
-	explicit system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) {
+	explicit consteval system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) {
 		system_verifier<R, FirstArg, Args...>();
 	};
 };
@@ -173,7 +173,7 @@ concept type_is_function = requires(T t) {
 };
 
 template <typename TupleOptions, typename SystemFunc, typename SortFunc>
-void make_system_parameter_verifier() {
+consteval void make_system_parameter_verifier() {
 	bool constexpr is_lambda = type_is_lambda<SystemFunc>;
 	bool constexpr is_func = type_is_function<SystemFunc>;
 
