@@ -86,10 +86,7 @@ public:
 		sched.clear();
 		type_pool_lookup.clear();
 		component_pools.clear();
-
-		type_caches.for_each([](auto& cache) { cache.reset(); });
-		// type_caches.clear();  // DON'T! It will remove access to existing thread_local vars,
-		// which means they can't be reached and reset
+		type_caches.clear();
 	}
 
 	// Returns a reference to a components pool.
