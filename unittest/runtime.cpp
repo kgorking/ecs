@@ -3,11 +3,11 @@
 #include <ecs/ecs.h>
 
 struct runtime_ctr_counter {
-	inline static size_t def_ctr_count = 0;
-	inline static size_t ctr_count = 0;
-	inline static size_t copy_count = 0;
-	inline static size_t move_count = 0;
-	inline static size_t dtr_count = 0;
+	inline static int def_ctr_count = 0;
+	inline static int ctr_count = 0;
+	inline static int copy_count = 0;
+	inline static int move_count = 0;
+	inline static int dtr_count = 0;
 
 	runtime_ctr_counter() noexcept {
 		def_ctr_count++;
@@ -56,7 +56,7 @@ TEST_CASE("The runtime interface") {
 		// Add a system-less component to an entity
 		ecs.add_component(0, S{0});
 		ecs.commit_changes();
-		CHECK(ecs.get_component_count<S>() == 1);
+		CHECK(ecs.get_component_count<S>() == size_t{1});
 	}
 
 	SECTION("Supports mutable lambdas") {
