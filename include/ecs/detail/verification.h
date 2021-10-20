@@ -35,32 +35,32 @@ consteval bool is_unique_types() {
 
 // Find the types a sorting predicate takes
 template <class R, class T>
-consteval T get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
+consteval std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
 template <class R, class C, class T>
-consteval T get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
+consteval std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
 template <class R, class C, class T>
-consteval T get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
+consteval std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
 
 
-template <class T>
+template <class Pred>
 consteval auto get_sorter_type() {
 	// Verify predicate
 	static_assert(
 		requires {
-			{ T{}({}, {}) } -> std::same_as<bool>;
+			{ Pred{}({}, {}) } -> std::same_as<bool>;
 		},
 		"predicates must take two arguments and return a bool");
 
-	if constexpr (requires { &T::operator(); }) {
-		return get_sorter_type(&T::operator());
+	if constexpr (requires { &Pred::operator(); }) {
+		return get_sorter_type(&Pred::operator());
 	} else {
-		return get_sorter_type(T{});
+		return get_sorter_type(Pred{});
 	}
 }
 
-template <class T>
-using sorter_predicate_type_t = decltype(get_sorter_type<T>());
+template <class Pred>
+using sorter_predicate_type_t = decltype(get_sorter_type<Pred>());
 
 
 // Implement the requirements for ecs::parent components
