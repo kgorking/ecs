@@ -66,7 +66,7 @@ private:
 	std::vector<entity_range> ranges;
 
 	// The offset from a range into the components
-	std::vector<size_t> offsets;
+	std::vector<ptrdiff_t> offsets;
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
@@ -170,7 +170,7 @@ public:
 
 	// Returns the number of active entities in the pool
 	size_t num_entities() const {
-		return offsets.empty() ? 0 : (offsets.back() + ranges.back().count());
+		return offsets.empty() ? 0 : (offsets.back() + ranges.back().ucount());
 	}
 
 	// Returns the number of active components in the pool
@@ -453,14 +453,14 @@ private:
 
 			auto const insert_data = [&](ptrdiff_t offset) {
 				// Add the new data
-				component_it += offset;
-				auto const range_count = std::get<0>(*it_adds).count();
-				component_it = components.insert(component_it, range_count, std::move(std::get<1>(*it_adds)));
+				std::advance(component_it, offset);
+				ptrdiff_t const range_count = std::get<0>(*it_adds).count();
+				component_it = components.insert(component_it, static_cast<size_t>(range_count), std::move(std::get<1>(*it_adds)));
 				std::advance(component_it, range_count);
 			};
 			auto const insert_init = [&](ptrdiff_t offset) {
 				// Add the new data
-				component_it += offset;
+				std::advance(component_it, offset);
 				auto const& range = std::get<0>(*it_inits);
 				auto const& init = std::get<1>(*it_inits);
 				for (entity_id const ent : range) {
@@ -503,8 +503,8 @@ private:
 
 		// Calculate offsets
 		offsets.clear();
-		std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
-							[](size_t init, entity_range range) { return init + range.count(); });
+		std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), ptrdiff_t{0},
+							[](ptrdiff_t init, entity_range range) { return init + range.count(); });
 
 		// Update the state
 		set_data_added();
@@ -558,7 +558,7 @@ private:
 				// Find the first valid index
 				auto index = find_entity_index(removes.front().first());
 				Expects(index.has_value());
-				auto dest_it = components.begin() + index.value();
+				auto dest_it = components.begin() + static_cast<ptrdiff_t>(index.value());
 				auto from_it = dest_it + static_cast<ptrdiff_t>(removes.front().count());
 
 				if (dest_it == components.begin() && from_it == components.end()) {
@@ -620,8 +620,8 @@ private:
 
 			// Calculate offsets
 			offsets.clear();
-			std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
-								[](size_t init, entity_range range) { return init + range.count(); });
+			std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), ptrdiff_t{0},
+								[](ptrdiff_t init, entity_range range) { return init + range.count(); });
 
 			// Update the state
 			set_data_removed();
