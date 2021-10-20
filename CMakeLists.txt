@@ -18,8 +18,26 @@ endif ()
 
 if (MSVC)
     # warning level 4
-    target_compile_options(ecs INTERFACE /std:c++latest /W4 /wo4648)
-    #target_compile_options(ecs INTERFACE /fsanitize=address)
+    target_compile_options(ecs INTERFACE
+        /std:c++20
+
+        # enable lots of warnings
+        /W4
+
+        # -- Enable conversion warnings --
+        /w44191     # 'operator': unsafe conversion from 'type_of_expression' to 'type_required'.
+        /w44242     # 'identifier': conversion from 'type1' to 'type2', possible loss of data.
+        /w44254     # 'operator': conversion from 'type1' to 'type2', possible loss of data.
+        /w44800     # Implicit conversion from 'type' to bool. Possible information loss.
+        /w44826     # Conversion from 'type1' to 'type2' is sign-extended. This may cause unexpected runtime behavior.
+        /w45219     # implicit conversion from 'type-1' to 'type-2', possible loss of data.
+
+        #/w44388     # signed/unsigned mismatch
+        #/w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
+
+        # Enable address sanitizer
+        #/fsanitize=address
+    )
 
     # enable profiling
     #target_compile_options(ecs INTERFACE /Zi)
@@ -35,7 +53,14 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 else()
     # lots of warnings
-    target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -Wpedantic -Wshadow ${STDLIB})
+    target_compile_options(ecs INTERFACE
+        -std=c++2a
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wshadow
+        #-Wsign-conversion
+        ${STDLIB})
     target_link_options(ecs INTERFACE -pthread)
 
     # Disable C++ exceptions.
@@ -84,13 +109,15 @@ if (ECS_STANDALONE_PROJECT)
     add_subdirectory ("examples/entt_example")
     add_subdirectory ("examples/example")
     add_subdirectory ("examples/filtering")
-    add_subdirectory ("examples/frequency")
+    add_subdirectory ("examples/interval")
     add_subdirectory ("examples/finite_state_machine")
     add_subdirectory ("examples/global_component")
     add_subdirectory ("examples/hierarchy")
     add_subdirectory ("examples/mandelbrot")
     add_subdirectory ("examples/parallelism")
     add_subdirectory ("examples/plague_spell")
+    add_subdirectory ("examples/pmr_allocator_support")
+    add_subdirectory ("examples/pmr_custom_component")
     add_subdirectory ("examples/scheduler")
     add_subdirectory ("examples/sorting")
     add_subdirectory ("examples/tagged_components")

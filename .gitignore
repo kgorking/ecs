@@ -264,3 +264,6 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+/benchmark/starbench_input.tar.gz
+/benchmark/starbench.tar.gz
+/benchmark/starbench

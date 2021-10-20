@@ -4533,7 +4533,7 @@ namespace Catch {
         virtual Verbosity verbosity() const = 0;
 
         virtual bool benchmarkNoAnalysis() const = 0;
-        virtual int benchmarkSamples() const = 0;
+        virtual unsigned int benchmarkSamples() const = 0;
         virtual double benchmarkConfidenceInterval() const = 0;
         virtual unsigned int benchmarkResamples() const = 0;
         virtual std::chrono::milliseconds benchmarkWarmupTime() const = 0;
@@ -5355,7 +5355,7 @@ namespace Catch {
         bool showInvisibles() const override;
         Verbosity verbosity() const override;
         bool benchmarkNoAnalysis() const override;
-        int benchmarkSamples() const override;
+        unsigned int benchmarkSamples() const override;
         double benchmarkConfidenceInterval() const override;
         unsigned int benchmarkResamples() const override;
         std::chrono::milliseconds benchmarkWarmupTime() const override;
@@ -9100,7 +9100,7 @@ namespace detail {
     }
     inline auto convertInto( std::string const &source, bool &target ) -> ParserResult {
         std::string srcLC = source;
-        std::transform( srcLC.begin(), srcLC.end(), srcLC.begin(), []( unsigned char c ) { return static_cast<char>( std::tolower(c) ); } );
+        std::transform( srcLC.begin(), srcLC.end(), srcLC.begin(), []( char c ) { return static_cast<char>( std::tolower(c) ); } );
         if (srcLC == "y" || srcLC == "1" || srcLC == "true" || srcLC == "yes" || srcLC == "on")
             target = true;
         else if (srcLC == "n" || srcLC == "0" || srcLC == "false" || srcLC == "no" || srcLC == "off")
@@ -10029,7 +10029,7 @@ namespace Catch {
     Verbosity Config::verbosity() const                { return m_data.verbosity; }
 
     bool Config::benchmarkNoAnalysis() const                      { return m_data.benchmarkNoAnalysis; }
-    int Config::benchmarkSamples() const                          { return m_data.benchmarkSamples; }
+    unsigned int Config::benchmarkSamples() const                 { return m_data.benchmarkSamples; }
     double Config::benchmarkConfidenceInterval() const            { return m_data.benchmarkConfidenceInterval; }
     unsigned int Config::benchmarkResamples() const               { return m_data.benchmarkResamples; }
     std::chrono::milliseconds Config::benchmarkWarmupTime() const { return std::chrono::milliseconds(m_data.benchmarkWarmupTime); }
@@ -14878,7 +14878,7 @@ namespace Catch {
         return static_cast<unsigned int>(getElapsedMicroseconds()/1000);
     }
     auto Timer::getElapsedSeconds() const -> double {
-        return getElapsedMicroseconds()/1000000.0;
+        return static_cast<double>(getElapsedMicroseconds())/1000000.0;
     }
 
 } // namespace Catch

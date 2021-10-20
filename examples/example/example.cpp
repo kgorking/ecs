@@ -1,20 +1,20 @@
-#include <iostream>
 #include <ecs/ecs.h>
+#include <iostream>
 
 // The component
 struct greeting {
-    char const* msg;
+	char const* msg;
 };
 
 int main() {
-    // The system
-    ecs::make_system([](greeting const& g) {
-        std::cout << g.msg;
-    });
+	ecs::runtime ecs;
 
-    // The entities
-    ecs::add_component({0, 2}, greeting{"alright "});
+	// The system
+	ecs.make_system([](greeting const& g) { std::cout << g.msg; });
 
-    // Run the system on all entities with a 'greeting' component
-    ecs::update();
+	// The entities
+	ecs.add_component({0, 2}, greeting{"alright "});
+
+	// Run the system on all entities with a 'greeting' component
+	ecs.update();
 }

@@ -1,4 +1,4 @@
-name: clang 10 libstdc++
+name: clang 12 libstdc++
 
 on: [push]
 
@@ -7,12 +7,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install clang 10
-      run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install clang-10
-        /usr/bin/clang++-10 --version
-      shell: bash
+#    - name: Install clang 12
+#      run: |
+#        wget https://apt.llvm.org/llvm.sh
+#        chmod +x llvm.sh
+#        sudo ./llvm.sh 12
+#        /usr/bin/clang++-12 --version
+#      shell: bash
       
     - uses: actions/checkout@v1
 
@@ -33,8 +34,8 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/clang-10")
-        set(ENV{CXX} "/usr/bin/clang++-10")
+        set(ENV{CC} "/usr/bin/clang-12")
+        set(ENV{CXX} "/usr/bin/clang++-12")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
@@ -42,7 +43,7 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=Release
+            -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
             -D STDLIB=-stdlib=libstdc++

@@ -4,15 +4,15 @@
 #include <array>
 #include <tuple>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
-#include <unordered_set>
 
 #include "../entity_id.h"
 #include "../entity_range.h"
 #include "component_pool.h"
 #include "entity_range.h"
-#include "frequency_limiter.h"
+#include "interval_limiter.h"
 #include "options.h"
 #include "system_base.h"
 #include "system_defs.h"
@@ -26,11 +26,7 @@ class system : public system_base {
 	virtual void do_build(entity_range_view) = 0;
 
 public:
-	system(UpdateFn update_func, TupPools pools)
-		: update_func{update_func}
-		, pools{pools}
-		, pool_parent_id{nullptr}
-	{
+	system(UpdateFn func, TupPools tup_pools) : update_func{func}, pools{tup_pools}, pool_parent_id{nullptr} {
 		if constexpr (has_parent_types) {
 			pool_parent_id = &detail::get_pool<parent_id>(pools);
 		}
@@ -41,7 +37,7 @@ public:
 			return;
 		}
 
-		if (!frequency.can_run()) {
+		if (!interval_checker.can_run()) {
 			return;
 		}
 
@@ -58,9 +54,7 @@ public:
 	void notify_pool_modifed() {
 		if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
 			// Recurse into the parent types
-			for_each_type<parent_type_list_t<T>>([this]<typename ...ParentTypes>() {
-				(this->notify_pool_modifed<ParentTypes>(), ...); }
-			);
+			for_each_type<parent_type_list_t<T>>([this]<typename... ParentTypes>() { (this->notify_pool_modifed<ParentTypes>(), ...); });
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
 			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>(pools).notify_components_modified();
 		}
@@ -88,7 +82,7 @@ public:
 		}
 	}
 
-	constexpr bool depends_on(system_base const *other) const noexcept override {
+	constexpr bool depends_on(system_base const* other) const noexcept override {
 		return any_of_type<stripped_component_list>([this, other]<typename T>() {
 			constexpr auto hash = get_type_hash<T>();
 
@@ -121,9 +115,7 @@ public:
 	}
 
 	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
-		auto const check_writes = [hash]<typename T>() {
-			return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>();
-		};
+		auto const check_writes = [hash]<typename T>() { return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>(); };
 
 		if (any_of_type<component_list>(check_writes))
 			return true;
@@ -147,7 +139,7 @@ private:
 			return;
 		}
 
-		bool const modified = std::apply([](auto... pools) { return (pools->has_component_count_changed() || ...); }, pools);
+		bool const modified = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
 
 		if (modified) {
 			find_entities();
@@ -181,7 +173,7 @@ private:
 						// has an int.
 						for_each_type<parent_component_list>([&pid, this, ent, &ents_to_remove]<typename T>() {
 							// Get the pool of the parent sub-component
-							auto const &sub_pool = detail::get_pool<T>(this->pools);
+							auto const& sub_pool = detail::get_pool<T>(this->pools);
 
 							if constexpr (std::is_pointer_v<T>) {
 								// The type is a filter, so the parent is _not_ allowed to have this component
@@ -220,11 +212,11 @@ protected:
 	using component_list = type_list<FirstComponent, Components...>;
 	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
 
-	using user_freq = test_option_type_or<is_frequency, Options, opts::frequency<0>>;
-	using frequency_type = std::conditional_t<(user_freq::hz > 0),
-		frequency_limiter<user_freq::hz>,
-		no_frequency_limiter>;
-	frequency_type frequency;
+	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
+	using interval_type =
+		std::conditional_t<(user_interval::_ecs_duration > 0.0),
+						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
+	interval_type interval_checker;
 
 	// Number of arguments
 	static constexpr size_t num_arguments = 1 + sizeof...(Components);
