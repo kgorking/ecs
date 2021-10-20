@@ -84,16 +84,17 @@ protected:
 		return current_range == ranges.size();
 	}
 
-	// step forward 'diff' times
+	// Step forward 'diff' entities.
 	constexpr void step(ptrdiff_t diff) {
-		if (*(range_it + diff) < *range_end) {
+		auto const current_range_dist = std::distance(range_it, range_end);
+		if (diff < current_range_dist) {
 			// Simple step forward in the current range
 			range_it = range_it + diff;
 
 		} else {
 			// The step spans more than one range
 
-			size_t remainder = *(range_it + diff) - (*range_end);
+			size_t remainder = static_cast<size_t>(diff - current_range_dist);
 
 			// Go to the next range
 			current_range += 1;
@@ -115,7 +116,7 @@ protected:
 			};
 
 			// Update the iterators
-			range_it = ranges[current_range].begin() + remainder;
+			range_it = ranges[current_range].begin() + static_cast<ptrdiff_t>(remainder);
 			range_end = ranges[current_range].end();
 		}
 	}
