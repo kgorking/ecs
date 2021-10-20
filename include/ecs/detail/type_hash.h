@@ -35,8 +35,8 @@ constexpr type_hash get_type_hash() {
 	std::string_view string = __PRETTY_FUNCTION__;
 #endif
 	type_hash hash = 0xcbf29ce484222325;
-	for (auto const value : string) {
-		hash ^= value;
+	for (char const value : string) {
+		hash ^= static_cast<type_hash>(value);
 		hash *= prime;
 	}
 

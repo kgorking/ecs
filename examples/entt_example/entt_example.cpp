@@ -28,8 +28,8 @@ int main() {
 		vel.dy = 0.;
 	});
 
-	ecs.add_component({0, 9}, [](auto id) { return position{id * 1.f, id * 1.f}; });
-	ecs.add_component({0, 4}, [](auto id) { return velocity{id * 1.f, id * 1.f}; });
+	ecs.add_component({0, 9}, [](ecs::entity_id id) { return position{id * 1.f, id * 1.f}; });
+	ecs.add_component({0, 4}, [](ecs::entity_id id) { return velocity{id * 1.f, id * 1.f}; });
 
 	// Run the systems
 	ecs.update();

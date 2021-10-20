@@ -15,7 +15,7 @@ namespace ecs::detail {
 struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
-	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, dependencies{0}, unfinished_dependencies{0} {
+	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, unfinished_dependencies{0}, dependencies{0} {
 		Expects(sys != nullptr);
 	}
 
@@ -85,17 +85,17 @@ private:
 	std::vector<size_t> dependants{};
 
 	// The number of systems this depends on
-	int16_t dependencies = 0;
-	std::atomic<int16_t> unfinished_dependencies = 0;
+	std::atomic<int> unfinished_dependencies = 0;
+	int dependencies = 0;
 };
 
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
 	// A group of systems with the same group id
 	struct systems_group final {
-		int id;
 		std::vector<scheduler_node> all_nodes;
 		std::vector<std::size_t> entry_nodes{};
+		int id;
 
 		// Runs the entry nodes in parallel
 		void run() {
@@ -122,7 +122,7 @@ protected:
 			std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) { return group_id < sg.id; });
 
 		// Insert the group and return it
-		return *groups.insert(insert_point, systems_group{id, {}, {}});
+		return *groups.insert(insert_point, systems_group{{}, {}, id});
 	}
 
 public:
