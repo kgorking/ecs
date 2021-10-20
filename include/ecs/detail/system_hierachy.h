@@ -62,7 +62,7 @@ private:
 
 		size_t count = 0;
 		for (auto const& range : ranges)
-			count += range.count();
+			count += range.ucount();
 		if constexpr (is_entity<FirstComponent>) {
 			argument arg{entity_id{0}, component_argument<Components>{0}..., entity_info{}};
 			arguments.resize(count, arg);
@@ -72,7 +72,7 @@ private:
 		}
 
 		// map of entity and root info
-		tls::collect<std::map<entity_type, int>, component_list> tls_roots;
+		tls::collect<std::map<entity_type, size_t>, component_list> tls_roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
@@ -83,11 +83,11 @@ private:
 						  walker.reset(&this->pools, entity_range_view{{range}});
 
 						  info_map info;
-						  std::map<entity_type, int>& roots = tls_roots.local();
+						  std::map<entity_type, size_t>& roots = tls_roots.local();
 
 						  while (!walker.done()) {
 							  entity_id const entity = walker.get_entity();
-							  auto const ent_offset = static_cast<uint32_t>(conv.to_offset(entity));
+							  auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
 
 							  info_iterator const ent_info = fill_entity_info(info, entity, index);
 
@@ -118,7 +118,7 @@ private:
 			}
 
 			// Create the argument spans
-			int offset = 0;
+			size_t offset = 0;
 			for (auto const& [id, child_count] : *dest) {
 				argument_spans.emplace_back(arguments.data() + offset, child_count);
 				offset += child_count;
