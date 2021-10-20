@@ -19,19 +19,25 @@ endif ()
 if (MSVC)
     # warning level 4
     target_compile_options(ecs INTERFACE
-        /std:c++latest
-        /W4         # enable lots of warnings
-                    # -- Enable conversion warnings --
+        /std:c++20
+
+        # enable lots of warnings
+        /W4
+
+        # -- Enable conversion warnings --
         /w44191     # 'operator': unsafe conversion from 'type_of_expression' to 'type_required'.
         /w44242     # 'identifier': conversion from 'type1' to 'type2', possible loss of data.
         /w44254     # 'operator': conversion from 'type1' to 'type2', possible loss of data.
+        /w44388     # signed/unsigned mismatch
         #/w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
         /w44800     # Implicit conversion from 'type' to bool. Possible information loss.
         /w44826     # Conversion from 'type1' to 'type2' is sign-extended. This may cause unexpected runtime behavior.
         /w45219     # implicit conversion from 'type-1' to 'type-2', possible loss of data.
         #/wo4648
+
+        # Enable address sanitizer
+        #/fsanitize=address
     )
-    #target_compile_options(ecs INTERFACE /fsanitize=address)
 
     # enable profiling
     #target_compile_options(ecs INTERFACE /Zi)
