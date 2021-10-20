@@ -170,7 +170,7 @@ public:
 
 	// Returns the number of active entities in the pool
 	size_t num_entities() const {
-		return offsets.empty() ? 0 : (offsets.back() + ranges.back().ucount());
+		return offsets.empty() ? 0 : static_cast<size_t>(offsets.back() + ranges.back().count());
 	}
 
 	// Returns the number of active components in the pool
