@@ -51,7 +51,7 @@ private:
 		// Count the total number of arguments
 		size_t arg_count = 0;
 		for (auto const& range : entities) {
-			arg_count += range.count();
+			arg_count += range.ucount();
 		}
 
 		// Reserve space for the arguments
