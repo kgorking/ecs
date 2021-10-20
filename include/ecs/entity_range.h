@@ -64,6 +64,11 @@ public:
 		return static_cast<ptrdiff_t>(last_ - first_ + 1);
 	}
 
+	// Returns the number of entities in this range as unsigned
+	[[nodiscard]] constexpr size_t ucount() const {
+		return static_cast<size_t>(last_ - first_ + 1);
+	}
+
 	// Returns true if the ranges are identical
 	[[nodiscard]] constexpr bool equals(entity_range const& other) const {
 		return first_ == other.first() && last_ == other.last();
