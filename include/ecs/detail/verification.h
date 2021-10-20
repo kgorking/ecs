@@ -45,10 +45,14 @@ constexpr T get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member 
 
 template <class T>
 constexpr auto get_sorter_type() {
-	if constexpr (requires { &T::operator(); })
+	if constexpr (requires { &T::operator(); }) {
+		static_assert(
+			requires { { T{}({}, {}) } -> std::same_as<bool>; },
+			"predicates must take two arguments and return a bool");
 		return get_sorter_type(&T::operator());
-	else
+	} else {
 		return get_sorter_type(T{});
+	}
 }
 
 template <class T>
