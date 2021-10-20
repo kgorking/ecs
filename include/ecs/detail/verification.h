@@ -58,7 +58,7 @@ using sorter_predicate_type_t = decltype(get_sorter_type<T>());
 // Implement the requirements for ecs::parent components
 template <typename C>
 constexpr void verify_parent_component() {
-	if constexpr (detail::is_parent<std::remove_cvref_t<C>>::value) {
+	if constexpr (detail::is_parent<C>::value) {
 		using parent_subtypes = parent_type_list_t<std::remove_cvref_t<C>>;
 		constexpr size_t total_subtypes = type_list_size<parent_subtypes>;
 
