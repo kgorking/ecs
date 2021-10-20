@@ -18,7 +18,10 @@ void run_raw(benchmark::State &state) {
 
 	auto constexpr e_p = std::conditional_t<parallel, std::execution::parallel_policy, std::execution::sequenced_policy>{};
 	for ([[maybe_unused]] auto const _ : state) {
-		std::for_each(e_p, range.begin(), range.end(), [&](ecs::entity_id ent) { benchmark_system(ent, colors[ent]); });
+		std::for_each(e_p, range.begin(), range.end(), [&](ecs::entity_id ent) {
+			auto const index = static_cast<size_t>(ent);
+			benchmark_system(ent, colors[index]);
+		});
 	}
 
 	state.SetItemsProcessed(state.iterations() * num_items);
@@ -60,7 +63,7 @@ void run_raw_hierarchy(benchmark::State &state) {
 	const size_t span_size = 8;
 	std::vector<std::span<argument>> argument_spans;
 	size_t count = 0;
-	while (count + span_size < num_entities) {
+	while (count + span_size < num_colors) {
 		auto const cluster = span_all_args.subspan(count+1, span_size-1);
 		argument_spans.push_back(cluster);
 		count += span_size;
