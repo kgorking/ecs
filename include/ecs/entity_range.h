@@ -60,8 +60,8 @@ public:
 	}
 
 	// Returns the number of entities in this range
-	[[nodiscard]] constexpr size_t count() const {
-		return static_cast<size_t>(last_ - first_ + 1);
+	[[nodiscard]] constexpr ptrdiff_t count() const {
+		return static_cast<ptrdiff_t>(last_ - first_ + 1);
 	}
 
 	// Returns true if the ranges are identical
