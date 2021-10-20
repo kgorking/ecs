@@ -53,7 +53,14 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR-")
 else()
     # lots of warnings
-    target_compile_options(ecs INTERFACE -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -Wsign-conversion ${STDLIB})
+    target_compile_options(ecs INTERFACE
+        -std=c++2a
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wshadow
+        #-Wsign-conversion
+        ${STDLIB})
     target_link_options(ecs INTERFACE -pthread)
 
     # Disable C++ exceptions.
@@ -94,9 +101,9 @@ target_link_libraries(ecs INTERFACE tls)
 
 if (ECS_STANDALONE_PROJECT)
     # Benchmark
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
-    add_subdirectory ("benchmark/gbench")
-    add_subdirectory ("benchmark")
+    #set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
+    #add_subdirectory ("benchmark/gbench")
+    #add_subdirectory ("benchmark")
 
     # Examples
     add_subdirectory ("examples/entt_example")
