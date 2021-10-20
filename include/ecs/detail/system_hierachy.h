@@ -87,7 +87,7 @@ private:
 
 						  while (!walker.done()) {
 							  entity_id const entity = walker.get_entity();
-							  uint32_t const ent_offset = conv.to_offset(entity);
+							  auto const ent_offset = static_cast<uint32_t>(conv.to_offset(entity));
 
 							  info_iterator const ent_info = fill_entity_info(info, entity, index);
 
@@ -107,7 +107,7 @@ private:
 						  }
 					  });
 
-		auto const fut = std::async(std::launch::async, [&]() {
+		auto const fut = std::async(std::launch::async, [&tls_roots, this]() {
 			// Collapse the thread_local roots maps into the first map
 			auto collection = tls_roots.gather();
 			auto const dest = collection.begin();
@@ -118,7 +118,7 @@ private:
 			}
 
 			// Create the argument spans
-			count = 0;
+			int count = 0;
 			for (auto const& [id, child_count] : *dest) {
 				argument_spans.emplace_back(arguments.data() + count, child_count);
 				count += child_count;
