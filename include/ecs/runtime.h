@@ -121,7 +121,7 @@ public:
 
 		// Get the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
-		return {pool.find_component_data(range.first()), range.count()};
+		return {pool.find_component_data(range.first()), range.ucount()};
 	}
 
 	// Returns the number of active components for a specific type of components
