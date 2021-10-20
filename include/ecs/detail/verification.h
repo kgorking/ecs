@@ -69,7 +69,6 @@ constexpr void verify_parent_component() {
 
 			// Count all the types minus filters in the parent type
 			constexpr size_t num_parent_subtypes = total_subtypes - num_subtype_filters;
-			// std::tuple_size_v<parent_types_tuple_t<std::remove_cvref_t<C>>> - num_parent_subtype_filters;
 
 			// If there is one-or-more sub-components,
 			// then the parent must be passed as a reference
