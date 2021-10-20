@@ -297,7 +297,7 @@ TEST_CASE("Hierarchies") {
 		});
 		ecs.make_system([&count_float](ecs::entity_id id, ecs::parent<float> const& p) {
 			CHECK((id >= 11 && id <= 13));
-			CHECK(p.get<float>() == 30);
+			CHECK(p.get<float>() == 30.f);
 			count_float++;
 		});
 
