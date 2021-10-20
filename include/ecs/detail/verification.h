@@ -14,17 +14,9 @@ namespace ecs::detail {
 // Given a type T, if it is callable with an entity argument,
 // resolve to the return type of the callable. Otherwise assume the type T.
 template <typename T>
-struct get_type {
-	using type = T;
-};
-
-template <std::invocable<entity_type> T>
-struct get_type<T> {
-	using type = std::invoke_result_t<T, entity_type>;
-};
-
-template <typename T>
-using get_type_t = typename get_type<T>::type;
+using get_type_t = std::conditional_t<std::invocable<T, entity_type>,
+	std::invoke_result<T, entity_type>,
+	std::type_identity<T>>;
 
 // Returns true if all types passed are unique
 template <typename First, typename... T>
@@ -40,7 +32,7 @@ constexpr bool unique_types() {
 }
 
 template <typename First, typename... T>
-constexpr static bool unique_types_v = unique_types<get_type<First>, get_type_t<T>...>();
+constexpr static bool unique_types_v = unique_types<get_type_t<First>, get_type_t<T>...>();
 
 // Ensure that any type in the parameter pack T is only present once.
 template <typename First, typename... T>
