@@ -118,10 +118,10 @@ private:
 			}
 
 			// Create the argument spans
-			int count = 0;
+			int offset = 0;
 			for (auto const& [id, child_count] : *dest) {
-				argument_spans.emplace_back(arguments.data() + count, child_count);
-				count += child_count;
+				argument_spans.emplace_back(arguments.data() + offset, child_count);
+				offset += child_count;
 			}
 
 			dest->clear();
