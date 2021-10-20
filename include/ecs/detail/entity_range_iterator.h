@@ -94,7 +94,7 @@ protected:
 		} else {
 			// The step spans more than one range
 
-			size_t remainder = static_cast<size_t>(diff - current_range_dist);
+			auto remainder = diff - current_range_dist;
 
 			// Go to the next range
 			current_range += 1;
@@ -105,9 +105,10 @@ protected:
 			}
 
 			// Find the range
-			while (remainder >= ranges[current_range].count()) {
+			auto const count = static_cast<ptrdiff_t>(ranges[current_range].count());
+			while (remainder >= count) {
 				// Update the remainder
-				remainder -= ranges[current_range].count();
+				remainder -= count;
 
 				current_range += 1;
 				if (current_range == ranges.size()) {
@@ -116,7 +117,7 @@ protected:
 			};
 
 			// Update the iterators
-			range_it = ranges[current_range].begin() + static_cast<ptrdiff_t>(remainder);
+			range_it = ranges[current_range].begin() + remainder;
 			range_end = ranges[current_range].end();
 		}
 	}
