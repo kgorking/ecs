@@ -559,8 +559,8 @@ constexpr type_hash get_type_hash() {
 	std::string_view string = __PRETTY_FUNCTION__;
 #endif
 	type_hash hash = 0xcbf29ce484222325;
-	for (auto const value : string) {
-		hash ^= value;
+	for (char const value : string) {
+		hash ^= static_cast<type_hash>(value);
 		hash *= prime;
 	}
 
@@ -742,8 +742,13 @@ public:
 	}
 
 	// Returns the number of entities in this range
-	[[nodiscard]] constexpr size_t count() const {
-		return static_cast<size_t>(last_) - first_ + 1;
+	[[nodiscard]] constexpr ptrdiff_t count() const {
+		return static_cast<ptrdiff_t>(last_ - first_ + 1);
+	}
+
+	// Returns the number of entities in this range as unsigned
+	[[nodiscard]] constexpr size_t ucount() const {
+		return static_cast<size_t>(last_ - first_ + 1);
 	}
 
 	// Returns true if the ranges are identical
@@ -765,7 +770,7 @@ public:
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
 		Expects(contains(ent));
-		return static_cast<detail::entity_offset>(ent) - first_;
+		return static_cast<detail::entity_offset>(ent - first_);
 	}
 
 	[[nodiscard]] constexpr bool can_merge(entity_range const& other) const {
@@ -1205,7 +1210,7 @@ private:
 	std::vector<entity_range> ranges;
 
 	// The offset from a range into the components
-	std::vector<size_t> offsets;
+	std::vector<ptrdiff_t> offsets;
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
@@ -1290,14 +1295,14 @@ public:
 	// Returns nullptr if the entity is not found in this pool
 	T* find_component_data(entity_id const id) {
 		auto const index = find_entity_index(id);
-		return index ? &components[index.value()] : nullptr;
+		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
 	T const* find_component_data(entity_id const id) const {
 		auto const index = find_entity_index(id);
-		return index ? &components[index.value()] : nullptr;
+		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
 	}
 
 	// Merge all the components queued for addition to the main storage,
@@ -1309,7 +1314,7 @@ public:
 
 	// Returns the number of active entities in the pool
 	size_t num_entities() const {
-		return offsets.empty() ? 0 : (offsets.back() + ranges.back().count());
+		return offsets.empty() ? 0 : static_cast<size_t>(offsets.back() + ranges.back().count());
 	}
 
 	// Returns the number of active components in the pool
@@ -1450,7 +1455,7 @@ private:
 
 	// Searches for an entitys offset in to the component pool.
 	// Returns nothing if 'ent' is not a valid entity
-	std::optional<size_t> find_entity_index(entity_id const ent) const {
+	std::optional<ptrdiff_t> find_entity_index(entity_id const ent) const {
 		if (ranges.empty() /*|| !has_entity(ent)*/) {
 			return {};
 		}
@@ -1556,7 +1561,7 @@ private:
 
 		auto const insert_range = [&](auto const it) {
 			entity_range const& range = std::get<0>(*it);
-			size_t offset = 0;
+			ptrdiff_t offset = 0;
 
 			// Copy the current ranges while looking for an insertion point
 			while (ranges_it != ranges.cend() && (*ranges_it < range)) {
@@ -1590,21 +1595,21 @@ private:
 			auto it_inits = inits.begin();
 			auto component_it = components.cbegin();
 
-			auto const insert_data = [&](size_t offset) {
+			auto const insert_data = [&](ptrdiff_t offset) {
 				// Add the new data
-				component_it += offset;
-				size_t const range_count = std::get<0>(*it_adds).count();
-				component_it = components.insert(component_it, range_count, std::move(std::get<1>(*it_adds)));
-				component_it = std::next(component_it, range_count);
+				std::advance(component_it, offset);
+				ptrdiff_t const range_count = std::get<0>(*it_adds).count();
+				component_it = components.insert(component_it, static_cast<size_t>(range_count), std::move(std::get<1>(*it_adds)));
+				std::advance(component_it, range_count);
 			};
-			auto const insert_init = [&](size_t offset) {
+			auto const insert_init = [&](ptrdiff_t offset) {
 				// Add the new data
-				component_it += offset;
+				std::advance(component_it, offset);
 				auto const& range = std::get<0>(*it_inits);
 				auto const& init = std::get<1>(*it_inits);
 				for (entity_id const ent : range) {
 					component_it = components.emplace(component_it, init(ent));
-					component_it = std::next(component_it);
+					std::advance(component_it, 1);
 				}
 			};
 
@@ -1642,8 +1647,8 @@ private:
 
 		// Calculate offsets
 		offsets.clear();
-		std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
-							[](size_t init, entity_range range) { return init + range.count(); });
+		std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), ptrdiff_t{0},
+							[](ptrdiff_t init, entity_range range) { return init + range.count(); });
 
 		// Update the state
 		set_data_added();
@@ -1697,8 +1702,8 @@ private:
 				// Find the first valid index
 				auto index = find_entity_index(removes.front().first());
 				Expects(index.has_value());
-				auto dest_it = components.begin() + index.value();
-				auto from_it = dest_it + removes.front().count();
+				auto dest_it = components.begin() + static_cast<ptrdiff_t>(index.value());
+				auto from_it = dest_it + static_cast<ptrdiff_t>(removes.front().count());
 
 				if (dest_it == components.begin() && from_it == components.end()) {
 					components.clear();
@@ -1759,8 +1764,8 @@ private:
 
 			// Calculate offsets
 			offsets.clear();
-			std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
-								[](size_t init, entity_range range) { return init + range.count(); });
+			std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), ptrdiff_t{0},
+								[](ptrdiff_t init, entity_range range) { return init + range.count(); });
 
 			// Update the state
 			set_data_removed();
@@ -2211,7 +2216,7 @@ public:
 	entity_offset_conv(entity_range_view _ranges) noexcept : ranges(_ranges) {
 		range_offsets.resize(ranges.size());
 		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), int{0},
-							[](int val, entity_range r) { return static_cast<int>(val + r.count()); });
+							[](int val, entity_range r) { return val + static_cast<int>(r.count()); });
 	}
 
 	bool contains(entity_id ent) const noexcept {
@@ -2226,13 +2231,14 @@ public:
 		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
 		Expects(it != ranges.end() && it->contains(ent)); // Expects the entity to be in the ranges
 
-		return range_offsets[std::distance(ranges.begin(), it)] + (ent - it->first());
+		auto const offset = static_cast<std::size_t>(std::distance(ranges.begin(), it));
+		return range_offsets[offset] + (ent - it->first());
 	}
 
 	entity_id from_offset(int offset) const noexcept {
 		auto const it = std::upper_bound(range_offsets.begin(), range_offsets.end(), offset);
 		auto const dist = std::distance(range_offsets.begin(), it);
-		auto const dist_prev = std::max(ptrdiff_t{0}, dist - 1);
+		auto const dist_prev = static_cast<std::size_t>(std::max(ptrdiff_t{0}, dist - 1));
 		return static_cast<entity_id>(ranges[dist_prev].first() + offset - range_offsets[dist_prev]);
 	}
 };
@@ -3000,7 +3006,7 @@ private:
 		// Count the total number of arguments
 		size_t arg_count = 0;
 		for (auto const& range : entities) {
-			arg_count += range.count();
+			arg_count += range.ucount();
 		}
 
 		// Reserve space for the arguments
@@ -3157,7 +3163,7 @@ private:
 
 		size_t count = 0;
 		for (auto const& range : ranges)
-			count += range.count();
+			count += range.ucount();
 		if constexpr (is_entity<FirstComponent>) {
 			argument arg{entity_id{0}, component_argument<Components>{0}..., entity_info{}};
 			arguments.resize(count, arg);
@@ -3167,7 +3173,7 @@ private:
 		}
 
 		// map of entity and root info
-		tls::collect<std::map<entity_type, int>, component_list> tls_roots;
+		tls::collect<std::map<entity_type, size_t>, component_list> tls_roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
@@ -3178,11 +3184,11 @@ private:
 						  walker.reset(&this->pools, entity_range_view{{range}});
 
 						  info_map info;
-						  std::map<entity_type, int>& roots = tls_roots.local();
+						  std::map<entity_type, size_t>& roots = tls_roots.local();
 
 						  while (!walker.done()) {
 							  entity_id const entity = walker.get_entity();
-							  uint32_t const ent_offset = conv.to_offset(entity);
+							  auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
 
 							  info_iterator const ent_info = fill_entity_info(info, entity, index);
 
@@ -3202,7 +3208,7 @@ private:
 						  }
 					  });
 
-		auto const fut = std::async(std::launch::async, [&]() {
+		auto const fut = std::async(std::launch::async, [&tls_roots, this]() {
 			// Collapse the thread_local roots maps into the first map
 			auto collection = tls_roots.gather();
 			auto const dest = collection.begin();
@@ -3213,10 +3219,10 @@ private:
 			}
 
 			// Create the argument spans
-			count = 0;
+			size_t offset = 0;
 			for (auto const& [id, child_count] : *dest) {
-				argument_spans.emplace_back(arguments.data() + count, child_count);
-				count += child_count;
+				argument_spans.emplace_back(arguments.data() + offset, child_count);
+				offset += child_count;
 			}
 
 			dest->clear();
@@ -3369,7 +3375,7 @@ namespace ecs::detail {
 struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
-	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, dependencies{0}, unfinished_dependencies{0} {
+	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, unfinished_dependencies{0}, dependencies{0} {
 		Expects(sys != nullptr);
 	}
 
@@ -3439,17 +3445,17 @@ private:
 	std::vector<size_t> dependants{};
 
 	// The number of systems this depends on
-	int16_t dependencies = 0;
-	std::atomic<int16_t> unfinished_dependencies = 0;
+	std::atomic<int> unfinished_dependencies = 0;
+	int dependencies = 0;
 };
 
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
 	// A group of systems with the same group id
 	struct systems_group final {
-		int id;
 		std::vector<scheduler_node> all_nodes;
 		std::vector<std::size_t> entry_nodes{};
+		int id;
 
 		// Runs the entry nodes in parallel
 		void run() {
@@ -3476,7 +3482,7 @@ protected:
 			std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) { return group_id < sg.id; });
 
 		// Insert the group and return it
-		return *groups.insert(insert_point, systems_group{id, {}, {}});
+		return *groups.insert(insert_point, systems_group{{}, {}, id});
 	}
 
 public:
@@ -3908,7 +3914,7 @@ public:
 
 		// Get the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
-		return {pool.find_component_data(range.first()), range.count()};
+		return {pool.find_component_data(range.first()), range.ucount()};
 	}
 
 	// Returns the number of active components for a specific type of components
