@@ -151,14 +151,14 @@ public:
 	// Returns nullptr if the entity is not found in this pool
 	T* find_component_data(entity_id const id) {
 		auto const index = find_entity_index(id);
-		return index ? &components[index.value()] : nullptr;
+		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
 	T const* find_component_data(entity_id const id) const {
 		auto const index = find_entity_index(id);
-		return index ? &components[index.value()] : nullptr;
+		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
 	}
 
 	// Merge all the components queued for addition to the main storage,
@@ -311,7 +311,7 @@ private:
 
 	// Searches for an entitys offset in to the component pool.
 	// Returns nothing if 'ent' is not a valid entity
-	std::optional<size_t> find_entity_index(entity_id const ent) const {
+	std::optional<ptrdiff_t> find_entity_index(entity_id const ent) const {
 		if (ranges.empty() /*|| !has_entity(ent)*/) {
 			return {};
 		}
@@ -417,7 +417,7 @@ private:
 
 		auto const insert_range = [&](auto const it) {
 			entity_range const& range = std::get<0>(*it);
-			size_t offset = 0;
+			ptrdiff_t offset = 0;
 
 			// Copy the current ranges while looking for an insertion point
 			while (ranges_it != ranges.cend() && (*ranges_it < range)) {
@@ -451,21 +451,21 @@ private:
 			auto it_inits = inits.begin();
 			auto component_it = components.cbegin();
 
-			auto const insert_data = [&](size_t offset) {
+			auto const insert_data = [&](ptrdiff_t offset) {
 				// Add the new data
 				component_it += offset;
-				size_t const range_count = std::get<0>(*it_adds).count();
+				auto const range_count = std::get<0>(*it_adds).count();
 				component_it = components.insert(component_it, range_count, std::move(std::get<1>(*it_adds)));
-				component_it = std::next(component_it, range_count);
+				std::advance(component_it, range_count);
 			};
-			auto const insert_init = [&](size_t offset) {
+			auto const insert_init = [&](ptrdiff_t offset) {
 				// Add the new data
 				component_it += offset;
 				auto const& range = std::get<0>(*it_inits);
 				auto const& init = std::get<1>(*it_inits);
 				for (entity_id const ent : range) {
 					component_it = components.emplace(component_it, init(ent));
-					component_it = std::next(component_it);
+					std::advance(component_it, 1);
 				}
 			};
 
@@ -559,7 +559,7 @@ private:
 				auto index = find_entity_index(removes.front().first());
 				Expects(index.has_value());
 				auto dest_it = components.begin() + index.value();
-				auto from_it = dest_it + removes.front().count();
+				auto from_it = dest_it + static_cast<ptrdiff_t>(removes.front().count());
 
 				if (dest_it == components.begin() && from_it == components.end()) {
 					components.clear();
