@@ -172,7 +172,7 @@ concept type_is_function = requires(T t) {
 	system_to_func_bridge{t};
 };
 
-template <typename TupleOptions, typename SystemFunc, typename SortFunc>
+template <typename OptionsTypeList, typename SystemFunc, typename SortFunc>
 consteval void make_system_parameter_verifier() {
 	bool constexpr is_lambda = type_is_lambda<SystemFunc>;
 	bool constexpr is_func = type_is_function<SystemFunc>;
