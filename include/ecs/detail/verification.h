@@ -136,31 +136,19 @@ constexpr void system_verifier() {
 
 // A small bridge to allow the Lambda to activate the system verifier
 template <class R, class C, class FirstArg, class... Args>
-struct system_to_lambda_bridge {
-	explicit constexpr system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit constexpr system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit constexpr system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit constexpr system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-};
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class C, class FirstArg, class... Args>
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class C, class FirstArg, class... Args>
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class C, class FirstArg, class... Args>
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 // A small bridge to allow the function to activate the system verifier
 template <class R, class FirstArg, class... Args>
-struct system_to_func_bridge {
-	explicit constexpr system_to_func_bridge(R (*)(FirstArg, Args...)) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit constexpr system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-};
+constexpr void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class FirstArg, class... Args>
+constexpr void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 template <typename T>
 concept type_is_lambda = requires {
@@ -169,7 +157,7 @@ concept type_is_lambda = requires {
 
 template <typename T>
 concept type_is_function = requires(T t) {
-	system_to_func_bridge{t};
+	system_to_func_bridge(t);
 };
 
 template <typename OptionsTypeList, typename SystemFunc, typename SortFunc>
@@ -181,9 +169,9 @@ constexpr void make_system_parameter_verifier() {
 
 	// verify the system function
 	if constexpr (is_lambda) {
-		(void) system_to_lambda_bridge{&SystemFunc::operator()};
+		system_to_lambda_bridge(&SystemFunc::operator());
 	} else if constexpr (is_func) {
-		(void) system_to_func_bridge{SystemFunc{}};
+		system_to_func_bridge(SystemFunc{});
 	}
 
 	// verify the sort function
