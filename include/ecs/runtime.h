@@ -186,17 +186,17 @@ public:
 	// Make a new system
 	template <typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
 	auto& make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
-		//using opts = detail::type_list<Options...>;
+		using opts = detail::type_list<Options...>;
 
 		// verify the input
-		detail::make_system_parameter_verifier<detail::type_list<Options...>, SystemFunc, SortFn>();
+		detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
 
 		if constexpr (ecs::detail::type_is_function<SystemFunc>) {
 			// Build from regular function
-			return ctx.create_system<detail::type_list<Options...>, SystemFunc, SortFn>(sys_func, sort_func, sys_func);
+			return ctx.create_system<opts, SystemFunc, SortFn>(sys_func, sort_func, sys_func);
 		} else if constexpr (ecs::detail::type_is_lambda<SystemFunc>) {
 			// Build from lambda
-			return ctx.create_system<detail::type_list<Options...>, SystemFunc, SortFn>(sys_func, sort_func, &SystemFunc::operator());
+			return ctx.create_system<opts, SystemFunc, SortFn>(sys_func, sort_func, &SystemFunc::operator());
 		} else {
 			(void)sys_func;
 			(void)sort_func;
