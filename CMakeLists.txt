@@ -24,6 +24,13 @@ if (MSVC)
         # enable lots of warnings
         /W4
 
+        # -- Dump compilation info ---
+        #/Bt                     # total time spent in frontend (d1) and backend (d2)
+        #/d1templateStats        # show info regarding template use
+        #/d1reportTimeSummary    # show frontend compile time summary
+        #/d1reportTime           # show (very) detailed frontend compile time info
+        #/d2cgsummary            # show backend compile time summary
+
         # -- Enable conversion warnings --
         /w44191     # 'operator': unsafe conversion from 'type_of_expression' to 'type_required'.
         /w44242     # 'identifier': conversion from 'type1' to 'type2', possible loss of data.
@@ -31,7 +38,6 @@ if (MSVC)
         /w44800     # Implicit conversion from 'type' to bool. Possible information loss.
         /w44826     # Conversion from 'type1' to 'type2' is sign-extended. This may cause unexpected runtime behavior.
         /w45219     # implicit conversion from 'type-1' to 'type-2', possible loss of data.
-
         #/w44388     # signed/unsigned mismatch
         #/w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
 
@@ -60,6 +66,7 @@ else()
         -Wpedantic
         -Wshadow
         #-Wsign-conversion
+        #-ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
         ${STDLIB})
     target_link_options(ecs INTERFACE -pthread)
 
