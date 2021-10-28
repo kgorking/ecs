@@ -21,15 +21,16 @@ int main() {
 	});
 
 	// Add some components
-	ecs.add_component({0, 3}, std::string{"some kind of semi large string"});
-	ecs.add_component({0, 3}, std::pmr::string{"some kind of semi large string"});
+	constexpr auto sz = "some kind of semi large string";
+	ecs.add_component({0, 3}, std::string{sz});
+	ecs.add_component({0, 3}, std::pmr::string{sz});
 	ecs.commit_changes();
 
 	// Run the two systems
 	std::cout << "Distance from std::string to string data, in bytes\n";
 	std_sys.run();
 
-	std::cout << "\n\nDistance from std::pmr::greeting to string data, in bytes\n";
+	std::cout << "\n\nDistance from std::pmr::string to string data, in bytes\n";
 	pmr_sys.run();
 
 	// The buffer is about to go out of scope, so restore the default resource
