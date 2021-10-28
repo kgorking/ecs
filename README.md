@@ -463,6 +463,7 @@ ecs.make_system([](frame_data& fd) {
 
 # PMR Allocator support[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/j1ooeWKrb)
 TODO: incomplete. See [pmr_allocator_support](https://github.com/kgorking/ecs/blob/master/examples/pmr_allocator_support/pmr_allocator_support.cpp) and [pmr_custom_component](https://github.com/kgorking/ecs/blob/master/examples/pmr_custom_component/pmr_custom_component.cpp) for usage examples.
+TODO: I will probably need to write a replacement container for std::pmr::vector to truly take advantage of data interleaving.
 
 Polymorphic memory resources are used internally for component storage, so components can also take advantage of this.
 
