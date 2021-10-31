@@ -68,6 +68,24 @@ void component_add_half_back(benchmark::State& state) {
 }
 ECS_BENCHMARK(component_add_half_back);
 
+// This is currently the worst case scenario. Every commit will move all other components as well.
+void component_insert_worst_case(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	constexpr int block_size = 256;
+
+	for ([[maybe_unused]] auto const _ : state) {
+		ecs::runtime ecs;
+
+        for (auto i = nentities; i >= 0; i -= block_size) {
+			ecs.add_component({i - block_size + 1, i}, test_component);
+			ecs.commit_changes();
+		}
+	}
+
+	state.SetItemsProcessed(state.iterations() * nentities);
+}
+ECS_BENCHMARK(component_insert_worst_case);
+
 void component_remove_all(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
