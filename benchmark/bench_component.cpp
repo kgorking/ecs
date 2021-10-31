@@ -4,13 +4,15 @@
 
 #include "global.h"
 
+auto const test_component = std::string{"some large string to bypass sso"};
+
 void component_generate(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, [](ecs::entity_id id) { return static_cast<size_t>(id); });
+        ecs.add_component({0, nentities}, [](ecs::entity_id id) { return test_component + std::to_string(id); });
         ecs.commit_changes();
     }
 
@@ -24,7 +26,7 @@ void component_add(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, size_t{});
+        ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
     }
 
@@ -38,10 +40,10 @@ void component_add_half_front(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({nentities / 2 + 1, nentities}, size_t{});
+        ecs.add_component({nentities / 2 + 1, nentities}, test_component);
         ecs.commit_changes();
 
-        ecs.add_component({0, nentities / 2}, size_t{});
+        ecs.add_component({0, nentities / 2}, test_component);
         ecs.commit_changes();
     }
 
@@ -55,10 +57,10 @@ void component_add_half_back(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities / 2}, size_t{});
+        ecs.add_component({0, nentities / 2}, test_component);
         ecs.commit_changes();
 
-        ecs.add_component({nentities / 2 + 1, nentities}, size_t{});
+        ecs.add_component({nentities / 2 + 1, nentities}, test_component);
         ecs.commit_changes();
     }
 
@@ -72,10 +74,10 @@ void component_remove_all(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, int{});
+        ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
 
-        ecs.remove_component<int>({0, nentities});
+        ecs.remove_component<std::string>({0, nentities});
         ecs.commit_changes();
     }
 
@@ -89,10 +91,10 @@ void component_remove_half_front(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, int{});
+        ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
 
-        ecs.remove_component<int>({0, nentities / 2});
+        ecs.remove_component<std::string>({0, nentities / 2});
         ecs.commit_changes();
     }
 
@@ -106,10 +108,10 @@ void component_remove_half_back(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, int{});
+        ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
 
-        ecs.remove_component<int>({nentities / 2 + 1, nentities});
+        ecs.remove_component<std::string>({nentities / 2 + 1, nentities});
         ecs.commit_changes();
     }
 
@@ -123,10 +125,10 @@ void component_remove_half_middle(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, int{});
+        ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
 
-        ecs.remove_component<int>({nentities / 4, nentities - nentities / 4});
+        ecs.remove_component<std::string>({nentities / 4, nentities - nentities / 4});
         ecs.commit_changes();
     }
 
@@ -148,7 +150,7 @@ void component_randomized_add(benchmark::State& state) {
         ecs::runtime ecs;
 
         for (auto id : ids) {
-            ecs.add_component(id, int{});
+			ecs.add_component(id, test_component);
         }
         ecs.commit_changes();
     }
@@ -171,12 +173,12 @@ void component_randomized_remove(benchmark::State& state) {
         ecs::runtime ecs;
 
         state.PauseTiming();
-        ecs.add_component({0, nentities-1}, int{});
+		ecs.add_component({0, nentities - 1}, test_component);
         ecs.commit_changes();
         state.ResumeTiming();
 
         for (auto id : ids) {
-            ecs.remove_component<int>(id);
+            ecs.remove_component<std::string>(id);
         }
         ecs.commit_changes();
     }
