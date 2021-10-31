@@ -59,6 +59,19 @@ class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
+	struct T0 {
+		entity_range range;
+		std::unique_ptr<T[]> data;
+	};
+	struct T1 {
+		entity_range range;
+		std::pmr::vector<T> data;
+	};
+	struct T2 {
+		entity_range range;
+		std::pmr::vector<T> data;
+	};
+
 	// The components
 	std::pmr::vector<T> components;
 
