@@ -62,17 +62,18 @@ class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
+	using time_point = std::chrono::time_point<std::chrono::steady_clock>;
+	static constexpr std::chrono::seconds t2_time_to_upgrade{5};
+	static constexpr std::chrono::seconds t1_time_to_upgrade{15};
+
 	struct T0 {
 		entity_range range;
-		std::unique_ptr<T[]> data;
-	};
-	struct T1 {
-		entity_range range;
-		std::pmr::vector<T> data;
+		T* data;
 	};
 	struct T2 {
 		entity_range range;
-		std::pmr::vector<T> data;
+		T* data;
+		time_point last_modified; // modified here means insertion/deletion
 	};
 
 	// The components
