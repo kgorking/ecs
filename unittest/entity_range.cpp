@@ -361,7 +361,7 @@ TEST_CASE("entity_range ", "[entity]") {
 					return false;
 				}
 			};
-			combine_erase(input, merger);
+			ecs::detail::combine_erase(input, merger);
 			CHECK(input == expected);
 		};
 
