@@ -146,6 +146,17 @@ public:
 		}
 	}
 
+	// Add a component to a range of entity.
+	// Pre: entities has not already been added, or is in queue to be added
+	//      This condition will not be checked until 'process_changes' is called.
+	void add(entity_range const range, T const& component) {
+		if constexpr (tagged<T>) {
+			deferred_adds.local().push_back(range);
+		} else {
+			deferred_adds.local().emplace_back(range, component);
+		}
+	}
+
 	// Return the shared component
 	T& get_shared_component() requires unbound<T> {
 		static T t{};
