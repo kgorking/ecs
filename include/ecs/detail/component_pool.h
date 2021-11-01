@@ -381,7 +381,7 @@ private:
 				auto& [a_rng, a_data] = a;
 				auto const& [b_rng, b_data] = b;
 
-				if (a_rng.can_merge(b_rng) && 0 == memcmp(&a_data, &b_data, sizeof(T))) {
+				if (a_rng.adjacent(b_rng) && 0 == memcmp(&a_data, &b_data, sizeof(T))) {
 					a_rng = entity_range::merge(a_rng, b_rng);
 					return true;
 				} else {
@@ -401,7 +401,7 @@ private:
                     auto const b_func = std::get<1>(b);
 #endif
 
-				if (a_rng.can_merge(b_rng) && (a_func.template target<T(entity_id)>() == b_func.template target<T(entity_id)>())) {
+				if (a_rng.adjacent(b_rng) && (a_func.template target<T(entity_id)>() == b_func.template target<T(entity_id)>())) {
 					a_rng = entity_range::merge(a_rng, b_rng);
 					return true;
 				} else {
@@ -413,7 +413,7 @@ private:
 				auto& [a_rng] = a;
 				auto const& [b_rng] = b;
 
-				if (a_rng.can_merge(b_rng)) {
+				if (a_rng.adjacent(b_rng)) {
 					a_rng = entity_range::merge(a_rng, b_rng);
 					return true;
 				} else {
@@ -449,7 +449,7 @@ private:
 				Expects(false == ranges_it->overlaps(range));
 
 			// Add or merge the new range
-			if (!new_ranges.empty() && new_ranges.back().can_merge(range)) {
+			if (!new_ranges.empty() && new_ranges.back().adjacent(range)) {
 				// Merge the new range with the last one in the vector
 				new_ranges.back() = ecs::entity_range::merge(new_ranges.back(), range);
 			} else {
@@ -558,7 +558,7 @@ private:
 
 			// Merge adjacent ranges
 			auto const combiner = [](auto& a, auto const& b) {
-				if (a.can_merge(b)) {
+				if (a.adjacent(b)) {
 					a = entity_range::merge(a, b);
 					return true;
 				} else {

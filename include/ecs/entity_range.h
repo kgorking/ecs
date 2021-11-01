@@ -84,15 +84,16 @@ public:
 		return range.first() >= first_ && range.last() <= last_;
 	}
 
+	// Returns true if the ranges are adjacent to each other
+	[[nodiscard]] constexpr bool adjacent(entity_range const& range) const {
+		return first_ - 1 == range.last() || last_ + 1 == range.first();
+	}
+
 	// Returns the offset of an entity into this range
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
 		Expects(contains(ent));
 		return static_cast<detail::entity_offset>(ent - first_);
-	}
-
-	[[nodiscard]] constexpr bool can_merge(entity_range const& other) const {
-		return last_ + 1 == other.first();
 	}
 
 	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
@@ -133,8 +134,11 @@ public:
 	// Combines two ranges into one
 	// Pre: r1 and r2 must be adjacent ranges, r1 < r2
 	[[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
-		Expects(r1.can_merge(r2));
-		return entity_range{r1.first(), r2.last()};
+		Expects(r1.adjacent(r2));
+		if (r1 < r2)
+			return entity_range{r1.first(), r2.last()};
+		else
+			return entity_range{r2.first(), r1.last()};
 	}
 
 	// Returns the intersection of two ranges
