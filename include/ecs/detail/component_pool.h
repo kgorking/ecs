@@ -62,21 +62,33 @@ class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
-	using time_point = std::chrono::time_point<std::chrono::steady_clock>;
-	static constexpr std::chrono::seconds t2_time_to_upgrade{5};
-	static constexpr std::chrono::seconds t1_time_to_upgrade{15};
+	using clock = std::chrono::steady_clock;
+	using time_point = std::chrono::time_point<clock>;
 
-	struct T0 {
+	struct Tier0 {
 		entity_range range;
 		T* data;
 	};
-	struct T2 {
+	struct Tier1 { // default
+		static constexpr std::chrono::seconds time_to_upgrade{45};
+
 		entity_range range;
 		T* data;
-		time_point last_modified; // modified here means insertion/deletion
+		time_point last_modified; // modified here means back/front insertion/deletion
+	};
+	struct Tier2 {
+		static constexpr std::chrono::seconds time_to_upgrade{15};
+
+		entity_range range;
+		T* data;
+		uint16_t* skips;
+		time_point last_modified;
 	};
 
 	// The components
+	std::vector<Tier0> t0;
+	std::vector<Tier1> t1;
+	std::vector<Tier2> t2;
 	std::pmr::vector<T> components;
 
 	// The entities that have components in this storage.
