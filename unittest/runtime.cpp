@@ -37,8 +37,8 @@ TEST_CASE("The runtime interface") {
 			ecs.commit_changes();
 
 			CHECK(runtime_ctr_counter::def_ctr_count == 1);
-			CHECK(runtime_ctr_counter::move_count == 2);
-			CHECK(runtime_ctr_counter::dtr_count == 1 + 2);
+			CHECK(runtime_ctr_counter::move_count == 1);
+			CHECK(runtime_ctr_counter::dtr_count == 2);
 			CHECK(runtime_ctr_counter::copy_count == 10);
 		}
 		CHECK(runtime_ctr_counter::dtr_count == 1 + 2 + 10);

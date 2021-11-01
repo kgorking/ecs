@@ -67,20 +67,20 @@ private:
 
 	struct Tier0 {
 		entity_range range;
-		T* data;
+		std::vector<T> data;
 	};
 	struct Tier1 { // default
 		static constexpr std::chrono::seconds time_to_upgrade{45};
 
 		entity_range range;
-		T* data;
+		std::vector<T> data;
 		time_point last_modified; // modified here means back/front insertion/deletion
 	};
 	struct Tier2 {
 		static constexpr std::chrono::seconds time_to_upgrade{15};
 
 		entity_range range;
-		T* data;
+		std::vector<T> data;
 		uint16_t* skips;
 		time_point last_modified;
 	};
@@ -99,10 +99,9 @@ private:
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_init =
-		std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
+	using entity_init = std::tuple<entity_range, std::function<const T(entity_id)>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
+	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_inits;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 	// Status flags
@@ -144,7 +143,7 @@ public:
 	template <typename Fn>
 	void add_init(entity_range const range, Fn&& init) {
 		// Add the range and function to a temp storage
-		deferred_init_adds.local().emplace_back(range, std::forward<Fn>(init));
+		deferred_inits.local().emplace_back(range, std::forward<Fn>(init));
 	}
 
 	// Add a component to a range of entity.
@@ -324,9 +323,9 @@ public:
 		ranges.clear();
 		offsets.clear();
 		components.clear();
-		deferred_adds.clear();
-		deferred_init_adds.clear();
-		deferred_removes.clear();
+		deferred_adds.reset();
+		deferred_inits.reset();
+		deferred_removes.reset();
 		clear_flags();
 
 		// Save the removal state
@@ -365,186 +364,48 @@ private:
 		return *range_offset + it->offset(ent);
 	}
 
+	// Check the 'add*' functions precondition.
+	// An entity can not have more than one of the same component
+	static bool has_duplicate_entities(auto const& vec) {
+		return vec.end() != std::adjacent_find(vec.begin(), vec.end(),
+												[](auto const& l, auto const& r) { return std::get<0>(l) == std::get<0>(r); });
+	};
+
 	// Add new queued entities and components to the main storage
 	void process_add_components() {
-		// Combine the components in to a single vector
-		auto collection = deferred_adds.gather();
-		std::vector<entity_data> adds;
-		for (auto& vec : collection) {
-			std::move(vec.begin(), vec.end(), std::back_inserter(adds));
-		}
-
-		auto collection_inits = deferred_init_adds.gather();
-		std::vector<entity_init> inits;
-		for (auto& vec : collection_inits) {
-			std::move(vec.begin(), vec.end(), std::back_inserter(inits));
-		}
-
-		if (adds.empty() && inits.empty()) {
-			return;
-		}
-
-		// Clear the current adds
-		deferred_adds.clear();
-		deferred_init_adds.clear();
-
-		// Sort the input
-		auto constexpr comparator = [](auto const& l, auto const& r) { return std::get<0>(l).first() < std::get<0>(r).first(); };
-		std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
-		std::sort(std::execution::par, inits.begin(), inits.end(), comparator);
-
-		// Check the 'add*' functions precondition.
-		// An entity can not have more than one of the same component
-		auto const has_duplicate_entities = [](auto const& vec) {
-			return vec.end() != std::adjacent_find(vec.begin(), vec.end(),
-												   [](auto const& l, auto const& r) { return std::get<0>(l) == std::get<0>(r); });
-		};
-		Expects(false == has_duplicate_entities(adds));
-
-		// Merge adjacent ranges
-		if constexpr (!detail::unbound<T>) { // contains data
-			combine_erase(adds, [](entity_data& a, entity_data const& b) {
-				auto& [a_rng, a_data] = a;
-				auto const& [b_rng, b_data] = b;
-
-				if (a_rng.adjacent(b_rng) && 0 == memcmp(&a_data, &b_data, sizeof(T))) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
+		// Move new components into the pool
+		deferred_adds.for_each([this](std::vector<entity_data>& vec) {
+			for (entity_data& data : vec) {
+				entity_range r = std::get<0>(data);
+				if constexpr (detail::unbound<T>) { // uses shared component
+					t0.emplace_back(r, std::vector<T>{});
 				} else {
-					return false;
+					t0.emplace_back(r, std::vector<T>(r.ucount(), std::get<1>(data)));
 				}
-			});
-			combine_erase(inits, [](entity_init& a, entity_init const& b) {
-				auto a_rng = std::get<0>(a);
-				auto const b_rng = std::get<0>(b);
-
-#if defined(__clang__) && defined(_MSVC_STL_VERSION)
-				// Clang with ms-stl fails if these are const
-				auto a_func = std::get<1>(a);
-				auto b_func = std::get<1>(b);
-#else
-                    auto const a_func = std::get<1>(a);
-                    auto const b_func = std::get<1>(b);
-#endif
-
-				if (a_rng.adjacent(b_rng) && (a_func.template target<T(entity_id)>() == b_func.template target<T(entity_id)>())) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			});
-		} else {											   // does not contain data
-			auto const combiner = [](auto& a, auto const& b) { // entity_data/entity_init
-				auto& [a_rng] = a;
-				auto const& [b_rng] = b;
-
-				if (a_rng.adjacent(b_rng)) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			};
-			combine_erase(adds, combiner);
-			combine_erase(inits, combiner);
-		}
-
-		// Add the new entities/components
-		std::vector<entity_range> new_ranges;
-		auto it_adds = adds.begin();
-		auto ranges_it = ranges.cbegin();
-
-		auto const insert_range = [&](auto const it) {
-			entity_range const& range = std::get<0>(*it);
-			ptrdiff_t offset = 0;
-
-			// Copy the current ranges while looking for an insertion point
-			while (ranges_it != ranges.cend() && (*ranges_it < range)) {
-				if constexpr (!unbound<T>) {
-					// Advance the component offset so it will point
-					// to the correct components when inserting
-					offset += ranges_it->count();
-				}
-
-				new_ranges.push_back(*ranges_it++);
 			}
-
-			// New range must not already exist in the pool
-			if (ranges_it != ranges.cend())
-				Expects(false == ranges_it->overlaps(range));
-
-			// Add or merge the new range
-			if (!new_ranges.empty() && new_ranges.back().adjacent(range)) {
-				// Merge the new range with the last one in the vector
-				new_ranges.back() = ecs::entity_range::merge(new_ranges.back(), range);
-			} else {
-				// Add the new range
-				new_ranges.push_back(range);
-			}
-
-			// return the offset
-			return offset;
-		};
+			vec.clear();
+		});
 
 		if constexpr (!detail::unbound<T>) {
-			auto it_inits = inits.begin();
-			auto component_it = components.cbegin();
+			deferred_inits.for_each([this](std::vector<entity_init>& vec) {
+				for (entity_init& init : vec) {
+					entity_range r = std::get<0>(init);
+					auto const Fn = std::move(std::get<1>(init)); // move, in case it has state
 
-			auto const insert_data = [&](ptrdiff_t offset) {
-				// Add the new data
-				std::advance(component_it, offset);
-				ptrdiff_t const range_count = std::get<0>(*it_adds).count();
-				component_it = components.insert(component_it, static_cast<size_t>(range_count), std::move(std::get<1>(*it_adds)));
-				std::advance(component_it, range_count);
-			};
-			auto const insert_init = [&](ptrdiff_t offset) {
-				// Add the new data
-				std::advance(component_it, offset);
-				auto const& range = std::get<0>(*it_inits);
-				auto const& init = std::get<1>(*it_inits);
-				for (entity_id const ent : range) {
-					component_it = components.emplace(component_it, init(ent));
-					std::advance(component_it, 1);
+					std::vector<T> components;
+					components.reserve(r.ucount());
+					for (auto n = r.first(); n <= r.last(); ++n) {
+						components.emplace_back(Fn(n));
+					}
+
+					t0.emplace_back(r, std::move(components));
 				}
-			};
-
-			while (it_adds != adds.end() && it_inits != inits.end()) {
-				if (std::get<0>(*it_adds) < std::get<0>(*it_inits)) {
-					insert_data(insert_range(it_adds));
-					++it_adds;
-				} else {
-					insert_init(insert_range(it_inits));
-					++it_inits;
-				}
-			}
-
-			while (it_adds != adds.end()) {
-				insert_data(insert_range(it_adds));
-				++it_adds;
-			}
-			while (it_inits != inits.end()) {
-				insert_init(insert_range(it_inits));
-				++it_inits;
-			}
-		} else {
-			// If there is no data, the ranges are always added to 'deferred_adds'
-			while (it_adds != adds.end()) {
-				insert_range(it_adds);
-				++it_adds;
-			}
+				vec.clear();
+			});
 		}
 
-		// Move the remaining ranges
-		std::move(ranges_it, ranges.cend(), std::back_inserter(new_ranges));
-
-		// Store the new ranges
-		ranges = std::move(new_ranges);
-
-		// Calculate offsets
-		offsets.clear();
-		std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), ptrdiff_t{0},
-							[](ptrdiff_t init, entity_range range) { return init + range.count(); });
+		// Sort it
+		std::ranges::sort(t0, std::less{}, &Tier0::range);
 
 		// Update the state
 		set_data_added();
@@ -572,7 +433,7 @@ private:
 			}
 
 			// Clear the current removes
-			deferred_removes.clear();
+			//deferred_removes.clear();
 
 			// Sort it if needed
 			if (!std::is_sorted(removes.begin(), removes.end()))
