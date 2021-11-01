@@ -354,7 +354,7 @@ TEST_CASE("entity_range ", "[entity]") {
 	SECTION("merging ranges") {
 		auto constexpr tester = [](std::vector<ecs::entity_range> input, std::vector<ecs::entity_range> const expected) {
 			auto constexpr merger = [](ecs::entity_range& a, ecs::entity_range const& b) {
-				if (a.can_merge(b)) {
+				if (a.adjacent(b)) {
 					a = ecs::entity_range::merge(a, b);
 					return true;
 				} else {
@@ -367,6 +367,9 @@ TEST_CASE("entity_range ", "[entity]") {
 
 		// should combine to two entries {0, 3} {5, 8}
 		tester({{0, 1}, {2, 3}, {5, 6}, {7, 8}}, {{0, 3}, {5, 8}});
+
+		// reversed. should still combine to two entries {0, 3} {5, 8}
+		tester({{7, 8}, {5, 6}, {2, 3}, {0, 1}}, {{5, 8}, {0, 3}});
 
 		// should combine to single entry {0, 8}
 		tester({{0, 1}, {2, 3}, {4, 6}, {7, 8}}, {{0, 8}});

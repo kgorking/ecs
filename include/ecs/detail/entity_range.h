@@ -37,7 +37,7 @@ inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, enti
 
 // Merges a range into the last range in the vector, or adds a new range
 inline void merge_or_add(std::vector<entity_range>& v, entity_range r) {
-	if (!v.empty() && v.back().can_merge(r))
+	if (!v.empty() && v.back().adjacent(r))
 		v.back() = entity_range::merge(v.back(), r);
 	else
 		v.push_back(r);
