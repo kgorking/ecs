@@ -73,7 +73,6 @@ private:
 		}
 
 		// map of entity and root info
-		using _unused_collector_differentiator = component_list;
 		std::map<entity_type, size_t> roots;
 
 		// Build the arguments for the ranges
