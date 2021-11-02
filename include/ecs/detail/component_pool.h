@@ -298,9 +298,9 @@ public:
 		ranges.clear();
 		offsets.clear();
 		components.clear();
-		deferred_adds.clear();
-		deferred_init_adds.clear();
-		deferred_removes.clear();
+		deferred_adds.reset();
+		deferred_init_adds.reset();
+		deferred_removes.reset();
 		clear_flags();
 
 		// Save the removal state
@@ -359,8 +359,8 @@ private:
 		}
 
 		// Clear the current adds
-		deferred_adds.clear();
-		deferred_init_adds.clear();
+		deferred_adds.reset();
+		deferred_init_adds.reset();
 
 		// Sort the input
 		auto constexpr comparator = [](auto const& l, auto const& r) { return std::get<0>(l).first() < std::get<0>(r).first(); };
@@ -546,7 +546,7 @@ private:
 			}
 
 			// Clear the current removes
-			deferred_removes.clear();
+			deferred_removes.reset();
 
 			// Sort it if needed
 			if (!std::is_sorted(removes.begin(), removes.end()))
