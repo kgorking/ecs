@@ -81,7 +81,7 @@ private:
 		static constexpr std::chrono::seconds time_to_upgrade{15};
 
 		entity_range range;
-		std::vector<uint16_t> skips;
+		std::vector<size_t> skips;
 		std::vector<T> data;
 		time_point last_modified;
 	};
@@ -273,7 +273,7 @@ public:
 		for (Tier1 const& t : t1)
 			count += t.active.ucount();
 		for (Tier2 const& t : t2)
-			for (uint16_t skip : t.skips)
+			for (auto skip : t.skips)
 				count += (skip == 0);
 		return count;
 	}
@@ -354,7 +354,7 @@ public:
 				auto const offset_start = it->range.offset(range.first());
 				auto const offset_end = it->range.offset(range.first());
 
-				auto const tester = [](uint16_t skip) {
+				auto const tester = [](auto skip) {
 					return skip == 0;
 				};
 
@@ -511,25 +511,30 @@ private:
 		std::vector<entity_range> vec;
 		deferred_removes.gather_flattened(std::back_inserter(vec));
 
+		// Update the state
+		if (vec.empty())
+			set_data_removed();
+
 		// Sort the ranges
 		std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
 
 		// Remove tier 0 ranges, or downgrade them to tier 1 or 2
-		process_remove_components_tier0(vec);
+		if (!t0.empty()) {
+			process_remove_components_tier0(vec);
+			std::ranges::sort(t0, std::less{}, &Tier0::range);
+		}
 
 		// Remove tier 1 ranges, or downgrade them to tier 2
-		process_remove_components_tier1(vec);
+		if (!t1.empty()) {
+			process_remove_components_tier1(vec);
+			std::ranges::sort(t1, std::less{}, &Tier1::range);
+		}
 
 		// Remove tier 2 ranges
-		process_remove_components_tier2(vec);
-
-		// Sort the tiers
-		//std::ranges::sort(t0, std::ranges::less{}, &Tier0::range);
-		//std::ranges::sort(t1, std::ranges::less{}, &Tier1::range);
-		//std::ranges::sort(t2, std::ranges::less{}, &Tier2::range);
-
-		// Update the state
-		set_data_removed();
+		if (!t2.empty()) {
+			process_remove_components_tier2(vec);
+			std::ranges::sort(t2, std::less{}, &Tier2::range);
+		}
 	}
 
 	void process_remove_components_tier0(std::vector<entity_range>& removes) {
@@ -551,10 +556,10 @@ private:
 					
 					// If two ranges were returned, downgrade to tier 2
 					if (maybe_split_range.has_value()) {
-						t2.push_back(downgrade_to_t2(std::move(*it_t0), left_range, maybe_split_range.value()));
+						t2.push_back(downgrade_t0_to_t2(std::move(*it_t0), left_range, maybe_split_range.value()));
 					} else {
 						// downgrade to tier 1 with a partial range
-						t1.push_back(downgrade_to_t1(std::move(*it_t0), left_range));
+						t1.push_back(downgrade_t0_to_t1(std::move(*it_t0), left_range));
 					}
 				}
 
@@ -584,7 +589,7 @@ private:
 					
 					// If two ranges were returned, downgrade to tier 2
 					if (maybe_split_range.has_value()) {
-						t2.push_back(downgrade_to_t2(std::move(*it_t1), left_range, maybe_split_range.value()));
+						t2.push_back(downgrade_t1_to_t2(std::move(*it_t1), left_range, maybe_split_range.value()));
 						it_t1 = t1.erase(it_t1);
 					} else {
 						// adjust the active range
@@ -632,7 +637,7 @@ private:
 					}
 
 					// If whole range is skipped, just erase it
-					if (it_t2->skips[0] == it_t2->range.count())
+					if (it_t2->skips[0] == it_t2->range.ucount())
 						it_t2 = t2.erase(it_t2);
 				}
 
@@ -650,33 +655,49 @@ private:
 		set_data_removed();
 	}
 
-	Tier1 downgrade_to_t1(Tier0 tier0, entity_range new_range) {
+	Tier1 downgrade_t0_to_t1(Tier0 tier0, entity_range new_range) {
 		return Tier1{tier0.range, new_range, std::move(tier0.data), clock::now()};
 	}
 
-	Tier2 downgrade_to_t2(Tier0 tier0, entity_range r1, entity_range r2) {
-		Tier2 tier2{tier0.range, std::vector<uint16_t>(tier0.data.size(), uint16_t{0}), std::move(tier0.data), clock::now()};
+	Tier2 downgrade_t0_to_t2(Tier0 tier0, entity_range r1, entity_range r2) {
+		Tier2 tier2{tier0.range, std::vector<size_t>(tier0.data.size(), size_t{0}), std::move(tier0.data), clock::now()};
 
-		// set up skips
-		tier2.skips[0] = tier0.range.first() < r1.first();
-		for (size_t i = 1; i < tier0.range.ucount(); ++i) {
-			auto entity = static_cast<entity_type>(tier0.range.first() + i);
+		//     r1   r2
+		// ---***---**--- tier0.range
+		//  1     2    3
 
-			if (!r1.contains(entity) && !r2.contains(entity)) {
-				tier2.skips[i] = 1;
-				auto j = i - 1;
-				while (tier2.skips[j] > 0) {
-					tier2.skips[j] += 1;
-					j -= 1;
-				}
-			}
+		// part 1
+		auto count = r1.first() - tier0.range.first();
+		auto it = tier2.skips.begin();
+		while (count > 0) {
+			*it = count;
+			++it;
+			--count;
+		}
+
+		// part 2
+		count = r2.first() - r1.last() - 1;
+		it = tier2.skips.begin() + r1.last() + 1;
+		while (count > 0) {
+			*it = count;
+			++it;
+			--count;
+		}
+
+		// part 3
+		count = tier0.range.last() - r2.last();
+		it = tier2.skips.begin() + r2.last() + 1;
+		while (count > 0) {
+			*it = count;
+			++it;
+			--count;
 		}
 
 		return tier2;
 	}
 
-	Tier2 downgrade_to_t2(Tier1 tier1, entity_range r1, entity_range r2) {
-		Tier2 tier2{tier1.range, std::vector<uint16_t>(tier1.data.size(), uint16_t{0}), std::move(tier1.data), clock::now()};
+	Tier2 downgrade_t1_to_t2(Tier1 tier1, entity_range r1, entity_range r2) {
+		Tier2 tier2{tier1.range, std::vector<size_t>(tier1.data.size(), size_t{0}), std::move(tier1.data), clock::now()};
 
 		// set up skips
 		tier2.skips[0] = tier1.range.first() < r1.first();
