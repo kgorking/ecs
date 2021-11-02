@@ -104,6 +104,14 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 		}
 	}
 
+	while (it_a != view_a.end()) {
+		merge_or_add(result, *it_a);
+		++it_a;
+	}
+	while (it_b != view_b.end()) {
+		merge_or_add(result, *it_b);
+		++it_b;
+	}
 	return result;
 }
 } // namespace ecs::detail
