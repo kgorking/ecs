@@ -41,7 +41,7 @@ TEST_CASE("The runtime interface") {
 			CHECK(runtime_ctr_counter::dtr_count == 2);
 			CHECK(runtime_ctr_counter::copy_count == 10);
 		}
-		CHECK(runtime_ctr_counter::dtr_count == 1 + 2 + 10);
+		CHECK(runtime_ctr_counter::dtr_count == 2 + 10);
 	}
 
 	SECTION("Allocates storage as needed") {

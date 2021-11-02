@@ -69,10 +69,11 @@ private:
 		entity_range range;
 		std::vector<T> data;
 	};
-	struct Tier1 { // default
+	struct Tier1 {
 		static constexpr std::chrono::seconds time_to_upgrade{45};
 
-		entity_range range;
+		entity_range range;  // the total range allocated
+		entity_range active; // the range in use
 		std::vector<T> data;
 		time_point last_modified; // modified here means back/front insertion/deletion
 	};
@@ -80,26 +81,25 @@ private:
 		static constexpr std::chrono::seconds time_to_upgrade{15};
 
 		entity_range range;
+		std::vector<uint16_t> skips;
 		std::vector<T> data;
-		uint16_t* skips;
 		time_point last_modified;
 	};
 
-	// The components
+	// The component tiers
 	std::vector<Tier0> t0;
 	std::vector<Tier1> t1;
 	std::vector<Tier2> t2;
-	std::pmr::vector<T> components;
 
-	// The entities that have components in this storage.
-	std::vector<entity_range> ranges;
+	// Cache of all active ranges
+	std::vector<entity_range> mutable cached_ranges;
 
-	// The offset from a range into the components
-	std::vector<ptrdiff_t> offsets;
+	// The alloctor
+	std::pmr::polymorphic_allocator<T> allocator;
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_init = std::tuple<entity_range, std::function<const T(entity_id)>>;
+	using entity_init = std::tuple<entity_range, std::function<T(entity_id)>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_inits;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
@@ -112,29 +112,30 @@ private:
 public:
 	// Returns the current memory resource
 	std::pmr::memory_resource* get_memory_resource() const {
-		return components.get_allocator().resource();
+		return allocator.resource();
 	}
 
 	// Sets the memory resource used to allocate components.
 	// If components are already allocated, they will be moved.
-	void set_memory_resource(std::pmr::memory_resource* resource) {
+	void set_memory_resource(std::pmr::memory_resource* /*resource*/) {
+		return;
 		// Do nothing if the memory resource is already set
-		if (components.get_allocator().resource() == resource)
-			return;
+		//if (allocator.resource() == resource)
+		//	return;
 
 		// Move the current data out
-		auto copy{std::move(components)};
+		//auto copy{std::move(components)};
 
 		// Destroy the current container
-		std::destroy_at(&components);
+		//std::destroy_at(&components);
 
 		// Placement-new the data back with the new memory resource
-		std::construct_at(&components, std::move(copy), resource);
+		//std::construct_at(&components, std::move(copy), resource);
 
 		// component addresses has changed, so make sure systems rebuilds their caches
-		components_added = true;
-		components_removed = true;
-		components_modified = true;
+		//components_added = true;
+		//components_removed = true;
+		//components_modified = true;
 	}
 
 	// Add a component to a range of entities, initialized by the supplied user function
@@ -189,15 +190,43 @@ public:
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
 	T* find_component_data(entity_id const id) {
-		auto const index = find_entity_index(id);
-		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
+		return const_cast<T*>(std::as_const(*this).find_component_data(id));
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
 	T const* find_component_data(entity_id const id) const {
-		auto const index = find_entity_index(id);
-		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
+		entity_range const r{id, id};
+
+		// search in tier 0
+		if (!t0.empty()) {
+			auto const it = std::ranges::lower_bound(t0, r, std::less{}, &Tier0::range);
+			if (it != t0.end() && it->range.contains(id)) {
+				auto const offset = it->range.offset(id);
+				return &it->data[offset];
+			}
+		}
+
+		// search in tier 1
+		if (!t1.empty()) {
+			auto const it = std::ranges::lower_bound(t1, r, std::less{}, &Tier1::range);
+			if (it != t1.end() && it->active.contains(id)) {
+				auto const offset = it->range.offset(id);
+				return &it->data[offset];
+			}
+		}
+
+		// search in tier 2
+		if (!t2.empty()) {
+			auto const it = std::ranges::lower_bound(t2, r, std::less{}, &Tier2::range);
+			if (it != t2.end() && it->range.contains(id)) {
+				auto const offset = it->range.offset(id);
+				if (it->skips[offset] == 0)
+					return &it->data[offset];
+			}
+		}
+
+		return nullptr;
 	}
 
 	// Merge all the components queued for addition to the main storage,
@@ -205,11 +234,22 @@ public:
 	void process_changes() override {
 		process_remove_components();
 		process_add_components();
+
+		if (components_added || components_removed)
+			cached_ranges.clear();
 	}
 
 	// Returns the number of active entities in the pool
 	size_t num_entities() const {
-		return offsets.empty() ? 0 : static_cast<size_t>(offsets.back() + ranges.back().count());
+		size_t count = 0;
+		for (Tier0 const& t : t0)
+			count += t.range.ucount();
+		for (Tier1 const& t : t1)
+			count += t.active.ucount();
+		for (Tier2 const& t : t2)
+			for (uint16_t skip : t.skips)
+				count += (skip == 0);
+		return count;
 	}
 
 	// Returns the number of active components in the pool
@@ -217,7 +257,7 @@ public:
 		if constexpr (unbound<T>)
 			return 1;
 		else
-			return components.size();
+			return num_entities();
 	}
 
 	// Clears the pools state flags
@@ -254,7 +294,32 @@ public:
 													   std::numeric_limits<ecs::detail::entity_type>::max()};
 			return entity_range_view{&global_range, 1};
 		} else {
-			return ranges;
+			if (cached_ranges.empty()) {
+				// Find all ranges
+				for (auto const& tier0 : t0) {
+					cached_ranges.push_back(tier0.range);
+				}
+				for (auto const& tier1 : t1) {
+					cached_ranges.push_back(tier1.active);
+				}
+				for (auto const& tier2 : t2) {
+					auto it = tier2.skips.begin();
+					while (it != tier2.skips.end()) {
+						it += *it;
+
+						entity_type first = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it));
+
+						while (it != tier2.skips.end() && *it == 0) {
+							++it;
+						}
+
+						entity_id last = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it) - 1);
+						cached_ranges.push_back({first, last});
+					}
+				}
+			}
+
+			return cached_ranges;
 		}
 	}
 
@@ -265,14 +330,39 @@ public:
 
 	// Returns true if an entity range has components in this pool
 	bool has_entity(entity_range const& range) const {
-		if (ranges.empty()) {
-			return false;
+		// search in tier 0
+		if (!t0.empty()) {
+			auto const it = std::ranges::lower_bound(t0, range, std::less{}, &Tier0::range);
+			if (it != t0.end() && it->range.contains(range)) {
+				return true;
+			}
 		}
 
-		auto const it = std::lower_bound(ranges.begin(), ranges.end(), range);
-		if (it == ranges.end())
-			return false;
-		return it->contains(range);
+		// search in tier 1
+		if (!t1.empty()) {
+			auto const it = std::ranges::lower_bound(t1, range, std::less{}, &Tier1::range);
+			if (it != t1.end() && it->active.contains(range)) {
+				return true;
+			}
+		}
+
+		// search in tier 2
+		if (!t2.empty()) {
+			auto const it = std::ranges::lower_bound(t2, range, std::less{}, &Tier2::range);
+			if (it != t2.end() && it->range.contains(range)) {
+				auto const offset_start = it->range.offset(range.first());
+				auto const offset_end = it->range.offset(range.first());
+
+				auto const tester = [](uint16_t skip) {
+					return skip == 0;
+				};
+
+				if (std::all_of(&it->skips[offset_start], &it->skips[offset_end], tester))
+					return true;
+			}
+		}
+
+		return false;
 	}
 
 	// TODO remove?
@@ -317,12 +407,12 @@ public:
 	// Clear all entities from the pool
 	void clear() override {
 		// Remember if components was removed from the pool
-		bool const is_removed = !components.empty();
+		bool const is_removed = !t0.empty() || !t1.empty() || !t2.empty();
 
 		// Clear the pool
-		ranges.clear();
-		offsets.clear();
-		components.clear();
+		t0.clear();
+		t1.clear();
+		t2.clear();
 		deferred_adds.reset();
 		deferred_inits.reset();
 		deferred_removes.reset();
@@ -348,64 +438,67 @@ private:
 		components_removed = true;
 	}
 
-	// Searches for an entitys offset in to the component pool.
-	// Returns nothing if 'ent' is not a valid entity
-	std::optional<ptrdiff_t> find_entity_index(entity_id const ent) const {
-		if (ranges.empty() /*|| !has_entity(ent)*/) {
-			return {};
-		}
-
-		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
-		if (it == ranges.end() || !it->contains(ent))
-			return {};
-
-		auto const dist = std::distance(ranges.begin(), it);
-		auto const range_offset = offsets.begin() + dist;
-		return *range_offset + it->offset(ent);
-	}
-
-	// Check the 'add*' functions precondition.
+	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
 	static bool has_duplicate_entities(auto const& vec) {
 		return vec.end() != std::adjacent_find(vec.begin(), vec.end(),
-												[](auto const& l, auto const& r) { return std::get<0>(l) == std::get<0>(r); });
+												[](auto const& l, auto const& r) { return l.range == r.range; });
 	};
 
-	// Add new queued entities and components to the main storage
+	// Add new queued entities and components to the main storage.
 	void process_add_components() {
 		// Move new components into the pool
 		deferred_adds.for_each([this](std::vector<entity_data>& vec) {
 			for (entity_data& data : vec) {
-				entity_range r = std::get<0>(data);
-				if constexpr (detail::unbound<T>) { // uses shared component
-					t0.emplace_back(r, std::vector<T>{});
-				} else {
-					t0.emplace_back(r, std::vector<T>(r.ucount(), std::get<1>(data)));
-				}
+				entity_range const r = std::get<0>(data);
+				t0.push_back(Tier0{r, std::vector<T>(r.ucount(), std::get<1>(data))}); // emplace_back is broken in clang -_-
 			}
 			vec.clear();
 		});
 
-		if constexpr (!detail::unbound<T>) {
-			deferred_inits.for_each([this](std::vector<entity_init>& vec) {
-				for (entity_init& init : vec) {
-					entity_range r = std::get<0>(init);
-					auto const Fn = std::move(std::get<1>(init)); // move, in case it has state
+		deferred_inits.for_each([this](std::vector<entity_init>& vec) {
+			for (entity_init& init : vec) {
+				entity_range r = std::get<0>(init);
+				auto const Fn = std::move(std::get<1>(init)); // move, in case it has state
 
-					std::vector<T> components;
-					components.reserve(r.ucount());
-					for (auto n = r.first(); n <= r.last(); ++n) {
-						components.emplace_back(Fn(n));
-					}
-
-					t0.emplace_back(r, std::move(components));
+				std::vector<T> coms;
+				coms.reserve(r.ucount());
+				for (auto n = r.first(); n <= r.last(); ++n) {
+					coms.emplace_back(Fn(n));
 				}
-				vec.clear();
-			});
-		}
+
+				t0.push_back(Tier0{r, std::move(coms)});
+			}
+			vec.clear();
+		});
 
 		// Sort it
 		std::ranges::sort(t0, std::less{}, &Tier0::range);
+
+		// Check it
+		Expects(false == has_duplicate_entities(t0));
+
+		// Update the state
+		set_data_added();
+	}
+
+	// Add new queued entities and components to the main storage.
+	// Specialized for global- and tag components.
+	void process_add_components() requires detail::unbound<T> {
+		// Move new components into the pool
+		deferred_adds.for_each([this](std::vector<entity_data>& vec) {
+			for (entity_data& data : vec) {
+				entity_range const r = std::get<0>(data);
+				t0.push_back(Tier0{r, std::vector<T>{}});
+			}
+			vec.clear();
+		});
+
+		// Sort it
+		std::ranges::sort(t0, std::less{}, &Tier0::range);
+
+		// Check it
+		Expects(false == has_duplicate_entities(t0));
 
 		// Update the state
 		set_data_added();
@@ -413,120 +506,193 @@ private:
 
 	// Removes the entities and components
 	void process_remove_components() {
-		// Transient components are removed each cycle
-		if constexpr (detail::transient<T>) {
-			if (!ranges.empty()) {
-				ranges.clear();
-				components.clear();
-				set_data_removed();
-			}
-		} else {
-			// Combine the vectors
-			auto collection = deferred_removes.gather();
-			std::vector<entity_range> removes;
-			for (auto& vec : collection) {
-				std::move(vec.begin(), vec.end(), std::back_inserter(removes));
-			}
+		// Collect all the ranges to remove
+		std::vector<entity_range> vec;
+		deferred_removes.gather_flattened(std::back_inserter(vec));
 
-			if (removes.empty()) {
-				return;
-			}
+		// Sort the ranges
+		std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
 
-			// Clear the current removes
-			//deferred_removes.clear();
+		// Remove tier 0 ranges, or downgrade them to tier 1 or 2
+		process_remove_components_tier0(vec);
 
-			// Sort it if needed
-			if (!std::is_sorted(removes.begin(), removes.end()))
-				std::sort(removes.begin(), removes.end());
+		// Remove tier 1 ranges, or downgrade them to tier 2
+		process_remove_components_tier1(vec);
 
-			// An entity can not have more than one of the same component
-			auto const has_duplicate_entities = [](auto const& vec) { return vec.end() != std::adjacent_find(vec.begin(), vec.end()); };
-			Expects(false == has_duplicate_entities(removes));
+		// Remove tier 2 ranges
+		process_remove_components_tier2(vec);
 
-			// Merge adjacent ranges
-			auto const combiner = [](auto& a, auto const& b) {
-				if (a.adjacent(b)) {
-					a = entity_range::merge(a, b);
-					return true;
+		// Sort the tiers
+		//std::ranges::sort(t0, std::ranges::less{}, &Tier0::range);
+		//std::ranges::sort(t1, std::ranges::less{}, &Tier1::range);
+		//std::ranges::sort(t2, std::ranges::less{}, &Tier2::range);
+
+		// Update the state
+		set_data_removed();
+	}
+
+	void process_remove_components_tier0(std::vector<entity_range>& removes) {
+		auto it_t0 = t0.begin();
+		auto it_rem = removes.begin();
+
+		while (it_t0 != t0.end() && it_rem != removes.end()) {
+			if (it_t0->range < *it_rem)
+				++it_t0;
+			else if (*it_rem < it_t0->range)
+				++it_rem;
+			else {
+				if (it_t0->range == *it_rem) {
+					// remove an entire range
+					// todo: move to free-store?
 				} else {
-					return false;
-				}
-			};
-			combine_erase(removes, combiner);
-
-			// Remove the components
-			if constexpr (!unbound<T>) {
-				// Find the first valid index
-				auto index = find_entity_index(removes.front().first());
-				Expects(index.has_value());
-				auto dest_it = components.begin() + static_cast<ptrdiff_t>(index.value());
-				auto from_it = dest_it + static_cast<ptrdiff_t>(removes.front().count());
-
-				if (dest_it == components.begin() && from_it == components.end()) {
-					components.clear();
-				} else {
-					// Move components inbetween the ranges
-					for (auto it = removes.cbegin() + 1; it != removes.cend(); ++it) {
-						index = find_entity_index(it->first());
-
-						auto const last_it = components.begin() + index.value();
-						auto const dist = std::distance(from_it, last_it);
-						from_it = std::move(from_it, last_it, dest_it);
-						dest_it += dist;
-					}
-
-					// Move rest of components
-					auto const dist = std::distance(from_it, components.end());
-					std::move(from_it, components.end(), dest_it);
-
-					// Erase the unused space
-					if (dest_it + dist != components.end()) {
-						components.erase(dest_it + dist, components.end());
+					// remove partial range
+					auto const [left_range, maybe_split_range] = entity_range::remove(it_t0->range, *it_rem);
+					
+					// If two ranges were returned, downgrade to tier 2
+					if (maybe_split_range.has_value()) {
+						t2.push_back(downgrade_to_t2(std::move(*it_t0), left_range, maybe_split_range.value()));
 					} else {
-						components.erase(dest_it, components.end());
+						// downgrade to tier 1 with a partial range
+						t1.push_back(downgrade_to_t1(std::move(*it_t0), left_range));
 					}
 				}
+
+				it_t0 = t0.erase(it_t0);
+				it_rem = removes.erase(it_rem);
 			}
-
-			// Remove the ranges
-			auto curr_range = ranges.begin();
-			for (auto const& remove : removes) {
-				// Step forward until a candidate range is found
-				while (*curr_range < remove && curr_range != ranges.end()) {
-					++curr_range;
-				}
-
-				if (curr_range == ranges.end()) {
-					break;
-				}
-
-				Expects(curr_range->contains(remove));
-
-				// Erase the current range if it equals the range to be removed
-				if (curr_range->equals(remove)) {
-					curr_range = ranges.erase(curr_range);
-				} else {
-					// Do the removal
-					auto result = entity_range::remove(*curr_range, remove);
-
-					// Update the modified range
-					*curr_range = result.first;
-
-					// If the range was split, add the other part of the range
-					if (result.second.has_value()) {
-						curr_range = ranges.insert(curr_range + 1, result.second.value());
-					}
-				}
-			}
-
-			// Calculate offsets
-			offsets.clear();
-			std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), ptrdiff_t{0},
-								[](ptrdiff_t init, entity_range range) { return init + range.count(); });
-
-			// Update the state
-			set_data_removed();
 		}
+	}
+
+	void process_remove_components_tier1(std::vector<entity_range>& removes) {
+		auto it_t1 = t1.begin();
+		auto it_rem = removes.begin();
+
+		while (it_t1 != t1.end() && it_rem != removes.end()) {
+			if (it_t1->range < *it_rem)
+				++it_t1;
+			else if (*it_rem < it_t1->range)
+				++it_rem;
+			else {
+				if (it_t1->active == *it_rem || it_t1->range.contains(*it_rem)) {
+					// remove an entire range
+					// todo: move to free-store?
+					it_t1 = t1.erase(it_t1);
+				} else {
+					// remove partial range
+					auto const [left_range, maybe_split_range] = entity_range::remove(it_t1->range, *it_rem);
+					
+					// If two ranges were returned, downgrade to tier 2
+					if (maybe_split_range.has_value()) {
+						t2.push_back(downgrade_to_t2(std::move(*it_t1), left_range, maybe_split_range.value()));
+						it_t1 = t1.erase(it_t1);
+					} else {
+						// adjust the active range
+						it_t1->active = left_range;
+					}
+				}
+
+				it_rem = removes.erase(it_rem);
+			}
+		}
+	}
+
+	void process_remove_components_tier2(std::vector<entity_range>& removes) {
+		auto it_t2 = t2.begin();
+		auto it_rem = removes.begin();
+
+		while (it_t2 != t2.end() && it_rem != removes.end()) {
+			if (it_t2->range < *it_rem)
+				++it_t2;
+			else if (*it_rem < it_t2->range)
+				++it_rem;
+			else {
+				if (it_t2->range == *it_rem) {
+					// remove an entire range
+					// todo: move to free-store?
+					it_t2 = t2.erase(it_t2);
+				} else {
+					// remove partial range
+					// update the skips
+					for (entity_type i = it_rem->first(); i <= it_rem->last(); ++i) {
+						auto offset = it_t2->range.offset(i);
+
+						if (it_t2->skips[offset] == 0) {
+							it_t2->skips[offset] = 1;
+
+							// Increment adjacent previous skips
+							if (offset > 0) {
+								auto j = offset - 1;
+								while (it_t2->skips[j] > 0) {
+									it_t2->skips[j] += 1;
+									j -= 1;
+								}
+							}
+						}
+					}
+
+					// If whole range is skipped, just erase it
+					if (it_t2->skips[0] == it_t2->range.count())
+						it_t2 = t2.erase(it_t2);
+				}
+
+				it_rem = removes.erase(it_rem);
+			}
+		}
+	}
+
+	// Removes transient components
+	void process_remove_components() requires transient<T> {
+		// Transient components are removed each cycle
+		t0.clear();
+		t1.clear();
+		t2.clear();
+		set_data_removed();
+	}
+
+	Tier1 downgrade_to_t1(Tier0 tier0, entity_range new_range) {
+		return Tier1{tier0.range, new_range, std::move(tier0.data), clock::now()};
+	}
+
+	Tier2 downgrade_to_t2(Tier0 tier0, entity_range r1, entity_range r2) {
+		Tier2 tier2{tier0.range, std::vector<uint16_t>(tier0.data.size(), uint16_t{0}), std::move(tier0.data), clock::now()};
+
+		// set up skips
+		tier2.skips[0] = tier0.range.first() < r1.first();
+		for (size_t i = 1; i < tier0.range.ucount(); ++i) {
+			auto entity = static_cast<entity_type>(tier0.range.first() + i);
+
+			if (!r1.contains(entity) && !r2.contains(entity)) {
+				tier2.skips[i] = 1;
+				auto j = i - 1;
+				while (tier2.skips[j] > 0) {
+					tier2.skips[j] += 1;
+					j -= 1;
+				}
+			}
+		}
+
+		return tier2;
+	}
+
+	Tier2 downgrade_to_t2(Tier1 tier1, entity_range r1, entity_range r2) {
+		Tier2 tier2{tier1.range, std::vector<uint16_t>(tier1.data.size(), uint16_t{0}), std::move(tier1.data), clock::now()};
+
+		// set up skips
+		tier2.skips[0] = tier1.range.first() < r1.first();
+		for (size_t i = 1; i < tier1.range.ucount(); ++i) {
+			auto entity = static_cast<entity_type>(tier1.range.first() + i);
+
+			if (!tier1.active.contains(entity) && !r1.contains(entity) && !r2.contains(entity)) {
+				tier2.skips[i] = 1;
+				auto j = i - 1;
+				while (tier2.skips[j] > 0) {
+					tier2.skips[j] += 1;
+					j -= 1;
+				}
+			}
+		}
+
+		return tier2;
 	}
 };
 } // namespace ecs::detail

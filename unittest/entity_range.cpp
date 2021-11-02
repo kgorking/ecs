@@ -349,6 +349,18 @@ TEST_CASE("entity_range ", "[entity]") {
 			REQUIRE(size_t{1} == result.size());
 			CHECK(ecs::entity_range{4, 4} == result.at(0));
 		}
+
+		SECTION("One range in B removes all but one range in A") {
+			/// a: -- -- -- --
+			/// b: ********
+			std::vector<ecs::entity_range> const vec_a{{0, 1}, {2, 3}, {4, 5}, {6, 7}};
+			std::vector<ecs::entity_range> const vec_b{{0, 5}};
+
+			auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
+
+			REQUIRE(size_t{1} == result.size());
+			CHECK(ecs::entity_range{6, 7} == result.at(0));
+		}
 	}
 
 	SECTION("merging ranges") {
