@@ -92,7 +92,7 @@ private:
 	std::vector<Tier2> t2;
 
 	// Cache of all active ranges
-	std::vector<entity_range> mutable cached_ranges;
+	std::vector<entity_range> cached_ranges;
 
 	// The alloctor
 	std::pmr::polymorphic_allocator<T> allocator;
@@ -235,8 +235,34 @@ public:
 		process_remove_components();
 		process_add_components();
 
-		if (components_added || components_removed)
+		if (components_added || components_removed) {
 			cached_ranges.clear();
+
+			// Find all ranges
+			for (auto const& tier0 : t0) {
+				cached_ranges.push_back(tier0.range);
+			}
+			for (auto const& tier1 : t1) {
+				cached_ranges.push_back(tier1.active);
+			}
+			for (auto const& tier2 : t2) {
+				auto it = tier2.skips.begin();
+				do {
+					it += *it;
+					if (it == tier2.skips.end())
+						break;
+
+					entity_type first = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it));
+
+					while (it != tier2.skips.end() && *it == 0) {
+						++it;
+					}
+
+					entity_id last = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it) - 1);
+					cached_ranges.push_back({first, last});
+				} while (it != tier2.skips.end());
+			}
+		}
 	}
 
 	// Returns the number of active entities in the pool
@@ -294,31 +320,6 @@ public:
 													   std::numeric_limits<ecs::detail::entity_type>::max()};
 			return entity_range_view{&global_range, 1};
 		} else {
-			if (cached_ranges.empty()) {
-				// Find all ranges
-				for (auto const& tier0 : t0) {
-					cached_ranges.push_back(tier0.range);
-				}
-				for (auto const& tier1 : t1) {
-					cached_ranges.push_back(tier1.active);
-				}
-				for (auto const& tier2 : t2) {
-					auto it = tier2.skips.begin();
-					while (it != tier2.skips.end()) {
-						it += *it;
-
-						entity_type first = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it));
-
-						while (it != tier2.skips.end() && *it == 0) {
-							++it;
-						}
-
-						entity_id last = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it) - 1);
-						cached_ranges.push_back({first, last});
-					}
-				}
-			}
-
 			return cached_ranges;
 		}
 	}
