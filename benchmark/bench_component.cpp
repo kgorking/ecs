@@ -40,8 +40,10 @@ void component_add_half_front(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({nentities / 2 + 1, nentities}, test_component);
+		state.BeginIgnoreTiming();
+		ecs.add_component({nentities / 2 + 1, nentities}, test_component);
         ecs.commit_changes();
+		state.EndIgnoreTiming();
 
         ecs.add_component({0, nentities / 2}, test_component);
         ecs.commit_changes();
@@ -57,8 +59,10 @@ void component_add_half_back(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities / 2}, test_component);
+		state.BeginIgnoreTiming();
+		ecs.add_component({0, nentities / 2}, test_component);
         ecs.commit_changes();
+		state.EndIgnoreTiming();
 
         ecs.add_component({nentities / 2 + 1, nentities}, test_component);
         ecs.commit_changes();
@@ -92,8 +96,10 @@ void component_remove_all(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, test_component);
+		state.BeginIgnoreTiming();
+		ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
+		state.EndIgnoreTiming();
 
         ecs.remove_component<std::string>({0, nentities});
         ecs.commit_changes();
@@ -109,8 +115,10 @@ void component_remove_half_front(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, test_component);
+		state.BeginIgnoreTiming();
+		ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
+		state.EndIgnoreTiming();
 
         ecs.remove_component<std::string>({0, nentities / 2});
         ecs.commit_changes();
@@ -126,8 +134,10 @@ void component_remove_half_back(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, test_component);
+		state.BeginIgnoreTiming();
+		ecs.add_component({0, nentities}, test_component);
         ecs.commit_changes();
+		state.EndIgnoreTiming();
 
         ecs.remove_component<std::string>({nentities / 2 + 1, nentities});
         ecs.commit_changes();
@@ -142,9 +152,10 @@ void component_remove_half_middle(benchmark::State& state) {
 
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
-
-        ecs.add_component({0, nentities}, test_component);
-        ecs.commit_changes();
+		state.BeginIgnoreTiming();
+            ecs.add_component({0, nentities}, test_component);
+            ecs.commit_changes();
+		state.EndIgnoreTiming();
 
         ecs.remove_component<std::string>({nentities / 4, nentities - nentities / 4});
         ecs.commit_changes();
