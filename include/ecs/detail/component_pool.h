@@ -512,6 +512,10 @@ private:
 		return std::get<1>(ed)(id);
 	}
 
+	void add_to_t0(entity_range r, entity_data&) requires unbound<T> {
+		t0.push_back(Tier0{r, {}});
+	}
+
 	void add_to_t0(entity_range r, entity_data& data) {
 		t0.push_back(Tier0{r, std::vector<T>(r.ucount(), std::get<1>(data))}); // emplace_back is broken in clang -_-
 	}
@@ -537,12 +541,16 @@ private:
 					if (it != t1.end() && it->range.contains(r)) {
 						Tier1& tier1 = *it;
 
+						Expects(!tier1.active.overlaps(r)); // entity already has a component
+
 						// If the ranges are adjacent, grow the active range
 						if (tier1.active.adjacent(r)) {
 							tier1.active = entity_range::merge(tier1.active, r);
-							for (auto ent = r.first(); ent <= r.last(); ++ent) {
-								auto const offset = tier1.range.offset(ent);
-								tier1.data[offset] = get_data(ent, data);
+							if constexpr (!detail::unbound<T>) {
+								for (auto ent = r.first(); ent <= r.last(); ++ent) {
+									auto const offset = tier1.range.offset(ent);
+									tier1.data[offset] = get_data(ent, data);
+								}
 							}
 						} else {
 							// The ranges are separate, so downgrade to T2
@@ -563,9 +571,13 @@ private:
 
 						for (auto ent = r.first(); ent <= r.last(); ++ent) {
 							auto offset = tier2.range.offset(ent);
-							tier2.data[offset] = get_data(ent, data);
+
+							if constexpr (!detail::unbound<T>) {
+								tier2.data[offset] = get_data(ent, data);
+							}
 
 							auto const current_skips = tier2.skips[offset];
+							Expects(tier2.skips[offset] != 0); // entity already has a component
 							while (offset >= 0 && tier2.skips[offset] != 0) {
 								tier2.skips[offset] -= current_skips;
 								offset -= 1;
@@ -586,28 +598,6 @@ private:
 		// Move new components into the pool
 		deferred_adds.for_each(processor);
 		deferred_inits.for_each(processor);
-
-		// Sort it
-		std::ranges::sort(t0, std::less{}, &Tier0::range);
-
-		// Check it
-		Expects(false == has_duplicate_entities(t0));
-
-		// Update the state
-		set_data_added();
-	}
-
-	// Add new queued entities and components to the main storage.
-	// Specialized for global- and tag components.
-	void process_add_components() requires detail::unbound<T> {
-		// Move new components into the pool
-		deferred_adds.for_each([this](std::vector<entity_data>& vec) {
-			for (entity_data& data : vec) {
-				entity_range const r = std::get<0>(data);
-				t0.push_back(Tier0{r, std::vector<T>{}});
-			}
-			vec.clear();
-		});
 
 		// Sort it
 		std::ranges::sort(t0, std::less{}, &Tier0::range);
