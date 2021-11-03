@@ -4,7 +4,7 @@
 
 #include "global.h"
 
-auto const test_component = std::string{"some large string to bypass sso"};
+auto const test_component = 45;//std::string{"some large string to bypass sso"};
 
 void component_generate(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
@@ -12,7 +12,7 @@ void component_generate(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, [](ecs::entity_id id) { return test_component + std::to_string(id); });
+        ecs.add_component({0, nentities}, [](ecs::entity_id id) { return test_component /*+ std::to_string(id)*/; });
         ecs.commit_changes();
     }
 
