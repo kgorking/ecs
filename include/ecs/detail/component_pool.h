@@ -512,6 +512,19 @@ private:
 		return std::get<1>(ed)(id);
 	}
 
+	void add_to_t0(entity_range r, entity_data& data) {
+		t0.push_back(Tier0{r, std::vector<T>(r.ucount(), std::get<1>(data))}); // emplace_back is broken in clang -_-
+	}
+
+	void add_to_t0(entity_range r, entity_init& init) {
+		std::vector<T> tier_data;
+		tier_data.reserve(r.ucount());
+		for (entity_id ent : r) {
+			tier_data.push_back(std::get<1>(init)(ent));
+		}
+		t0.push_back(Tier0{r, std::move(tier_data)}); // emplace_back is broken in clang -_-
+	}
+
 	// Add new queued entities and components to the main storage.
 	void process_add_components() {
 		auto const processor = [this](auto& vec) {
@@ -564,18 +577,8 @@ private:
 					}
 				}
 
-				// range has not been handled yet, so dunk it into t0
-				if constexpr (std::is_same_v<entity_data&, decltype(data)>) {
-					t0.push_back(Tier0{r, std::vector<T>(r.ucount(), std::get<1>(data))}); // emplace_back is broken in clang -_-
-				}
-				else if constexpr (std::is_same_v<entity_init&, decltype(data)>) {
-					std::vector<T> tier_data;
-					tier_data.reserve(r.ucount());
-					for (entity_id ent : r) {
-						tier_data.push_back(std::get<1>(data)(ent));
-					}
-					t0.push_back(Tier0{r, std::move(tier_data)}); // emplace_back is broken in clang -_-
-				}
+				// range has not been handled yet, so Kobe it into t0
+				add_to_t0(r, data);
 			}
 			vec.clear();
 		};
