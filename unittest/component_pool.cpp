@@ -90,6 +90,65 @@ TEST_CASE("Component pool specification", "[component]") {
 			CHECK(50 == pool.num_components());
 			CHECK(50 == pool.num_entities());
 		}
+		SECTION("to previously deleted entities works (T1 -> T1)") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 9}, int{});
+			pool.process_changes();
+
+			// This creates a tier 1 memory block internally
+			pool.remove_range({7, 9});
+			pool.process_changes();
+
+			// grow the t1 block
+			pool.add({7, 8}, int{1});
+			pool.process_changes();
+		}
+		SECTION("to previously deleted entities works (T1 -> T2)") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 9}, int{});
+			pool.process_changes();
+
+			// This creates a tier 1 memory block internally
+			pool.remove_range({7, 9});
+			pool.process_changes();
+
+			// downgrades to t2 block
+			pool.add({8, 9}, int{2});
+			pool.process_changes();
+
+			CHECK(9 == pool.num_components());
+			CHECK(9 == pool.num_entities());
+
+			CHECK(nullptr == pool.find_component_data(7));
+
+			auto const result = pool.get_entities();
+			REQUIRE(2 == result.size());
+			CHECK(ecs::entity_range{0, 6}.equals(result[0]));
+			CHECK(ecs::entity_range{8, 9}.equals(result[1]));
+		}
+		SECTION("to previously deleted entities works") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 9}, int{});
+			pool.process_changes();
+
+			pool.remove_range({3, 7});
+			pool.process_changes();
+
+			pool.add({4, 5}, int{});
+			pool.process_changes();
+
+			CHECK(7 == pool.num_components());
+			CHECK(7 == pool.num_entities());
+
+			CHECK(nullptr == pool.find_component_data(3));
+			CHECK(nullptr == pool.find_component_data(7));
+
+			auto const result = pool.get_entities();
+			REQUIRE(3 == result.size());
+			CHECK(ecs::entity_range{0, 2}.equals(result[0]));
+			CHECK(ecs::entity_range{4, 5}.equals(result[1]));
+			CHECK(ecs::entity_range{8, 9}.equals(result[2]));
+		}
 	}
 
 	SECTION("Removing components") {

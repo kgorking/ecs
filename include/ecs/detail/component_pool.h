@@ -84,12 +84,51 @@ private:
 		std::vector<size_t> skips;
 		std::vector<T> data;
 		time_point last_modified;
+
+		void init_skips(entity_range r1, entity_range r2) {
+			//     r1   r2
+			// ---***---**--- range
+			// #1    #2   #3
+
+			// part 1
+			auto count = r1.first() - range.first();
+			auto it = skips.begin();
+			while (count > 0) {
+				*it = count;
+				++it;
+				--count;
+			}
+
+			// part 2
+			count = r2.first() - r1.last() - 1;
+			it = skips.begin() + r1.last() + 1;
+			while (count > 0) {
+				*it = count;
+				++it;
+				--count;
+			}
+
+			// part 3
+			count = range.last() - r2.last();
+			it = skips.begin() + r2.last() + 1;
+			while (count > 0) {
+				*it = count;
+				++it;
+				--count;
+			}
+		}
 	};
 
 	// The component tiers
 	std::vector<Tier0> t0;
 	std::vector<Tier1> t1;
 	std::vector<Tier2> t2;
+
+	// The total range of entities in the tiers. Ranges are only valid if the tier is not empty.
+	// Used for broad-phase testing
+	entity_range t0_range{entity_range::all()};
+	entity_range t1_range{entity_range::all()};
+	entity_range t2_range{entity_range::all()};
 
 	// Cache of all active ranges
 	std::vector<entity_range> cached_ranges;
@@ -239,28 +278,48 @@ public:
 			cached_ranges.clear();
 
 			// Find all ranges
-			for (auto const& tier0 : t0) {
-				cached_ranges.push_back(tier0.range);
+			if (!t0.empty()) {
+				t0_range = t0[0].range;
+				for (size_t i = 0; i < t0.size(); ++i) {
+					auto const& tier0 = t0[i];
+					t0_range = entity_range::overlapping(t0_range, tier0.range);
+
+					cached_ranges.push_back(tier0.range);
+				}
 			}
-			for (auto const& tier1 : t1) {
-				cached_ranges.push_back(tier1.active);
+
+			if (!t1.empty()) {
+				t1_range = t1[0].range;
+				for (size_t i = 0; i < t1.size(); ++i) {
+					auto const& tier1 = t1[i];
+					t1_range = entity_range::overlapping(t1_range, tier1.active);
+
+					cached_ranges.push_back(tier1.active);
+				}
 			}
-			for (auto const& tier2 : t2) {
-				auto it = tier2.skips.begin();
-				do {
-					it += *it;
-					if (it == tier2.skips.end())
-						break;
 
-					entity_type first = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it));
+			if (!t2.empty()) {
+				t2_range = t2[0].range;
+				for (size_t i = 0; i < t2.size(); ++i) {
+					auto const& tier2 = t2[i];
+					t2_range = entity_range::overlapping(t2_range, tier2.range);
 
-					while (it != tier2.skips.end() && *it == 0) {
-						++it;
-					}
+					auto it = tier2.skips.begin();
+					do {
+						it += *it;
+						if (it == tier2.skips.end())
+							break;
 
-					entity_id last = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it) - 1);
-					cached_ranges.push_back({first, last});
-				} while (it != tier2.skips.end());
+						entity_type first = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it));
+
+						while (it != tier2.skips.end() && *it == 0) {
+							++it;
+						}
+
+						entity_id last = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it) - 1);
+						cached_ranges.push_back({first, last});
+					} while (it != tier2.skips.end());
+				}
 			}
 		}
 	}
@@ -452,6 +511,58 @@ private:
 		deferred_adds.for_each([this](std::vector<entity_data>& vec) {
 			for (entity_data& data : vec) {
 				entity_range const r = std::get<0>(data);
+
+				// if (!t0.empty() && t0_range.overlaps(r)) {
+				// tier 0 ranges can not have new entities added
+				//}
+
+				if (!t1.empty() && t1_range.overlaps(r)) {
+					// The new range may exist in a tier 1 range
+					auto const it = std::ranges::lower_bound(t1, r, std::less{}, &Tier1::range);
+					if (it != t1.end() && it->range.contains(r)) {
+						Tier1& tier1 = *it;
+
+						// If the ranges are adjacent, grow the active range
+						if (tier1.active.adjacent(r)) {
+							tier1.active = entity_range::merge(tier1.active, r);
+							for (auto ent = r.first(); ent <= r.last(); ++ent) {
+								auto const offset = tier1.range.offset(ent);
+								tier1.data[offset] = std::get<1>(data);
+							}
+						} else {
+							// The ranges are separate, so downgrade to T2
+							t2.push_back(downgrade_t1_to_t2(std::move(tier1), tier1.active, r));
+							t1.erase(it);
+						}
+
+						// This range is handled, so continue on to the next one in 'vec'
+						continue;
+					}
+				}
+
+				if (!t2.empty() && t2_range.overlaps(r)) {
+					// The new range may exist in a tier 2 range
+					auto const it = std::ranges::lower_bound(t2, r, std::less{}, &Tier2::range);
+					if (it != t2.end() && it->range.contains(r)) {
+						Tier2& tier2 = *it;
+
+						for (auto ent = r.first(); ent <= r.last(); ++ent) {
+							auto offset = tier2.range.offset(ent);
+							tier2.data[offset] = std::get<1>(data);
+
+							auto const current_skips = tier2.skips[offset];
+							while (offset >= 0 && tier2.skips[offset] != 0) {
+								tier2.skips[offset] -= current_skips;
+								offset -= 1;
+							}
+						}
+
+						// This range is handled, so continue on to the next one in 'vec'
+						continue;
+					}
+				}
+
+				// range has not been handled yet, so dunk it into t0
 				t0.push_back(Tier0{r, std::vector<T>(r.ucount(), std::get<1>(data))}); // emplace_back is broken in clang -_-
 			}
 			vec.clear();
@@ -661,59 +772,13 @@ private:
 
 	Tier2 downgrade_t0_to_t2(Tier0 tier0, entity_range r1, entity_range r2) {
 		Tier2 tier2{tier0.range, std::vector<size_t>(tier0.data.size(), size_t{0}), std::move(tier0.data), clock::now()};
-
-		//     r1   r2
-		// ---***---**--- tier0.range
-		//  1     2    3
-
-		// part 1
-		auto count = r1.first() - tier0.range.first();
-		auto it = tier2.skips.begin();
-		while (count > 0) {
-			*it = count;
-			++it;
-			--count;
-		}
-
-		// part 2
-		count = r2.first() - r1.last() - 1;
-		it = tier2.skips.begin() + r1.last() + 1;
-		while (count > 0) {
-			*it = count;
-			++it;
-			--count;
-		}
-
-		// part 3
-		count = tier0.range.last() - r2.last();
-		it = tier2.skips.begin() + r2.last() + 1;
-		while (count > 0) {
-			*it = count;
-			++it;
-			--count;
-		}
-
+		tier2.init_skips(r1, r2);
 		return tier2;
 	}
 
 	Tier2 downgrade_t1_to_t2(Tier1 tier1, entity_range r1, entity_range r2) {
 		Tier2 tier2{tier1.range, std::vector<size_t>(tier1.data.size(), size_t{0}), std::move(tier1.data), clock::now()};
-
-		// set up skips
-		tier2.skips[0] = tier1.range.first() < r1.first();
-		for (size_t i = 1; i < tier1.range.ucount(); ++i) {
-			auto entity = static_cast<entity_type>(tier1.range.first() + i);
-
-			if (!tier1.active.contains(entity) && !r1.contains(entity) && !r2.contains(entity)) {
-				tier2.skips[i] = 1;
-				auto j = i - 1;
-				while (tier2.skips[j] > 0) {
-					tier2.skips[j] += 1;
-					j -= 1;
-				}
-			}
-		}
-
+		tier2.init_skips(r1, r2);
 		return tier2;
 	}
 };

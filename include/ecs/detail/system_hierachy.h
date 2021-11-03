@@ -72,6 +72,8 @@ private:
 			arguments.resize(count, arg);
 		}
 
+		// TODO insert in set with top. ordering?
+
 		// map of entity and root info
 		std::map<entity_type, size_t> roots;
 
