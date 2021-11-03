@@ -597,12 +597,38 @@ private:
 			vec.clear();
 		};
 
+		size_t const t0_size_start = t0.size();
+		size_t const t2_size_start = t2.size();
+
 		// Move new components into the pool
 		deferred_adds.for_each(processor);
 		deferred_inits.for_each(processor);
 
 		// Sort it
-		std::ranges::sort(t0, std::less{}, &Tier0::range);
+		// New ranges are never added to t1, but existing t1
+		// can be downgraded to t2.
+		if (t0_size_start == 0 && !t0.empty()) {
+			std::ranges::sort(t0, std::less{}, &Tier0::range);
+		} else if (t0_size_start != t0.size()) {
+			auto const middle = t0.begin() + t0_size_start;
+
+			// sort the newcomers
+			std::ranges::sort(middle, t0.end(), std::less{}, &Tier0::range);
+
+			// merge them into the rest
+			std::ranges::inplace_merge(t0, middle, std::less{}, &Tier0::range);
+		}
+		if (t2_size_start == 0 && !t2.empty()) {
+			std::ranges::sort(t2, std::less{}, &Tier2::range);
+		} else if (t2_size_start != t2.size()) {
+			auto const middle = t2.begin() + t2_size_start;
+
+			// sort the newcomers
+			std::ranges::sort(middle, t2.end(), std::less{}, &Tier2::range);
+
+			// merge them into the rest
+			std::ranges::inplace_merge(t2, middle, std::less{}, &Tier2::range);
+		}
 
 		// Check it
 		Expects(false == has_duplicate_entities(t0));
