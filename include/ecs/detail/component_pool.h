@@ -81,7 +81,7 @@ private:
 		static constexpr std::chrono::seconds time_to_upgrade{15};
 
 		entity_range range;
-		std::vector<size_t> skips;
+		std::vector<uint32_t> skips;
 		std::vector<T> data;
 		time_point last_modified;
 
@@ -615,11 +615,13 @@ private:
 		std::vector<entity_range> vec;
 		deferred_removes.gather_flattened(std::back_inserter(vec));
 
-		// Update the state
-		if (vec.empty())
-			set_data_removed();
+		// Dip if there is nothing to do
+		if (vec.empty()) {
+			return;
+		}
 
-		// Sort the ranges
+		// Sort the ranges to remove
+		// TODO in-place merge
 		std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
 
 		// Remove tier 0 ranges, or downgrade them to tier 1 or 2
@@ -639,6 +641,9 @@ private:
 			process_remove_components_tier2(vec);
 			std::ranges::sort(t2, std::less{}, &Tier2::range);
 		}
+
+		// Update the state
+		set_data_removed();
 	}
 
 	void process_remove_components_tier0(std::vector<entity_range>& removes) {
@@ -764,13 +769,13 @@ private:
 	}
 
 	Tier2 downgrade_t0_to_t2(Tier0 tier0, entity_range r1, entity_range r2) {
-		Tier2 tier2{tier0.range, std::vector<size_t>(tier0.data.size(), size_t{0}), std::move(tier0.data), clock::now()};
+		Tier2 tier2{tier0.range, std::vector<uint32_t>(tier0.data.size(), uint32_t{0}), std::move(tier0.data), clock::now()};
 		tier2.init_skips(r1, r2);
 		return tier2;
 	}
 
 	Tier2 downgrade_t1_to_t2(Tier1 tier1, entity_range r1, entity_range r2) {
-		Tier2 tier2{tier1.range, std::vector<size_t>(tier1.data.size(), size_t{0}), std::move(tier1.data), clock::now()};
+		Tier2 tier2{tier1.range, std::vector<uint32_t>(tier1.data.size(), uint32_t{0}), std::move(tier1.data), clock::now()};
 		tier2.init_skips(r1, r2);
 		return tier2;
 	}
