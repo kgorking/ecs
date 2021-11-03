@@ -578,8 +578,10 @@ private:
 
 							auto const current_skips = tier2.skips[offset];
 							Expects(tier2.skips[offset] != 0); // entity already has a component
-							while (offset >= 0 && tier2.skips[offset] != 0) {
+							while (tier2.skips[offset] != 0) {
 								tier2.skips[offset] -= current_skips;
+								if (offset == 0)
+									break;
 								offset -= 1;
 							}
 						}
