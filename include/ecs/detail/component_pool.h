@@ -505,16 +505,19 @@ private:
 												[](auto const& l, auto const& r) { return l.range == r.range; });
 	};
 
+	static T get_data(entity_id /*id*/, entity_data& ed) {
+		return std::get<1>(ed);
+	}
+	static T get_data(entity_id id, entity_init& ed) {
+		return std::get<1>(ed)(id);
+	}
+
 	// Add new queued entities and components to the main storage.
 	void process_add_components() {
-		// Move new components into the pool
-		deferred_adds.for_each([this](std::vector<entity_data>& vec) {
-			for (entity_data& data : vec) {
-				entity_range const r = std::get<0>(data);
 
-				// if (!t0.empty() && t0_range.overlaps(r)) {
-				// tier 0 ranges can not have new entities added
-				//}
+		auto const processor = [this](auto& vec) {
+			for (auto& data : vec) {
+				entity_range const r = std::get<0>(data);
 
 				if (!t1.empty() && t1_range.overlaps(r)) {
 					// The new range may exist in a tier 1 range
@@ -527,7 +530,7 @@ private:
 							tier1.active = entity_range::merge(tier1.active, r);
 							for (auto ent = r.first(); ent <= r.last(); ++ent) {
 								auto const offset = tier1.range.offset(ent);
-								tier1.data[offset] = std::get<1>(data);
+								tier1.data[offset] = get_data(ent, data);
 							}
 						} else {
 							// The ranges are separate, so downgrade to T2
@@ -548,7 +551,7 @@ private:
 
 						for (auto ent = r.first(); ent <= r.last(); ++ent) {
 							auto offset = tier2.range.offset(ent);
-							tier2.data[offset] = std::get<1>(data);
+							tier2.data[offset] = get_data(ent, data);
 
 							auto const current_skips = tier2.skips[offset];
 							while (offset >= 0 && tier2.skips[offset] != 0) {
@@ -557,32 +560,30 @@ private:
 							}
 						}
 
-						// This range is handled, so continue on to the next one in 'vec'
+						// This range is handled, so continue on to the next one in 'vec'y
 						continue;
 					}
 				}
 
 				// range has not been handled yet, so dunk it into t0
-				t0.push_back(Tier0{r, std::vector<T>(r.ucount(), std::get<1>(data))}); // emplace_back is broken in clang -_-
-			}
-			vec.clear();
-		});
-
-		deferred_inits.for_each([this](std::vector<entity_init>& vec) {
-			for (entity_init& init : vec) {
-				entity_range r = std::get<0>(init);
-				auto const Fn = std::move(std::get<1>(init)); // move, in case it has state
-
-				std::vector<T> coms;
-				coms.reserve(r.ucount());
-				for (auto n = r.first(); n <= r.last(); ++n) {
-					coms.emplace_back(Fn(n));
+				if constexpr (std::is_same_v<entity_data&, decltype(data)>) {
+					t0.push_back(Tier0{r, std::vector<T>(r.ucount(), std::get<1>(data))}); // emplace_back is broken in clang -_-
 				}
-
-				t0.push_back(Tier0{r, std::move(coms)});
+				else if constexpr (std::is_same_v<entity_init&, decltype(data)>) {
+					std::vector<T> tier_data;
+					tier_data.reserve(r.ucount());
+					for (entity_id ent : r) {
+						tier_data.push_back(std::get<1>(data)(ent));
+					}
+					t0.push_back(Tier0{r, std::move(tier_data)}); // emplace_back is broken in clang -_-
+				}
 			}
 			vec.clear();
-		});
+		};
+
+		// Move new components into the pool
+		deferred_adds.for_each(processor);
+		deferred_inits.for_each(processor);
 
 		// Sort it
 		std::ranges::sort(t0, std::less{}, &Tier0::range);
