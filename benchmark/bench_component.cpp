@@ -12,7 +12,7 @@ void component_generate(benchmark::State& state) {
     for ([[maybe_unused]] auto const _ : state) {
         ecs::runtime ecs;
 
-        ecs.add_component({0, nentities}, [](ecs::entity_id id) { return test_component /*+ std::to_string(id)*/; });
+        ecs.add_component({0, nentities}, [](ecs::entity_id id) { return test_component + id/*+ std::to_string(id)*/; });
         ecs.commit_changes();
     }
 
