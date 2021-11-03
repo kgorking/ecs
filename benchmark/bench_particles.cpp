@@ -47,7 +47,7 @@ auto constexpr velocity_init = [](ecs::entity_id) -> velocity {
 // Helper-lambda to init the life
 auto constexpr life_init = [](ecs::entity_id) -> life {
 	float const x = rand() / 327680.0f; // [0, 0.1]
-	return {0.2f + x*2}; // [0.2, 0.4]
+	return {0.5f + x*10}; // [0.5, 1.5]
 };
 
 void make_systems(ecs::runtime &ecs) {
@@ -115,12 +115,12 @@ void make_systems(ecs::runtime &ecs) {
 void particles(benchmark::State& state) {
 	auto const num_particles = static_cast<ecs::detail::entity_type>(state.range(0));
 
-    ecs::runtime ecs;
-    make_systems(ecs);
-	ecs.add_component({0, num_particles}, particle_init, velocity_init, color_init, life_init);
-    ecs.commit_changes();
-
     for ([[maybe_unused]] auto const _ : state) {
+        ecs::runtime ecs;
+        make_systems(ecs);
+	    ecs.add_component({0, num_particles}, particle_init, velocity_init, color_init, life_init);
+        ecs.commit_changes();
+
 		ecs.update();
 	}
 

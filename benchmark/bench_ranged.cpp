@@ -33,7 +33,7 @@ void build_ranged_with_components(benchmark::State &state) {
 ECS_BENCHMARK(build_ranged_with_components);
 
 
-void run_ranged_serial(benchmark::State &state) {
+void run_serial_ranged(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	ecs::runtime ecs;
@@ -48,9 +48,9 @@ void run_ranged_serial(benchmark::State &state) {
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
-ECS_BENCHMARK(run_ranged_serial);
+ECS_BENCHMARK(run_serial_ranged);
 
-void run_ranged_parallel(benchmark::State &state) {
+void run_parallel_ranged(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	ecs::runtime ecs;
@@ -65,4 +65,4 @@ void run_ranged_parallel(benchmark::State &state) {
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
-ECS_BENCHMARK(run_ranged_parallel);
+ECS_BENCHMARK(run_parallel_ranged);

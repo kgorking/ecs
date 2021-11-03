@@ -514,7 +514,6 @@ private:
 
 	// Add new queued entities and components to the main storage.
 	void process_add_components() {
-
 		auto const processor = [this](auto& vec) {
 			for (auto& data : vec) {
 				entity_range const r = std::get<0>(data);
