@@ -34,6 +34,22 @@ void component_add(benchmark::State& state) {
 }
 ECS_BENCHMARK(component_add);
 
+void component_add_1k_blocks(benchmark::State& state) {
+    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+
+    for ([[maybe_unused]] auto const _ : state) {
+        ecs::runtime ecs;
+
+        for (ecs::entity_id i = 0; i < nentities; i += 1024) {
+			ecs.add_component({i, i+1023}, test_component);
+			ecs.commit_changes();
+		}
+    }
+
+	state.SetItemsProcessed(state.iterations() * nentities);
+}
+ECS_BENCHMARK(component_add_1k_blocks);
+
 void component_add_half_front(benchmark::State& state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
