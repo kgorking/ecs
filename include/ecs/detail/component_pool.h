@@ -702,8 +702,7 @@ private:
 
 				// TODO re-use?
 				it_t0 = t0.erase(it_t0);
-				//it_rem = removes.erase(it_rem);
-				++it_rem;
+				it_rem = removes.erase(it_rem);
 			}
 		}
 	}
@@ -736,8 +735,7 @@ private:
 					}
 				}
 
-				//it_rem = removes.erase(it_rem);
-				++it_rem;
+				it_rem = removes.erase(it_rem);
 			}
 		}
 	}
@@ -781,8 +779,7 @@ private:
 						it_t2 = t2.erase(it_t2);
 				}
 
-				//it_rem = removes.erase(it_rem);
-				++it_rem;
+				it_rem = removes.erase(it_rem);
 			}
 		}
 	}
