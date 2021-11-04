@@ -4,16 +4,6 @@
 
 #include "global.h"
 
-void build_ranged_no_components(benchmark::State &state) {
-	for ([[maybe_unused]] auto const _ : state) {
-		ecs::runtime ecs;
-		ecs.make_system([](int) {});
-	}
-
-	state.SetItemsProcessed(state.iterations());
-}
-ECS_BENCHMARK_ONE(build_ranged_no_components);
-
 void build_ranged_with_components(benchmark::State &state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 

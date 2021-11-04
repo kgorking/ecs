@@ -23,16 +23,6 @@ static void build_hierarchies(ecs::runtime &ecs, ecs::detail::entity_type nentit
 	ecs.commit_changes();
 }
 
-static void build_hierarchy_no_components(benchmark::State &state) {
-	for ([[maybe_unused]] auto const _ : state) {
-		ecs::runtime ecs;
-		ecs.make_system([](int, ecs::parent<>) {});
-	}
-
-	state.SetItemsProcessed(state.iterations());
-}
-ECS_BENCHMARK_ONE(build_hierarchy_no_components);
-
 static void build_hierarchy_with_components(benchmark::State &state) {
     auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
