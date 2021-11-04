@@ -4,7 +4,7 @@
 
 #include "global.h"
 
-void build_ranged_with_components(benchmark::State &state) {
+void build_ranged_with_components(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
@@ -22,8 +22,7 @@ void build_ranged_with_components(benchmark::State &state) {
 }
 ECS_BENCHMARK(build_ranged_with_components);
 
-
-void run_serial_ranged(benchmark::State &state) {
+void run_serial_ranged(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	ecs::runtime ecs;
@@ -40,7 +39,7 @@ void run_serial_ranged(benchmark::State &state) {
 }
 ECS_BENCHMARK(run_serial_ranged);
 
-void run_parallel_ranged(benchmark::State &state) {
+void run_parallel_ranged(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	ecs::runtime ecs;
