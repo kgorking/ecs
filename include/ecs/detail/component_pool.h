@@ -779,7 +779,8 @@ private:
 						it_t2 = t2.erase(it_t2);
 				}
 
-				it_rem = removes.erase(it_rem);
+				//it_rem = removes.erase(it_rem);
+				++it_rem;
 			}
 		}
 	}
