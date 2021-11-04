@@ -186,7 +186,30 @@ TEST_CASE("Component pool specification", "[component]") {
 				REQUIRE(i == *pool.find_component_data(i));
 			}
 		}
+		SECTION("piecewise works (T1)") {
+			pool.remove_range({1, 10}); // moves mem to T1
+			pool.process_changes();
+			pool.remove_range({0, 0});  // should remove it
+			pool.process_changes();
 
+			REQUIRE(pool.num_components() == 0);
+		}
+		SECTION("piecewise works (T2)") {
+			pool.remove_range({1, 4});
+			pool.remove_range({6, 9}); // moves mem to T2
+			pool.process_changes();
+
+			pool.remove_range({5, 5}); // merges two previous skip chains
+			pool.process_changes();
+
+			pool.remove_range({10, 10});
+			pool.process_changes();
+
+			pool.remove_range({0, 0}); // should remove it
+			pool.process_changes();
+
+			REQUIRE(pool.num_components() == 0);
+		}
 		SECTION("piecewise does not invalidate other components") {
 			pool.remove_range({10, 10});
 			pool.remove_range({9, 9});

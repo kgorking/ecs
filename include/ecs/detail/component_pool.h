@@ -732,6 +732,9 @@ private:
 					} else {
 						// adjust the active range
 						it_t1->active = left_range;
+
+						// update the modification time
+						it_t1->last_modified = clock::now();
 					}
 				}
 
@@ -760,16 +763,26 @@ private:
 					for (entity_type i = it_rem->first(); i <= it_rem->last(); ++i) {
 						auto offset = it_t2->range.offset(i);
 
-						if (it_t2->skips[offset] == 0) {
-							it_t2->skips[offset] = 1;
+						Expects(it_t2->skips[offset] == 0); // trying to remove already removed entity
 
-							// Increment adjacent previous skips
-							if (offset > 0) {
-								auto j = offset - 1;
-								while (it_t2->skips[j] > 0) {
-									it_t2->skips[j] += 1;
-									j -= 1;
-								}
+						// Skip this one entity
+						auto skip_amount = 1;
+
+						// If the entity to the right is also skipped,
+						// added their skip-amount to our own to maintain
+						// the chain of skip values.
+						if(offset != it_t2->skips.size() - 1)
+							skip_amount += it_t2->skips[offset + 1];
+
+						// Store the skip
+						it_t2->skips[offset] = skip_amount;
+
+						// Increment previous skips if needed
+						if (offset > 0) {
+							auto j = offset - 1;
+							while (it_t2->skips[j] > 0) {
+								it_t2->skips[j] += skip_amount;
+								j -= 1;
 							}
 						}
 					}
@@ -777,6 +790,10 @@ private:
 					// If whole range is skipped, just erase it
 					if (it_t2->skips[0] == it_t2->range.ucount())
 						it_t2 = t2.erase(it_t2);
+					else {
+						// otherwise update the modification time
+						it_t2->last_modified = clock::now();
+					}
 				}
 
 				//it_rem = removes.erase(it_rem);
