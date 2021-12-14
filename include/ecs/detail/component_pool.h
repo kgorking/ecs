@@ -272,56 +272,41 @@ public:
 	// and remove components queued for removal
 	void process_changes() override {
 		process_remove_components();
+
+		size_t const t0_size_start = t0.size();
+		size_t const t2_size_start = t2.size();
+
 		process_add_components();
+		handle_tier_upgrades();
+		// TODO? collapse_adjacent_ranges()
 
-		if (components_added || components_removed) {
-			cached_ranges.clear();
+		// Sort it
+		// New ranges are never added to t1, but existing t1
+		// can be downgraded to t2.
+		if (t0_size_start == 0 && !t0.empty()) {
+			std::ranges::sort(t0, std::less{}, &Tier0::range);
+		} else if (t0_size_start != t0.size()) {
+			auto const middle = t0.begin() + t0_size_start;
 
-			// Find all ranges
-			if (!t0.empty()) {
-				t0_range = t0[0].range;
-				for (size_t i = 0; i < t0.size(); ++i) {
-					auto const& tier0 = t0[i];
-					t0_range = entity_range::overlapping(t0_range, tier0.range);
+			// sort the newcomers
+			std::ranges::sort(middle, t0.end(), std::less{}, &Tier0::range);
 
-					cached_ranges.push_back(tier0.range);
-				}
-			}
-
-			if (!t1.empty()) {
-				t1_range = t1[0].range;
-				for (size_t i = 0; i < t1.size(); ++i) {
-					auto const& tier1 = t1[i];
-					t1_range = entity_range::overlapping(t1_range, tier1.active);
-
-					cached_ranges.push_back(tier1.active);
-				}
-			}
-
-			if (!t2.empty()) {
-				t2_range = t2[0].range;
-				for (size_t i = 0; i < t2.size(); ++i) {
-					auto const& tier2 = t2[i];
-					t2_range = entity_range::overlapping(t2_range, tier2.range);
-
-					auto it = tier2.skips.begin();
-					do {
-						it += *it;
-						if (it == tier2.skips.end())
-							break;
-
-						entity_type first = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it));
-
-						while (it != tier2.skips.end() && *it == 0) {
-							++it;
-						}
-
-						entity_id last = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it) - 1);
-						cached_ranges.push_back({first, last});
-					} while (it != tier2.skips.end());
-				}
-			}
+			// merge them into the rest
+			std::ranges::inplace_merge(t0, middle, std::less{}, &Tier0::range);
 		}
+		if (t2_size_start == 0 && !t2.empty()) {
+			std::ranges::sort(t2, std::less{}, &Tier2::range);
+		} else if (t2_size_start != t2.size()) {
+			auto const middle = t2.begin() + t2_size_start;
+
+			// sort the newcomers
+			std::ranges::sort(middle, t2.end(), std::less{}, &Tier2::range);
+
+			// merge them into the rest
+			std::ranges::inplace_merge(t2, middle, std::less{}, &Tier2::range);
+		}
+
+		update_cached_ranges();
 	}
 
 	// Returns the number of active entities in the pool
@@ -498,6 +483,73 @@ private:
 		components_removed = true;
 	}
 
+	void handle_tier_upgrades() {
+		auto const now = clock::now();
+
+		for (auto it = t1.begin(); it != t1.end(); ) {
+			if (now - it->last_modified >= Tier1::time_to_upgrade) {
+				t0.push_back(upgrade_t1_to_t0(*it));
+				it = t1.erase(it);
+			} else {
+				++it;
+			}
+		}
+
+		// t2
+	}
+
+	void update_cached_ranges() {
+		if (!components_added && !components_removed)
+			return;
+
+		cached_ranges.clear();
+
+		// Find all ranges
+		if (!t0.empty()) {
+			t0_range = t0[0].range;
+			for (size_t i = 0; i < t0.size(); ++i) {
+				auto const& tier0 = t0[i];
+				t0_range = entity_range::overlapping(t0_range, tier0.range);
+
+				cached_ranges.push_back(tier0.range);
+			}
+		}
+
+		if (!t1.empty()) {
+			t1_range = t1[0].range;
+			for (size_t i = 0; i < t1.size(); ++i) {
+				auto const& tier1 = t1[i];
+				t1_range = entity_range::overlapping(t1_range, tier1.active);
+
+				cached_ranges.push_back(tier1.active);
+			}
+		}
+
+		if (!t2.empty()) {
+			t2_range = t2[0].range;
+			for (size_t i = 0; i < t2.size(); ++i) {
+				auto const& tier2 = t2[i];
+				t2_range = entity_range::overlapping(t2_range, tier2.range);
+
+				auto it = tier2.skips.begin();
+				do {
+					it += *it;
+					if (it == tier2.skips.end())
+						break;
+
+					entity_type first = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it));
+
+					while (it != tier2.skips.end() && *it == 0) {
+						++it;
+					}
+
+					entity_id last = static_cast<entity_type>(tier2.range.first() + std::distance(tier2.skips.begin(), it) - 1);
+					cached_ranges.push_back({first, last});
+				} while (it != tier2.skips.end());
+			}
+		}
+	}
+
 	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
 	static bool has_duplicate_entities(auto const& vec) {
@@ -597,38 +649,9 @@ private:
 			vec.clear();
 		};
 
-		size_t const t0_size_start = t0.size();
-		size_t const t2_size_start = t2.size();
-
 		// Move new components into the pool
 		deferred_adds.for_each(processor);
 		deferred_inits.for_each(processor);
-
-		// Sort it
-		// New ranges are never added to t1, but existing t1
-		// can be downgraded to t2.
-		if (t0_size_start == 0 && !t0.empty()) {
-			std::ranges::sort(t0, std::less{}, &Tier0::range);
-		} else if (t0_size_start != t0.size()) {
-			auto const middle = t0.begin() + t0_size_start;
-
-			// sort the newcomers
-			std::ranges::sort(middle, t0.end(), std::less{}, &Tier0::range);
-
-			// merge them into the rest
-			std::ranges::inplace_merge(t0, middle, std::less{}, &Tier0::range);
-		}
-		if (t2_size_start == 0 && !t2.empty()) {
-			std::ranges::sort(t2, std::less{}, &Tier2::range);
-		} else if (t2_size_start != t2.size()) {
-			auto const middle = t2.begin() + t2_size_start;
-
-			// sort the newcomers
-			std::ranges::sort(middle, t2.end(), std::less{}, &Tier2::range);
-
-			// merge them into the rest
-			std::ranges::inplace_merge(t2, middle, std::less{}, &Tier2::range);
-		}
 
 		// Check it
 		Expects(false == has_duplicate_entities(t0));
@@ -649,7 +672,6 @@ private:
 		}
 
 		// Sort the ranges to remove
-		// TODO in-place merge
 		std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
 
 		// Remove tier 0 ranges, or downgrade them to tier 1 or 2
@@ -825,6 +847,16 @@ private:
 		Tier2 tier2{tier1.range, std::vector<uint32_t>(tier1.data.size(), uint32_t{0}), std::move(tier1.data), clock::now()};
 		tier2.init_skips(r1, r2);
 		return tier2;
+	}
+
+	Tier0 upgrade_t1_to_t0(Tier1& tier1) {
+		std::vector<T> stuff;
+
+		auto const off_first = tier1.range.offset(tier1.active.first());
+		auto const off_last = tier1.range.offset(tier1.active.last());
+		stuff.assign(tier1.data.begin() + off_first, tier1.data.end() + off_last);
+
+		return Tier0{tier1.active, std::move(stuff)};
 	}
 };
 } // namespace ecs::detail
