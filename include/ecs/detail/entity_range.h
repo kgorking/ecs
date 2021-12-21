@@ -5,7 +5,7 @@
 
 namespace ecs::detail {
 // Find the intersectsions between two sets of ranges
-inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
+constexpr inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
 	std::vector<entity_range> result;
 
 	if (view_a.empty() || view_b.empty()) {
@@ -36,7 +36,7 @@ inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, enti
 }
 
 // Merges a range into the last range in the vector, or adds a new range
-inline void merge_or_add(std::vector<entity_range>& v, entity_range r) {
+constexpr inline void merge_or_add(std::vector<entity_range>& v, entity_range r) {
 	if (!v.empty() && v.back().adjacent(r))
 		v.back() = entity_range::merge(v.back(), r);
 	else
@@ -45,7 +45,7 @@ inline void merge_or_add(std::vector<entity_range>& v, entity_range r) {
 
 // Find the difference between two sets of ranges.
 // Removes ranges in b from a.
-inline std::vector<entity_range> difference_ranges(entity_range_view view_a, entity_range_view view_b) {
+constexpr inline std::vector<entity_range> difference_ranges(entity_range_view view_a, entity_range_view view_b) {
 	if (view_a.empty())
 		return {};
 	if (view_b.empty())

@@ -32,11 +32,10 @@
 	ClassName& operator=(ClassName const&) = default;                                                                                      \
 	ClassName& operator=(ClassName&&) = default
 
-
 namespace ecs::detail {
 
 template <class ForwardIt, class BinaryPredicate>
-ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) {
+constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) {
 	if (first == last)
 		return last;
 
@@ -51,11 +50,10 @@ ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) 
 }
 
 template <class Cont, class BinaryPredicate>
-void combine_erase(Cont& cont, BinaryPredicate p) {
+constexpr void combine_erase(Cont& cont, BinaryPredicate p) {
 	auto const end = std_combine_erase(cont.begin(), cont.end(), p);
 	cont.erase(end, cont.end());
 }
-
 
 template <typename T>
 class component_pool final : public component_pool_base {
