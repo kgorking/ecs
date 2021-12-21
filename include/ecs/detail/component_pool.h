@@ -157,26 +157,26 @@ public:
 
 	// Remove an entity from the component pool. This logically removes the component from the
 	// entity.
-	void remove(entity_id const id) {
+	constexpr void remove(entity_id const id) {
 		remove_range({id, id});
 	}
 
 	// Remove an entity from the component pool. This logically removes the component from the
 	// entity.
-	void remove_range(entity_range const range) {
+	constexpr void remove_range(entity_range const range) {
 		deferred_removes.local().push_back(range);
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T* find_component_data(entity_id const id) {
+	[[nodiscard]] constexpr T* find_component_data(entity_id const id) {
 		auto const index = find_entity_index(id);
 		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T const* find_component_data(entity_id const id) const {
+	[[nodiscard]] constexpr T const* find_component_data(entity_id const id) const {
 		auto const index = find_entity_index(id);
 		return index ? &components[static_cast<size_t>(index.value())] : nullptr;
 	}
@@ -204,7 +204,7 @@ public:
 	}
 
 	// Clears the pools state flags
-	void clear_flags() override {
+	constexpr void clear_flags() override {
 		components_added = false;
 		components_removed = false;
 		components_modified = false;
@@ -234,7 +234,7 @@ public:
 	}
 
 	// Returns the pools entities
-	entity_range_view get_entities() const {
+	[[nodiscard]] constexpr entity_range_view get_entities() const {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
 			static constexpr entity_range global_range{std::numeric_limits<ecs::detail::entity_type>::min(),
@@ -246,12 +246,12 @@ public:
 	}
 
 	// Returns true if an entity has a component in this pool
-	bool has_entity(entity_id const id) const {
+	[[nodiscard]] constexpr bool has_entity(entity_id const id) const {
 		return has_entity({id, id});
 	}
 
 	// Returns true if an entity range has components in this pool
-	bool has_entity(entity_range const& range) const {
+	[[nodiscard]] constexpr bool has_entity(entity_range const& range) const {
 		if (ranges.empty()) {
 			return false;
 		}
@@ -264,12 +264,12 @@ public:
 
 	// TODO remove?
 	// Checks the current threads queue for the entity
-	bool is_queued_add(entity_id const id) {
+	[[nodiscard]] constexpr bool is_queued_add(entity_id const id) {
 		return is_queued_add({id, id});
 	}
 
 	// Checks the current threads queue for the entity
-	bool is_queued_add(entity_range const& range) {
+	[[nodiscard]] constexpr bool is_queued_add(entity_range const& range) {
 		if (deferred_adds.local().empty()) {
 			return false;
 		}
@@ -284,12 +284,12 @@ public:
 	}
 
 	// Checks the current threads queue for the entity
-	bool is_queued_remove(entity_id const id) {
+	[[nodiscard]] constexpr bool is_queued_remove(entity_id const id) {
 		return is_queued_remove({id, id});
 	}
 
 	// Checks the current threads queue for the entity
-	bool is_queued_remove(entity_range const& range) {
+	[[nodiscard]] constexpr bool is_queued_remove(entity_range const& range) {
 		if (deferred_removes.local().empty())
 			return false;
 
@@ -302,7 +302,7 @@ public:
 	}
 
 	// Clear all entities from the pool
-	void clear() override {
+	constexpr void clear() override {
 		// Remember if components was removed from the pool
 		bool const is_removed = !components.empty();
 
@@ -320,7 +320,7 @@ public:
 	}
 
 	// Flag that components has been modified
-	void notify_components_modified() {
+	constexpr void notify_components_modified() {
 		components_modified = true;
 	}
 
@@ -333,6 +333,20 @@ private:
 	// Flag that components has been removed
 	constexpr void set_data_removed() {
 		components_removed = true;
+	}
+
+	constexpr static bool is_equal(T const& lhs, T const& rhs) requires std::equality_comparable<T> {
+		return lhs == rhs;
+	}
+	constexpr static bool is_equal(T const& lhs, T const& rhs) requires tagged<T> {
+		// Tags are empty, so always return true
+		return true;
+	}
+	constexpr static bool is_equal(T const&, T const&) {
+		// Type can not be compared, so always return false.
+		// memcmp is a no-go because it also compares padding in types,
+		// and it is not constexpr
+		return false;
 	}
 
 	// Searches for an entitys offset in to the component pool.
@@ -393,7 +407,7 @@ private:
 				auto& [a_rng, a_data] = a;
 				auto const& [b_rng, b_data] = b;
 
-				if (a_rng.adjacent(b_rng) && 0 == memcmp(&a_data, &b_data, sizeof(T))) {
+				if (a_rng.adjacent(b_rng) && is_equal(a_data, b_data)) {
 					a_rng = entity_range::merge(a_rng, b_rng);
 					return true;
 				} else {
@@ -591,13 +605,17 @@ private:
 					components.clear();
 				} else {
 					// Move components inbetween the ranges
-					for (auto it = removes.cbegin() + 1; it != removes.cend(); ++it) {
-						index = find_entity_index(it->first());
+					if (removes.size() > 1) {
+						// ^-- KBG added: making func constexpr found bug in this loop
+						// "note: failure was caused by a read of a variable outside its lifetime"
+						for (auto it = removes.cbegin() + 1; it != removes.cend(); ++it) {
+							index = find_entity_index(it->first());
 
-						auto const last_it = components.begin() + index.value();
-						auto const dist = std::distance(from_it, last_it);
-						from_it = std::move(from_it, last_it, dest_it);
-						dest_it += dist;
+							auto const last_it = components.begin() + index.value();
+							auto const dist = std::distance(from_it, last_it);
+							from_it = std::move(from_it, last_it, dest_it);
+							dest_it += dist;
+						}
 					}
 
 					// Move rest of components
@@ -611,6 +629,7 @@ private:
 						components.erase(dest_it, components.end());
 					}
 				}
+				
 			}
 
 			// Remove the ranges
