@@ -17,9 +17,7 @@
 namespace ecs {
 class runtime {
 public:
-	// Add several components to a range of entities. Will not be added until 'commit_changes()' is
-	// called. Initializers can be used with the function signature 'T(ecs::entity_id)'
-	//   where T is the component type returned by the function.
+	// Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename First, typename... T>
 	void add_component(entity_range const range, First&& first_val, T&&... vals) {
@@ -29,42 +27,40 @@ public:
 					  "can not add pointers to entities; wrap them in a struct");
 
 		auto const adder = [this, range]<class Type>(Type&& val) {
-			if constexpr (std::is_invocable_v<Type, entity_id> && !detail::unbound<Type>) {
-				// Return type of 'func'
-				using ComponentType = decltype(std::declval<Type>()(entity_id{0}));
-				static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
+			// Add it to the component pool
+			if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
+				auto& pool = ctx.get_component_pool<detail::parent_id>();
+				pool.add(range, detail::parent_id{val.id()});
+			} else if constexpr (std::is_reference_v<Type>) {
+				using DerefT = std::remove_cvref_t<Type>;
+				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
-				if constexpr (detail::is_parent<std::remove_cvref_t<ComponentType>>::value) {
-					auto const converter = [val](entity_id id) { return detail::parent_id{val(id).id()}; };
-
-					auto& pool = ctx.get_component_pool<detail::parent_id>();
-					pool.add_init(range, converter);
-				} else {
-					auto& pool = ctx.get_component_pool<ComponentType>();
-					pool.add_init(range, std::forward<Type>(val));
-				}
+				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
+				pool.add(range, val);
 			} else {
-				// Add it to the component pool
-				if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
-					auto& pool = ctx.get_component_pool<detail::parent_id>();
-					pool.add(range, detail::parent_id{val.id()});
-				} else if constexpr (std::is_reference_v<Type>) {
-					using DerefT = std::remove_cvref_t<Type>;
-					static_assert(std::copyable<DerefT>, "Type must be copyable");
+				static_assert(std::copyable<Type>, "Type must be copyable");
 
-					detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
-					pool.add(range, val);
-				} else {
-					static_assert(std::copyable<Type>, "Type must be copyable");
-
-					detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
-					pool.add(range, std::forward<Type>(val));
-				}
+				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
+				pool.add(range, std::forward<Type>(val));
 			}
 		};
 
 		adder(std::forward<First>(first_val));
 		(adder(std::forward<T>(vals)), ...);
+	}
+
+	// Adds a span of components to a range of entities. Will not be added until 'commit_changes()' is called.
+	// Pre: entity does not already have the component, or have it in queue to be added
+	template <typename T>
+	void add_component(entity_range const range, std::span<T> vals) {
+		static_assert(!detail::global<T>, "can not add global components to entities");
+		static_assert(!std::is_pointer_v<std::remove_cvref_t<T>>, "can not add pointers to entities; wrap them in a struct");
+		static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported");
+		static_assert(std::copyable<T>, "Type must be copyable");
+
+		// Add it to the component pool
+		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+		pool.add_span(range, vals);
 	}
 
 	// Add several components to an entity. Will not be added until 'commit_changes()' is called.

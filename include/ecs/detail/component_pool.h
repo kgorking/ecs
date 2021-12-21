@@ -2,10 +2,11 @@
 #define ECS_COMPONENT_POOL_H
 
 #include <execution>
-#include <functional>
 #include <memory_resource>
 #include <type_traits>
 #include <vector>
+//#include <functional>
+#include <span>
 
 #include "tls/collect.h"
 
@@ -70,9 +71,9 @@ private:
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
+	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<T>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
+	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_span_adds;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 	// Status flags
@@ -116,13 +117,14 @@ public:
 #endif
 	}
 
-	// Add a component to a range of entities, initialized by the supplied user function
+	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	template <typename Fn>
-	constexpr void add_init(entity_range const range, Fn&& init) {
+	constexpr void add_span(entity_range const range, std::span<T> span) requires !detail::unbound<T> {
+		Expects(range.count() == std::ssize(span));
+
 		// Add the range and function to a temp storage
-		deferred_init_adds.local().emplace_back(range, std::forward<Fn>(init));
+		deferred_span_adds.local().emplace_back(range, span);
 	}
 
 	// Add a component to a range of entity.
@@ -309,7 +311,7 @@ public:
 		offsets.clear();
 		components.clear();
 		deferred_adds.reset();
-		deferred_init_adds.reset();
+		deferred_span_adds.reset();
 		deferred_removes.reset();
 		clear_flags();
 
@@ -372,24 +374,24 @@ private:
 			std::move(vec.begin(), vec.end(), std::back_inserter(adds));
 		}
 
-		auto collection_inits = deferred_init_adds.gather();
-		std::vector<entity_init> inits;
-		for (auto& vec : collection_inits) {
-			std::move(vec.begin(), vec.end(), std::back_inserter(inits));
+		auto collection_spans = deferred_span_adds.gather();
+		std::vector<entity_span> spans;
+		for (auto& vec : collection_spans) {
+			std::move(vec.begin(), vec.end(), std::back_inserter(spans));
 		}
 
-		if (adds.empty() && inits.empty()) {
+		if (adds.empty() && spans.empty()) {
 			return;
 		}
 
 		// Clear the current adds
 		deferred_adds.reset();
-		deferred_init_adds.reset();constexpr 
+		deferred_span_adds.reset();
 
 		// Sort the input
 		auto const comparator = [](auto const& l, auto const& r) { return std::get<0>(l).first() < std::get<0>(r).first(); };
 		std::sort(adds.begin(), adds.end(), comparator);
-		std::sort(inits.begin(), inits.end(), comparator);
+		std::sort(spans.begin(), spans.end(), comparator);
 
 		// Check the 'add*' functions precondition.
 		// An entity can not have more than one of the same component
@@ -398,34 +400,15 @@ private:
 												   [](auto const& l, auto const& r) { return std::get<0>(l) == std::get<0>(r); });
 		};
 		Expects(false == has_duplicate_entities(adds));
+		Expects(false == has_duplicate_entities(spans));
 
-		// Merge adjacent ranges
+		// Merge adjacent ranges that has the same data
 		if constexpr (!detail::unbound<T>) { // contains data
 			combine_erase(adds, [](entity_data& a, entity_data const& b) {
 				auto& [a_rng, a_data] = a;
 				auto const& [b_rng, b_data] = b;
 
 				if (a_rng.adjacent(b_rng) && is_equal(a_data, b_data)) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			});
-			combine_erase(inits, [](entity_init& a, entity_init const& b) {
-				auto a_rng = std::get<0>(a);
-				auto const b_rng = std::get<0>(b);
-
-#if defined(__clang__) && defined(_MSVC_STL_VERSION)
-				// Clang with ms-stl fails if these are const
-				auto a_func = std::get<1>(a);
-				auto b_func = std::get<1>(b);
-#else
-                    auto const a_func = std::get<1>(a);
-                    auto const b_func = std::get<1>(b);
-#endif
-
-				if (a_rng.adjacent(b_rng) && (a_func.template target<T(entity_id)>() == b_func.template target<T(entity_id)>())) {
 					a_rng = entity_range::merge(a_rng, b_rng);
 					return true;
 				} else {
@@ -445,7 +428,6 @@ private:
 				}
 			};
 			combine_erase(adds, combiner);
-			combine_erase(inits, combiner);
 		}
 
 		// Add the new entities/components
@@ -486,7 +468,7 @@ private:
 		};
 
 		if constexpr (!detail::unbound<T>) {
-			auto it_inits = inits.begin();
+			auto it_spans = spans.begin();
 			auto component_it = components.cbegin();
 
 			auto const insert_data = [&](ptrdiff_t offset) {
@@ -496,24 +478,22 @@ private:
 				component_it = components.insert(component_it, static_cast<size_t>(range_count), std::move(std::get<1>(*it_adds)));
 				std::advance(component_it, range_count);
 			};
-			auto const insert_init = [&](ptrdiff_t offset) {
+			auto const insert_span = [&](ptrdiff_t offset) {
 				// Add the new data
 				std::advance(component_it, offset);
-				auto const& range = std::get<0>(*it_inits);
-				auto const& init = std::get<1>(*it_inits);
-				for (entity_id const ent : range) {
-					component_it = components.emplace(component_it, init(ent));
-					std::advance(component_it, 1);
-				}
+				//auto const& range = std::get<0>(*it_spans);
+				auto const& span = std::get<1>(*it_spans);
+				component_it = components.insert(component_it, span.begin(), span.end());
+				std::advance(component_it, span.size());
 			};
 
-			while (it_adds != adds.end() && it_inits != inits.end()) {
-				if (std::get<0>(*it_adds) < std::get<0>(*it_inits)) {
+			while (it_adds != adds.end() && it_spans != spans.end()) {
+				if (std::get<0>(*it_adds) < std::get<0>(*it_spans)) {
 					insert_data(insert_range(it_adds));
 					++it_adds;
 				} else {
-					insert_init(insert_range(it_inits));
-					++it_inits;
+					insert_span(insert_range(it_spans));
+					++it_spans;
 				}
 			}
 
@@ -521,9 +501,9 @@ private:
 				insert_data(insert_range(it_adds));
 				++it_adds;
 			}
-			while (it_inits != inits.end()) {
-				insert_init(insert_range(it_inits));
-				++it_inits;
+			while (it_spans != spans.end()) {
+				insert_span(insert_range(it_spans));
+				++it_spans;
 			}
 		} else {
 			// If there is no data, the ranges are always added to 'deferred_adds'
