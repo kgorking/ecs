@@ -1,11 +1,9 @@
-#ifndef ECS_COMPONENT_POOL
-#define ECS_COMPONENT_POOL
+#ifndef ECS_COMPONENT_POOL_H
+#define ECS_COMPONENT_POOL_H
 
-#include <cstring> // for memcmp
 #include <execution>
 #include <functional>
 #include <memory_resource>
-#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -675,4 +673,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_COMPONENT_POOL
+#endif // !ECS_COMPONENT_POOL_H
