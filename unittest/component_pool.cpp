@@ -34,6 +34,7 @@ struct ctr_counter {
 constexpr bool new_pool_is_empty() {
 	ecs::detail::component_pool<int> pool;
 	pool.add({0, 4}, 0);
+	pool.process_changes();
 	return true;
 }
 

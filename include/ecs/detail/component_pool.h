@@ -183,7 +183,7 @@ public:
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	void process_changes() override {
+	constexpr void process_changes() override {
 		process_remove_components();
 		process_add_components();
 	}
@@ -326,18 +326,18 @@ public:
 
 private:
 	// Flag that components has been added
-	void set_data_added() {
+	constexpr void set_data_added() {
 		components_added = true;
 	}
 
 	// Flag that components has been removed
-	void set_data_removed() {
+	constexpr void set_data_removed() {
 		components_removed = true;
 	}
 
 	// Searches for an entitys offset in to the component pool.
 	// Returns nothing if 'ent' is not a valid entity
-	std::optional<ptrdiff_t> find_entity_index(entity_id const ent) const {
+	constexpr std::optional<ptrdiff_t> find_entity_index(entity_id const ent) const {
 		if (ranges.empty() /*|| !has_entity(ent)*/) {
 			return {};
 		}
@@ -352,7 +352,7 @@ private:
 	}
 
 	// Add new queued entities and components to the main storage
-	void process_add_components() {
+	constexpr void process_add_components() {
 		// Combine the components in to a single vector
 		auto collection = deferred_adds.gather();
 		std::vector<entity_data> adds;
@@ -372,12 +372,12 @@ private:
 
 		// Clear the current adds
 		deferred_adds.reset();
-		deferred_init_adds.reset();
+		deferred_init_adds.reset();constexpr 
 
 		// Sort the input
-		auto constexpr comparator = [](auto const& l, auto const& r) { return std::get<0>(l).first() < std::get<0>(r).first(); };
-		std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
-		std::sort(std::execution::par, inits.begin(), inits.end(), comparator);
+		auto const comparator = [](auto const& l, auto const& r) { return std::get<0>(l).first() < std::get<0>(r).first(); };
+		std::sort(adds.begin(), adds.end(), comparator);
+		std::sort(inits.begin(), inits.end(), comparator);
 
 		// Check the 'add*' functions precondition.
 		// An entity can not have more than one of the same component
@@ -537,7 +537,7 @@ private:
 	}
 
 	// Removes the entities and components
-	void process_remove_components() {
+	constexpr void process_remove_components() {
 		// Transient components are removed each cycle
 		if constexpr (detail::transient<T>) {
 			if (!ranges.empty()) {
