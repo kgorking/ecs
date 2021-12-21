@@ -33,8 +33,8 @@ struct ctr_counter {
 
 constexpr bool new_pool_is_empty() {
 	ecs::detail::component_pool<int> pool;
+	pool.add({0, 4}, 0);
 	return true;
-	//pool.num_entities() == 0 && pool.num_components() == 0 && pool.has_component_count_changed() == false;
 }
 
 // A bunch of tests to ensure that the component_pool behaves as expected

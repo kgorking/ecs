@@ -122,7 +122,7 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	template <typename Fn>
-	void add_init(entity_range const range, Fn&& init) {
+	constexpr void add_init(entity_range const range, Fn&& init) {
 		// Add the range and function to a temp storage
 		deferred_init_adds.local().emplace_back(range, std::forward<Fn>(init));
 	}
@@ -130,7 +130,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add(entity_range const range, T&& component) {
+	constexpr void add(entity_range const range, T&& component) {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back(range);
 		} else {
@@ -141,7 +141,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add(entity_range const range, T const& component) {
+	constexpr void add(entity_range const range, T const& component) {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back(range);
 		} else {
