@@ -61,7 +61,8 @@ private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
 	// The components
-	std::pmr::vector<T> components;
+	//std::pmr::vector<T> components;
+	std::vector<T> components;
 
 	// The entities that have components in this storage.
 	std::vector<entity_range> ranges;
@@ -71,8 +72,7 @@ private:
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_init =
-		std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
+	using entity_init = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
@@ -83,14 +83,21 @@ private:
 	bool components_modified = false;
 
 public:
+	constexpr component_pool() noexcept {};
+
 	// Returns the current memory resource
 	std::pmr::memory_resource* get_memory_resource() const {
+#if 0
 		return components.get_allocator().resource();
+#else
+		return nullptr;
+#endif
 	}
 
 	// Sets the memory resource used to allocate components.
 	// If components are already allocated, they will be moved.
-	void set_memory_resource(std::pmr::memory_resource* resource) {
+	void set_memory_resource(std::pmr::memory_resource* /*resource*/) {
+#if 0
 		// Do nothing if the memory resource is already set
 		if (components.get_allocator().resource() == resource)
 			return;
@@ -108,6 +115,7 @@ public:
 		components_added = true;
 		components_removed = true;
 		components_modified = true;
+#endif
 	}
 
 	// Add a component to a range of entities, initialized by the supplied user function
@@ -181,11 +189,13 @@ public:
 	}
 
 	// Returns the number of active entities in the pool
+	[[nodiscard]] constexpr
 	size_t num_entities() const {
 		return offsets.empty() ? 0 : static_cast<size_t>(offsets.back() + ranges.back().count());
 	}
 
 	// Returns the number of active components in the pool
+	[[nodiscard]] constexpr
 	size_t num_components() const {
 		if constexpr (unbound<T>)
 			return 1;
@@ -201,20 +211,24 @@ public:
 	}
 
 	// Returns true if components has been added since last clear_flags() call
+	[[nodiscard]] constexpr
 	bool has_more_components() const {
 		return components_added;
 	}
 
 	// Returns true if components has been removed since last clear_flags() call
+	[[nodiscard]] constexpr
 	bool has_less_components() const {
 		return components_removed;
 	}
 
 	// Returns true if components has been added/removed since last clear_flags() call
+	[[nodiscard]] constexpr
 	bool has_component_count_changed() const {
 		return components_added || components_removed;
 	}
 
+	[[nodiscard]] constexpr
 	bool has_components_been_modified() const {
 		return has_component_count_changed() || components_modified;
 	}

@@ -31,9 +31,16 @@ struct ctr_counter {
 	ctr_counter& operator=(ctr_counter const&) = default;
 };
 
+constexpr bool new_pool_is_empty() {
+	ecs::detail::component_pool<int> pool;
+	return true;
+	//pool.num_entities() == 0 && pool.num_components() == 0 && pool.has_component_count_changed() == false;
+}
+
 // A bunch of tests to ensure that the component_pool behaves as expected
 TEST_CASE("Component pool specification", "[component]") {
 	SECTION("A new component pool is empty") {
+		static_assert(new_pool_is_empty());
 		ecs::detail::component_pool<int> pool;
 		CHECK(pool.num_entities() == 0);
 		CHECK(pool.num_components() == 0);
