@@ -71,7 +71,7 @@ private:
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<T>>>;
+	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_span_adds;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
@@ -120,7 +120,7 @@ public:
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	constexpr void add_span(entity_range const range, std::span<T> span) requires !detail::unbound<T> {
+	constexpr void add_span(entity_range const range, std::span<const T> span) requires !detail::unbound<T> {
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
@@ -481,8 +481,7 @@ private:
 			auto const insert_span = [&](ptrdiff_t offset) {
 				// Add the new data
 				std::advance(component_it, offset);
-				//auto const& range = std::get<0>(*it_spans);
-				auto const& span = std::get<1>(*it_spans);
+				auto const span = std::get<1>(*it_spans);
 				component_it = components.insert(component_it, span.begin(), span.end());
 				std::advance(component_it, span.size());
 			};

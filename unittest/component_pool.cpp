@@ -106,7 +106,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return true;
 			};
-			//static_assert(test());	// std::function is not constexpr
+			static_assert(test());
 			REQUIRE(test());
 		}
 		SECTION("with negative entity ids is fine") {

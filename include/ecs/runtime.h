@@ -51,8 +51,8 @@ public:
 
 	// Adds a span of components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
-	template <typename T>
-	void add_component(entity_range const range, std::span<T> vals) {
+	void add_component_span(entity_range const range, std::ranges::contiguous_range auto const& vals) {
+		using T = typename std::remove_cvref_t<decltype(vals)>::value_type;
 		static_assert(!detail::global<T>, "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<T>>, "can not add pointers to entities; wrap them in a struct");
 		static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported");
@@ -60,7 +60,7 @@ public:
 
 		// Add it to the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
-		pool.add_span(range, vals);
+		pool.add_span(range, std::span{vals});
 	}
 
 	// Add several components to an entity. Will not be added until 'commit_changes()' is called.
