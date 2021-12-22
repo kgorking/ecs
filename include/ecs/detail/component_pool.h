@@ -677,19 +677,19 @@ private:
 		// Remove tier 0 ranges, or downgrade them to tier 1 or 2
 		if (!t0.empty()) {
 			process_remove_components_tier0(vec);
-			std::ranges::sort(t0, std::less{}, &Tier0::range);
+			//std::ranges::sort(t0, std::less{}, &Tier0::range);
 		}
 
 		// Remove tier 1 ranges, or downgrade them to tier 2
 		if (!t1.empty()) {
 			process_remove_components_tier1(vec);
-			std::ranges::sort(t1, std::less{}, &Tier1::range);
+			//std::ranges::sort(t1, std::less{}, &Tier1::range);
 		}
 
 		// Remove tier 2 ranges
 		if (!t2.empty()) {
 			process_remove_components_tier2(vec);
-			std::ranges::sort(t2, std::less{}, &Tier2::range);
+			//std::ranges::sort(t2, std::less{}, &Tier2::range);
 		}
 
 		// Update the state
