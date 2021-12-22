@@ -120,7 +120,7 @@ public:
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	constexpr void add_span(entity_range const range, std::span<const T> span) requires !detail::unbound<T> {
+	constexpr void add_span(entity_range const range, std::span<const T> span) requires (!detail::unbound<T>) {
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
@@ -189,14 +189,12 @@ public:
 	}
 
 	// Returns the number of active entities in the pool
-	[[nodiscard]] constexpr
-	size_t num_entities() const {
+	[[nodiscard]] constexpr size_t num_entities() const {
 		return offsets.empty() ? 0 : static_cast<size_t>(offsets.back() + ranges.back().count());
 	}
 
 	// Returns the number of active components in the pool
-	[[nodiscard]] constexpr
-	size_t num_components() const {
+	[[nodiscard]] constexpr size_t num_components() const {
 		if constexpr (unbound<T>)
 			return 1;
 		else
@@ -211,25 +209,21 @@ public:
 	}
 
 	// Returns true if components has been added since last clear_flags() call
-	[[nodiscard]] constexpr
-	bool has_more_components() const {
+	[[nodiscard]] constexpr bool has_more_components() const {
 		return components_added;
 	}
 
 	// Returns true if components has been removed since last clear_flags() call
-	[[nodiscard]] constexpr
-	bool has_less_components() const {
+	[[nodiscard]] constexpr bool has_less_components() const {
 		return components_removed;
 	}
 
 	// Returns true if components has been added/removed since last clear_flags() call
-	[[nodiscard]] constexpr
-	bool has_component_count_changed() const {
+	[[nodiscard]] constexpr bool has_component_count_changed() const {
 		return components_added || components_removed;
 	}
 
-	[[nodiscard]] constexpr
-	bool has_components_been_modified() const {
+	[[nodiscard]] constexpr bool has_components_been_modified() const {
 		return has_component_count_changed() || components_modified;
 	}
 
@@ -237,7 +231,7 @@ public:
 	[[nodiscard]] constexpr entity_range_view get_entities() const {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
-			static constexpr entity_range global_range{std::numeric_limits<ecs::detail::entity_type>::min(),
+			constexpr entity_range global_range{std::numeric_limits<ecs::detail::entity_type>::min(),
 													   std::numeric_limits<ecs::detail::entity_type>::max()};
 			return entity_range_view{&global_range, 1};
 		} else {
@@ -338,7 +332,7 @@ private:
 	constexpr static bool is_equal(T const& lhs, T const& rhs) requires std::equality_comparable<T> {
 		return lhs == rhs;
 	}
-	constexpr static bool is_equal(T const& lhs, T const& rhs) requires tagged<T> {
+	constexpr static bool is_equal(T const& /*lhs*/, T const& /*rhs*/) requires tagged<T> {
 		// Tags are empty, so always return true
 		return true;
 	}
@@ -368,6 +362,9 @@ private:
 	// Add new queued entities and components to the main storage
 	constexpr void process_add_components() {
 		// Combine the components in to a single vector
+		//std::vector<entity_data> adds;
+		//deferred_adds.gather_flattened(std::back_inserter(adds));
+
 		auto collection = deferred_adds.gather();
 		std::vector<entity_data> adds;
 		for (auto& vec : collection) {
@@ -435,7 +432,7 @@ private:
 		auto it_adds = adds.begin();
 		auto ranges_it = ranges.cbegin();
 
-		auto const insert_range = [&](auto const it) {
+		auto const insert_range = [&](auto const it) -> ptrdiff_t {
 			entity_range const& range = std::get<0>(*it);
 			ptrdiff_t offset = 0;
 
@@ -489,26 +486,34 @@ private:
 			while (it_adds != adds.end() && it_spans != spans.end()) {
 				if (std::get<0>(*it_adds) < std::get<0>(*it_spans)) {
 					insert_data(insert_range(it_adds));
-					++it_adds;
+					std::advance(it_adds, 1);
 				} else {
 					insert_span(insert_range(it_spans));
-					++it_spans;
+					std::advance(it_spans, 1);
 				}
 			}
 
 			while (it_adds != adds.end()) {
-				insert_data(insert_range(it_adds));
-				++it_adds;
+				auto const offset = insert_range(it_adds);
+				//insert_data(offset);
+				std::advance(component_it, offset);
+				ptrdiff_t const range_count = std::get<0>(*it_adds).count();
+				component_it = components.insert(component_it, static_cast<size_t>(range_count), std::move(std::get<1>(*it_adds)));
+				// ^-- constexpr bug: note: failure was caused by non-constant arguments or reference to a non-constant symbol
+				// kbg note: compiler bug
+				//return;
+				std::advance(component_it, range_count);
+				std::advance(it_adds, 1);
 			}
 			while (it_spans != spans.end()) {
 				insert_span(insert_range(it_spans));
-				++it_spans;
+				std::advance(it_spans, 1);
 			}
 		} else {
 			// If there is no data, the ranges are always added to 'deferred_adds'
 			while (it_adds != adds.end()) {
 				insert_range(it_adds);
-				++it_adds;
+				std::advance(it_adds, 1);
 			}
 		}
 
