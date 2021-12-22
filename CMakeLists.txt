@@ -20,6 +20,7 @@ if (MSVC)
     # warning level 4
     target_compile_options(ecs INTERFACE
         /std:c++20
+        #/std:c++latest
 
         # enable lots of warnings
         /W4
@@ -42,12 +43,15 @@ if (MSVC)
         #/w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
 
         # Enable address sanitizer
-        #/fsanitize=address
+        #/fsanitize=address # buggy with 'thread_local's
     )
 
     # enable profiling
     #target_compile_options(ecs INTERFACE /Zi)
     #target_link_options(ecs INTERFACE /PROFILE)
+
+	# TEMPORARY. Hides a constexpr bug in the compiler, remove when patched.
+    add_definitions(-D_ITERATOR_DEBUG_LEVEL=1)
 
     # Disable C++ exceptions.
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

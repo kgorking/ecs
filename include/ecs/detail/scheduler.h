@@ -15,7 +15,7 @@ namespace ecs::detail {
 struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
-	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, unfinished_dependencies{0}, dependencies{0} {
+	constexpr scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, unfinished_dependencies{0}, dependencies{0} {
 		Expects(sys != nullptr);
 	}
 

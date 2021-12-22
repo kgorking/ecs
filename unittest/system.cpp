@@ -1,9 +1,25 @@
 #define CATCH_CONFIG_MAIN
+//#include "priv_vector.h"
 #include "catch.hpp"
 #include <ecs/ecs.h>
 
 TEST_CASE("System specification", "[system]") {
 	SECTION("Running a system works") {
+		auto const test = [] {
+			ecs::detail::context ctx;
+			auto& pool = ctx.get_component_pool<int>();
+			auto& pool2 = ctx.get_component_pool<int>();
+			pool.add({0, 0}, 4);
+			pool2.add({1, 1}, 8);
+			ctx.commit_changes();
+			ctx.reset();
+			
+			// ecs::runtime ecs;
+			return true;
+		};
+		static_assert(test());
+		REQUIRE(test());
+
 		ecs::runtime ecs;
 
 		struct local1 {

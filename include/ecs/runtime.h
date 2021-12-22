@@ -17,10 +17,12 @@
 namespace ecs {
 class runtime {
 public:
+	constexpr runtime() = default;
+
 	// Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename First, typename... T>
-	void add_component(entity_range const range, First&& first_val, T&&... vals) {
+	constexpr void add_component(entity_range const range, First&& first_val, T&&... vals) {
 		static_assert(detail::unique<First, T...>, "the same component was specified more than once");
 		static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
