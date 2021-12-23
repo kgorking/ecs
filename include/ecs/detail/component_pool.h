@@ -2,9 +2,7 @@
 #define ECS_COMPONENT_POOL
 
 #include <cstring> // for memcmp
-#include <execution>
 #include <functional>
-#include <memory_resource>
 #include <tuple>
 #include <type_traits>
 #include <vector>
