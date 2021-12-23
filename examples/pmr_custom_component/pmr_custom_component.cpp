@@ -30,6 +30,7 @@ struct pmr_greeting {
 };
 
 int main() {
+	/* not currently implemented
 	ecs::runtime ecs;
 
 	// Set up a buffer on the stack for storage of 'pmr_greeting's
@@ -54,4 +55,5 @@ int main() {
 
 	// The buffer is about to go out of scope, so restore the default resource
 	ecs.reset_memory_resource<pmr_greeting>();
+	*/
 }

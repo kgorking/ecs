@@ -207,7 +207,7 @@ public:
 	}
 
 	// Set the memory resource to use to store a specific type of component
-	template <class Component>
+	/*template <class Component>
 	void set_memory_resource(std::pmr::memory_resource* resource) {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(resource);
@@ -225,7 +225,7 @@ public:
 	void reset_memory_resource() {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(std::pmr::get_default_resource());
-	}
+	}*/
 
 private:
 	detail::context ctx;

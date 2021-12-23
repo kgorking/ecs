@@ -4,6 +4,7 @@
 #include <string>
 
 int main() {
+	/* not currently implemented
 	ecs::runtime ecs;
 
 	// Set up a buffer on the stack for storage of 'std::pmr::string's
@@ -34,5 +35,5 @@ int main() {
 	pmr_sys.run();
 
 	// The buffer is about to go out of scope, so restore the default resource
-	ecs.reset_memory_resource<std::pmr::string>();
+	ecs.reset_memory_resource<std::pmr::string>();*/
 }
