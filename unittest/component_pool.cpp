@@ -108,11 +108,11 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add({0, 9}, int{});
 			pool.process_changes();
 
-			// This creates a tier 1 memory block internally
+			// 0-6
 			pool.remove_range({7, 9});
 			pool.process_changes();
 
-			// downgrades to t2 block
+			// 0-6, 8-9
 			pool.add({8, 9}, int{2});
 			pool.process_changes();
 
@@ -290,8 +290,6 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add({0, 9}, tr_test{});
 
 			pool.process_changes();
-			CHECK(pool.num_components() == 10);
-
 			pool.process_changes();
 			REQUIRE(pool.num_components() == 0);
 		}
