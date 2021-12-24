@@ -61,6 +61,72 @@ TEST_CASE("Component pool specification", "[component]") {
 			CHECK(pool.has_more_components());
 		}
 	}
+	
+	SECTION("chunked memory") {
+		SECTION("a range of components is contiguous in memory") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({1, 3}, 0);
+			pool.process_changes();
+			CHECK(1 == pool.num_chunks());
+
+			auto const ptr1 = pool.find_component_data(1);
+			auto const ptr3 = pool.find_component_data(3);
+			REQUIRE(ptrdiff_t{2} == std::distance(ptr1, ptr3));
+		}
+
+		SECTION("splitting a range preserves locations in memory") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({1, 3}, 0);
+			pool.process_changes();
+			pool.remove(2);
+			pool.process_changes();
+			CHECK(2 == pool.num_chunks());
+
+			auto const ptr1 = pool.find_component_data(1);
+			auto const ptr2 = pool.find_component_data(2);
+			auto const ptr3 = pool.find_component_data(3);
+			REQUIRE(ptrdiff_t{2} == std::distance(ptr1, ptr3));
+			REQUIRE(nullptr == ptr2);
+		}
+
+		SECTION("filling a gap in a range reduces chunk count") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({1, 3}, 0);
+			pool.process_changes();
+			pool.remove(2);
+			pool.process_changes();
+			pool.add({2, 2}, 1);
+			pool.process_changes();
+			CHECK(1 == pool.num_chunks());
+
+			auto const ptr1 = pool.find_component_data(1);
+			auto const ptr2 = pool.find_component_data(2);
+			auto const ptr3 = pool.find_component_data(3);
+			REQUIRE(ptrdiff_t{2} == std::distance(ptr1, ptr3));
+			REQUIRE(ptr2 > ptr1);
+			REQUIRE(ptr2 < ptr3);
+		}
+
+		SECTION("filling several gaps in a range reduces chunk count") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({1, 5}, 0);
+			pool.process_changes();
+			pool.remove(2);
+			pool.remove(4);
+			pool.process_changes();
+			pool.add({4, 4}, 1);
+			pool.add({2, 2}, 1);
+			pool.process_changes();
+			CHECK(1 == pool.num_chunks());
+
+			auto const ptr1 = pool.find_component_data(1);
+			auto const ptr2 = pool.find_component_data(2);
+			auto const ptr3 = pool.find_component_data(3);
+			REQUIRE(ptrdiff_t{2} == std::distance(ptr1, ptr3));
+			REQUIRE(ptr2 > ptr1);
+			REQUIRE(ptr2 < ptr3);
+		}
+	}
 
 	SECTION("Adding components") {
 		SECTION("does not perform unneccesary copies of components") {
@@ -171,7 +237,8 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(pool.num_components() == 9);
 			for (int i = 2; i <= 10; i++) {
-				REQUIRE(i == *pool.find_component_data(i));
+				int const val = *pool.find_component_data(i);
+				REQUIRE(i == val);
 			}
 		}
 		SECTION("from the middle does not invalidate other components") {
@@ -195,17 +262,17 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(pool.num_components() == 0);
 		}
 		SECTION("piecewise works (T2)") {
-			pool.remove_range({1, 4});
-			pool.remove_range({6, 9}); // moves mem to T2
+			pool.remove_range({1, 4}); // splits the chunk
+			pool.remove_range({6, 9}); // splits it again
+			pool.process_changes();    // results in 3 chunks: 0,0 - 5,5 - 10,10
+
+			pool.remove_range({5, 5}); // remove split chunk, should merge adjacent chunks
 			pool.process_changes();
 
-			pool.remove_range({5, 5}); // merges two previous skip chains
+			pool.remove_range({10, 10}); // remove end chunk
 			pool.process_changes();
 
-			pool.remove_range({10, 10});
-			pool.process_changes();
-
-			pool.remove_range({0, 0}); // should remove it
+			pool.remove_range({0, 0}); // should free chunk memory
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 0);
