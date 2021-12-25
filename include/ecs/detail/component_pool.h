@@ -96,6 +96,7 @@ private:
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
 	using entity_init = std::tuple<entity_range, std::function<T(entity_id)>>;
+	//using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_inits;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
@@ -448,7 +449,7 @@ private:
 		return false;
 	};
 
-	static T get_data(entity_id /*id*/, entity_data& ed) {
+	static T& get_data(entity_id /*id*/, entity_data& ed) {
 		return std::get<1>(ed);
 	}
 	static T get_data(entity_id id, entity_init& ed) {
@@ -545,7 +546,8 @@ private:
 			head = new chunk{r, r, alloc.allocate(r.ucount()), head, true};
 			if constexpr (!unbound<T>) {
 				for (size_t i = 0; i < r.ucount(); ++i) {
-					std::construct_at(&head->data[i], get_data(static_cast<entity_type>(r.first() + i), data));
+					auto const ent_id = static_cast<entity_type>(r.first() + i);
+					std::construct_at(&head->data[i], get_data(ent_id, data));
 				}
 			}
 		}

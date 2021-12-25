@@ -82,7 +82,7 @@ public:
 
 		// Remove the entities from the components pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
-		pool.remove_range(range);
+		pool.remove(range);
 	}
 
 	// Removes a component from an entity. Will not be removed until 'commit_changes()' is called.
