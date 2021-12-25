@@ -89,16 +89,25 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(nullptr == ptr2);
 		}
 
-		SECTION("filling a gap in a range reduces chunk count") {
+		SECTION("filling several gaps in a range reduces chunk count") {
 			ecs::detail::component_pool<int> pool;
-			pool.add({1, 3}, 0);
+			// Add a range from 1 to 5, will result in 1 chunk
+			pool.add({1, 5}, 0);
 			pool.process_changes();
+
+			// Poke 2 holes in the range, will result in 3 chunks
 			pool.remove(2);
+			pool.remove(4);
 			pool.process_changes();
+			CHECK(3 == pool.num_chunks());
+
+			// Fill the 2 holes, will result in 1 chunk again
+			pool.add({4, 4}, 1);
 			pool.add({2, 2}, 1);
 			pool.process_changes();
 			CHECK(1 == pool.num_chunks());
 
+			// Verify memory addresses of the components
 			auto const ptr1 = pool.find_component_data(1);
 			auto const ptr2 = pool.find_component_data(2);
 			auto const ptr3 = pool.find_component_data(3);
@@ -107,24 +116,49 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(ptr2 < ptr3);
 		}
 
-		SECTION("filling several gaps in a range reduces chunk count") {
+		SECTION("filling gaps in reverse moves ownership to first chunk") {
 			ecs::detail::component_pool<int> pool;
-			pool.add({1, 5}, 0);
+			pool.add({1, 5}, 5);
 			pool.process_changes();
-			pool.remove(2);
-			pool.remove(4);
-			pool.process_changes();
-			pool.add({4, 4}, 1);
-			pool.add({2, 2}, 1);
-			pool.process_changes();
-			CHECK(1 == pool.num_chunks());
 
-			auto const ptr1 = pool.find_component_data(1);
-			auto const ptr2 = pool.find_component_data(2);
-			auto const ptr3 = pool.find_component_data(3);
-			REQUIRE(ptrdiff_t{2} == std::distance(ptr1, ptr3));
-			REQUIRE(ptr2 > ptr1);
-			REQUIRE(ptr2 < ptr3);
+			pool.remove({1, 4});
+			pool.process_changes();
+
+			// only '5' remains, which is now owner of the data
+			REQUIRE(1 == pool.num_chunks());
+			auto chunk = pool.get_head_chunk();
+			REQUIRE(chunk->range.equals({1, 5}));
+			REQUIRE(chunk->active.equals({5, 5}));
+			REQUIRE(chunk->owns_data);
+
+			// 3 is now first entity, so it is now owner
+			pool.add({3, 3}, 3);
+			pool.process_changes();
+			REQUIRE(2 == pool.num_chunks());
+			chunk = pool.get_head_chunk();
+			REQUIRE(chunk->active.equals({3, 3}));
+			REQUIRE(chunk->owns_data);
+			REQUIRE(nullptr != chunk->next);
+			REQUIRE(false == chunk->next->owns_data);
+
+			// Fill in rest
+			pool.add({1, 1}, 1);
+			pool.add({4, 4}, 4);
+			pool.add({2, 2}, 2);
+			pool.process_changes();
+
+			CHECK(1 == pool.num_chunks());
+			chunk = pool.get_head_chunk();
+			REQUIRE(chunk->active.equals({1, 5}));
+			REQUIRE(chunk->owns_data);
+			REQUIRE(nullptr == chunk->next);
+
+			// Verify the component data
+			REQUIRE(1 == *pool.find_component_data(1));
+			REQUIRE(2 == *pool.find_component_data(2));
+			REQUIRE(3 == *pool.find_component_data(3));
+			REQUIRE(4 == *pool.find_component_data(4));
+			REQUIRE(5 == *pool.find_component_data(5));
 		}
 	}
 
@@ -133,7 +167,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			ecs::detail::component_pool<ctr_counter> pool;
 			pool.add({0, 2}, ctr_counter{});
 			pool.process_changes();
-			pool.remove_range({0, 2});
+			pool.remove({0, 2});
 			pool.process_changes();
 
 			CHECK(ctr_counter::copy_count == 3);
@@ -162,7 +196,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			// This creates a tier 1 memory block internally
-			pool.remove_range({7, 9});
+			pool.remove({7, 9});
 			pool.process_changes();
 
 			// grow the t1 block
@@ -175,7 +209,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			// 0-6
-			pool.remove_range({7, 9});
+			pool.remove({7, 9});
 			pool.process_changes();
 
 			// 0-6, 8-9
@@ -197,7 +231,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add({0, 9}, int{});
 			pool.process_changes();
 
-			pool.remove_range({3, 7});
+			pool.remove({3, 7});
 			pool.process_changes();
 
 			pool.add({4, 5}, int{});
@@ -223,7 +257,7 @@ TEST_CASE("Component pool specification", "[component]") {
 		pool.process_changes();
 
 		SECTION("from the back does not invalidate other components") {
-			pool.remove_range({9, 10});
+			pool.remove({9, 10});
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 9);
@@ -232,7 +266,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			}
 		}
 		SECTION("from the front does not invalidate other components") {
-			pool.remove_range({0, 1});
+			pool.remove({0, 1});
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 9);
@@ -242,7 +276,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			}
 		}
 		SECTION("from the middle does not invalidate other components") {
-			pool.remove_range({4, 5});
+			pool.remove({4, 5});
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 9);
@@ -254,32 +288,32 @@ TEST_CASE("Component pool specification", "[component]") {
 			}
 		}
 		SECTION("piecewise works (T1)") {
-			pool.remove_range({1, 10}); // moves mem to T1
+			pool.remove({1, 10}); // moves mem to T1
 			pool.process_changes();
-			pool.remove_range({0, 0});  // should remove it
+			pool.remove({0, 0});  // should remove it
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 0);
 		}
 		SECTION("piecewise works (T2)") {
-			pool.remove_range({1, 4}); // splits the chunk
-			pool.remove_range({6, 9}); // splits it again
+			pool.remove({1, 4}); // splits the chunk
+			pool.remove({6, 9}); // splits it again
 			pool.process_changes();    // results in 3 chunks: 0,0 - 5,5 - 10,10
 
-			pool.remove_range({5, 5}); // remove split chunk, should merge adjacent chunks
+			pool.remove({5, 5}); // remove split chunk, should merge adjacent chunks
 			pool.process_changes();
 
-			pool.remove_range({10, 10}); // remove end chunk
+			pool.remove({10, 10}); // remove end chunk
 			pool.process_changes();
 
-			pool.remove_range({0, 0}); // should free chunk memory
+			pool.remove({0, 0}); // should free chunk memory
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 0);
 		}
 		SECTION("piecewise does not invalidate other components") {
-			pool.remove_range({10, 10});
-			pool.remove_range({9, 9});
+			pool.remove({10, 10});
+			pool.remove({9, 9});
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 9);
@@ -390,7 +424,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			ecs::detail::component_pool<int> pool;
 			pool.add({0, 9}, {});
 			pool.process_changes();
-			pool.remove_range({0, 3});
+			pool.remove({0, 3});
 			pool.process_changes();
 
 			auto const ev = pool.get_entities();
@@ -401,7 +435,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			ecs::detail::component_pool<int> pool;
 			pool.add({0, 9}, {});
 			pool.process_changes();
-			pool.remove_range({7, 9});
+			pool.remove({7, 9});
 			pool.process_changes();
 
 			auto const ev = pool.get_entities();
@@ -412,7 +446,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			ecs::detail::component_pool<int> pool;
 			pool.add({0, 9}, {});
 			pool.process_changes();
-			pool.remove_range({4, 5});
+			pool.remove({4, 5});
 			pool.process_changes();
 
 			auto const ev = pool.get_entities();
@@ -423,8 +457,8 @@ TEST_CASE("Component pool specification", "[component]") {
 			ecs::detail::component_pool<int> pool;
 			pool.add({0, 9}, {});
 			pool.process_changes();
-			pool.remove_range({2, 3});
-			pool.remove_range({7, 8});
+			pool.remove({2, 3});
+			pool.remove({7, 8});
 			pool.process_changes();
 
 			auto const ev = pool.get_entities();

@@ -150,12 +150,12 @@ public:
 	// Remove an entity from the component pool. This logically removes the component from the
 	// entity.
 	void remove(entity_id const id) {
-		remove_range({id, id});
+		remove({id, id});
 	}
 
 	// Remove an entity from the component pool. This logically removes the component from the
 	// entity.
-	void remove_range(entity_range const range) {
+	void remove(entity_range const range) {
 		deferred_removes.local().push_back(range);
 	}
 
@@ -246,7 +246,7 @@ public:
 	}
 
 	// Returns the number of chunks in use
-	size_t num_chunks() const {
+	size_t num_chunks() const noexcept {
 		size_t count = 0;
 
 		auto curr = head;
@@ -256,6 +256,10 @@ public:
 		}
 
 		return count;
+	}
+
+	chunk const* const get_head_chunk() const noexcept {
+		return head;
 	}
 
 	// Clears the pools state flags
@@ -497,13 +501,32 @@ private:
 						if (curr->active.adjacent(next->active)) {
 							curr->active = entity_range::merge(curr->active, next->active);
 							curr->next = next->next;
+
+							// split_data is true if the next chunk is also in the current range
+							curr->split_data = (curr->next != nullptr) && (curr->range == curr->next->range);
+
 							free_chunk(next);
 						}
 					}
 				} else {
 					// There is a gap between the two ranges, so split the chunk
-					curr->split_data = true;
-					curr->next = new chunk{curr->range, r, curr->data, curr->next, false, false};
+					if (r < curr->active) {
+						bool const is_head_chunk = (head == curr);
+						bool const curr_owns_data = curr->owns_data;
+						curr->owns_data = false;
+						curr = new chunk{curr->range, r, curr->data, curr, curr_owns_data, true};
+
+						// Update head pointer
+						if (is_head_chunk)
+							head = curr;
+
+						// Make the previous chunk point to curr
+						if (prev != nullptr)
+							prev->next = curr;
+					} else {
+						curr->split_data = true;
+						curr->next = new chunk{curr->range, r, curr->data, curr->next, false, false};
+					}
 				}
 				return;
 			}
