@@ -196,6 +196,24 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(4 == *pool.find_component_data(4));
 			REQUIRE(5 == *pool.find_component_data(5));
 		}
+
+		SECTION("filling gaps in unrelated ranges") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({1, 1}, 0);
+			pool.add({3, 3}, 0);
+			pool.add({5, 5}, 0);
+			pool.process_changes();
+
+			// There should be 3 chunks
+			CHECK(3 == pool.num_chunks());
+
+			// They should be properly ordered
+			auto chunk = pool.get_head_chunk();
+			REQUIRE(chunk->range < chunk->next->range);
+
+			// They should be seperate
+			REQUIRE(chunk->data != chunk->next->data);
+		}
 	}
 
 	SECTION("Adding components") {

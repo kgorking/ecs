@@ -37,8 +37,8 @@ static void build_hierarchy_with_components(benchmark::State& state) {
 
 	state.SetItemsProcessed(nentities * state.iterations());
 }
-//ECS_BENCHMARK(build_hierarchy_with_components);
-BENCHMARK(build_hierarchy_with_components)->Arg(128 * 1024);
+ECS_BENCHMARK(build_hierarchy_with_components);
+//BENCHMARK(build_hierarchy_with_components)->Arg(1024 * 1024);
 
 static void build_hierarchy_with_sub_components(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));

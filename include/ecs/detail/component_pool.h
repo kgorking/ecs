@@ -6,6 +6,7 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
+#include <map>
 
 #include "tls/collect.h"
 #include "tls/split.h"
@@ -56,7 +57,6 @@ void combine_erase(Cont& cont, BinaryPredicate p) {
 	cont.erase(end, cont.end());
 }
 
-
 template <typename T>
 class component_pool final : public component_pool_base {
 private:
@@ -102,6 +102,7 @@ private:
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
+	std::map<entity_range, chunk*> range_to_chunk_map;
 	mutable tls::split<chunk*, component_pool<T>> chunk_caches;
 
 	// Status flags
@@ -175,21 +176,16 @@ public:
 	T const* find_component_data(entity_id const id) const {
 		if (head == nullptr)
 			return nullptr;
-
-		chunk* curr = head;
-
-		chunk*& cached = chunk_caches.local();
-		if (cached != nullptr) {
-			if (cached->active.contains(id)) {
-				auto const offset = cached->range.offset(id);
-				return &cached->data[offset];
-			} else if (cached->active.last() < id) {
-				curr = cached->next;
-			}
+		
+		auto const it = range_to_chunk_map.lower_bound({id, id});
+		if (it != range_to_chunk_map.end() && it->second->active.contains(id)) {
+			auto const offset = it->second->range.offset(id);
+			return &it->second->data[offset];
 		}
 
 		// search the chunks
-		while (curr != nullptr) {
+		// * this is slow as ass
+		/*while (curr != nullptr) {
 			if (curr->active.contains(id)) {
 				cached = curr;
 
@@ -198,7 +194,7 @@ public:
 			}
 
 			curr = curr->next;
-		}
+		}*/
 
 		return nullptr;
 	}
@@ -411,10 +407,15 @@ private:
 			c->data = alloc.allocate(r.ucount());
 			construct_range_in_chunk(c, r, std::get<1>(*iter));
 		}
+
+		range_to_chunk_map[r] = c;
+
 		return c;
 	}
 
 	void free_chunk(chunk* c) {
+		range_to_chunk_map.erase(c->range);
+
 		if (c->owns_data) {
 			if (c->split_data && nullptr != c->next) {
 				// transfer ownership

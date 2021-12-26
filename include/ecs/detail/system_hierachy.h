@@ -168,7 +168,7 @@ private:
 		// look up the parent info
 		info_iterator parent_it = info.find(*parent_id);
 		if (parent_it == info.end())
-			parent_it = fill_entity_info_aux(info, *parent_id, index);
+			parent_it = fill_entity_info(info, *parent_id, index);
 
 		// insert the entity info
 		auto const& [count, root_index] = parent_it->second;
