@@ -183,19 +183,6 @@ public:
 			return &it->second->data[offset];
 		}
 
-		// search the chunks
-		// * this is slow as ass
-		/*while (curr != nullptr) {
-			if (curr->active.contains(id)) {
-				cached = curr;
-
-				auto const offset = curr->range.offset(id);
-				return &curr->data[offset];
-			}
-
-			curr = curr->next;
-		}*/
-
 		return nullptr;
 	}
 
