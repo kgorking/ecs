@@ -74,6 +74,42 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(ptrdiff_t{2} == std::distance(ptr1, ptr3));
 		}
 
+		SECTION("insertion order forward is correct") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({1, 1}, 0);
+			pool.add({3, 3}, 0);
+			pool.add({5, 5}, 0);
+			pool.process_changes();
+
+			// There should be 3 chunks
+			CHECK(3 == pool.num_chunks());
+
+			// They should be properly ordered
+			auto chunk = pool.get_head_chunk();
+			REQUIRE(chunk->range < chunk->next->range);
+
+			// They should be seperate
+			REQUIRE(chunk->data != chunk->next->data);
+		}
+
+		SECTION("insertion order backward is correct") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({5, 5}, 0);
+			pool.add({3, 3}, 0);
+			pool.add({1, 1}, 0);
+			pool.process_changes();
+
+			// There should be 3 chunks
+			CHECK(3 == pool.num_chunks());
+
+			// They should be properly ordered
+			auto chunk = pool.get_head_chunk();
+			REQUIRE(chunk->range < chunk->next->range);
+
+			// They should be seperate
+			REQUIRE(chunk->data != chunk->next->data);
+		}
+
 		SECTION("splitting a range preserves locations in memory") {
 			ecs::detail::component_pool<int> pool;
 			pool.add({1, 3}, 0);
@@ -173,14 +209,24 @@ TEST_CASE("Component pool specification", "[component]") {
 			CHECK(ctr_counter::copy_count == 3);
 			CHECK(ctr_counter::ctr_count == ctr_counter::dtr_count);
 		}
-		SECTION("with a lambda is valid") {
-			ecs::detail::component_pool<int> pool;
-			pool.add_init({0, 9}, [](ecs::entity_id ent) { return int{ent}; });
-			pool.process_changes();
+		SECTION("with a span is valid") {
+			auto const test = [] {
+				std::vector<int> ints(10);
+				std::iota(ints.begin(), ints.end(), 0);
 
-			for (int i = 0; i <= 9; i++) {
-				CHECK(i == *pool.find_component_data(i));
-			}
+				ecs::detail::component_pool<int> pool;
+				pool.add_span({0, 9}, ints);
+				pool.process_changes();
+
+				for (int i = 0; i <= 9; i++) {
+					if (i != *pool.find_component_data(i))
+						return false;
+				}
+
+				return true;
+			};
+			//static_assert(test());
+			REQUIRE(test());
 		}
 		SECTION("with negative entity ids is fine") {
 			ecs::detail::component_pool<int> pool;
@@ -252,8 +298,11 @@ TEST_CASE("Component pool specification", "[component]") {
 	}
 
 	SECTION("Removing components") {
+		std::vector<int> ints(11);
+		std::iota(ints.begin(), ints.end(), 0);
+
 		ecs::detail::component_pool<int> pool;
-		pool.add_init({0, 10}, [](auto ent) { return int{ent}; });
+		pool.add_span({0, 10}, ints);
 		pool.process_changes();
 
 		SECTION("from the back does not invalidate other components") {
@@ -324,8 +373,11 @@ TEST_CASE("Component pool specification", "[component]") {
 	}
 
 	SECTION("A non empty pool") {
+		std::vector<int> ints(10);
+		std::iota(ints.begin(), ints.end(), 0);
+
 		ecs::detail::component_pool<int> pool;
-		pool.add_init({0, 9}, [](auto ent) { return int{ent}; });
+		pool.add_span({0, 9}, ints);
 		pool.process_changes();
 
 		SECTION("has the correct entities") {

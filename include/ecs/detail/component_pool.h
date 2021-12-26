@@ -95,10 +95,9 @@ private:
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_init = std::tuple<entity_range, std::function<T(entity_id)>>;
-	//using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
+	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_inits;
+	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 	// Status flags
@@ -111,13 +110,14 @@ public:
 		free_all_chunks();
 	}
 
-	// Add a component to a range of entities, initialized by the supplied user function
+	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	template <typename Fn>
-	void add_init(entity_range const range, Fn&& init) {
+	constexpr void add_span(entity_range const range, std::span<const T> span) requires(!detail::unbound<T>) {
+		Expects(range.count() == std::ssize(span));
+
 		// Add the range and function to a temp storage
-		deferred_inits.local().emplace_back(range, std::forward<Fn>(init));
+		deferred_spans.local().emplace_back(range, span);
 	}
 
 	// Add a component to a range of entity.
@@ -375,7 +375,7 @@ public:
 		head = nullptr;
 
 		deferred_adds.reset();
-		deferred_inits.reset();
+		deferred_spans.reset();
 		deferred_removes.reset();
 		clear_flags();
 
@@ -389,6 +389,16 @@ public:
 	}
 
 private:
+	chunk* create_new_chunk(std::forward_iterator auto iter) {
+		entity_range const r = std::get<0>(*iter);
+		chunk* c = new chunk{r, r, nullptr, nullptr, true};
+		if constexpr (!unbound<T>) {
+			c->data = alloc.allocate(r.ucount());
+			construct_range_in_chunk(c, r, std::get<1>(*iter));
+		}
+		return c;
+	}
+
 	void free_chunk(chunk* c) {
 		if (c->owns_data) {
 			if (c->split_data && nullptr != c->next) {
@@ -449,123 +459,229 @@ private:
 		return false;
 	};
 
-	static T& get_data(entity_id /*id*/, entity_data& ed) {
-		return std::get<1>(ed);
+	constexpr static bool is_equal(T const& lhs, T const& rhs) requires std::equality_comparable<T> {
+		return lhs == rhs;
 	}
-	static T get_data(entity_id id, entity_init& ed) {
-		return std::get<1>(ed)(id);
+	constexpr static bool is_equal(T const& /*lhs*/, T const& /*rhs*/) requires tagged<T> {
+		// Tags are empty, so always return true
+		return true;
+	}
+	constexpr static bool is_equal(T const&, T const&) {
+		// Type can not be compared, so always return false.
+		// memcmp is a no-go because it also compares padding in types,
+		// and it is not constexpr
+		return false;
 	}
 
-	void add_to_l0(auto& data) {
-		entity_range const r = std::get<0>(data);
+	template<typename Data>
+	void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) {
+		if constexpr (!unbound<T>) {
+			// Offset into the chunks data
+			auto const ent_offset = c->range.offset(range.first());
 
-		chunk* prev = nullptr;
-		chunk* curr = head;
-		while (nullptr != curr) {
-			if (curr->range.contains(r)) {
-				// Construct the new components
-				if constexpr (!unbound<T>) {
-					for (auto const ent : r) {
-						auto const offset = curr->range.offset(r.first());
-						std::construct_at(&curr->data[offset], get_data(ent, data));
-					}
-				}
-
-				// If split chunks are encountered, skip forward to the chunk closest to r
-				if (curr->split_data) {
-					while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
-						prev = curr;
-						curr = curr->next;
-					}
-				}
-
-				if (curr->active.adjacent(r)) {
-					// The two ranges are next to each other, so add the data to existing chunk
-					curr->active = entity_range::merge(curr->active, r);
-
-					chunk* next = curr->next;
-
-					// Check to see if this chunk can be collapsed into 'prev'
-					if (nullptr != prev) {
-						if (curr->active.adjacent(prev->active)) {
-							curr->active = entity_range::merge(curr->active, prev->active);
-							free_chunk(curr);
-							prev->next = next;
-							curr = next;
-							if (next != nullptr)
-								next = next->next;
-						}
-					}
-
-					// Check to see if 'next' can be collapsed into this chunk
-					if (nullptr != next) {
-						if (curr->active.adjacent(next->active)) {
-							curr->active = entity_range::merge(curr->active, next->active);
-							curr->next = next->next;
-
-							// split_data is true if the next chunk is also in the current range
-							curr->split_data = (curr->next != nullptr) && (curr->range == curr->next->range);
-
-							free_chunk(next);
-						}
-					}
+			for (entity_offset i = 0; i < range.ucount(); ++i) {
+				// Construct from a value or a a span of values
+				if constexpr (std::is_same_v<T, Data>) {
+					std::construct_at(&c->data[ent_offset + i], comp_data);
 				} else {
-					// There is a gap between the two ranges, so split the chunk
-					if (r < curr->active) {
-						bool const is_head_chunk = (head == curr);
-						bool const curr_owns_data = curr->owns_data;
-						curr->owns_data = false;
-						curr = new chunk{curr->range, r, curr->data, curr, curr_owns_data, true};
-
-						// Update head pointer
-						if (is_head_chunk)
-							head = curr;
-
-						// Make the previous chunk point to curr
-						if (prev != nullptr)
-							prev->next = curr;
-					} else {
-						curr->split_data = true;
-						curr->next = new chunk{curr->range, r, curr->data, curr->next, false, false};
-					}
+					std::construct_at(&c->data[ent_offset + i], comp_data[i]);
 				}
-				return;
 			}
+		}
+	}
 
-			if (curr->next && !(curr->next->range < r)) {
-				break;
+	void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) {
+		// If split chunks are encountered, skip forward to the chunk closest to r
+		if (curr->split_data) {
+			while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
+				prev = curr;
+				curr = curr->next;
 			}
-
-			prev = curr;
-			curr = curr->next;
 		}
 
-		//if (nullptr != curr) {
-			// todo
-		/*} else*/ {
-			head = new chunk{r, r, alloc.allocate(r.ucount()), head, true};
-			if constexpr (!unbound<T>) {
-				for (size_t i = 0; i < r.ucount(); ++i) {
-					auto const ent_id = static_cast<entity_type>(r.first() + i);
-					std::construct_at(&head->data[i], get_data(ent_id, data));
+		if (curr->active.adjacent(r)) {
+			// The two ranges are next to each other, so add the data to existing chunk
+			curr->active = entity_range::merge(curr->active, r);
+
+			chunk* next = curr->next;
+
+			// Check to see if this chunk can be collapsed into 'prev'
+			if (nullptr != prev) {
+				if (curr->active.adjacent(prev->active)) {
+					curr->active = entity_range::merge(curr->active, prev->active);
+					free_chunk(curr);
+					prev->next = next;
+					curr = next;
+					if (next != nullptr)
+						next = next->next;
 				}
+			}
+
+			// Check to see if 'next' can be collapsed into this chunk
+			if (nullptr != next) {
+				if (curr->active.adjacent(next->active)) {
+					curr->active = entity_range::merge(curr->active, next->active);
+					curr->next = next->next;
+
+					// split_data is true if the next chunk is also in the current range
+					curr->split_data = (curr->next != nullptr) && (curr->range == curr->next->range);
+
+					free_chunk(next);
+				}
+			}
+		} else {
+			// There is a gap between the two ranges, so split the chunk
+			if (r < curr->active) {
+				bool const is_head_chunk = (head == curr);
+				bool const curr_owns_data = curr->owns_data;
+				curr->owns_data = false;
+				curr = new chunk{curr->range, r, curr->data, curr, curr_owns_data, true};
+
+				// Update head pointer
+				if (is_head_chunk)
+					head = curr;
+
+				// Make the previous chunk point to curr
+				if (prev != nullptr)
+					prev->next = curr;
+			} else {
+				curr->split_data = true;
+				curr->next = new chunk{curr->range, r, curr->data, curr->next, false, false};
 			}
 		}
 	}
 
 	// Add new queued entities and components to the main storage.
 	void process_add_components() {
-		auto const processor = [this](auto& vec) {
-			for (auto& data : vec) {
-				// range has not been handled yet, so Kobe it into l0
-				add_to_l0(data);
+		// Combine the components in to a single vector
+		std::vector<entity_data> adds;
+		std::vector<entity_span> spans;
+		deferred_adds.gather_flattened(std::back_inserter(adds));
+		deferred_spans.gather_flattened(std::back_inserter(spans));
+
+		if (adds.empty() && spans.empty()) {
+			return;
+		}
+
+		// Clear the current adds
+		deferred_adds.reset();
+		deferred_spans.reset();
+
+		// Sort the input
+		auto const comparator = [](auto const& l, auto const& r) {
+			return std::get<0>(l).first() < std::get<0>(r).first();
+		};
+		std::sort(adds.begin(), adds.end(), comparator);
+		std::sort(spans.begin(), spans.end(), comparator);
+
+
+		// Merge adjacent ranges that has the same data
+		if constexpr (!detail::unbound<T>) { // contains data
+			auto const combiner = [](entity_data& a, entity_data const& b) {
+				auto& [a_rng, a_data] = a;
+				auto const& [b_rng, b_data] = b;
+
+				if (a_rng.adjacent(b_rng) && is_equal(a_data, b_data)) {
+					a_rng = entity_range::merge(a_rng, b_rng);
+					return true;
+				} else {
+					return false;
+				}
+			};
+			combine_erase(adds, combiner);
+		} else {											   // does not contain data
+			auto const combiner = [](auto& a, auto const& b) { // entity_data/entity_init
+				auto& [a_rng] = a;
+				auto const& [b_rng] = b;
+
+				if (a_rng.adjacent(b_rng)) {
+					a_rng = entity_range::merge(a_rng, b_rng);
+					return true;
+				} else {
+					return false;
+				}
+			};
+			combine_erase(adds, combiner);
+		}
+
+		// Do the insertions
+		chunk* prev = nullptr;
+		chunk* curr = head;
+
+		auto it_adds = adds.begin();
+		auto it_spans = spans.begin();
+
+		// Create head chunk if needed
+		if (head == nullptr) {
+			if (it_adds != adds.end()) {
+				head = create_new_chunk(it_adds);
+				++it_adds;
+			} else {
+				head = create_new_chunk(it_spans);
+				++it_spans;
 			}
-			vec.clear();
+
+			curr = head;
+		}
+
+		auto const merge_data = [&](std::forward_iterator auto& iter) {
+			if (curr == nullptr) {
+				auto new_chunk = create_new_chunk(iter);
+				new_chunk->next = curr;
+				curr = new_chunk;
+				prev->next = curr;
+				++iter;
+			} else {
+				entity_range const r = std::get<0>(*iter);
+
+				// Move current chunk pointer forward
+				while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
+					prev = curr;
+					curr = curr->next;
+				}
+
+				if (curr->range.overlaps(r)) {
+					// Incoming range overlaps the current one, so add it into 'curr'
+					fill_data_in_existing_chunk(curr, prev, r);
+					if constexpr (!unbound<T>) {
+						construct_range_in_chunk(curr, r, std::get<1>(*iter));
+					}
+					++iter;
+				} else if (curr->range < r) {
+					// Incoming range is larger than the current one, so add it after 'curr'
+					auto new_chunk = create_new_chunk(iter);
+					new_chunk->next = curr->next;
+					curr->next = new_chunk;
+
+					prev = curr;
+					curr = curr->next;
+
+					++iter;
+				} else if (r < curr->range) {
+					// Incoming range is less than the current one, so add it before 'curr' (after 'prev')
+					auto new_chunk = create_new_chunk(iter);
+					new_chunk->next = curr;
+					if (head == curr)
+						head = new_chunk;
+					curr = new_chunk;
+					if (prev != nullptr)
+						prev->next = curr;
+					++iter;
+				}
+			}
 		};
 
-		// Move new components into the pool
-		deferred_adds.for_each(processor);
-		deferred_inits.for_each(processor);
+		// Fill in values
+		while (it_adds != adds.end()) {
+			merge_data(it_adds);
+		}
+
+		// Fill in spans
+		prev = nullptr;
+		curr = head;
+		while (it_spans != spans.end()) {
+			merge_data(it_spans);
+		}
 
 		// Check it
 		Expects(false == has_duplicate_entities());

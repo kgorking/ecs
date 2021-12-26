@@ -3,14 +3,17 @@
 #include <ecs/ecs.h>
 #include <functional>
 
-int generator(ecs::entity_id) {
-	return rand() % 9;
-}
-
 TEST_CASE("Sorting") {
 	ecs::runtime ecs;
 
-	ecs.add_component({0, 9}, generator);
+	std::random_device rd;
+	std::mt19937 gen{rd()};
+
+	std::vector<int> ints(10);
+	std::iota(ints.begin(), ints.end(), 0);
+	std::shuffle(ints.begin(), ints.end(), gen);
+
+	ecs.add_component({0, 9}, ints);
 	ecs.commit_changes();
 
 	int test = std::numeric_limits<int>::min();
@@ -32,7 +35,9 @@ TEST_CASE("Sorting") {
 	dec.run();
 
 	// modify the components and re-check
-	auto& mod = ecs.make_system([](int& i) { i = generator(0); });
+	auto& mod = ecs.make_system([&gen](int& i) {
+		i = gen();
+	});
 	mod.run();
 
 	test = std::numeric_limits<int>::min();
