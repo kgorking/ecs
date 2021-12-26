@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "tls/collect.h"
+#include "tls/split.h"
+#include "tls/cache.h"
 
 #include "../entity_id.h"
 #include "../entity_range.h"
@@ -100,6 +102,8 @@ private:
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
+	mutable tls::split<chunk*, component_pool<T>> chunk_caches;
+
 	// Status flags
 	bool components_added = false;
 	bool components_removed = false;
@@ -172,12 +176,23 @@ public:
 		if (head == nullptr)
 			return nullptr;
 
-		entity_range const r{id, id};
-
-		// search in level 0
 		chunk* curr = head;
+
+		chunk*& cached = chunk_caches.local();
+		if (cached != nullptr) {
+			if (cached->active.contains(id)) {
+				auto const offset = cached->range.offset(id);
+				return &cached->data[offset];
+			} else if (cached->active.last() < id) {
+				curr = cached->next;
+			}
+		}
+
+		// search the chunks
 		while (curr != nullptr) {
 			if (curr->active.contains(id)) {
+				cached = curr;
+
 				auto const offset = curr->range.offset(id);
 				return &curr->data[offset];
 			}
