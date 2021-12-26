@@ -25,7 +25,11 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
-	using entity_info = std::pair<int, entity_type>; // parent count, root id
+	struct entity_info {
+		int parent_count = 0;
+		entity_type root_id;
+	};
+
 	using info_map = std::unordered_map<entity_type, entity_info>;
 	using info_iterator = info_map::const_iterator;
 
@@ -75,7 +79,7 @@ private:
 		// TODO insert in set with top. ordering?
 
 		// map of entity and root info
-		std::map<entity_type, size_t> roots;
+		std::map<entity_type, int> roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
@@ -87,11 +91,11 @@ private:
 			walker.reset(&this->pools, entity_range_view{{range}});
 			while (!walker.done()) {
 				entity_id const entity = walker.get_entity();
-				auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
 
 				info_iterator const ent_info = fill_entity_info(info, entity, index);
 
 				// Add the argument for the entity
+				auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
 				if constexpr (is_entity<FirstComponent>) {
 					arguments[ent_offset] = argument(entity, walker.template get<Components>()..., ent_info->second);
 				} else {
@@ -100,7 +104,7 @@ private:
 				}
 
 				// Update the root child count
-				auto const root_index = ent_info->second.second;
+				auto const root_index = ent_info->second.root_id;
 				roots[root_index] += 1;
 
 				walker.next();
@@ -154,23 +158,6 @@ private:
 	info_iterator fill_entity_info(info_map& info, entity_id const entity, std::atomic<int>& index) const {
 		// Get the parent id
 		entity_id const* parent_id = pool_parent_id->find_component_data(entity);
-
-		// look up the parent info
-		info_iterator const parent_it = fill_entity_info_aux(info, *parent_id, index);
-
-		// insert the entity info
-		auto const& [count, root_index] = parent_it->second;
-		auto const [it, _p] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
-		return it;
-	}
-
-	info_iterator fill_entity_info_aux(info_map& info, entity_id const entity, std::atomic<int>& index) const {
-		auto const ent_it = info.find(entity);
-		if (ent_it != info.end())
-			return ent_it;
-
-		// Get the parent id
-		entity_id const* parent_id = pool_parent_id->find_component_data(entity);
 		if (parent_id == nullptr) {
 			// This entity does not have a 'parent_id' component,
 			// which means that this entity is a root
@@ -179,7 +166,9 @@ private:
 		}
 
 		// look up the parent info
-		info_iterator const parent_it = fill_entity_info_aux(info, *parent_id, index);
+		info_iterator parent_it = info.find(*parent_id);
+		if (parent_it == info.end())
+			parent_it = fill_entity_info_aux(info, *parent_id, index);
 
 		// insert the entity info
 		auto const& [count, root_index] = parent_it->second;
