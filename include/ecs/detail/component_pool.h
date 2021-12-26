@@ -387,22 +387,26 @@ public:
 	}
 
 private:
+	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
+							bool owns_data = true, bool split_data = false) {
+		chunk* c = new chunk{range, active, data, next, owns_data, split_data};
+		range_to_chunk_map[active] = c;
+		return c;
+	}
+
 	chunk* create_new_chunk(std::forward_iterator auto iter) {
 		entity_range const r = std::get<0>(*iter);
-		chunk* c = new chunk{r, r, nullptr, nullptr, true};
+		chunk* c = create_new_chunk(r, r);
 		if constexpr (!unbound<T>) {
 			c->data = alloc.allocate(r.ucount());
 			construct_range_in_chunk(c, r, std::get<1>(*iter));
 		}
 
-		range_to_chunk_map[r] = c;
-
 		return c;
 	}
 
 	void free_chunk(chunk* c) {
-		range_to_chunk_map.erase(c->range);
-
+		remove_range_to_chunk(c->active);
 		if (c->owns_data) {
 			if (c->split_data && nullptr != c->next) {
 				// transfer ownership
@@ -425,6 +429,27 @@ private:
 		}
 		head = nullptr;
 		set_data_removed();
+	}
+
+	// Add a range and chunk to the map
+	void map_range_to_chunk(entity_range const rng, chunk* c) {
+		range_to_chunk_map[rng] = c;
+	}
+
+	// Removes a range and chunk from the map
+	void remove_range_to_chunk(entity_range const rng) {
+		auto const it = range_to_chunk_map.find(rng);
+		if (it != range_to_chunk_map.end() && it->first == rng)
+			range_to_chunk_map.erase(it);
+		//range_to_chunk_map.erase(rng);
+	}
+	
+	// Updates a key in the range-to-chunk map
+	void update_range_to_chunk_key(entity_range const old, entity_range const update) {
+		auto node_handle = range_to_chunk_map.extract(old);
+		Expects(node_handle);
+		node_handle.key() = update;
+		range_to_chunk_map.insert(move(node_handle));
 	}
 
 	// Flag that components has been added
@@ -504,14 +529,20 @@ private:
 
 		if (curr->active.adjacent(r)) {
 			// The two ranges are next to each other, so add the data to existing chunk
-			curr->active = entity_range::merge(curr->active, r);
+			entity_range active_range = entity_range::merge(curr->active, r);
+			update_range_to_chunk_key(curr->active, active_range);
+			curr->active = active_range;
 
 			chunk* next = curr->next;
 
 			// Check to see if this chunk can be collapsed into 'prev'
 			if (nullptr != prev) {
-				if (curr->active.adjacent(prev->active)) {
-					curr->active = entity_range::merge(curr->active, prev->active);
+				if (prev->active.adjacent(curr->active)) {
+					active_range = entity_range::merge(prev->active, curr->active);
+					remove_range_to_chunk(prev->active);
+					update_range_to_chunk_key(prev->active, active_range);
+					prev->active = active_range;
+
 					free_chunk(curr);
 					prev->next = next;
 					curr = next;
@@ -523,7 +554,11 @@ private:
 			// Check to see if 'next' can be collapsed into this chunk
 			if (nullptr != next) {
 				if (curr->active.adjacent(next->active)) {
-					curr->active = entity_range::merge(curr->active, next->active);
+					active_range = entity_range::merge(curr->active, next->active);
+					remove_range_to_chunk(next->active);
+					update_range_to_chunk_key(curr->active, active_range);
+
+					curr->active = active_range;
 					curr->next = next->next;
 
 					// split_data is true if the next chunk is also in the current range
@@ -538,7 +573,7 @@ private:
 				bool const is_head_chunk = (head == curr);
 				bool const curr_owns_data = curr->owns_data;
 				curr->owns_data = false;
-				curr = new chunk{curr->range, r, curr->data, curr, curr_owns_data, true};
+ 				curr = create_new_chunk(curr->range, r, curr->data, curr, curr_owns_data, true);
 
 				// Update head pointer
 				if (is_head_chunk)
@@ -549,7 +584,7 @@ private:
 					prev->next = curr;
 			} else {
 				curr->split_data = true;
-				curr->next = new chunk{curr->range, r, curr->data, curr->next, false, false};
+				curr->next = create_new_chunk(curr->range, r, curr->data, curr->next, false, false);
 			}
 		}
 	}
@@ -750,19 +785,19 @@ private:
 				} else {
 					// remove partial range
 					auto const [left_range, maybe_split_range] = entity_range::remove(it_l0->active, *it_rem);
-					
+
+					// Update the active range
+					update_range_to_chunk_key(it_l0->active, left_range);
+					it_l0->active = left_range;
+
 					// Destroy the removed components
 					auto const offset = it_l0->range.offset(it_rem->first());
 					std::destroy_n(&it_l0->data[offset], it_rem->ucount());
 
 					if (maybe_split_range.has_value()) {
 						// If two ranges were returned, split this chunk
-						it_l0->active = left_range;
 						it_l0->split_data = true;
-						it_l0->next = new chunk{it_l0->range, maybe_split_range.value(), it_l0->data, it_l0->next, false};
-					} else {
-						// shrink the active range
-						it_l0->active = left_range;
+						it_l0->next = create_new_chunk(it_l0->range, maybe_split_range.value(), it_l0->data, it_l0->next, false);
 					}
 
 					prev = it_l0;
