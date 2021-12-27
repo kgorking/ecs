@@ -88,7 +88,9 @@ private:
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 	// TODO? sorted std::vector<std::pair<entity_range, chunk*>>
-	std::map<entity_range, chunk*> range_to_chunk_map;
+	using range_chunk_pair = std::pair<entity_range, chunk*>;
+	std::vector<range_chunk_pair> range_to_chunk_map;
+	//std::map<entity_range, chunk*> range_to_chunk_map;
 
 	// Status flags
 	bool components_added = false;
@@ -167,7 +169,7 @@ public:
 		if (head == nullptr)
 			return nullptr;
 		
-		auto const it = range_to_chunk_map.lower_bound({id, id});
+		auto const it = find_in_range_to_chunk_vec({id, id});
 		if (it != range_to_chunk_map.end() && it->second->active.contains(id)) {
 			auto const offset = it->second->range.offset(id);
 			return &it->second->data[offset];
@@ -296,7 +298,8 @@ private:
 	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
 							bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = new chunk{range, active, data, next, owns_data, split_data};
-		range_to_chunk_map[active] = c;
+		auto const it = find_in_range_to_chunk_vec(active);
+		range_to_chunk_map.insert(it, {active, c});
 		return c;
 	}
 
@@ -327,6 +330,7 @@ private:
 	}
 
 	void free_all_chunks() noexcept {
+		range_to_chunk_map.clear();
 		chunk* curr = head;
 		while (curr != nullptr) {
 			chunk* next = curr->next;
@@ -337,25 +341,24 @@ private:
 		set_data_removed();
 	}
 
-	// Add a range and chunk to the map
-	void map_range_to_chunk(entity_range const rng, chunk* c) noexcept {
-		range_to_chunk_map[rng] = c;
+	auto find_in_range_to_chunk_vec(entity_range const rng) noexcept {
+		return std::ranges::lower_bound(range_to_chunk_map, rng, std::less{}, &range_chunk_pair::first);
+	}
+	auto find_in_range_to_chunk_vec(entity_range const rng) const noexcept {
+		return std::ranges::lower_bound(range_to_chunk_map, rng, std::less{}, &range_chunk_pair::first);
 	}
 
 	// Removes a range and chunk from the map
 	void remove_range_to_chunk(entity_range const rng) noexcept {
-		auto const it = range_to_chunk_map.find(rng);
+		auto const it = find_in_range_to_chunk_vec(rng);
 		if (it != range_to_chunk_map.end() && it->first == rng)
 			range_to_chunk_map.erase(it);
-		//range_to_chunk_map.erase(rng);
 	}
 	
 	// Updates a key in the range-to-chunk map
 	void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
-		auto node_handle = range_to_chunk_map.extract(old);
-		Expects(node_handle);
-		node_handle.key() = update;
-		range_to_chunk_map.insert(move(node_handle));
+		auto it = find_in_range_to_chunk_vec(old);
+		it->first = update;
 	}
 
 	// Flag that components has been added
