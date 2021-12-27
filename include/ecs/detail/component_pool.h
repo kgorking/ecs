@@ -140,14 +140,12 @@ public:
 		return t;
 	}
 
-	// Remove an entity from the component pool. This logically removes the component from the
-	// entity.
+	// Remove an entity from the component pool.
 	void remove(entity_id const id) noexcept {
 		remove({id, id});
 	}
 
-	// Remove an entity from the component pool. This logically removes the component from the
-	// entity.
+	// Remove an entity from the component pool.
 	void remove(entity_range const range) noexcept {
 		deferred_removes.local().push_back(range);
 	}
