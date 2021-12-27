@@ -9,6 +9,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - uses: seanmiddleditch/gha-setup-ninja@master
 
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
