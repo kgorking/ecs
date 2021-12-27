@@ -258,6 +258,7 @@ public:
 			return entity_range_view{&global_range, 1};
 		} else {
 			return cached_ranges;
+			//return range_to_chunk_map;
 		}
 	}
 
@@ -277,66 +278,18 @@ public:
 		return false;
 	}
 
-	// TODO remove?
-	// Checks the current threads queue for the entity
-	bool is_queued_add(entity_id const id) {
-		return is_queued_add({id, id});
-	}
-
-	// Checks the current threads queue for the entity
-	bool is_queued_add(entity_range const& range) {
-		if (deferred_adds.local().empty()) {
-			return false;
-		}
-
-		for (auto const& ents : deferred_adds.local()) {
-			if (std::get<0>(ents).contains(range)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	// Checks the current threads queue for the entity
-	bool is_queued_remove(entity_id const id) {
-		return is_queued_remove({id, id});
-	}
-
-	// Checks the current threads queue for the entity
-	bool is_queued_remove(entity_range const& range) {
-		if (deferred_removes.local().empty())
-			return false;
-
-		for (auto const& ents : deferred_removes.local()) {
-			if (ents.contains(range))
-				return true;
-		}
-
-		return false;
-	}
-
 	// Clear all entities from the pool
 	void clear() override {
 		// Remember if components was removed from the pool
 		bool const is_removed = (nullptr != head);
 
-		// Clear the pool
-		chunk* curr = head;
-		while (curr != nullptr) {
-			chunk* next = curr->next;
-			if (curr->owns_data) {
-				alloc.deallocate(curr->data, curr->range.count());
-			}
-
-			delete curr;
-			curr = next;
-		}
-		head = nullptr;
-
+		// Clear all data
+		free_all_chunks();
 		deferred_adds.reset();
 		deferred_spans.reset();
 		deferred_removes.reset();
+		range_to_chunk_map.clear();
+		cached_ranges.clear();
 		clear_flags();
 
 		// Save the removal state
