@@ -22,7 +22,7 @@
 namespace ecs::detail {
 
 template <class ForwardIt, class BinaryPredicate>
-ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) {
+ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
 		return last;
 
@@ -37,8 +37,8 @@ ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) 
 }
 
 template <class Cont, class BinaryPredicate>
-void combine_erase(Cont& cont, BinaryPredicate p) {
-	auto const end = std_combine_erase(cont.begin(), cont.end(), p);
+void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
+	auto const end = std_combine_erase(cont.begin(), cont.end(), std::forward<BinaryPredicate>(p));
 	cont.erase(end, cont.end());
 }
 
@@ -496,6 +496,33 @@ private:
 		}
 	}
 
+	// Try to combine two ranges. With data
+	constexpr static bool combiner_bound(entity_data& a, entity_data const& b) requires(!unbound<T>) {
+		auto& [a_rng, a_data] = a;
+		auto const& [b_rng, b_data] = b;
+
+		if (a_rng.adjacent(b_rng) && is_equal(a_data, b_data)) {
+			a_rng = entity_range::merge(a_rng, b_rng);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	// Try to combine two ranges. Without data
+	constexpr static bool combiner_unbound(entity_data& a, entity_data const& b) requires(unbound<T>) {
+		auto& [a_rng] = a;
+		auto const& [b_rng] = b;
+
+		if (a_rng.adjacent(b_rng)) {
+			a_rng = entity_range::merge(a_rng, b_rng);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+
 	// Add new queued entities and components to the main storage.
 	void process_add_components() noexcept {
 		// Combine the components in to a single vector
@@ -521,33 +548,10 @@ private:
 
 
 		// Merge adjacent ranges that has the same data
-		if constexpr (!detail::unbound<T>) { // contains data
-			auto const combiner = [](entity_data& a, entity_data const& b) {
-				auto& [a_rng, a_data] = a;
-				auto const& [b_rng, b_data] = b;
-
-				if (a_rng.adjacent(b_rng) && is_equal(a_data, b_data)) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			};
-			combine_erase(adds, combiner);
-		} else {											   // does not contain data
-			auto const combiner = [](auto& a, auto const& b) { // entity_data/entity_init
-				auto& [a_rng] = a;
-				auto const& [b_rng] = b;
-
-				if (a_rng.adjacent(b_rng)) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			};
-			combine_erase(adds, combiner);
-		}
+		if constexpr (unbound<T>)
+			combine_erase(adds, combiner_unbound);
+		else
+			combine_erase(adds, combiner_bound);
 
 		// Do the insertions
 		chunk* prev = nullptr;
@@ -575,7 +579,6 @@ private:
 				new_chunk->next = curr;
 				curr = new_chunk;
 				prev->next = curr;
-				++iter;
 			} else {
 				entity_range const r = std::get<0>(*iter);
 
@@ -591,7 +594,6 @@ private:
 					if constexpr (!unbound<T>) {
 						construct_range_in_chunk(curr, r, std::get<1>(*iter));
 					}
-					++iter;
 				} else if (curr->range < r) {
 					// Incoming range is larger than the current one, so add it after 'curr'
 					auto new_chunk = create_new_chunk(iter);
@@ -601,7 +603,6 @@ private:
 					prev = curr;
 					curr = curr->next;
 
-					++iter;
 				} else if (r < curr->range) {
 					// Incoming range is less than the current one, so add it before 'curr' (after 'prev')
 					auto new_chunk = create_new_chunk(iter);
@@ -611,7 +612,6 @@ private:
 					curr = new_chunk;
 					if (prev != nullptr)
 						prev->next = curr;
-					++iter;
 				}
 			}
 		};
@@ -619,6 +619,7 @@ private:
 		// Fill in values
 		while (it_adds != adds.end()) {
 			merge_data(it_adds);
+			++it_adds;
 		}
 
 		// Fill in spans
@@ -626,6 +627,7 @@ private:
 		curr = head;
 		while (it_spans != spans.end()) {
 			merge_data(it_spans);
+			++it_spans;
 		}
 
 		// Check it
@@ -649,66 +651,66 @@ private:
 		// Sort the ranges to remove
 		std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
 
-		// Remove level 0 ranges, or downgrade them to level_ 1 or 2
+		// Remove ranges
 		if (nullptr != head) {
-			process_remove_components_level_0(vec);
+			process_remove_components(vec);
 		}
 
 		// Update the state
 		set_data_removed();
 	}
 
-	void process_remove_components_level_0(std::vector<entity_range>& removes) noexcept {
+	void process_remove_components(std::vector<entity_range>& removes) noexcept {
 		chunk* prev = nullptr; 
-		chunk* it_l0 = head;
+		chunk* it_chunk = head;
 		auto it_rem = removes.begin();
 
-		while (it_l0 != nullptr && it_rem != removes.end()) {
-			if (it_l0->active < *it_rem) {
-				prev = it_l0;
-				it_l0 = it_l0->next;
-			} else if (*it_rem < it_l0->active) {
+		while (it_chunk != nullptr && it_rem != removes.end()) {
+			if (it_chunk->active < *it_rem) {
+				prev = it_chunk;
+				it_chunk = it_chunk->next;
+			} else if (*it_rem < it_chunk->active) {
 				++it_rem;
 			}
 			else {
-				if (it_l0->active == *it_rem) {
+				if (it_chunk->active == *it_rem) {
 					// remove an entire range
 					// todo: move to a free-store?
-					chunk* next = it_l0->next;
+					chunk* next = it_chunk->next;
 
 					// Update head pointer
-					if (it_l0 == head) {
+					if (it_chunk == head) {
 						head = next;
 					}
 
 					// Delete the chunk and potentially its data
-					free_chunk(it_l0);
+					free_chunk(it_chunk);
 
 					// Update the previous chunks next pointer
 					if (nullptr != prev)
 						prev->next = next;
 
-					it_l0 = next;
+					it_chunk = next;
 				} else {
 					// remove partial range
-					auto const [left_range, maybe_split_range] = entity_range::remove(it_l0->active, *it_rem);
+					auto const [left_range, maybe_split_range] = entity_range::remove(it_chunk->active, *it_rem);
 
 					// Update the active range
-					update_range_to_chunk_key(it_l0->active, left_range);
-					it_l0->active = left_range;
+					update_range_to_chunk_key(it_chunk->active, left_range);
+					it_chunk->active = left_range;
 
 					// Destroy the removed components
-					auto const offset = it_l0->range.offset(it_rem->first());
-					std::destroy_n(&it_l0->data[offset], it_rem->ucount());
+					auto const offset = it_chunk->range.offset(it_rem->first());
+					std::destroy_n(&it_chunk->data[offset], it_rem->ucount());
 
 					if (maybe_split_range.has_value()) {
 						// If two ranges were returned, split this chunk
-						it_l0->split_data = true;
-						it_l0->next = create_new_chunk(it_l0->range, maybe_split_range.value(), it_l0->data, it_l0->next, false);
+						it_chunk->split_data = true;
+						it_chunk->next = create_new_chunk(it_chunk->range, maybe_split_range.value(), it_chunk->data, it_chunk->next, false);
 					}
 
-					prev = it_l0;
-					it_l0 = it_l0->next;
+					prev = it_chunk;
+					it_chunk = it_chunk->next;
 				}
 			}
 		}
