@@ -19,7 +19,7 @@ endif ()
 if (MSVC)
     # warning level 4
     target_compile_options(ecs INTERFACE
-        /std:c++20
+        /std:c++latest
 
         # enable lots of warnings
         /W4
