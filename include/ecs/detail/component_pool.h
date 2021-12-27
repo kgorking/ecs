@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <vector>
 #include <map>
+#include <ranges>
 
 #include "tls/collect.h"
 
@@ -192,32 +193,6 @@ public:
 
 		// TODO? collapse_adjacent_ranges()
 
-		// Sort it
-		// New ranges are never added to l1, but existing l1
-		// can be downgraded to l2.
-		/*if (l0_size_start == 0 && !l0.empty()) {
-			std::ranges::sort(l0, std::less{}, &level_0::range);
-		} else if (l0_size_start != l0.size()) {
-			auto const middle = l0.begin() + l0_size_start;
-
-			// sort the newcomers
-			std::ranges::sort(middle, l0.end(), std::less{}, &level_0::range);
-
-			// merge them into the rest
-			std::ranges::inplace_merge(l0, middle, std::less{}, &level_0::range);
-		}
-		if (l2_size_start == 0 && !l2.empty()) {
-			std::ranges::sort(l2, std::less{}, &level_2::range);
-		} else if (l2_size_start != l2.size()) {
-			auto const middle = l2.begin() + l2_size_start;
-
-			// sort the newcomers
-			std::ranges::sort(middle, l2.end(), std::less{}, &level_2::range);
-
-			// merge them into the rest
-			std::ranges::inplace_merge(l2, middle, std::less{}, &level_2::range);
-		}*/
-
 		update_cached_ranges();
 	}
 
@@ -225,10 +200,8 @@ public:
 	size_t num_entities() const {
 		size_t count = 0;
 
-		auto curr = head;
-		while (nullptr != curr) {
-			count += curr->active.ucount();
-			curr = curr->next;
+		for (entity_range r : cached_ranges) {
+			count += r.ucount();
 		}
 
 		return count;
@@ -244,18 +217,10 @@ public:
 
 	// Returns the number of chunks in use
 	size_t num_chunks() const noexcept {
-		size_t count = 0;
-
-		auto curr = head;
-		while (nullptr != curr) {
-			count += 1;
-			curr = curr->next;
-		}
-
-		return count;
+		return range_to_chunk_map.size();
 	}
 
-	chunk const* const get_head_chunk() const noexcept {
+	chunk const* get_head_chunk() const noexcept {
 		return head;
 	}
 
@@ -289,8 +254,7 @@ public:
 	entity_range_view get_entities() const {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
-			static constexpr entity_range global_range{std::numeric_limits<ecs::detail::entity_type>::min(),
-													   std::numeric_limits<ecs::detail::entity_type>::max()};
+			static constinit entity_range global_range = entity_range::all();
 			return entity_range_view{&global_range, 1};
 		} else {
 			return cached_ranges;
@@ -466,11 +430,7 @@ private:
 
 		// Find all ranges
 		cached_ranges.clear();
-		chunk* curr = head;
-		while (curr != nullptr) {
-			cached_ranges.push_back(curr->active);
-			curr = curr->next;
-		}
+		std::ranges::copy(std::views::keys(range_to_chunk_map), std::back_inserter(cached_ranges));
 	}
 
 	// Verify the 'add*' functions precondition.

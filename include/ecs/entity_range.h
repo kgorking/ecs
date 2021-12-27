@@ -24,7 +24,7 @@ public:
 		Expects(first <= last);
 	}
 
-	static entity_range all() {
+	static constexpr entity_range all() {
 		return {std::numeric_limits<detail::entity_type>::min(), std::numeric_limits<detail::entity_type>::max()};
 	}
 
