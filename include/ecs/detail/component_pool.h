@@ -88,9 +88,10 @@ private:
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 	// TODO? sorted std::vector<std::pair<entity_range, chunk*>>
-	using range_chunk_pair = std::pair<entity_range, chunk*>;
-	std::vector<range_chunk_pair> range_to_chunk_map;
-	//std::map<entity_range, chunk*> range_to_chunk_map;
+	//using range_chunk_pair = std::pair<entity_range, chunk*>;
+	//std::vector<range_chunk_pair> range_to_chunk_map;
+	std::vector<entity_range> ranges;
+	std::vector<chunk*> chunks;
 
 	// Status flags
 	bool components_added = false;
@@ -169,10 +170,14 @@ public:
 		if (head == nullptr)
 			return nullptr;
 		
-		auto const it = find_in_range_to_chunk_vec({id, id});
-		if (it != range_to_chunk_map.end() && it->second->active.contains(id)) {
-			auto const offset = it->second->range.offset(id);
-			return &it->second->data[offset];
+		auto const range_it = find_in_ranges_vec({id, id});
+		if (range_it != ranges.end()) {
+			auto const chunk_it = chunks.begin() + ranges_dist(range_it);
+			chunk* c = (*chunk_it);
+			if (c->active.contains(id)) {
+				auto const offset = c->range.offset(id);
+				return &c->data[offset];
+			}
 		}
 
 		return nullptr;
@@ -210,7 +215,7 @@ public:
 
 	// Returns the number of chunks in use
 	size_t num_chunks() const noexcept {
-		return range_to_chunk_map.size();
+		return chunks.size();
 	}
 
 	chunk const* get_head_chunk() const noexcept {
@@ -251,7 +256,6 @@ public:
 			return entity_range_view{&global_range, 1};
 		} else {
 			return cached_ranges;
-			//return range_to_chunk_map;
 		}
 	}
 
@@ -281,7 +285,8 @@ public:
 		deferred_adds.reset();
 		deferred_spans.reset();
 		deferred_removes.reset();
-		range_to_chunk_map.clear();
+		ranges.clear();
+		chunks.clear();
 		cached_ranges.clear();
 		clear_flags();
 
@@ -298,8 +303,13 @@ private:
 	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
 							bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = new chunk{range, active, data, next, owns_data, split_data};
-		auto const it = find_in_range_to_chunk_vec(active);
-		range_to_chunk_map.insert(it, {active, c});
+		auto const range_it = find_in_ranges_vec(active);
+		auto const dist = ranges_dist(range_it);
+		ranges.insert(range_it, active);
+
+		auto const chunk_it = chunks.begin() + dist;
+		chunks.insert(chunk_it, c);
+
 		return c;
 	}
 
@@ -330,7 +340,8 @@ private:
 	}
 
 	void free_all_chunks() noexcept {
-		range_to_chunk_map.clear();
+		ranges.clear();
+		chunks.clear();
 		chunk* curr = head;
 		while (curr != nullptr) {
 			chunk* next = curr->next;
@@ -341,24 +352,32 @@ private:
 		set_data_removed();
 	}
 
-	auto find_in_range_to_chunk_vec(entity_range const rng) noexcept {
-		return std::ranges::lower_bound(range_to_chunk_map, rng, std::less{}, &range_chunk_pair::first);
+	auto find_in_ranges_vec(entity_range const rng) noexcept {
+		return std::ranges::lower_bound(ranges, rng, std::less{});
 	}
-	auto find_in_range_to_chunk_vec(entity_range const rng) const noexcept {
-		return std::ranges::lower_bound(range_to_chunk_map, rng, std::less{}, &range_chunk_pair::first);
+	auto find_in_ranges_vec(entity_range const rng) const noexcept {
+		return std::ranges::lower_bound(ranges, rng, std::less{});
+	}
+
+	ptrdiff_t ranges_dist(std::vector<entity_range>::const_iterator it) const noexcept {
+		return std::distance(ranges.begin(), it);
 	}
 
 	// Removes a range and chunk from the map
 	void remove_range_to_chunk(entity_range const rng) noexcept {
-		auto const it = find_in_range_to_chunk_vec(rng);
-		if (it != range_to_chunk_map.end() && it->first == rng)
-			range_to_chunk_map.erase(it);
+		auto const it = find_in_ranges_vec(rng);
+		if (it != ranges.end() && *it == rng) {
+			auto const dist = ranges_dist(it);
+
+			ranges.erase(it);
+			chunks.erase(chunks.begin() + dist);
+		}
 	}
 	
 	// Updates a key in the range-to-chunk map
 	void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
-		auto it = find_in_range_to_chunk_vec(old);
-		it->first = update;
+		auto it = find_in_ranges_vec(old);
+		*it = update;
 	}
 
 	// Flag that components has been added
@@ -377,7 +396,7 @@ private:
 
 		// Find all ranges
 		cached_ranges.clear();
-		std::ranges::copy(std::views::keys(range_to_chunk_map), std::back_inserter(cached_ranges));
+		std::ranges::copy(ranges, std::back_inserter(cached_ranges));
 	}
 
 	// Verify the 'add*' functions precondition.
