@@ -77,9 +77,6 @@ private:
 
 	chunk* head = nullptr;
 
-	// Cache of all active ranges
-	std::vector<entity_range> cached_ranges;
-
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
 	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
@@ -87,9 +84,6 @@ private:
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
-	// TODO? sorted std::vector<std::pair<entity_range, chunk*>>
-	//using range_chunk_pair = std::pair<entity_range, chunk*>;
-	//std::vector<range_chunk_pair> range_to_chunk_map;
 	std::vector<entity_range> ranges;
 	std::vector<chunk*> chunks;
 
@@ -190,15 +184,13 @@ public:
 		process_add_components();
 
 		// TODO? collapse_adjacent_ranges()
-
-		update_cached_ranges();
 	}
 
 	// Returns the number of active entities in the pool
 	size_t num_entities() const noexcept {
 		size_t count = 0;
 
-		for (entity_range const r : cached_ranges) {
+		for (entity_range const r : ranges) {
 			count += r.ucount();
 		}
 
@@ -255,7 +247,7 @@ public:
 			static constinit entity_range global_range = entity_range::all();
 			return entity_range_view{&global_range, 1};
 		} else {
-			return cached_ranges;
+			return ranges;
 		}
 	}
 
@@ -287,7 +279,6 @@ public:
 		deferred_removes.reset();
 		ranges.clear();
 		chunks.clear();
-		cached_ranges.clear();
 		clear_flags();
 
 		// Save the removal state
@@ -388,15 +379,6 @@ private:
 	// Flag that components has been removed
 	void set_data_removed() noexcept {
 		components_removed = true;
-	}
-
-	void update_cached_ranges() noexcept {
-		if (!components_added && !components_removed)
-			return;
-
-		// Find all ranges
-		cached_ranges.clear();
-		std::ranges::copy(ranges, std::back_inserter(cached_ranges));
 	}
 
 	// Verify the 'add*' functions precondition.
