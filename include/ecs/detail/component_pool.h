@@ -191,7 +191,7 @@ public:
 	size_t num_entities() const noexcept {
 		size_t count = 0;
 
-		for (entity_range r : cached_ranges) {
+		for (entity_range const r : cached_ranges) {
 			count += r.ucount();
 		}
 
@@ -405,6 +405,7 @@ private:
 
 	template<typename Data>
 	void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) noexcept {
+		Expects(c != nullptr);
 		if constexpr (!unbound<T>) {
 			// Offset into the chunks data
 			auto const ent_offset = c->range.offset(range.first());
