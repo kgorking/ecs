@@ -31,7 +31,7 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 	};
 
 	using info_map = std::unordered_map<entity_type, entity_info>;
-	using info_iterator = info_map::const_iterator;
+	using info_iterator = typename info_map::const_iterator;
 
 	using argument = decltype(
 		std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
