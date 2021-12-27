@@ -9,8 +9,6 @@
 #include <map>
 
 #include "tls/collect.h"
-#include "tls/split.h"
-#include "tls/cache.h"
 
 #include "../entity_id.h"
 #include "../entity_range.h"
@@ -102,8 +100,8 @@ private:
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
+	// TODO? sorted std::vector<std::pair<entity_range, chunk*>>
 	std::map<entity_range, chunk*> range_to_chunk_map;
-	mutable tls::split<chunk*, component_pool<T>> chunk_caches;
 
 	// Status flags
 	bool components_added = false;
