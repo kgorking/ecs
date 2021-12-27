@@ -19,20 +19,6 @@
 #include "flags.h"
 #include "options.h"
 
-// Helpre macro for components that wish to support pmr.
-// Declares the 'allocator_type' and default constructor/assignment
-#define ECS_USE_PMR(ClassName)                                                                                                             \
-	using allocator_type = std::pmr::polymorphic_allocator<>;                                                                              \
-                                                                                                                                           \
-	ClassName() : ClassName(allocator_type{}) {}                                                                                           \
-	ClassName(ClassName const&) = default;                                                                                                 \
-	ClassName(ClassName&&) = default;                                                                                                      \
-	~ClassName() = default;                                                                                                                \
-                                                                                                                                           \
-	ClassName& operator=(ClassName const&) = default;                                                                                      \
-	ClassName& operator=(ClassName&&) = default
-
-
 namespace ecs::detail {
 
 template <class ForwardIt, class BinaryPredicate>
