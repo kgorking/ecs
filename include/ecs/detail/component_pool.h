@@ -96,14 +96,19 @@ private:
 	bool components_modified = false;
 
 public:
-	~component_pool() override {
+	component_pool() noexcept = default;
+	component_pool(component_pool const&) = delete;
+	component_pool(component_pool &&) = delete;
+	component_pool& operator=(component_pool const&) = delete;
+	component_pool& operator=(component_pool&&) = delete;
+	~component_pool() noexcept override {
 		free_all_chunks();
 	}
 
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	constexpr void add_span(entity_range const range, std::span<const T> span) requires(!detail::unbound<T>) {
+	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
@@ -113,7 +118,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add(entity_range const range, T&& component) {
+	void add(entity_range const range, T&& component) noexcept {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back(range);
 		} else {
@@ -124,7 +129,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add(entity_range const range, T const& component) {
+	void add(entity_range const range, T const& component) noexcept {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back(range);
 		} else {
@@ -133,32 +138,32 @@ public:
 	}
 
 	// Return the shared component
-	T& get_shared_component() requires unbound<T> {
+	T& get_shared_component() noexcept requires unbound<T> {
 		static T t{};
 		return t;
 	}
 
 	// Remove an entity from the component pool. This logically removes the component from the
 	// entity.
-	void remove(entity_id const id) {
+	void remove(entity_id const id) noexcept {
 		remove({id, id});
 	}
 
 	// Remove an entity from the component pool. This logically removes the component from the
 	// entity.
-	void remove(entity_range const range) {
+	void remove(entity_range const range) noexcept {
 		deferred_removes.local().push_back(range);
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T* find_component_data(entity_id const id) {
+	T* find_component_data(entity_id const id) noexcept {
 		return const_cast<T*>(std::as_const(*this).find_component_data(id));
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T const* find_component_data(entity_id const id) const {
+	T const* find_component_data(entity_id const id) const noexcept {
 		if (head == nullptr)
 			return nullptr;
 		
@@ -173,7 +178,7 @@ public:
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	void process_changes() override {
+	void process_changes() noexcept override {
 		process_remove_components();
 		process_add_components();
 
@@ -183,7 +188,7 @@ public:
 	}
 
 	// Returns the number of active entities in the pool
-	size_t num_entities() const {
+	size_t num_entities() const noexcept {
 		size_t count = 0;
 
 		for (entity_range r : cached_ranges) {
@@ -194,7 +199,7 @@ public:
 	}
 
 	// Returns the number of active components in the pool
-	size_t num_components() const {
+	size_t num_components() const noexcept {
 		if constexpr (unbound<T>)
 			return 1;
 		else
@@ -211,33 +216,33 @@ public:
 	}
 
 	// Clears the pools state flags
-	void clear_flags() override {
+	void clear_flags() noexcept override {
 		components_added = false;
 		components_removed = false;
 		components_modified = false;
 	}
 
 	// Returns true if components has been added since last clear_flags() call
-	bool has_more_components() const {
+	bool has_more_components() const noexcept {
 		return components_added;
 	}
 
 	// Returns true if components has been removed since last clear_flags() call
-	bool has_less_components() const {
+	bool has_less_components() const noexcept {
 		return components_removed;
 	}
 
 	// Returns true if components has been added/removed since last clear_flags() call
-	bool has_component_count_changed() const {
+	bool has_component_count_changed() const noexcept {
 		return components_added || components_removed;
 	}
 
-	bool has_components_been_modified() const {
+	bool has_components_been_modified() const noexcept {
 		return has_component_count_changed() || components_modified;
 	}
 
 	// Returns the pools entities
-	entity_range_view get_entities() const {
+	entity_range_view get_entities() const noexcept {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
 			static constinit entity_range global_range = entity_range::all();
@@ -249,12 +254,12 @@ public:
 	}
 
 	// Returns true if an entity has a component in this pool
-	bool has_entity(entity_id const id) const {
+	bool has_entity(entity_id const id) const noexcept {
 		return has_entity({id, id});
 	}
 
 	// Returns true if an entity range has components in this pool
-	bool has_entity(entity_range const& range) const {
+	bool has_entity(entity_range const& range) const noexcept {
 		auto curr = head;
 		while (nullptr != curr) {
 			if (curr->active.contains(range))
@@ -265,7 +270,7 @@ public:
 	}
 
 	// Clear all entities from the pool
-	void clear() override {
+	void clear() noexcept override {
 		// Remember if components was removed from the pool
 		bool const is_removed = (nullptr != head);
 
@@ -283,19 +288,19 @@ public:
 	}
 
 	// Flag that components has been modified
-	void notify_components_modified() {
+	void notify_components_modified() noexcept {
 		components_modified = true;
 	}
 
 private:
 	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
-							bool owns_data = true, bool split_data = false) {
+							bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = new chunk{range, active, data, next, owns_data, split_data};
 		range_to_chunk_map[active] = c;
 		return c;
 	}
 
-	chunk* create_new_chunk(std::forward_iterator auto iter) {
+	chunk* create_new_chunk(std::forward_iterator auto iter) noexcept {
 		entity_range const r = std::get<0>(*iter);
 		chunk* c = create_new_chunk(r, r);
 		if constexpr (!unbound<T>) {
@@ -306,7 +311,7 @@ private:
 		return c;
 	}
 
-	void free_chunk(chunk* c) {
+	void free_chunk(chunk* c) noexcept {
 		remove_range_to_chunk(c->active);
 		if (c->owns_data) {
 			if (c->split_data && nullptr != c->next) {
@@ -321,7 +326,7 @@ private:
 		delete c;
 	}
 
-	void free_all_chunks() {
+	void free_all_chunks() noexcept {
 		chunk* curr = head;
 		while (curr != nullptr) {
 			chunk* next = curr->next;
@@ -333,12 +338,12 @@ private:
 	}
 
 	// Add a range and chunk to the map
-	void map_range_to_chunk(entity_range const rng, chunk* c) {
+	void map_range_to_chunk(entity_range const rng, chunk* c) noexcept {
 		range_to_chunk_map[rng] = c;
 	}
 
 	// Removes a range and chunk from the map
-	void remove_range_to_chunk(entity_range const rng) {
+	void remove_range_to_chunk(entity_range const rng) noexcept {
 		auto const it = range_to_chunk_map.find(rng);
 		if (it != range_to_chunk_map.end() && it->first == rng)
 			range_to_chunk_map.erase(it);
@@ -346,7 +351,7 @@ private:
 	}
 	
 	// Updates a key in the range-to-chunk map
-	void update_range_to_chunk_key(entity_range const old, entity_range const update) {
+	void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
 		auto node_handle = range_to_chunk_map.extract(old);
 		Expects(node_handle);
 		node_handle.key() = update;
@@ -354,16 +359,16 @@ private:
 	}
 
 	// Flag that components has been added
-	void set_data_added() {
+	void set_data_added() noexcept {
 		components_added = true;
 	}
 
 	// Flag that components has been removed
-	void set_data_removed() {
+	void set_data_removed() noexcept {
 		components_removed = true;
 	}
 
-	void update_cached_ranges() {
+	void update_cached_ranges() noexcept {
 		if (!components_added && !components_removed)
 			return;
 
@@ -374,7 +379,7 @@ private:
 
 	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
-	bool has_duplicate_entities() const {
+	bool has_duplicate_entities() const noexcept {
 		chunk* curr = head;
 		while (curr != nullptr && curr->next != nullptr) {
 			if (curr->active.overlaps(curr->next->active))
@@ -384,14 +389,14 @@ private:
 		return false;
 	};
 
-	constexpr static bool is_equal(T const& lhs, T const& rhs) requires std::equality_comparable<T> {
+	constexpr static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
 		return lhs == rhs;
 	}
-	constexpr static bool is_equal(T const& /*lhs*/, T const& /*rhs*/) requires tagged<T> {
+	constexpr static bool is_equal(T const& /*lhs*/, T const& /*rhs*/) noexcept requires tagged<T> {
 		// Tags are empty, so always return true
 		return true;
 	}
-	constexpr static bool is_equal(T const&, T const&) {
+	constexpr static bool is_equal(T const&, T const&) noexcept {
 		// Type can not be compared, so always return false.
 		// memcmp is a no-go because it also compares padding in types,
 		// and it is not constexpr
@@ -399,7 +404,7 @@ private:
 	}
 
 	template<typename Data>
-	void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) {
+	void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) noexcept {
 		if constexpr (!unbound<T>) {
 			// Offset into the chunks data
 			auto const ent_offset = c->range.offset(range.first());
@@ -415,7 +420,7 @@ private:
 		}
 	}
 
-	void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) {
+	void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) noexcept {
 		// If split chunks are encountered, skip forward to the chunk closest to r
 		if (curr->split_data) {
 			while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
@@ -487,7 +492,7 @@ private:
 	}
 
 	// Add new queued entities and components to the main storage.
-	void process_add_components() {
+	void process_add_components() noexcept {
 		// Combine the components in to a single vector
 		std::vector<entity_data> adds;
 		std::vector<entity_span> spans;
@@ -626,7 +631,7 @@ private:
 	}
 
 	// Removes the entities and components
-	void process_remove_components() {
+	void process_remove_components() noexcept {
 		// Collect all the ranges to remove
 		std::vector<entity_range> vec;
 		deferred_removes.gather_flattened(std::back_inserter(vec));
@@ -648,7 +653,7 @@ private:
 		set_data_removed();
 	}
 
-	void process_remove_components_level_0(std::vector<entity_range>& removes) {
+	void process_remove_components_level_0(std::vector<entity_range>& removes) noexcept {
 		chunk* prev = nullptr; 
 		chunk* it_l0 = head;
 		auto it_rem = removes.begin();
@@ -705,7 +710,7 @@ private:
 	}
 
 	// Removes transient components
-	void process_remove_components() requires transient<T> {
+	void process_remove_components() noexcept requires transient<T> {
 		// All transient components are removed each cycle
 		free_all_chunks();
 	}
