@@ -27,21 +27,21 @@ struct tagged_pointer {
 	}
 
 	bool tag() const {
-		return val & 0x01ull;
+		return val & TagMask;
 	}
 
 	void set_tag(bool set) {
 		if (set)
-			val |= 0x01ull;
+			val = val | 0x01ull;
 		else
-			val &= Mask;
+			val = val & PointerMask;
 	}
 
 	T* value() {
-		return std::bit_cast<T*>(val & Mask);
+		return std::bit_cast<T*>(val & PointerMask);
 	}
 	T const* value() const {
-		return std::bit_cast<T*>(val & Mask);
+		return std::bit_cast<T*>(val & PointerMask);
 	}
 
 	T* operator->() {
@@ -59,7 +59,8 @@ struct tagged_pointer {
 	}
 
 private:
-	constexpr static uintptr_t Mask = ~0x01ULL;
+	constexpr static uintptr_t TagMask = 0x01ull;
+	constexpr static uintptr_t PointerMask = ~0x01ull;
 
 	uintptr_t val;
 };
