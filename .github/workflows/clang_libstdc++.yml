@@ -31,8 +31,8 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/clang-12")
-        set(ENV{CXX} "/usr/bin/clang++-12")
+        set(ENV{CC} "/usr/bin/clang")
+        set(ENV{CXX} "/usr/bin/clang++")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
