@@ -11,50 +11,50 @@ namespace ecs::detail {
 // therfore not reset when a new pointer is set
 template <typename T>
 struct tagged_pointer {
-	tagged_pointer(T* in) : val(std::bit_cast<uintptr_t>(in)) {}
+	constexpr tagged_pointer(T* in) noexcept : val(std::bit_cast<uintptr_t>(in)) {}
 
-	tagged_pointer() = default;
-	tagged_pointer(tagged_pointer const&) = default;
-	tagged_pointer(tagged_pointer&&) = default;
-	tagged_pointer& operator=(tagged_pointer const&) = default;
-	tagged_pointer& operator=(tagged_pointer&&) = default;
+	constexpr tagged_pointer() noexcept = default;
+	constexpr tagged_pointer(tagged_pointer const&) noexcept = default;
+	constexpr tagged_pointer(tagged_pointer&&) noexcept = default;
+	constexpr tagged_pointer& operator=(tagged_pointer const&) noexcept = default;
+	constexpr tagged_pointer& operator=(tagged_pointer&&) noexcept = default;
 
-	tagged_pointer& operator=(T* in) {
+	constexpr tagged_pointer& operator=(T* in) noexcept {
 		bool const set = tag();
 		val = std::bit_cast<uintptr_t>(in);
 		set_tag(set);
 		return *this;
 	}
 
-	bool tag() const {
+	constexpr bool tag() const noexcept {
 		return val & TagMask;
 	}
 
-	void set_tag(bool set) {
+	constexpr void set_tag(bool set) noexcept {
 		if (set)
 			val = val | 0x01ull;
 		else
 			val = val & PointerMask;
 	}
 
-	T* value() {
+	constexpr T* value() noexcept {
 		return std::bit_cast<T*>(val & PointerMask);
 	}
-	T const* value() const {
+	constexpr T const* value() const noexcept {
 		return std::bit_cast<T*>(val & PointerMask);
 	}
 
-	T* operator->() {
+	constexpr T* operator->() noexcept {
 		return value();
 	}
-	T const* operator->() const {
+	constexpr T const* operator->() const noexcept {
 		return value();
 	}
 
-	operator T*() {
+	constexpr operator T*() noexcept {
 		return value();
 	}
-	operator T const *() const {
+	constexpr operator T const *() const noexcept {
 		return value();
 	}
 
