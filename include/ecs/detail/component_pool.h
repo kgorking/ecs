@@ -1,8 +1,8 @@
 #ifndef ECS_COMPONENT_POOL
 #define ECS_COMPONENT_POOL
 
-#include <vector>
 #include <ranges>
+#include <vector>
 
 #include "tls/collect.h"
 
@@ -13,6 +13,7 @@
 #include "component_pool_base.h"
 #include "flags.h"
 #include "options.h"
+#include "tagged_pointer.h"
 
 namespace ecs::detail {
 
@@ -54,21 +55,28 @@ private:
 		entity_range active;
 
 		// The data for the full range of the chunk (range.count())
-		T* data = nullptr;
+		// The tag signals wether this chunk owns this data and should clean it up
+		tagged_pointer<T> data = nullptr;
 
-		//
-		chunk* next = nullptr;
+		// Points to the next chunk in the list.
+		// The tag signals wether this chunk has been split
+		tagged_pointer<chunk> next = nullptr;
 
+		constexpr bool owns_data() const {
+			return data.tag();
+		}
+		constexpr void set_owns_data(bool set) {
+			data.set_tag(set);
+		}
 
-		// 8 bytes used to store 2 bits -_-
-
-		// True if this chunk is responsible for freeing up the data
-		// when it is no longer in use.
-		bool owns_data : 1 = false;
-
-		// True if this chunk has been split.
-		bool split_data : 1 = false;
+		constexpr bool has_split_data() const {
+			return next.tag();
+		}
+		constexpr void set_split_data(bool yes) {
+			next.set_tag(yes);
+		}
 	};
+	static_assert(sizeof(chunk) == 32);
 
 	allocator_type alloc;
 	std::allocator<chunk> alloc_chunk;
@@ -93,7 +101,7 @@ private:
 public:
 	component_pool() noexcept = default;
 	component_pool(component_pool const&) = delete;
-	component_pool(component_pool &&) = delete;
+	component_pool(component_pool&&) = delete;
 	component_pool& operator=(component_pool const&) = delete;
 	component_pool& operator=(component_pool&&) = delete;
 	~component_pool() noexcept override {
@@ -159,7 +167,7 @@ public:
 	T const* find_component_data(entity_id const id) const noexcept {
 		if (head == nullptr)
 			return nullptr;
-		
+
 		auto const range_it = find_in_ordered_active_ranges({id, id});
 		if (range_it != ordered_active_ranges.end() && range_it->contains(id)) {
 			auto const chunk_it = ordered_chunks.begin() + ranges_dist(range_it);
@@ -285,7 +293,9 @@ private:
 	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
 							bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = alloc_chunk.allocate(1);
-		std::construct_at(c, range, active, data, next, owns_data, split_data);
+		std::construct_at(c, range, active, data, next /*, owns_data , split_data */);
+		c->data.set_tag(owns_data);
+		c->next.set_tag(split_data);
 
 		auto const range_it = find_in_ordered_active_ranges(active);
 		auto const dist = ranges_dist(range_it);
@@ -310,13 +320,13 @@ private:
 
 	void free_chunk(chunk* c) noexcept {
 		remove_range_to_chunk(c->active);
-		if (c->owns_data) {
-			if (c->split_data && nullptr != c->next) {
+		if (c->owns_data()) {
+			if (c->has_split_data() && nullptr != c->next) {
 				// transfer ownership
-				c->next->owns_data = true;
+				c->next->set_owns_data(true);
 			} else {
-				std::destroy_n(c->data, c->active.ucount());
-				alloc.deallocate(c->data, c->range.count());
+				std::destroy_n(c->data.value(), c->active.ucount());
+				alloc.deallocate(c->data.value(), c->range.count());
 			}
 		}
 
@@ -358,7 +368,7 @@ private:
 			ordered_chunks.erase(ordered_chunks.begin() + dist);
 		}
 	}
-	
+
 	// Updates a key in the range-to-chunk map
 	void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
 		auto it = find_in_ordered_active_ranges(old);
@@ -402,7 +412,7 @@ private:
 		return false;
 	}
 
-	template<typename Data>
+	template <typename Data>
 	void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) noexcept {
 		Expects(c != nullptr);
 		if constexpr (!unbound<T>) {
@@ -422,7 +432,7 @@ private:
 
 	void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) noexcept {
 		// If split chunks are encountered, skip forward to the chunk closest to r
-		if (curr->split_data) {
+		if (curr->has_split_data()) {
 			while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
 				prev = curr;
 				curr = curr->next;
@@ -464,7 +474,7 @@ private:
 					curr->next = next->next;
 
 					// split_data is true if the next chunk is also in the current range
-					curr->split_data = (curr->next != nullptr) && (curr->range == curr->next->range);
+					curr->set_split_data((curr->next != nullptr) && (curr->range == curr->next->range));
 
 					free_chunk(next);
 				}
@@ -473,9 +483,9 @@ private:
 			// There is a gap between the two ranges, so split the chunk
 			if (r < curr->active) {
 				bool const is_head_chunk = (head == curr);
-				bool const curr_owns_data = curr->owns_data;
-				curr->owns_data = false;
- 				curr = create_new_chunk(curr->range, r, curr->data, curr, curr_owns_data, true);
+				bool const curr_owns_data = curr->owns_data();
+				curr->set_owns_data(false);
+				curr = create_new_chunk(curr->range, r, curr->data, curr, curr_owns_data, true);
 
 				// Update head pointer
 				if (is_head_chunk)
@@ -485,7 +495,7 @@ private:
 				if (prev != nullptr)
 					prev->next = curr;
 			} else {
-				curr->split_data = true;
+				curr->set_split_data(true);
 				curr->next = create_new_chunk(curr->range, r, curr->data, curr->next, false, false);
 			}
 		}
@@ -517,7 +527,6 @@ private:
 		}
 	}
 
-
 	// Add new queued entities and components to the main storage.
 	void process_add_components() noexcept {
 		// Combine the components in to a single vector
@@ -547,7 +556,6 @@ private:
 			std::sort(std::execution::seq, spans.begin(), spans.end(), comparator);
 		else
 			std::sort(std::execution::par, spans.begin(), spans.end(), comparator);
-
 
 		// Merge adjacent ranges that has the same data
 		if constexpr (unbound<T>)
@@ -664,7 +672,7 @@ private:
 	}
 
 	void process_remove_components(std::vector<entity_range>& removes) noexcept {
-		chunk* prev = nullptr; 
+		chunk* prev = nullptr;
 		chunk* it_chunk = head;
 		auto it_rem = removes.begin();
 
@@ -674,8 +682,7 @@ private:
 				it_chunk = it_chunk->next;
 			} else if (*it_rem < it_chunk->active) {
 				++it_rem;
-			}
-			else {
+			} else {
 				if (it_chunk->active == *it_rem) {
 					// remove an entire range
 					// todo: move to a free-store?
@@ -708,8 +715,9 @@ private:
 
 					if (maybe_split_range.has_value()) {
 						// If two ranges were returned, split this chunk
-						it_chunk->split_data = true;
-						it_chunk->next = create_new_chunk(it_chunk->range, maybe_split_range.value(), it_chunk->data, it_chunk->next, false);
+						it_chunk->set_split_data(true);
+						it_chunk->next =
+							create_new_chunk(it_chunk->range, maybe_split_range.value(), it_chunk->data, it_chunk->next, false);
 					}
 
 					prev = it_chunk;

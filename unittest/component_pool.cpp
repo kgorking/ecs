@@ -165,7 +165,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			auto chunk = pool.get_head_chunk();
 			REQUIRE(chunk->range.equals({1, 5}));
 			REQUIRE(chunk->active.equals({5, 5}));
-			REQUIRE(chunk->owns_data);
+			REQUIRE(chunk->owns_data());
 
 			// 3 is now first entity, so it is now owner
 			pool.add({3, 3}, 3);
@@ -173,9 +173,9 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(2 == pool.num_chunks());
 			chunk = pool.get_head_chunk();
 			REQUIRE(chunk->active.equals({3, 3}));
-			REQUIRE(chunk->owns_data);
+			REQUIRE(chunk->owns_data());
 			REQUIRE(nullptr != chunk->next);
-			REQUIRE(false == chunk->next->owns_data);
+			REQUIRE(false == chunk->next->owns_data());
 
 			// Fill in rest
 			pool.add({1, 1}, 1);
@@ -186,7 +186,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			CHECK(1 == pool.num_chunks());
 			chunk = pool.get_head_chunk();
 			REQUIRE(chunk->active.equals({1, 5}));
-			REQUIRE(chunk->owns_data);
+			REQUIRE(chunk->owns_data());
 			REQUIRE(nullptr == chunk->next);
 
 			// Verify the component data
