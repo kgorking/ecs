@@ -256,13 +256,12 @@ public:
 
 	// Returns true if an entity range has components in this pool
 	bool has_entity(entity_range const& range) const noexcept {
-		auto curr = head;
-		while (nullptr != curr) {
-			if (curr->active.contains(range))
-				return true;
-			curr = curr->next;
-		}
-		return false;
+		auto const it = find_in_ordered_active_ranges(range);
+
+		if (it == ordered_active_ranges.end())
+			return false;
+
+		return it->contains(range);
 	}
 
 	// Clear all entities from the pool
@@ -382,12 +381,13 @@ private:
 	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
 	bool has_duplicate_entities() const noexcept {
-		chunk* curr = head;
-		while (curr != nullptr && curr->next != nullptr) {
-			if (curr->active.overlaps(curr->next->active))
-				return true;
-			curr = curr->next;
+		if (!ordered_active_ranges.empty()) {
+			for (size_t i = 0; i < ordered_active_ranges.size() - 1; ++i) {
+				if (ordered_active_ranges[i].overlaps(ordered_active_ranges[i + 1]))
+					return true;
+			}
 		}
+
 		return false;
 	};
 
@@ -539,7 +539,7 @@ private:
 
 		// Sort the input
 		auto const comparator = [](auto const& l, auto const& r) {
-			return std::get<0>(l).first() < std::get<0>(r).first();
+			return std::get<0>(l) < std::get<0>(r);
 		};
 		if (sizeof(entity_data) * adds.size() < parallelization_size_tipping_point)
 			std::sort(std::execution::seq, adds.begin(), adds.end(), comparator);
@@ -649,21 +649,18 @@ private:
 		deferred_removes.gather_flattened(std::back_inserter(vec));
 
 		// Dip if there is nothing to do
-		if (vec.empty()) {
+		if (vec.empty() || nullptr == head) {
 			return;
 		}
 
 		// Sort the ranges to remove
-		//std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
 		if (sizeof(entity_range) * vec.size() < parallelization_size_tipping_point)
 			std::sort(std::execution::seq, vec.begin(), vec.end());
 		else
 			std::sort(std::execution::par, vec.begin(), vec.end());
 
 		// Remove ranges
-		if (nullptr != head) {
-			process_remove_components(vec);
-		}
+		process_remove_components(vec);
 
 		// Update the state
 		set_data_removed();
