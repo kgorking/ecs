@@ -55,11 +55,11 @@ private:
 		entity_range active;
 
 		// The data for the full range of the chunk (range.count())
-		// The tag signals wether this chunk owns this data and should clean it up
+		// The tag signals if this chunk owns this data and should clean it up
 		tagged_pointer<T> data = nullptr;
 
 		// Points to the next chunk in the list.
-		// The tag signals wether this chunk has been split
+		// The tag signals if this chunk has been split
 		tagged_pointer<chunk> next = nullptr;
 
 		constexpr bool owns_data() const {
