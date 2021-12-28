@@ -1,12 +1,7 @@
 #ifndef ECS_COMPONENT_POOL
 #define ECS_COMPONENT_POOL
 
-#include <cstring> // for memcmp
-#include <functional>
-#include <tuple>
-#include <type_traits>
 #include <vector>
-#include <map>
 #include <ranges>
 
 #include "tls/collect.h"
@@ -40,7 +35,7 @@ ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p
 
 template <class Cont, class BinaryPredicate>
 void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
-	auto const end = std_combine_erase(cont.begin(), cont.end(), std::forward<BinaryPredicate>(p));
+	auto const end = std_combine_erase(cont.begin(), cont.end(), static_cast<BinaryPredicate&&>(p));
 	cont.erase(end, cont.end());
 }
 
@@ -48,9 +43,6 @@ template <typename T>
 class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
-
-	using clock = std::chrono::steady_clock;
-	using time_point = std::chrono::time_point<clock>;
 
 	struct chunk {
 		// The full range this chunk covers.
@@ -61,8 +53,6 @@ private:
 
 		// The data for the full range of the chunk (range.count())
 		T* data = nullptr;
-
-		// time_point last_modified;
 
 		//
 		chunk* next = nullptr;
@@ -180,8 +170,6 @@ public:
 	void process_changes() noexcept override {
 		process_remove_components();
 		process_add_components();
-
-		// TODO? collapse_adjacent_ranges()
 	}
 
 	// Returns the number of active entities in the pool
