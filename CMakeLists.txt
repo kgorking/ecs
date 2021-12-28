@@ -41,6 +41,9 @@ if (MSVC)
         #/w44388     # signed/unsigned mismatch
         #/w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
 
+		# Shows the layout of the struct name 'chunk'
+		#/d1reportSingleClassLayoutchunk
+
         # Enable address sanitizer
         #/fsanitize=address
     )

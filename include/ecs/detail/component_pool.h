@@ -39,10 +39,12 @@ void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	cont.erase(end, cont.end());
 }
 
-template <typename T>
+template <typename T, typename Alloc = std::allocator<T>>
 class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
+
+	using allocator_type = Alloc;
 
 	struct chunk {
 		// The full range this chunk covers.
@@ -57,6 +59,9 @@ private:
 		//
 		chunk* next = nullptr;
 
+
+		// 8 bytes used to store 2 bits -_-
+
 		// True if this chunk is responsible for freeing up the data
 		// when it is no longer in use.
 		bool owns_data : 1 = false;
@@ -65,7 +70,8 @@ private:
 		bool split_data : 1 = false;
 	};
 
-	std::allocator<T> alloc;
+	allocator_type alloc;
+	std::allocator<chunk> alloc_chunk;
 
 	chunk* head = nullptr;
 
@@ -278,7 +284,9 @@ public:
 private:
 	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
 							bool owns_data = true, bool split_data = false) noexcept {
-		chunk* c = new chunk{range, active, data, next, owns_data, split_data};
+		chunk* c = alloc_chunk.allocate(1);
+		std::construct_at(c, range, active, data, next, owns_data, split_data);
+
 		auto const range_it = find_in_ordered_active_ranges(active);
 		auto const dist = ranges_dist(range_it);
 		ordered_active_ranges.insert(range_it, active);
@@ -312,7 +320,8 @@ private:
 			}
 		}
 
-		delete c;
+		std::destroy_at(c);
+		alloc_chunk.deallocate(c, 1);
 	}
 
 	void free_all_chunks() noexcept {
