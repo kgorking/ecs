@@ -32,7 +32,7 @@ jobs:
       shell: cmake -P {0}
       run: |
         set(ENV{CC} "/usr/bin/clang-13")
-        set(ENV{CXX} "/usr/bin/clang++-13")
+        set(ENV{CXX} "/usr/bin/clang-13")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
