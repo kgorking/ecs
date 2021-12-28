@@ -29,8 +29,10 @@ jobs:
         version: 13
         platform: x64
 
-    - name: Install libstdc++ 10
+    - name: Install libstdc++ 11
       run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get update
         sudo apt-get install libstdc++6
         sudo apt-get install libstdc++-11-dev
       shell: bash
