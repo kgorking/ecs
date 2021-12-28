@@ -1,4 +1,4 @@
-name: clang 13 libstdc++
+name: clang 12 libstdc++
 
 on: [push]
 
@@ -30,7 +30,7 @@ jobs:
 
     - name: Install libstdc++ 11
       run: |
-        sudo apt-get install libstdc++-11-dev
+        sudo apt-get install clang-12 libstdc++-11-dev
       shell: bash
 
     - name: Configure
