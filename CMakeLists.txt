@@ -64,7 +64,6 @@ else()
     # lots of warnings
     target_compile_options(ecs INTERFACE
         -std=c++2a
-        -stdlib=libstdc++ #${STDLIB}
         -Wall
         -Wextra
         -Wpedantic
