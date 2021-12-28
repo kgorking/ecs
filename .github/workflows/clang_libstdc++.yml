@@ -31,7 +31,8 @@ jobs:
 
     - name: Install libstdc++ 10
       run: |
-        sudo apt-get install libstdc++-10-dev
+        sudo apt-get install libstdc++6
+        sudo apt-get install libstdc++-11-dev
       shell: bash
 
     - name: Configure
@@ -49,7 +50,6 @@ jobs:
             -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
-            -D STDLIB=-stdlib=libstdc++
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
