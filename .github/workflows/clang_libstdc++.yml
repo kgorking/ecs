@@ -7,15 +7,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-#    - name: Install clang 12
-#      run: |
+    - name: Update to clang 12.0.1
+      run: |
+	     sudo apt upgrade clang-12
 #        wget https://apt.llvm.org/llvm.sh
 #        chmod +x llvm.sh
 #        sudo ./llvm.sh 12
 #        /usr/bin/clang++-12 --version
-#      shell: bash
+      shell: bash
       
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
 
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
