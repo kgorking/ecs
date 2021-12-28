@@ -28,6 +28,11 @@ jobs:
       with:
         version: "13.0"
 
+    - name: Install libstdc++ 11
+      run: |
+        sudo apt-get install libstdc++-11-dev
+      shell: bash
+
     - name: Configure
       shell: cmake -P {0}
       run: |
