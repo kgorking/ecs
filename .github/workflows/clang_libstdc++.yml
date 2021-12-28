@@ -23,10 +23,10 @@ jobs:
 
         execute_process(COMMAND chmod +x ninja)
 
-    - name: Install LLVM and Clang 13.0
-      uses: KyleMayes/install-llvm-action@v1
-      with:
-        version: "13.0"
+    #- name: Install LLVM and Clang 13.0
+    #  uses: KyleMayes/install-llvm-action@v1
+    #  with:
+    #    version: "13.0"
 
     - name: Install libstdc++ 11
       run: |
@@ -36,8 +36,8 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/home/runner/work/ecs/ecs/llvm/bin/clang")
-        set(ENV{CXX} "/home/runner/work/ecs/ecs/llvm/bin/clang++")
+        set(ENV{CC} "/usr/bin/clang")
+        set(ENV{CXX} "/usr/bin/clang++")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
