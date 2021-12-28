@@ -64,13 +64,14 @@ else()
     # lots of warnings
     target_compile_options(ecs INTERFACE
         -std=c++2a
+        -stdlib=libstdc++ #${STDLIB}
         -Wall
         -Wextra
         -Wpedantic
         -Wshadow
         #-Wsign-conversion
         #-ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
-        ${STDLIB})
+	)
     target_link_options(ecs INTERFACE -pthread)
 
     # Disable C++ exceptions.
