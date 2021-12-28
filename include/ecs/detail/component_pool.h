@@ -21,6 +21,8 @@
 
 namespace ecs::detail {
 
+constexpr static std::size_t parallelization_size_tipping_point = 4096;
+
 template <class ForwardIt, class BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
@@ -539,8 +541,15 @@ private:
 		auto const comparator = [](auto const& l, auto const& r) {
 			return std::get<0>(l).first() < std::get<0>(r).first();
 		};
-		std::sort(adds.begin(), adds.end(), comparator);
-		std::sort(spans.begin(), spans.end(), comparator);
+		if (sizeof(entity_data) * adds.size() < parallelization_size_tipping_point)
+			std::sort(std::execution::seq, adds.begin(), adds.end(), comparator);
+		else
+			std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
+
+		if (sizeof(entity_data) * spans.size() < parallelization_size_tipping_point)
+			std::sort(std::execution::seq, spans.begin(), spans.end(), comparator);
+		else
+			std::sort(std::execution::par, spans.begin(), spans.end(), comparator);
 
 
 		// Merge adjacent ranges that has the same data
@@ -645,7 +654,11 @@ private:
 		}
 
 		// Sort the ranges to remove
-		std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
+		//std::ranges::sort(vec, std::ranges::less{}, &entity_range::first);
+		if (sizeof(entity_range) * vec.size() < parallelization_size_tipping_point)
+			std::sort(std::execution::seq, vec.begin(), vec.end());
+		else
+			std::sort(std::execution::par, vec.begin(), vec.end());
 
 		// Remove ranges
 		if (nullptr != head) {
