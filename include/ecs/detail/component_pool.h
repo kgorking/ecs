@@ -84,8 +84,8 @@ private:
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
-	std::vector<entity_range> ranges;
-	std::vector<chunk*> chunks;
+	std::vector<entity_range> ordered_active_ranges;
+	std::vector<chunk*> ordered_chunks;
 
 	// Status flags
 	bool components_added = false;
@@ -162,14 +162,12 @@ public:
 		if (head == nullptr)
 			return nullptr;
 		
-		auto const range_it = find_in_ranges_vec({id, id});
-		if (range_it != ranges.end()) {
-			auto const chunk_it = chunks.begin() + ranges_dist(range_it);
+		auto const range_it = find_in_ordered_active_ranges({id, id});
+		if (range_it != ordered_active_ranges.end() && range_it->contains(id)) {
+			auto const chunk_it = ordered_chunks.begin() + ranges_dist(range_it);
 			chunk* c = (*chunk_it);
-			if (c->active.contains(id)) {
-				auto const offset = c->range.offset(id);
-				return &c->data[offset];
-			}
+			auto const offset = c->range.offset(id);
+			return &c->data[offset];
 		}
 
 		return nullptr;
@@ -188,7 +186,7 @@ public:
 	size_t num_entities() const noexcept {
 		size_t count = 0;
 
-		for (entity_range const r : ranges) {
+		for (entity_range const r : ordered_active_ranges) {
 			count += r.ucount();
 		}
 
@@ -205,7 +203,7 @@ public:
 
 	// Returns the number of chunks in use
 	size_t num_chunks() const noexcept {
-		return chunks.size();
+		return ordered_chunks.size();
 	}
 
 	chunk const* get_head_chunk() const noexcept {
@@ -245,7 +243,7 @@ public:
 			static constinit entity_range global_range = entity_range::all();
 			return entity_range_view{&global_range, 1};
 		} else {
-			return ranges;
+			return ordered_active_ranges;
 		}
 	}
 
@@ -275,8 +273,8 @@ public:
 		deferred_adds.reset();
 		deferred_spans.reset();
 		deferred_removes.reset();
-		ranges.clear();
-		chunks.clear();
+		ordered_active_ranges.clear();
+		ordered_chunks.clear();
 		clear_flags();
 
 		// Save the removal state
@@ -292,12 +290,12 @@ private:
 	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
 							bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = new chunk{range, active, data, next, owns_data, split_data};
-		auto const range_it = find_in_ranges_vec(active);
+		auto const range_it = find_in_ordered_active_ranges(active);
 		auto const dist = ranges_dist(range_it);
-		ranges.insert(range_it, active);
+		ordered_active_ranges.insert(range_it, active);
 
-		auto const chunk_it = chunks.begin() + dist;
-		chunks.insert(chunk_it, c);
+		auto const chunk_it = ordered_chunks.begin() + dist;
+		ordered_chunks.insert(chunk_it, c);
 
 		return c;
 	}
@@ -329,8 +327,8 @@ private:
 	}
 
 	void free_all_chunks() noexcept {
-		ranges.clear();
-		chunks.clear();
+		ordered_active_ranges.clear();
+		ordered_chunks.clear();
 		chunk* curr = head;
 		while (curr != nullptr) {
 			chunk* next = curr->next;
@@ -341,31 +339,31 @@ private:
 		set_data_removed();
 	}
 
-	auto find_in_ranges_vec(entity_range const rng) noexcept {
-		return std::ranges::lower_bound(ranges, rng, std::less{});
+	auto find_in_ordered_active_ranges(entity_range const rng) noexcept {
+		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
 	}
-	auto find_in_ranges_vec(entity_range const rng) const noexcept {
-		return std::ranges::lower_bound(ranges, rng, std::less{});
+	auto find_in_ordered_active_ranges(entity_range const rng) const noexcept {
+		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
 	}
 
 	ptrdiff_t ranges_dist(std::vector<entity_range>::const_iterator it) const noexcept {
-		return std::distance(ranges.begin(), it);
+		return std::distance(ordered_active_ranges.begin(), it);
 	}
 
 	// Removes a range and chunk from the map
 	void remove_range_to_chunk(entity_range const rng) noexcept {
-		auto const it = find_in_ranges_vec(rng);
-		if (it != ranges.end() && *it == rng) {
+		auto const it = find_in_ordered_active_ranges(rng);
+		if (it != ordered_active_ranges.end() && *it == rng) {
 			auto const dist = ranges_dist(it);
 
-			ranges.erase(it);
-			chunks.erase(chunks.begin() + dist);
+			ordered_active_ranges.erase(it);
+			ordered_chunks.erase(ordered_chunks.begin() + dist);
 		}
 	}
 	
 	// Updates a key in the range-to-chunk map
 	void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
-		auto it = find_in_ranges_vec(old);
+		auto it = find_in_ordered_active_ranges(old);
 		*it = update;
 	}
 
