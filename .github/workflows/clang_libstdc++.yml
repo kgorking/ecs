@@ -1,4 +1,4 @@
-name: clang 12 libstdc++
+name: clang-13 libstdc++-11
 
 on: [push]
 
@@ -23,21 +23,19 @@ jobs:
 
         execute_process(COMMAND chmod +x ninja)
 
-    #- name: Install LLVM and Clang 13.0
-    #  uses: KyleMayes/install-llvm-action@v1
-    #  with:
-    #    version: "13.0"
+    - name: Install Clang
+      uses: egor-tensin/setup-clang@v1
 
     - name: Install libstdc++ 11
       run: |
-        sudo apt-get install clang-12 libstdc++-11-dev
+        sudo apt-get install libstdc++-11-dev
       shell: bash
 
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/clang-12")
-        set(ENV{CXX} "/usr/bin/clang++-12")
+        set(ENV{CC} "/home/runner/work/ecs/ecs/llvm/bin/clang")
+        set(ENV{CXX} "/home/runner/work/ecs/ecs/llvm/bin/clang++")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
