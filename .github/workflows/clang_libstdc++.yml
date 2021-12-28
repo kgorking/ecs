@@ -1,4 +1,4 @@
-name: clang-13 libstdc++-11
+name: clang-13 libstdc++-10
 
 on: [push]
 
@@ -29,10 +29,10 @@ jobs:
         version: 13
         platform: x64
 
-#    - name: Install libstdc++ 11
-#      run: |
-#        sudo apt-get install libstdc++-11-dev
-#      shell: bash
+    - name: Install libstdc++ 10
+      run: |
+        sudo apt-get install libstdc++-10-dev
+      shell: bash
 
     - name: Configure
       shell: cmake -P {0}
