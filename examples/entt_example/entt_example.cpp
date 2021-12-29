@@ -15,22 +15,12 @@ struct velocity {
 };
 
 int main() {
-	float const dt = 1.0f / 60.f;
-
 	ecs::runtime ecs;
-	ecs.make_system([&dt](position &pos, velocity const &vel) {
-		pos.x += vel.dx * dt;
-		pos.y += vel.dy * dt;
-	});
 
-	ecs.make_system([](velocity &vel) {
-		vel.dx = 0.;
-		vel.dy = 0.;
-	});
+	ecs.make_system([](ecs::entity_id /*id*/, position& /*pos*/, velocity const& /*vel*/) { /* ... */ });
+	ecs.make_system([](velocity& /*vel*/) { /* ... */ });
 
-	ecs.add_component({0, 9}, [](ecs::entity_id id) { return position{id * 1.f, id * 1.f}; });
-	ecs.add_component({0, 4}, [](ecs::entity_id id) { return velocity{id * 1.f, id * 1.f}; });
+	ecs.add_component({0, 9}, position{}, velocity{});
 
-	// Run the systems
 	ecs.update();
 }

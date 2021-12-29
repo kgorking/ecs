@@ -103,15 +103,13 @@ public:
 
 		constexpr auto hash = get_type_hash<T>();
 		auto pool = cache.get_or(hash, [this](type_hash _hash) {
-			std::shared_lock component_pool_lock(component_pool_mutex);
+			// A new pool might be created, so take a unique lock
+			std::unique_lock component_pool_lock(component_pool_mutex);
 
 			// Look in the pool for the type
 			auto const it = type_pool_lookup.find(_hash);
 			if (it == type_pool_lookup.end()) {
 				// The pool wasn't found so create it.
-				// create_component_pool takes a unique lock, so unlock the
-				// shared lock during its call
-				component_pool_lock.unlock();
 				return create_component_pool<T>();
 			} else {
 				return it->second;
@@ -239,17 +237,12 @@ private:
 	// Create a component pool for a new type
 	template <typename T>
 	component_pool_base* create_component_pool() {
-		// Create a new pool if one does not already exist
-		if (!has_component_pool<T>()) {
-			std::unique_lock component_pool_lock(component_pool_mutex);
-
-			auto pool = std::make_unique<component_pool<T>>();
-			constexpr auto hash = get_type_hash<T>();
-			type_pool_lookup.emplace(hash, pool.get());
-			component_pools.push_back(std::move(pool));
-			return component_pools.back().get();
-		} else
-			return &get_component_pool<T>();
+		// Create a new pool
+		auto pool = std::make_unique<component_pool<T>>();
+		constexpr auto hash = get_type_hash<T>();
+		type_pool_lookup.emplace(hash, pool.get());
+		component_pools.push_back(std::move(pool));
+		return component_pools.back().get();
 	}
 };
 } // namespace ecs::detail

@@ -134,15 +134,6 @@ private:
 	size_t current_range = 0;
 };
 
-struct range_view_wrapper : public std::span<entity_range const> {
-	auto begin() const {
-		return entity_range_iterator(*this);
-	}
-
-	auto end() const {
-		return entity_range_iterator();
-	}
-};
 } // namespace ecs::detail
 
 #endif // !ECS_ENTITY_RANGE_ITERATOR

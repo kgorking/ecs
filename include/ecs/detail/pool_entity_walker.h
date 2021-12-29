@@ -45,7 +45,7 @@ struct pool_entity_walker {
 		ranges_it = ranges.begin();
 		offset = 0;
 
-		update_pool_offsets();
+		//update_pool_offsets();
 	}
 
 	bool done() const {
@@ -56,8 +56,8 @@ struct pool_entity_walker {
 		++ranges_it;
 		offset = 0;
 
-		if (!done())
-			update_pool_offsets();
+		//if (!done())
+		//	update_pool_offsets();
 	}
 
 	void next() {
@@ -101,35 +101,36 @@ struct pool_entity_walker {
 		} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
 			// Parent component: return the parent with the types filled out
 			using parent_type = std::remove_cvref_t<Component>;
-			parent_id pid = *(std::get<parent_id*>(pointers) + offset);
+			parent_id* pid = get_pool<parent_id>(*pools).find_component_data(ranges_it->first() + offset);
 
 			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>([&]<typename... ParentType>() {
-				return std::make_tuple(get_entity_data<ParentType>(pid, *pools)...);
+				return std::make_tuple(get_entity_data<ParentType>(*pid, *pools)...);
 			});
 
-			return parent_type{pid, tup_parent_ptrs};
+			return parent_type{*pid, tup_parent_ptrs};
 		} else {
 			// Standard: return the component from the pool
-			return (std::get<T*>(pointers) + offset);
+			return get_pool<T>(*pools).find_component_data(ranges_it->first() + offset);
 		}
 	}
 
 private:
-	void update_pool_offsets() {
-		if (done())
-			return;
+	//void update_pool_offsets() {
+	//	if (done())
+	//		return;
 
-		std::apply(
-			[this](auto* const... in_pools) {
-				auto const f = [&](auto pool) {
-					using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
-					std::get<pool_inner_type*>(pointers) = pool->find_component_data(ranges_it->first());
-				};
+	//	std::apply(
+	//		[this](auto* const... in_pools) {
+	//			auto const f = [&](auto pool) {
+	//				using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
+	//				auto const component_ptr = pool->find_component_data(ranges_it->first());
+	//				std::get<pool_inner_type*>(pointers) = component_ptr;
+	//			};
 
-				(f(in_pools), ...);
-			},
-			*pools);
-	}
+	//			(f(in_pools), ...);
+	//		},
+	//		*pools);
+	//}
 
 private:
 	// The ranges to iterate over
@@ -139,7 +140,7 @@ private:
 	std::vector<entity_range>::iterator ranges_it;
 
 	// Pointers to the start of each pools data
-	tuple_pool_type_detect_t<Pools> pointers;
+	//tuple_pool_type_detect_t<Pools> pointers;
 
 	// Entity id and pool-pointers offset
 	entity_type offset;
