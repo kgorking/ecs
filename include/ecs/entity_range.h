@@ -5,7 +5,6 @@
 #include <limits>
 #include <optional>
 #include <span>
-#include <utility>
 
 #include "detail/contract.h"
 #include "detail/entity_iterator.h"
@@ -25,7 +24,7 @@ public:
 		Expects(first <= last);
 	}
 
-	static entity_range all() {
+	static constexpr entity_range all() {
 		return {std::numeric_limits<detail::entity_type>::min(), std::numeric_limits<detail::entity_type>::max()};
 	}
 
@@ -61,8 +60,13 @@ public:
 	}
 
 	// Returns the number of entities in this range
-	[[nodiscard]] constexpr size_t count() const {
-		return static_cast<size_t>(last_) - first_ + 1;
+	[[nodiscard]] constexpr ptrdiff_t count() const {
+		return static_cast<ptrdiff_t>(last_ - first_ + 1);
+	}
+
+	// Returns the number of entities in this range as unsigned
+	[[nodiscard]] constexpr size_t ucount() const {
+		return static_cast<size_t>(last_ - first_ + 1);
 	}
 
 	// Returns true if the ranges are identical
@@ -80,20 +84,21 @@ public:
 		return range.first() >= first_ && range.last() <= last_;
 	}
 
-	// Returns true if the range touches this range
-	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
-		return first_ <= other.last_ && other.first_ <= last_;
+	// Returns true if the ranges are adjacent to each other
+	[[nodiscard]] constexpr bool adjacent(entity_range const& range) const {
+		return first_ - 1 == range.last() || last_ + 1 == range.first();
 	}
 
 	// Returns the offset of an entity into this range
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
 		Expects(contains(ent));
-		return static_cast<detail::entity_offset>(ent) - first_;
+		return static_cast<detail::entity_offset>(ent - first_);
 	}
 
-	[[nodiscard]] constexpr bool can_merge(entity_range const& other) const {
-		return last_ + 1 == other.first();
+	// Returns true if the two ranges touches each other
+	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
+		return first_ <= other.last_ && other.first_ <= last_;
 	}
 
 	// Splits the range in two at pos. Resulting range keeps pos.
@@ -139,8 +144,11 @@ public:
 	// Combines two ranges into one
 	// Pre: r1 and r2 must be adjacent ranges, r1 < r2
 	[[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
-		Expects(r1.can_merge(r2));
-		return entity_range{r1.first(), r2.last()};
+		Expects(r1.adjacent(r2));
+		if (r1 < r2)
+			return entity_range{r1.first(), r2.last()};
+		else
+			return entity_range{r2.first(), r1.last()};
 	}
 
 	// Returns the intersection of two ranges
@@ -153,6 +161,14 @@ public:
 
 		return entity_range{first, last};
 	}
+
+	// Returns a range that overlaps the two ranges
+	[[nodiscard]] constexpr static entity_range overlapping(entity_range const& r1, entity_range const& r2) {
+		entity_id const first{std::min(r1.first(), r2.first())};
+		entity_id const last{std::max(r1.last(), r2.last())};
+
+		return entity_range{first, last};
+	}
 };
 
 // The view of a collection of ranges
@@ -160,12 +176,4 @@ using entity_range_view = std::span<entity_range const>;
 
 } // namespace ecs
 
-namespace std {
-template <>
-struct hash<ecs::entity_range> {
-	std::size_t operator()(ecs::entity_range const& range) const noexcept {
-		return (size_t(range.first()) << 32) | range.last();
-	}
-};
-} // namespace std
 #endif // !ECS_ENTITTY_RANGE

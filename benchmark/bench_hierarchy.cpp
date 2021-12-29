@@ -1,16 +1,16 @@
 // Benchmarks for hierarchy construction and execution
 
-#include <random>
-#include <ecs/ecs.h>
 #include "gbench/include/benchmark/benchmark.h"
 #include "global.h"
+#include <ecs/ecs.h>
+#include <random>
 
 // A wrapper for the standard benchmark that forces a hierarchy to built
-static void hierarch_lambda(ecs::entity_id id, int &i, ecs::parent<int> const& /*p*/) {
+static void hierarch_lambda(ecs::entity_id id, int& i, ecs::parent<int> const& /*p*/) {
 	benchmark_system(id, i);
 }
 
-static void build_hierarchies(ecs::runtime &ecs, ecs::detail::entity_type nentities) {
+static void build_hierarchies(ecs::runtime& ecs, ecs::detail::entity_type nentities) {
 	// The number of children in hierarchies to test
 	const int num_children = 7;
 
@@ -23,18 +23,8 @@ static void build_hierarchies(ecs::runtime &ecs, ecs::detail::entity_type nentit
 	ecs.commit_changes();
 }
 
-static void build_hierarchy_no_components(benchmark::State &state) {
-	for ([[maybe_unused]] auto const _ : state) {
-		ecs::runtime ecs;
-		ecs.make_system([](int, ecs::parent<>) {});
-	}
-
-	state.SetItemsProcessed(state.iterations());
-}
-ECS_BENCHMARK_ONE(build_hierarchy_no_components);
-
-static void build_hierarchy_with_components(benchmark::State &state) {
-    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+static void build_hierarchy_with_components(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		state.BeginIgnoreTiming();
@@ -48,9 +38,10 @@ static void build_hierarchy_with_components(benchmark::State &state) {
 	state.SetItemsProcessed(nentities * state.iterations());
 }
 ECS_BENCHMARK(build_hierarchy_with_components);
+//BENCHMARK(build_hierarchy_with_components)->Arg(1024 * 1024);
 
-static void build_hierarchy_with_sub_components(benchmark::State &state) {
-    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+static void build_hierarchy_with_sub_components(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		state.BeginIgnoreTiming();
@@ -58,7 +49,7 @@ static void build_hierarchy_with_sub_components(benchmark::State &state) {
 		build_hierarchies(ecs, nentities);
 		state.EndIgnoreTiming();
 
-		ecs.make_system([](int, ecs::parent<int> const &) {});
+		ecs.make_system([](int, ecs::parent<int> const&) {});
 	}
 
 	state.SetItemsProcessed(nentities * state.iterations());
@@ -67,9 +58,9 @@ ECS_BENCHMARK(build_hierarchy_with_sub_components);
 
 template <bool parallel>
 void run_hierarchy(benchmark::State& state) {
-    auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-    ecs::runtime ecs;
+	ecs::runtime ecs;
 	auto& sys = (parallel) ? ecs.make_system(hierarch_lambda) : ecs.make_system<ecs::opts::not_parallel>(hierarch_lambda);
 
 	build_hierarchies(ecs, nentities);
@@ -81,12 +72,12 @@ void run_hierarchy(benchmark::State& state) {
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
 
-static void run_hierarchy_serial(benchmark::State& state) {
+static void run_serial_hierarchy(benchmark::State& state) {
 	run_hierarchy<false>(state);
 }
-ECS_BENCHMARK(run_hierarchy_serial);
+ECS_BENCHMARK(run_serial_hierarchy);
 
-static void run_hierarchy_parallel(benchmark::State &state) {
+static void run_parallel_hierarchy(benchmark::State& state) {
 	run_hierarchy<true>(state);
 }
-ECS_BENCHMARK(run_hierarchy_parallel);
+ECS_BENCHMARK(run_parallel_hierarchy);

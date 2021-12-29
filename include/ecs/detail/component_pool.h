@@ -1,13 +1,9 @@
-#ifndef ECS_COMPONENT_POOL
-#define ECS_COMPONENT_POOL
+#ifndef ECS_DETAIL_COMPONENT_POOL_H
+#define ECS_DETAIL_COMPONENT_POOL_H
 
-#include <cstring> // for memcmp
-#include <execution>
-#include <functional>
-#include <memory_resource>
-#include <tuple>
-#include <type_traits>
+#include <ranges>
 #include <vector>
+#include <execution>
 
 #include "tls/collect.h"
 
@@ -19,8 +15,12 @@
 #include "flags.h"
 #include "options.h"
 
+namespace ecs::detail {
+
+constexpr static std::size_t parallelization_size_tipping_point = 4096;
+
 template <class ForwardIt, class BinaryPredicate>
-ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) {
+constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
 		return last;
 
@@ -35,46 +35,52 @@ ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate p) 
 }
 
 template <class Cont, class BinaryPredicate>
-void combine_erase(Cont& cont, BinaryPredicate p) {
-	auto const end = std_combine_erase(cont.begin(), cont.end(), p);
+constexpr void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
+	auto const end = std_combine_erase(cont.begin(), cont.end(), static_cast<BinaryPredicate&&>(p));
 	cont.erase(end, cont.end());
 }
 
-// Helpre macro for components that wish to support pmr.
-// Declares the 'allocator_type' and default constructor/assignment
-#define ECS_USE_PMR(ClassName)                                                                                                             \
-	using allocator_type = std::pmr::polymorphic_allocator<>;                                                                              \
-                                                                                                                                           \
-	ClassName() : ClassName(allocator_type{}) {}                                                                                           \
-	ClassName(ClassName const&) = default;                                                                                                 \
-	ClassName(ClassName&&) = default;                                                                                                      \
-	~ClassName() = default;                                                                                                                \
-                                                                                                                                           \
-	ClassName& operator=(ClassName const&) = default;                                                                                      \
-	ClassName& operator=(ClassName&&) = default
-
-namespace ecs::detail {
-template <typename T>
+template <typename T, typename Alloc = std::allocator<T>>
 class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
-	// The components
-	std::pmr::vector<T> components;
+	using allocator_type = Alloc;
 
-	// The entities that have components in this storage.
-	std::vector<entity_range> ranges;
+	struct chunk {
+		// The full range this chunk covers.
+		entity_range range;
 
-	// The offset from a range into the components
-	std::vector<size_t> offsets;
+		// The partial range of active entities inside this chunk
+		entity_range active;
+
+		// The data for the full range of the chunk (range.count())
+		// The tag signals if this chunk owns this data and should clean it up
+		T* data = nullptr;
+
+		// Points to the next chunk in the list.
+		// The tag signals if this chunk has been split
+		chunk* next = nullptr;
+
+		bool owns_data = false;
+		bool has_split_data = false;
+	};
+	//static_assert(sizeof(chunk) == 32);
+
+	allocator_type alloc;
+	std::allocator<chunk> alloc_chunk;
+
+	chunk* head = nullptr;
 
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_init =
-		std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<const T(entity_id)>>>;
+	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	tls::collect<std::vector<entity_init>, component_pool<T>> deferred_init_adds;
+	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+
+	std::vector<entity_range> ordered_active_ranges;
+	std::vector<chunk*> ordered_chunks;
 
 	// Status flags
 	bool components_added = false;
@@ -82,46 +88,44 @@ private:
 	bool components_modified = false;
 
 public:
-	// Returns the current memory resource
-	std::pmr::memory_resource* get_memory_resource() const {
-		return components.get_allocator().resource();
+	constexpr component_pool() noexcept {
+		if constexpr (global<T>) {
+			head = create_new_chunk({0, 0}, {0, 0});
+			head->data = alloc.allocate(1);
+			std::construct_at(head->data);
+			ordered_active_ranges.push_back(entity_range::all());
+			ordered_chunks.push_back(head);
+		}
+	}
+	constexpr component_pool(component_pool const&) = delete;
+	constexpr component_pool(component_pool&&) = delete;
+	constexpr component_pool& operator=(component_pool const&) = delete;
+	constexpr component_pool& operator=(component_pool&&) = delete;
+	constexpr ~component_pool() noexcept override {
+		if constexpr (global<T>) {
+			std::destroy_n(head->data, head->range.ucount());
+			alloc.deallocate(head->data, head->range.count());
+			std::destroy_at(head);
+			alloc_chunk.deallocate(head, 1);
+		} else {
+			free_all_chunks();
+		}
 	}
 
-	// Sets the memory resource used to allocate components.
-	// If components are already allocated, they will be moved.
-	void set_memory_resource(std::pmr::memory_resource* resource) {
-		// Do nothing if the memory resource is already set
-		if (components.get_allocator().resource() == resource)
-			return;
-
-		// Move the current data out
-		auto copy{std::move(components)};
-
-		// Destroy the current container
-		std::destroy_at(&components);
-
-		// Placement-new the data back with the new memory resource
-		std::construct_at(&components, std::move(copy), resource);
-
-		// component addresses has changed, so make sure systems rebuilds their caches
-		components_added = true;
-		components_removed = true;
-		components_modified = true;
-	}
-
-	// Add a component to a range of entities, initialized by the supplied user function
+	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	template <typename Fn>
-	void add_init(entity_range const range, Fn&& init) {
+	constexpr void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
+		Expects(range.count() == std::ssize(span));
+
 		// Add the range and function to a temp storage
-		deferred_init_adds.local().emplace_back(range, std::forward<Fn>(init));
+		deferred_spans.local().emplace_back(range, span);
 	}
 
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add(entity_range const range, T&& component) {
+	constexpr void add(entity_range const range, T&& component) noexcept {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back(range);
 		} else {
@@ -129,164 +133,155 @@ public:
 		}
 	}
 
+	// Add a component to a range of entity.
+	// Pre: entities has not already been added, or is in queue to be added
+	//      This condition will not be checked until 'process_changes' is called.
+	constexpr void add(entity_range const range, T const& component) noexcept {
+		if constexpr (tagged<T>) {
+			deferred_adds.local().push_back(range);
+		} else {
+			deferred_adds.local().emplace_back(range, component);
+		}
+	}
+
 	// Return the shared component
-	T& get_shared_component() requires unbound<T> {
-		static T t{};
-		return t;
+	constexpr T& get_shared_component() noexcept requires global<T> {
+		return head->data[0];
 	}
 
-	// Remove an entity from the component pool. This logically removes the component from the
-	// entity.
-	void remove(entity_id const id) {
-		remove_range({id, id});
+	// Remove an entity from the component pool.
+	constexpr void remove(entity_id const id) noexcept {
+		remove({id, id});
 	}
 
-	// Remove an entity from the component pool. This logically removes the component from the
-	// entity.
-	void remove_range(entity_range const range) {
+	// Remove an entity from the component pool.
+	constexpr void remove(entity_range const range) noexcept {
 		deferred_removes.local().push_back(range);
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T* find_component_data(entity_id const id) {
-		auto const index = find_entity_index(id);
-		return index ? &components[index.value()] : nullptr;
+	constexpr T* find_component_data(entity_id const id) noexcept requires(!global<T>) {
+		return const_cast<T*>(std::as_const(*this).find_component_data(id));
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T const* find_component_data(entity_id const id) const {
-		auto const index = find_entity_index(id);
-		return index ? &components[index.value()] : nullptr;
+	constexpr T const* find_component_data(entity_id const id) const noexcept requires(!global<T>) {
+		if (head == nullptr)
+			return nullptr;
+
+		auto const range_it = find_in_ordered_active_ranges({id, id});
+		if (range_it != ordered_active_ranges.end() && range_it->contains(id)) {
+			auto const chunk_it = ordered_chunks.begin() + ranges_dist(range_it);
+			chunk* c = (*chunk_it);
+			auto const offset = c->range.offset(id);
+			return &c->data[offset];
+		}
+
+		return nullptr;
 	}
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	void process_changes() override {
+	constexpr void process_changes() noexcept override {
 		process_remove_components();
 		process_add_components();
 	}
 
 	// Returns the number of active entities in the pool
-	size_t num_entities() const {
-		return offsets.empty() ? 0 : (offsets.back() + ranges.back().count());
+	constexpr size_t num_entities() const noexcept {
+		size_t count = 0;
+
+		for (entity_range const r : ordered_active_ranges) {
+			count += r.ucount();
+		}
+
+		return count;
 	}
 
 	// Returns the number of active components in the pool
-	size_t num_components() const {
+	constexpr size_t num_components() const noexcept {
 		if constexpr (unbound<T>)
 			return 1;
 		else
-			return components.size();
+			return num_entities();
+	}
+
+	// Returns the number of chunks in use
+	constexpr size_t num_chunks() const noexcept {
+		return ordered_chunks.size();
+	}
+
+	constexpr chunk const* get_head_chunk() const noexcept {
+		return head;
 	}
 
 	// Clears the pools state flags
-	void clear_flags() override {
+	constexpr void clear_flags() noexcept override {
 		components_added = false;
 		components_removed = false;
 		components_modified = false;
 	}
 
 	// Returns true if components has been added since last clear_flags() call
-	bool has_more_components() const {
+	constexpr bool has_more_components() const noexcept {
 		return components_added;
 	}
 
 	// Returns true if components has been removed since last clear_flags() call
-	bool has_less_components() const {
+	constexpr bool has_less_components() const noexcept {
 		return components_removed;
 	}
 
 	// Returns true if components has been added/removed since last clear_flags() call
-	bool has_component_count_changed() const {
+	constexpr bool has_component_count_changed() const noexcept {
 		return components_added || components_removed;
 	}
 
-	bool has_components_been_modified() const {
+	constexpr bool has_components_been_modified() const noexcept {
 		return has_component_count_changed() || components_modified;
 	}
 
 	// Returns the pools entities
-	entity_range_view get_entities() const {
+	constexpr entity_range_view get_entities() const noexcept {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
-			static constexpr entity_range global_range{std::numeric_limits<ecs::detail::entity_type>::min(),
-													   std::numeric_limits<ecs::detail::entity_type>::max()};
-			return entity_range_view{&global_range, 1};
+			//static constinit entity_range global_range = entity_range::all();
+			//return entity_range_view{&global_range, 1};
+			return ordered_active_ranges;
 		} else {
-			return ranges;
+			return ordered_active_ranges;
 		}
 	}
 
 	// Returns true if an entity has a component in this pool
-	bool has_entity(entity_id const id) const {
+	constexpr bool has_entity(entity_id const id) const noexcept {
 		return has_entity({id, id});
 	}
 
 	// Returns true if an entity range has components in this pool
-	bool has_entity(entity_range const& range) const {
-		if (ranges.empty()) {
-			return false;
-		}
+	constexpr bool has_entity(entity_range const& range) const noexcept {
+		auto const it = find_in_ordered_active_ranges(range);
 
-		auto const it = std::lower_bound(ranges.begin(), ranges.end(), range);
-		if (it == ranges.end())
+		if (it == ordered_active_ranges.end())
 			return false;
+
 		return it->contains(range);
 	}
 
-	// TODO remove?
-	// Checks the current threads queue for the entity
-	bool is_queued_add(entity_id const id) {
-		return is_queued_add({id, id});
-	}
-
-	// Checks the current threads queue for the entity
-	bool is_queued_add(entity_range const& range) {
-		if (deferred_adds.local().empty()) {
-			return false;
-		}
-
-		for (auto const& ents : deferred_adds.local()) {
-			if (std::get<0>(ents).contains(range)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	// Checks the current threads queue for the entity
-	bool is_queued_remove(entity_id const id) {
-		return is_queued_remove({id, id});
-	}
-
-	// Checks the current threads queue for the entity
-	bool is_queued_remove(entity_range const& range) {
-		if (deferred_removes.local().empty())
-			return false;
-
-		for (auto const& ents : deferred_removes.local()) {
-			if (ents.contains(range))
-				return true;
-		}
-
-		return false;
-	}
-
 	// Clear all entities from the pool
-	void clear() override {
+	constexpr void clear() noexcept override {
 		// Remember if components was removed from the pool
-		bool const is_removed = !components.empty();
+		bool const is_removed = (nullptr != head);
 
-		// Clear the pool
-		ranges.clear();
-		offsets.clear();
-		components.clear();
-		deferred_adds.clear();
-		deferred_init_adds.clear();
-		deferred_removes.clear();
+		// Clear all data
+		free_all_chunks();
+		deferred_adds.reset();
+		deferred_spans.reset();
+		deferred_removes.reset();
+		ordered_active_ranges.clear();
+		ordered_chunks.clear();
 		clear_flags();
 
 		// Save the removal state
@@ -294,340 +289,456 @@ public:
 	}
 
 	// Flag that components has been modified
-	void notify_components_modified() {
+	constexpr void notify_components_modified() noexcept {
 		components_modified = true;
 	}
 
 private:
+	constexpr chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
+							bool owns_data = true, bool split_data = false) noexcept {
+		chunk* c = alloc_chunk.allocate(1);
+		std::construct_at(c, range, active, data, next, owns_data , split_data);
+
+		auto const range_it = find_in_ordered_active_ranges(active);
+		auto const dist = ranges_dist(range_it);
+		ordered_active_ranges.insert(range_it, active);
+
+		auto const chunk_it = ordered_chunks.begin() + dist;
+		ordered_chunks.insert(chunk_it, c);
+
+		return c;
+	}
+
+	constexpr chunk* create_new_chunk(std::forward_iterator auto iter) noexcept {
+		entity_range const r = std::get<0>(*iter);
+		chunk* c = create_new_chunk(r, r);
+		if constexpr (!unbound<T>) {
+			c->data = alloc.allocate(r.ucount());
+			construct_range_in_chunk(c, r, std::get<1>(*iter));
+		}
+
+		return c;
+	}
+
+	constexpr void free_chunk(chunk* c) noexcept {
+		remove_range_to_chunk(c->active);
+
+		if (c->owns_data) {
+			if (c->has_split_data && nullptr != c->next) {
+				// transfer ownership
+				c->next->owns_data = true;
+			} else {
+				if constexpr (!unbound<T>) {
+					std::destroy_n(c->data, c->active.ucount());
+					alloc.deallocate(c->data, c->range.count());
+				}
+			}
+		}
+
+		std::destroy_at(c);
+		alloc_chunk.deallocate(c, 1);
+	}
+
+	constexpr void free_all_chunks() noexcept {
+		ordered_active_ranges.clear();
+		ordered_chunks.clear();
+		chunk* curr = head;
+		while (curr != nullptr) {
+			chunk* next = curr->next;
+			free_chunk(curr);
+			curr = next;
+		}
+		head = nullptr;
+		set_data_removed();
+	}
+
+	constexpr auto find_in_ordered_active_ranges(entity_range const rng) noexcept {
+		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
+	}
+	constexpr auto find_in_ordered_active_ranges(entity_range const rng) const noexcept {
+		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
+	}
+
+	constexpr ptrdiff_t ranges_dist(std::vector<entity_range>::const_iterator it) const noexcept {
+		return std::distance(ordered_active_ranges.begin(), it);
+	}
+
+	// Removes a range and chunk from the map
+	constexpr void remove_range_to_chunk(entity_range const rng) noexcept {
+		auto const it = find_in_ordered_active_ranges(rng);
+		if (it != ordered_active_ranges.end() && *it == rng) {
+			auto const dist = ranges_dist(it);
+
+			ordered_active_ranges.erase(it);
+			ordered_chunks.erase(ordered_chunks.begin() + dist);
+		}
+	}
+
+	// Updates a key in the range-to-chunk map
+	constexpr void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
+		auto it = find_in_ordered_active_ranges(old);
+		*it = update;
+	}
+
 	// Flag that components has been added
-	void set_data_added() {
+	constexpr void set_data_added() noexcept {
 		components_added = true;
 	}
 
 	// Flag that components has been removed
-	void set_data_removed() {
+	constexpr void set_data_removed() noexcept {
 		components_removed = true;
 	}
 
-	// Searches for an entitys offset in to the component pool.
-	// Returns nothing if 'ent' is not a valid entity
-	std::optional<size_t> find_entity_index(entity_id const ent) const {
-		if (ranges.empty() /*|| !has_entity(ent)*/) {
-			return {};
+	// Verify the 'add*' functions precondition.
+	// An entity can not have more than one of the same component
+	constexpr bool has_duplicate_entities() const noexcept {
+		if (!ordered_active_ranges.empty()) {
+			for (size_t i = 0; i < ordered_active_ranges.size() - 1; ++i) {
+				if (ordered_active_ranges[i].overlaps(ordered_active_ranges[i + 1]))
+					return true;
+			}
 		}
 
-		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
-		if (it == ranges.end() || !it->contains(ent))
-			return {};
+		return false;
+	};
 
-		auto const dist = std::distance(ranges.begin(), it);
-		auto const range_offset = offsets.begin() + dist;
-		return *range_offset + it->offset(ent);
+	constexpr static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
+		return lhs == rhs;
+	}
+	constexpr static bool is_equal(T const& /*lhs*/, T const& /*rhs*/) noexcept requires tagged<T> {
+		// Tags are empty, so always return true
+		return true;
+	}
+	constexpr static bool is_equal(T const&, T const&) noexcept {
+		// Type can not be compared, so always return false.
+		// memcmp is a no-go because it also compares padding in types,
+		// and it is not constexpr
+		return false;
 	}
 
-	// Add new queued entities and components to the main storage
-	void process_add_components() {
+	template <typename Data>
+	constexpr void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) noexcept requires(!unbound<T>) {
+		Expects(c != nullptr);
+
+		// Offset into the chunks data
+		auto const ent_offset = c->range.offset(range.first());
+
+		for (entity_offset i = 0; i < range.ucount(); ++i) {
+			// Construct from a value or a a span of values
+			if constexpr (std::is_same_v<T, Data>) {
+				std::construct_at(&c->data[ent_offset + i], comp_data);
+			} else {
+				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
+			}
+		}
+	}
+
+	constexpr void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) noexcept {
+		// If split chunks are encountered, skip forward to the chunk closest to r
+		if (curr->has_split_data) {
+			while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
+				prev = curr;
+				curr = curr->next;
+			}
+		}
+
+		if (curr->active.adjacent(r)) {
+			// The two ranges are next to each other, so add the data to existing chunk
+			entity_range active_range = entity_range::merge(curr->active, r);
+			update_range_to_chunk_key(curr->active, active_range);
+			curr->active = active_range;
+
+			chunk* next = curr->next;
+
+			// Check to see if this chunk can be collapsed into 'prev'
+			if (nullptr != prev) {
+				if (prev->active.adjacent(curr->active)) {
+					active_range = entity_range::merge(prev->active, curr->active);
+					remove_range_to_chunk(prev->active);
+					update_range_to_chunk_key(prev->active, active_range);
+					prev->active = active_range;
+
+					free_chunk(curr);
+					prev->next = next;
+					curr = next;
+					if (next != nullptr)
+						next = next->next;
+				}
+			}
+
+			// Check to see if 'next' can be collapsed into this chunk
+			if (nullptr != next) {
+				if (curr->active.adjacent(next->active)) {
+					active_range = entity_range::merge(curr->active, next->active);
+					remove_range_to_chunk(next->active);
+					update_range_to_chunk_key(curr->active, active_range);
+
+					curr->active = active_range;
+					curr->next = next->next;
+
+					// split_data is true if the next chunk is also in the current range
+					curr->has_split_data = (curr->next != nullptr) && (curr->range == curr->next->range);
+
+					free_chunk(next);
+				}
+			}
+		} else {
+			// There is a gap between the two ranges, so split the chunk
+			if (r < curr->active) {
+				bool const is_head_chunk = (head == curr);
+				bool const curr_owns_data = curr->owns_data;
+				curr->owns_data = false;
+				curr = create_new_chunk(curr->range, r, curr->data, curr, curr_owns_data, true);
+
+				// Update head pointer
+				if (is_head_chunk)
+					head = curr;
+
+				// Make the previous chunk point to curr
+				if (prev != nullptr)
+					prev->next = curr;
+			} else {
+				curr->has_split_data = true;
+				curr->next = create_new_chunk(curr->range, r, curr->data, curr->next, false, false);
+			}
+		}
+	}
+
+	// Try to combine two ranges. With data
+	constexpr static bool combiner_bound(entity_data& a, entity_data const& b) requires(!unbound<T>) {
+		auto& [a_rng, a_data] = a;
+		auto const& [b_rng, b_data] = b;
+
+		if (a_rng.adjacent(b_rng) && is_equal(a_data, b_data)) {
+			a_rng = entity_range::merge(a_rng, b_rng);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	// Try to combine two ranges. Without data
+	constexpr static bool combiner_unbound(entity_data& a, entity_data const& b) requires(unbound<T>) {
+		auto& [a_rng] = a;
+		auto const& [b_rng] = b;
+
+		if (a_rng.adjacent(b_rng)) {
+			a_rng = entity_range::merge(a_rng, b_rng);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	// Add new queued entities and components to the main storage.
+	constexpr void process_add_components() noexcept {
 		// Combine the components in to a single vector
-		auto collection = deferred_adds.gather();
 		std::vector<entity_data> adds;
-		for (auto& vec : collection) {
-			std::move(vec.begin(), vec.end(), std::back_inserter(adds));
-		}
+		std::vector<entity_span> spans;
+		deferred_adds.gather_flattened(std::back_inserter(adds));
+		deferred_spans.gather_flattened(std::back_inserter(spans));
 
-		auto collection_inits = deferred_init_adds.gather();
-		std::vector<entity_init> inits;
-		for (auto& vec : collection_inits) {
-			std::move(vec.begin(), vec.end(), std::back_inserter(inits));
-		}
-
-		if (adds.empty() && inits.empty()) {
+		if (adds.empty() && spans.empty()) {
 			return;
 		}
 
 		// Clear the current adds
-		deferred_adds.clear();
-		deferred_init_adds.clear();
+		deferred_adds.reset();
+		deferred_spans.reset();
 
 		// Sort the input
-		auto constexpr comparator = [](auto const& l, auto const& r) { return std::get<0>(l).first() < std::get<0>(r).first(); };
-		std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
-		std::sort(std::execution::par, inits.begin(), inits.end(), comparator);
-
-		// Check the 'add*' functions precondition.
-		// An entity can not have more than one of the same component
-		auto const has_duplicate_entities = [](auto const& vec) {
-			return vec.end() != std::adjacent_find(vec.begin(), vec.end(),
-												   [](auto const& l, auto const& r) { return std::get<0>(l) == std::get<0>(r); });
+		auto const comparator = [](auto const& l, auto const& r) {
+			return std::get<0>(l) < std::get<0>(r);
 		};
-		Expects(false == has_duplicate_entities(adds));
+		if (!std::is_constant_evaluated() || (sizeof(entity_data) * adds.size() < parallelization_size_tipping_point))
+			std::sort(adds.begin(), adds.end(), comparator);
+		else
+			std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
 
-		// Merge adjacent ranges
-		if constexpr (!detail::unbound<T>) { // contains data
-			combine_erase(adds, [](entity_data& a, entity_data const& b) {
-				auto& [a_rng, a_data] = a;
-				auto const& [b_rng, b_data] = b;
+		if (!std::is_constant_evaluated() || (sizeof(entity_data) * spans.size() < parallelization_size_tipping_point))
+			std::sort(spans.begin(), spans.end(), comparator);
+		else
+			std::sort(std::execution::par, spans.begin(), spans.end(), comparator);
 
-				if (a_rng.can_merge(b_rng) && 0 == memcmp(&a_data, &b_data, sizeof(T))) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			});
-			combine_erase(inits, [](entity_init& a, entity_init const& b) {
-				auto a_rng = std::get<0>(a);
-				auto const b_rng = std::get<0>(b);
+		// Merge adjacent ranges that has the same data
+		if constexpr (unbound<T>)
+			combine_erase(adds, combiner_unbound);
+		else
+			combine_erase(adds, combiner_bound);
 
-#if defined(__clang__) && defined(_MSVC_STL_VERSION)
-				// Clang with ms-stl fails if these are const
-				auto a_func = std::get<1>(a);
-				auto b_func = std::get<1>(b);
-#else
-                    auto const a_func = std::get<1>(a);
-                    auto const b_func = std::get<1>(b);
-#endif
+		// Do the insertions
+		chunk* prev = nullptr;
+		chunk* curr = head;
 
-				if (a_rng.can_merge(b_rng) && (a_func.template target<T(entity_id)>() == b_func.template target<T(entity_id)>())) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			});
-		} else {											   // does not contain data
-			auto const combiner = [](auto& a, auto const& b) { // entity_data/entity_init
-				auto& [a_rng] = a;
-				auto const& [b_rng] = b;
-
-				if (a_rng.can_merge(b_rng)) {
-					a_rng = entity_range::merge(a_rng, b_rng);
-					return true;
-				} else {
-					return false;
-				}
-			};
-			combine_erase(adds, combiner);
-			combine_erase(inits, combiner);
-		}
-
-		// Add the new entities/components
-		std::vector<entity_range> new_ranges;
 		auto it_adds = adds.begin();
-		auto ranges_it = ranges.cbegin();
+		auto it_spans = spans.begin();
 
-		auto const insert_range = [&](auto const it) {
-			entity_range const& range = std::get<0>(*it);
-			size_t offset = 0;
-
-			// Copy the current ranges while looking for an insertion point
-			while (ranges_it != ranges.cend() && (*ranges_it < range)) {
-				if constexpr (!unbound<T>) {
-					// Advance the component offset so it will point
-					// to the correct components when inserting
-					offset += ranges_it->count();
-				}
-
-				new_ranges.push_back(*ranges_it++);
-			}
-
-			// New range must not already exist in the pool
-			if (ranges_it != ranges.cend())
-				Expects(false == ranges_it->overlaps(range));
-
-			// Add or merge the new range
-			if (!new_ranges.empty() && new_ranges.back().can_merge(range)) {
-				// Merge the new range with the last one in the vector
-				new_ranges.back() = ecs::entity_range::merge(new_ranges.back(), range);
+		// Create head chunk if needed
+		if (head == nullptr) {
+			if (it_adds != adds.end()) {
+				head = create_new_chunk(it_adds);
+				++it_adds;
 			} else {
-				// Add the new range
-				new_ranges.push_back(range);
+				head = create_new_chunk(it_spans);
+				++it_spans;
 			}
 
-			// return the offset
-			return offset;
-		};
-
-		if constexpr (!detail::unbound<T>) {
-			auto it_inits = inits.begin();
-			auto component_it = components.cbegin();
-
-			auto const insert_data = [&](size_t offset) {
-				// Add the new data
-				component_it += offset;
-				size_t const range_count = std::get<0>(*it_adds).count();
-				component_it = components.insert(component_it, range_count, std::move(std::get<1>(*it_adds)));
-				component_it = std::next(component_it, range_count);
-			};
-			auto const insert_init = [&](size_t offset) {
-				// Add the new data
-				component_it += offset;
-				auto const& range = std::get<0>(*it_inits);
-				auto const& init = std::get<1>(*it_inits);
-				for (entity_id const ent : range) {
-					component_it = components.emplace(component_it, init(ent));
-					component_it = std::next(component_it);
-				}
-			};
-
-			while (it_adds != adds.end() && it_inits != inits.end()) {
-				if (std::get<0>(*it_adds) < std::get<0>(*it_inits)) {
-					insert_data(insert_range(it_adds));
-					++it_adds;
-				} else {
-					insert_init(insert_range(it_inits));
-					++it_inits;
-				}
-			}
-
-			while (it_adds != adds.end()) {
-				insert_data(insert_range(it_adds));
-				++it_adds;
-			}
-			while (it_inits != inits.end()) {
-				insert_init(insert_range(it_inits));
-				++it_inits;
-			}
-		} else {
-			// If there is no data, the ranges are always added to 'deferred_adds'
-			while (it_adds != adds.end()) {
-				insert_range(it_adds);
-				++it_adds;
-			}
+			curr = head;
 		}
 
-		// Move the remaining ranges
-		std::move(ranges_it, ranges.cend(), std::back_inserter(new_ranges));
+		auto const merge_data = [&](std::forward_iterator auto const& iter) {
+			if (curr == nullptr) {
+				auto new_chunk = create_new_chunk(iter);
+				new_chunk->next = curr;
+				curr = new_chunk;
+				prev->next = curr;
+			} else {
+				entity_range const r = std::get<0>(*iter);
 
-		// Store the new ranges
-		ranges = std::move(new_ranges);
+				// Move current chunk pointer forward
+				while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
+					prev = curr;
+					curr = curr->next;
+				}
 
-		// Calculate offsets
-		offsets.clear();
-		std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
-							[](size_t init, entity_range range) { return init + range.count(); });
+				if (curr->range.overlaps(r)) {
+					// Incoming range overlaps the current one, so add it into 'curr'
+					fill_data_in_existing_chunk(curr, prev, r);
+					if constexpr (!unbound<T>) {
+						construct_range_in_chunk(curr, r, std::get<1>(*iter));
+					}
+				} else if (curr->range < r) {
+					// Incoming range is larger than the current one, so add it after 'curr'
+					auto new_chunk = create_new_chunk(iter);
+					new_chunk->next = curr->next;
+					curr->next = new_chunk;
+
+					prev = curr;
+					curr = curr->next;
+
+				} else if (r < curr->range) {
+					// Incoming range is less than the current one, so add it before 'curr' (after 'prev')
+					auto new_chunk = create_new_chunk(iter);
+					new_chunk->next = curr;
+					if (head == curr)
+						head = new_chunk;
+					curr = new_chunk;
+					if (prev != nullptr)
+						prev->next = curr;
+				}
+			}
+		};
+
+		// Fill in values
+		while (it_adds != adds.end()) {
+			merge_data(it_adds);
+			++it_adds;
+		}
+
+		// Fill in spans
+		prev = nullptr;
+		curr = head;
+		while (it_spans != spans.end()) {
+			merge_data(it_spans);
+			++it_spans;
+		}
+
+		// Check it
+		Expects(false == has_duplicate_entities());
 
 		// Update the state
 		set_data_added();
 	}
 
 	// Removes the entities and components
-	void process_remove_components() {
-		// Transient components are removed each cycle
-		if constexpr (detail::transient<T>) {
-			if (!ranges.empty()) {
-				ranges.clear();
-				components.clear();
-				set_data_removed();
-			}
-		} else {
-			// Combine the vectors
-			auto collection = deferred_removes.gather();
-			std::vector<entity_range> removes;
-			for (auto& vec : collection) {
-				std::move(vec.begin(), vec.end(), std::back_inserter(removes));
-			}
+	constexpr void process_remove_components() noexcept {
+		// Collect all the ranges to remove
+		std::vector<entity_range> vec;
+		deferred_removes.gather_flattened(std::back_inserter(vec));
 
-			if (removes.empty()) {
-				return;
-			}
-
-			// Clear the current removes
-			deferred_removes.clear();
-
-			// Sort it if needed
-			if (!std::is_sorted(removes.begin(), removes.end()))
-				std::sort(removes.begin(), removes.end());
-
-			// An entity can not have more than one of the same component
-			auto const has_duplicate_entities = [](auto const& vec) { return vec.end() != std::adjacent_find(vec.begin(), vec.end()); };
-			Expects(false == has_duplicate_entities(removes));
-
-			// Merge adjacent ranges
-			auto const combiner = [](auto& a, auto const& b) {
-				if (a.can_merge(b)) {
-					a = entity_range::merge(a, b);
-					return true;
-				} else {
-					return false;
-				}
-			};
-			combine_erase(removes, combiner);
-
-			// Remove the components
-			if constexpr (!unbound<T>) {
-				// Find the first valid index
-				auto index = find_entity_index(removes.front().first());
-				Expects(index.has_value());
-				auto dest_it = components.begin() + index.value();
-				auto from_it = dest_it + removes.front().count();
-
-				if (dest_it == components.begin() && from_it == components.end()) {
-					components.clear();
-				} else {
-					// Move components inbetween the ranges
-					for (auto it = removes.cbegin() + 1; it != removes.cend(); ++it) {
-						index = find_entity_index(it->first());
-
-						auto const last_it = components.begin() + index.value();
-						auto const dist = std::distance(from_it, last_it);
-						from_it = std::move(from_it, last_it, dest_it);
-						dest_it += dist;
-					}
-
-					// Move rest of components
-					auto const dist = std::distance(from_it, components.end());
-					std::move(from_it, components.end(), dest_it);
-
-					// Erase the unused space
-					if (dest_it + dist != components.end()) {
-						components.erase(dest_it + dist, components.end());
-					} else {
-						components.erase(dest_it, components.end());
-					}
-				}
-			}
-
-			// Remove the ranges
-			auto curr_range = ranges.begin();
-			for (auto const& remove : removes) {
-				// Step forward until a candidate range is found
-				while (*curr_range < remove && curr_range != ranges.end()) {
-					++curr_range;
-				}
-
-				if (curr_range == ranges.end()) {
-					break;
-				}
-
-				Expects(curr_range->contains(remove));
-
-				// Erase the current range if it equals the range to be removed
-				if (curr_range->equals(remove)) {
-					curr_range = ranges.erase(curr_range);
-				} else {
-					// Do the removal
-					auto result = entity_range::remove(*curr_range, remove);
-
-					// Update the modified range
-					*curr_range = result.first;
-
-					// If the range was split, add the other part of the range
-					if (result.second.has_value()) {
-						curr_range = ranges.insert(curr_range + 1, result.second.value());
-					}
-				}
-			}
-
-			// Calculate offsets
-			offsets.clear();
-			std::exclusive_scan(ranges.begin(), ranges.end(), std::back_inserter(offsets), size_t{0},
-								[](size_t init, entity_range range) { return init + range.count(); });
-
-			// Update the state
-			set_data_removed();
+		// Dip if there is nothing to do
+		if (vec.empty() || nullptr == head) {
+			return;
 		}
+
+		// Sort the ranges to remove
+		if (!std::is_constant_evaluated() || (sizeof(entity_range) * vec.size() < parallelization_size_tipping_point))
+			std::sort(vec.begin(), vec.end());
+		else
+			std::sort(std::execution::par, vec.begin(), vec.end());
+
+		// Remove ranges
+		process_remove_components(vec);
+
+		// Update the state
+		set_data_removed();
+	}
+
+	constexpr void process_remove_components(std::vector<entity_range>& removes) noexcept {
+		chunk* prev = nullptr;
+		chunk* it_chunk = head;
+		auto it_rem = removes.begin();
+
+		while (it_chunk != nullptr && it_rem != removes.end()) {
+			if (it_chunk->active < *it_rem) {
+				prev = it_chunk;
+				it_chunk = it_chunk->next;
+			} else if (*it_rem < it_chunk->active) {
+				++it_rem;
+			} else {
+				if (it_chunk->active == *it_rem) {
+					// remove an entire range
+					// todo: move to a free-store?
+					chunk* next = it_chunk->next;
+
+					// Update head pointer
+					if (it_chunk == head) {
+						head = next;
+					}
+
+					// Delete the chunk and potentially its data
+					free_chunk(it_chunk);
+
+					// Update the previous chunks next pointer
+					if (nullptr != prev)
+						prev->next = next;
+
+					it_chunk = next;
+				} else {
+					// remove partial range
+					auto const [left_range, maybe_split_range] = entity_range::remove(it_chunk->active, *it_rem);
+
+					// Update the active range
+					update_range_to_chunk_key(it_chunk->active, left_range);
+					it_chunk->active = left_range;
+
+					// Destroy the removed components
+					if constexpr (!unbound<T>) {
+						auto const offset = it_chunk->range.offset(it_rem->first());
+						std::destroy_n(&it_chunk->data[offset], it_rem->ucount());
+					}
+
+					if (maybe_split_range.has_value()) {
+						// If two ranges were returned, split this chunk
+						it_chunk->has_split_data = true;
+						it_chunk->next =
+							create_new_chunk(it_chunk->range, maybe_split_range.value(), it_chunk->data, it_chunk->next, false);
+					}
+
+					prev = it_chunk;
+					it_chunk = it_chunk->next;
+				}
+			}
+		}
+	}
+
+	// Removes transient components
+	constexpr void process_remove_components() noexcept requires transient<T> {
+		// All transient components are removed each cycle
+		free_all_chunks();
 	}
 };
 } // namespace ecs::detail
 
-#endif // !ECS_COMPONENT_POOL
+#endif // !ECS_DETAIL_COMPONENT_POOL_H

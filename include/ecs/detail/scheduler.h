@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <thread>
 #include <vector>
+#include <unordered_map>
 
 #include "contract.h"
 #include "job_detail.h"

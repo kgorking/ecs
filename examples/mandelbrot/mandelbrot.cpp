@@ -25,7 +25,7 @@ void mandelbrot_system(size_t &color, pos const &p) {
 
 	// Check if a point is in the set or escapes to infinity
 	std::complex<double> z(0);
-	int iter = 0;
+	size_t iter = 0;
 	while (abs(z) < 3.0 && iter < max_iterations) {
 		z = z * z + c;
 		iter++;

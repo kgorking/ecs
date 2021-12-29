@@ -6,7 +6,7 @@
 using namespace std::chrono_literals;
 
 int main() {
-	constexpr int num_intervals = 10;
+	constexpr size_t num_intervals = 10;
 	constexpr int intervals[num_intervals] = {500, 200, 100, 50, 25, 15, 5, 2, 750, 250};
 
 	using ecs::opts::interval;
@@ -34,10 +34,10 @@ int main() {
 	while (std::chrono::high_resolution_clock::now() - start <= 1s)
 		ecs.run_systems();
 
-	for (int i = 0; i < num_intervals - 2; i++) {
+	for (size_t i = 0; i < num_intervals - 2; i++) {
 		std::cout << "System updated " << counters[i] << " times, maximum is " << 1'000 / intervals[i] << "\n";
 	}
-	for (int i = num_intervals - 2; i < num_intervals; i++) {
+	for (size_t i = num_intervals - 2; i < num_intervals; i++) {
 		std::cout << "System updated " << counters[i] << " times, maximum is " << 1'000'000 / intervals[i] << "\n";
 	}
 }

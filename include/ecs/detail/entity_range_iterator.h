@@ -84,16 +84,17 @@ protected:
 		return current_range == ranges.size();
 	}
 
-	// step forward 'diff' times
+	// Step forward 'diff' entities.
 	constexpr void step(ptrdiff_t diff) {
-		if (*(range_it + diff) < *range_end) {
+		auto const current_range_dist = std::distance(range_it, range_end);
+		if (diff < current_range_dist) {
 			// Simple step forward in the current range
 			range_it = range_it + diff;
 
 		} else {
 			// The step spans more than one range
 
-			size_t remainder = *(range_it + diff) - (*range_end);
+			auto remainder = diff - current_range_dist;
 
 			// Go to the next range
 			current_range += 1;
@@ -104,9 +105,10 @@ protected:
 			}
 
 			// Find the range
-			while (remainder >= ranges[current_range].count()) {
+			auto const count = static_cast<ptrdiff_t>(ranges[current_range].count());
+			while (remainder >= count) {
 				// Update the remainder
-				remainder -= ranges[current_range].count();
+				remainder -= count;
 
 				current_range += 1;
 				if (current_range == ranges.size()) {
@@ -132,15 +134,6 @@ private:
 	size_t current_range = 0;
 };
 
-struct range_view_wrapper : public std::span<entity_range const> {
-	auto begin() const {
-		return entity_range_iterator(*this);
-	}
-
-	auto end() const {
-		return entity_range_iterator();
-	}
-};
 } // namespace ecs::detail
 
 #endif // !ECS_ENTITY_RANGE_ITERATOR

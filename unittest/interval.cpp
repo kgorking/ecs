@@ -33,10 +33,10 @@ TEST_CASE("System frequency") {
 		ecs.run_systems();
 
 	// Verify the counter
-	for (int i = 0; i < 4; i++) {
+	for (size_t i = 0; i < 4; i++) {
 		CHECK(counters[i] <= 1'000 / intervals[i]);
 	}
-	for (int i = 4; i < num_intervals; i++) {
+	for (size_t i = 4; i < num_intervals; i++) {
 		CHECK(counters[i] <= 1'000'000 / intervals[i]);
 	}
 }

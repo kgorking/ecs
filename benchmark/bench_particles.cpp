@@ -21,16 +21,16 @@ struct dead_tag { ecs_flags(tag, transient); };
 struct gravity  { ecs_flags(global); float g = 0.2f; };
 
 // Helper lambda to initialize a particle
-auto constexpr particle_init = [](ecs::entity_id) -> particle {
-	float const x = rand() / 16384.0f - 1.0f;
-	float const y = rand() / 16384.0f - 1.0f;
+auto constexpr particle_init = []() -> particle {
+	float const x = static_cast<float>(rand()) / 16384.0f - 1.0f;
+	float const y = static_cast<float>(rand()) / 16384.0f - 1.0f;
 
 	return {x, y};
 };
 
 // Helper lambda to initialize a color
-auto constexpr color_init = [](ecs::entity_id) -> color {
-	auto const p = particle_init(0);
+auto constexpr color_init = []() -> color {
+	auto const p = particle_init();
 	float const r = p.x / 2 + 0.5f;
 	float const g = p.y / 2 + 0.5f;
 
@@ -38,16 +38,16 @@ auto constexpr color_init = [](ecs::entity_id) -> color {
 };
 
 // Helper-lambda to init the velocity
-auto constexpr velocity_init = [](ecs::entity_id) -> velocity {
-	auto const p = particle_init(0);
+auto constexpr velocity_init = []() -> velocity {
+	auto const p = particle_init();
     float const len = sqrt(p.x * p.x + p.y * p.y) * 10;
     return { p.x / len, p.y / len };
 };
 
 // Helper-lambda to init the life
-auto constexpr life_init = [](ecs::entity_id) -> life {
-	float const x = rand() / 327680.0f; // [0, 0.1]
-	return {0.2f + x*2}; // [0.2, 0.4]
+auto constexpr life_init = []() -> life {
+	float const x = static_cast<float>(rand()) / 327680.0f; // [0, 0.1]
+	return {0.5f + x*10}; // [0.5, 1.5]
 };
 
 void make_systems(ecs::runtime &ecs) {
@@ -104,23 +104,36 @@ void make_systems(ecs::runtime &ecs) {
     });
 
     // Necromance dead particles
-    ecs.make_system([](ecs::entity_id ent, dead_tag, particle& par, velocity& vel, color& col, life& l) {
-        par = particle_init(ent);
-        vel = velocity_init(ent);
-        col = color_init(ent);
-        l = life_init(ent);
+    ecs.make_system([](dead_tag, particle& par, velocity& vel, color& col, life& l) {
+        par = particle_init();
+        vel = velocity_init();
+        col = color_init();
+        l = life_init();
     });
 }
 
 void particles(benchmark::State& state) {
 	auto const num_particles = static_cast<ecs::detail::entity_type>(state.range(0));
 
-    ecs::runtime ecs;
-    make_systems(ecs);
-	ecs.add_component({0, num_particles}, particle_init, velocity_init, color_init, life_init);
-    ecs.commit_changes();
+	std::vector<particle> particles(num_particles + 1);
+	std::vector<velocity> velocities(num_particles + 1);
+	std::vector<color> colors(num_particles + 1);
+	std::vector<life> lifes(num_particles + 1);
+
+	std::ranges::generate(particles, particle_init);
+	std::ranges::generate(velocities, velocity_init);
+	std::ranges::generate(colors, color_init);
+	std::ranges::generate(lifes, life_init);
 
     for ([[maybe_unused]] auto const _ : state) {
+        ecs::runtime ecs;
+        make_systems(ecs);
+		ecs.add_component_span({0, num_particles}, particles);
+		ecs.add_component_span({0, num_particles}, velocities);
+		ecs.add_component_span({0, num_particles}, colors);
+		ecs.add_component_span({0, num_particles}, lifes);
+        ecs.commit_changes();
+
 		ecs.update();
 	}
 

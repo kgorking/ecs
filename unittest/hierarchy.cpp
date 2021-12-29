@@ -1,10 +1,54 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
+#include <ecs/parent.h>
 #include <unordered_set>
 #include <vector>
 
 TEST_CASE("Hierarchies") {
+	SECTION("can extract parent info") {
+		ecs::runtime ecs;
+
+		// The root
+		ecs.add_component({1}, int{});
+
+		// The children
+		ecs.add_component(2, ecs::parent{1}, short{10});
+		ecs.add_component(3, ecs::parent{1}, long{20});
+		ecs.add_component(4, ecs::parent{1}, float{30});
+
+		// The grandchildren
+		ecs.add_component({5, 7}, ecs::parent{2});	 // short children, parent 2 has a short
+		ecs.add_component({8, 10}, ecs::parent{3});	 // long children, parent 3 has a long
+		ecs.add_component({11, 13}, ecs::parent{4}); // float children, parent 4 has a float
+
+		ecs.commit_changes();
+
+		// verify parent types
+		std::atomic_int count_short = 0, count_long = 0, count_float = 0;
+		ecs.make_system([&count_short](ecs::entity_id id, ecs::parent<short> const& p) {
+			CHECK((id >= 5 && id <= 7)); // check id value
+			CHECK(p.get<short>() == 10); // check parent value
+			count_short++;
+		});
+		ecs.make_system([&count_long](ecs::entity_id id, ecs::parent<long> const& p) {
+			CHECK((id >= 8 && id <= 10));
+			CHECK(p.get<long>() == 20);
+			count_long++;
+		});
+		ecs.make_system([&count_float](ecs::entity_id id, ecs::parent<float> const& p) {
+			CHECK((id >= 11 && id <= 13));
+			CHECK(p.get<float>() == 30.f);
+			count_float++;
+		});
+
+		ecs.update();
+
+		CHECK(count_short == 3);
+		CHECK(count_long == 3);
+		CHECK(count_float == 3);
+	}
+
 	SECTION("are traversed correctly") {
 		ecs::runtime ecs;
 
@@ -158,13 +202,10 @@ TEST_CASE("Hierarchies") {
 
 		// The system to verify the traversal order
 		std::unordered_set<int> traversal_order;
-		std::mutex m;
 		traversal_order.insert(2);
 		traversal_order.insert(3);
 		traversal_order.insert(4);
-		ecs.make_system([&](ecs::entity_id id, ecs::parent<> p) {
-			std::scoped_lock lock{m};
-
+		ecs.make_system<ecs::opts::not_parallel>([&](ecs::entity_id id, ecs::parent<> p) {
 			// Make sure parents are processed before the children
 			CHECK(false == traversal_order.contains(id));
 			CHECK(true == traversal_order.contains(p));
@@ -265,47 +306,6 @@ TEST_CASE("Hierarchies") {
 
 		// Make sure all children where visited
 		CHECK(traversal_order.size() == (1 + ecs.get_component_count<ecs::detail::parent_id>()));
-	}
-
-	SECTION("can extract parent info") {
-		ecs::runtime ecs;
-
-		// The root
-		ecs.add_component({1}, int{});
-
-		// The children
-		ecs.add_component(2, ecs::parent{1}, short{10});
-		ecs.add_component(3, ecs::parent{1}, long{20});
-		ecs.add_component(4, ecs::parent{1}, float{30});
-
-		// The grandchildren
-		ecs.add_component({5, 7}, ecs::parent{2});	 // short children, parent 2 has a short
-		ecs.add_component({8, 10}, ecs::parent{3});	 // long children, parent 3 has a long
-		ecs.add_component({11, 13}, ecs::parent{4}); // float children, parent 4 has a float
-
-		// verify parent types
-		std::atomic_int count_short = 0, count_long = 0, count_float = 0;
-		ecs.make_system([&count_short](ecs::entity_id id, ecs::parent<short> const& p) {
-			CHECK((id >= 5 && id <= 7)); // check id value
-			CHECK(p.get<short>() == 10); // check parent value
-			count_short++;
-		});
-		ecs.make_system([&count_long](ecs::entity_id id, ecs::parent<long> const& p) {
-			CHECK((id >= 8 && id <= 10));
-			CHECK(p.get<long>() == 20);
-			count_long++;
-		});
-		ecs.make_system([&count_float](ecs::entity_id id, ecs::parent<float> const& p) {
-			CHECK((id >= 11 && id <= 13));
-			CHECK(p.get<float>() == 30);
-			count_float++;
-		});
-
-		ecs.update();
-
-		CHECK(count_short == 3);
-		CHECK(count_long == 3);
-		CHECK(count_float == 3);
 	}
 
 	SECTION("interactions with parents are correct") {

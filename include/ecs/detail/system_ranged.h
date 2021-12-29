@@ -49,9 +49,9 @@ private:
 				auto const offset = ent - first;
 
 				if constexpr (is_entity<FirstComponent>) {
-					update_func(ent, extract_arg<Components>(argument, offset)...);
+					super::update_func(ent, extract_arg<Components>(argument, offset)...);
 				} else {
-					update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+					super::update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
 				}
 			}, from);
 		system_base::add_job_detail(range, loc);
@@ -72,9 +72,9 @@ private:
 					auto const offset = ent - first;
 
 					if constexpr (is_entity<FirstComponent>) {
-						update_func(ent, extract_arg<Components>(argument, offset)...);
+						super::update_func(ent, extract_arg<Components>(argument, offset)...);
 					} else {
-						update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
+						super::update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
 					}
 				});
 			system_base::add_job_detail(entity_range{ent, ent}, loc);
@@ -109,7 +109,7 @@ private:
 	void predecessor_job_generation(scheduler& scheduler, std::vector<entity_range>& entities) {
 		// Remember what thread each range is scheduled on
 		// TODO stick in scheduler_context
-		std::unordered_map<entity_range, job_location> range_thread_map;
+		std::map<entity_range, job_location> range_thread_map;
 
 		// Get any work from the predecessor that overlaps the
 		// entity range of this system
@@ -192,7 +192,7 @@ private:
 					submit_range(scheduler, argument);
 				} else {
 					// large batch, so split it up
-					while (range.count() > batch_size) {
+					while (range.ucount() > batch_size) {
 						// Split the range.
 						auto const next_range = range.split(static_cast<int>(batch_size));
 
