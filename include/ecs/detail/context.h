@@ -86,7 +86,7 @@ public:
 		sched.clear();
 		type_pool_lookup.clear();
 		component_pools.clear();
-		type_caches.clear();
+		type_caches.reset();
 	}
 
 	// Returns a reference to a components pool.
