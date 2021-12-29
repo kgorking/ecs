@@ -22,8 +22,8 @@ struct gravity  { ecs_flags(global); float g = 0.2f; };
 
 // Helper lambda to initialize a particle
 auto constexpr particle_init = []() -> particle {
-	float const x = rand() / 16384.0f - 1.0f;
-	float const y = rand() / 16384.0f - 1.0f;
+	float const x = static_cast<float>(rand()) / 16384.0f - 1.0f;
+	float const y = static_cast<float>(rand()) / 16384.0f - 1.0f;
 
 	return {x, y};
 };
@@ -46,7 +46,7 @@ auto constexpr velocity_init = []() -> velocity {
 
 // Helper-lambda to init the life
 auto constexpr life_init = []() -> life {
-	float const x = rand() / 327680.0f; // [0, 0.1]
+	float const x = static_cast<float>(rand()) / 327680.0f; // [0, 0.1]
 	return {0.5f + x*10}; // [0.5, 1.5]
 };
 
