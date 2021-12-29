@@ -13,14 +13,13 @@
 #include "component_pool_base.h"
 #include "flags.h"
 #include "options.h"
-#include "tagged_pointer.h"
 
 namespace ecs::detail {
 
 constexpr static std::size_t parallelization_size_tipping_point = 4096;
 
 template <class ForwardIt, class BinaryPredicate>
-ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
+constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
 		return last;
 
@@ -35,7 +34,7 @@ ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p
 }
 
 template <class Cont, class BinaryPredicate>
-void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
+constexpr void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	auto const end = std_combine_erase(cont.begin(), cont.end(), static_cast<BinaryPredicate&&>(p));
 	cont.erase(end, cont.end());
 }
@@ -56,27 +55,16 @@ private:
 
 		// The data for the full range of the chunk (range.count())
 		// The tag signals if this chunk owns this data and should clean it up
-		tagged_pointer<T> data = nullptr;
+		T* data = nullptr;
 
 		// Points to the next chunk in the list.
 		// The tag signals if this chunk has been split
-		tagged_pointer<chunk> next = nullptr;
+		chunk* next = nullptr;
 
-		constexpr bool owns_data() const {
-			return data.tag();
-		}
-		constexpr void set_owns_data(bool set) {
-			data.set_tag(set);
-		}
-
-		constexpr bool has_split_data() const {
-			return next.tag();
-		}
-		constexpr void set_split_data(bool yes) {
-			next.set_tag(yes);
-		}
+		bool owns_data = false;
+		bool has_split_data = false;
 	};
-	static_assert(sizeof(chunk) == 32);
+	//static_assert(sizeof(chunk) == 32);
 
 	allocator_type alloc;
 	std::allocator<chunk> alloc_chunk;
@@ -99,19 +87,34 @@ private:
 	bool components_modified = false;
 
 public:
-	component_pool() noexcept = default;
-	component_pool(component_pool const&) = delete;
-	component_pool(component_pool&&) = delete;
-	component_pool& operator=(component_pool const&) = delete;
-	component_pool& operator=(component_pool&&) = delete;
-	~component_pool() noexcept override {
-		free_all_chunks();
+	constexpr component_pool() noexcept {
+		if constexpr (global<T>) {
+			head = create_new_chunk({0, 0}, {0, 0});
+			head->data = alloc.allocate(1);
+			std::construct_at(head->data);
+			ordered_active_ranges.push_back(entity_range::all());
+			ordered_chunks.push_back(head);
+		}
+	}
+	constexpr component_pool(component_pool const&) = delete;
+	constexpr component_pool(component_pool&&) = delete;
+	constexpr component_pool& operator=(component_pool const&) = delete;
+	constexpr component_pool& operator=(component_pool&&) = delete;
+	constexpr ~component_pool() noexcept override {
+		if constexpr (global<T>) {
+			std::destroy_n(head->data, head->range.ucount());
+			alloc.deallocate(head->data, head->range.count());
+			std::destroy_at(head);
+			alloc_chunk.deallocate(head, 1);
+		} else {
+			free_all_chunks();
+		}
 	}
 
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
+	constexpr void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
@@ -121,7 +124,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add(entity_range const range, T&& component) noexcept {
+	constexpr void add(entity_range const range, T&& component) noexcept {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back(range);
 		} else {
@@ -132,7 +135,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	void add(entity_range const range, T const& component) noexcept {
+	constexpr void add(entity_range const range, T const& component) noexcept {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back(range);
 		} else {
@@ -141,30 +144,29 @@ public:
 	}
 
 	// Return the shared component
-	T& get_shared_component() noexcept requires unbound<T> {
-		static T t{};
-		return t;
+	constexpr T& get_shared_component() noexcept requires global<T> {
+		return head->data[0];
 	}
 
 	// Remove an entity from the component pool.
-	void remove(entity_id const id) noexcept {
+	constexpr void remove(entity_id const id) noexcept {
 		remove({id, id});
 	}
 
 	// Remove an entity from the component pool.
-	void remove(entity_range const range) noexcept {
+	constexpr void remove(entity_range const range) noexcept {
 		deferred_removes.local().push_back(range);
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T* find_component_data(entity_id const id) noexcept {
+	constexpr T* find_component_data(entity_id const id) noexcept requires(!global<T>) {
 		return const_cast<T*>(std::as_const(*this).find_component_data(id));
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	T const* find_component_data(entity_id const id) const noexcept {
+	constexpr T const* find_component_data(entity_id const id) const noexcept requires(!global<T>) {
 		if (head == nullptr)
 			return nullptr;
 
@@ -181,13 +183,13 @@ public:
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	void process_changes() noexcept override {
+	constexpr void process_changes() noexcept override {
 		process_remove_components();
 		process_add_components();
 	}
 
 	// Returns the number of active entities in the pool
-	size_t num_entities() const noexcept {
+	constexpr size_t num_entities() const noexcept {
 		size_t count = 0;
 
 		for (entity_range const r : ordered_active_ranges) {
@@ -198,7 +200,7 @@ public:
 	}
 
 	// Returns the number of active components in the pool
-	size_t num_components() const noexcept {
+	constexpr size_t num_components() const noexcept {
 		if constexpr (unbound<T>)
 			return 1;
 		else
@@ -206,58 +208,59 @@ public:
 	}
 
 	// Returns the number of chunks in use
-	size_t num_chunks() const noexcept {
+	constexpr size_t num_chunks() const noexcept {
 		return ordered_chunks.size();
 	}
 
-	chunk const* get_head_chunk() const noexcept {
+	constexpr chunk const* get_head_chunk() const noexcept {
 		return head;
 	}
 
 	// Clears the pools state flags
-	void clear_flags() noexcept override {
+	constexpr void clear_flags() noexcept override {
 		components_added = false;
 		components_removed = false;
 		components_modified = false;
 	}
 
 	// Returns true if components has been added since last clear_flags() call
-	bool has_more_components() const noexcept {
+	constexpr bool has_more_components() const noexcept {
 		return components_added;
 	}
 
 	// Returns true if components has been removed since last clear_flags() call
-	bool has_less_components() const noexcept {
+	constexpr bool has_less_components() const noexcept {
 		return components_removed;
 	}
 
 	// Returns true if components has been added/removed since last clear_flags() call
-	bool has_component_count_changed() const noexcept {
+	constexpr bool has_component_count_changed() const noexcept {
 		return components_added || components_removed;
 	}
 
-	bool has_components_been_modified() const noexcept {
+	constexpr bool has_components_been_modified() const noexcept {
 		return has_component_count_changed() || components_modified;
 	}
 
 	// Returns the pools entities
-	entity_range_view get_entities() const noexcept {
+	constexpr entity_range_view get_entities() const noexcept {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
-			static constinit entity_range global_range = entity_range::all();
-			return entity_range_view{&global_range, 1};
+			//static constinit entity_range global_range = entity_range::all();
+			//return entity_range_view{&global_range, 1};
+			return ordered_active_ranges;
 		} else {
 			return ordered_active_ranges;
 		}
 	}
 
 	// Returns true if an entity has a component in this pool
-	bool has_entity(entity_id const id) const noexcept {
+	constexpr bool has_entity(entity_id const id) const noexcept {
 		return has_entity({id, id});
 	}
 
 	// Returns true if an entity range has components in this pool
-	bool has_entity(entity_range const& range) const noexcept {
+	constexpr bool has_entity(entity_range const& range) const noexcept {
 		auto const it = find_in_ordered_active_ranges(range);
 
 		if (it == ordered_active_ranges.end())
@@ -267,7 +270,7 @@ public:
 	}
 
 	// Clear all entities from the pool
-	void clear() noexcept override {
+	constexpr void clear() noexcept override {
 		// Remember if components was removed from the pool
 		bool const is_removed = (nullptr != head);
 
@@ -285,17 +288,15 @@ public:
 	}
 
 	// Flag that components has been modified
-	void notify_components_modified() noexcept {
+	constexpr void notify_components_modified() noexcept {
 		components_modified = true;
 	}
 
 private:
-	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
+	constexpr chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
 							bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = alloc_chunk.allocate(1);
-		std::construct_at(c, range, active, data, next /*, owns_data , split_data */);
-		c->data.set_tag(owns_data);
-		c->next.set_tag(split_data);
+		std::construct_at(c, range, active, data, next, owns_data , split_data);
 
 		auto const range_it = find_in_ordered_active_ranges(active);
 		auto const dist = ranges_dist(range_it);
@@ -307,7 +308,7 @@ private:
 		return c;
 	}
 
-	chunk* create_new_chunk(std::forward_iterator auto iter) noexcept {
+	constexpr chunk* create_new_chunk(std::forward_iterator auto iter) noexcept {
 		entity_range const r = std::get<0>(*iter);
 		chunk* c = create_new_chunk(r, r);
 		if constexpr (!unbound<T>) {
@@ -318,15 +319,18 @@ private:
 		return c;
 	}
 
-	void free_chunk(chunk* c) noexcept {
+	constexpr void free_chunk(chunk* c) noexcept {
 		remove_range_to_chunk(c->active);
-		if (c->owns_data()) {
-			if (c->has_split_data() && nullptr != c->next) {
+
+		if (c->owns_data) {
+			if (c->has_split_data && nullptr != c->next) {
 				// transfer ownership
-				c->next->set_owns_data(true);
+				c->next->owns_data = true;
 			} else {
-				std::destroy_n(c->data.pointer(), c->active.ucount());
-				alloc.deallocate(c->data.pointer(), c->range.count());
+				if constexpr (!unbound<T>) {
+					std::destroy_n(c->data, c->active.ucount());
+					alloc.deallocate(c->data, c->range.count());
+				}
 			}
 		}
 
@@ -334,7 +338,7 @@ private:
 		alloc_chunk.deallocate(c, 1);
 	}
 
-	void free_all_chunks() noexcept {
+	constexpr void free_all_chunks() noexcept {
 		ordered_active_ranges.clear();
 		ordered_chunks.clear();
 		chunk* curr = head;
@@ -347,19 +351,19 @@ private:
 		set_data_removed();
 	}
 
-	auto find_in_ordered_active_ranges(entity_range const rng) noexcept {
+	constexpr auto find_in_ordered_active_ranges(entity_range const rng) noexcept {
 		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
 	}
-	auto find_in_ordered_active_ranges(entity_range const rng) const noexcept {
+	constexpr auto find_in_ordered_active_ranges(entity_range const rng) const noexcept {
 		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
 	}
 
-	ptrdiff_t ranges_dist(std::vector<entity_range>::const_iterator it) const noexcept {
+	constexpr ptrdiff_t ranges_dist(std::vector<entity_range>::const_iterator it) const noexcept {
 		return std::distance(ordered_active_ranges.begin(), it);
 	}
 
 	// Removes a range and chunk from the map
-	void remove_range_to_chunk(entity_range const rng) noexcept {
+	constexpr void remove_range_to_chunk(entity_range const rng) noexcept {
 		auto const it = find_in_ordered_active_ranges(rng);
 		if (it != ordered_active_ranges.end() && *it == rng) {
 			auto const dist = ranges_dist(it);
@@ -370,24 +374,24 @@ private:
 	}
 
 	// Updates a key in the range-to-chunk map
-	void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
+	constexpr void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
 		auto it = find_in_ordered_active_ranges(old);
 		*it = update;
 	}
 
 	// Flag that components has been added
-	void set_data_added() noexcept {
+	constexpr void set_data_added() noexcept {
 		components_added = true;
 	}
 
 	// Flag that components has been removed
-	void set_data_removed() noexcept {
+	constexpr void set_data_removed() noexcept {
 		components_removed = true;
 	}
 
 	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
-	bool has_duplicate_entities() const noexcept {
+	constexpr bool has_duplicate_entities() const noexcept {
 		if (!ordered_active_ranges.empty()) {
 			for (size_t i = 0; i < ordered_active_ranges.size() - 1; ++i) {
 				if (ordered_active_ranges[i].overlaps(ordered_active_ranges[i + 1]))
@@ -413,26 +417,25 @@ private:
 	}
 
 	template <typename Data>
-	void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) noexcept {
+	constexpr void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) noexcept requires(!unbound<T>) {
 		Expects(c != nullptr);
-		if constexpr (!unbound<T>) {
-			// Offset into the chunks data
-			auto const ent_offset = c->range.offset(range.first());
 
-			for (entity_offset i = 0; i < range.ucount(); ++i) {
-				// Construct from a value or a a span of values
-				if constexpr (std::is_same_v<T, Data>) {
-					std::construct_at(&c->data[ent_offset + i], comp_data);
-				} else {
-					std::construct_at(&c->data[ent_offset + i], comp_data[i]);
-				}
+		// Offset into the chunks data
+		auto const ent_offset = c->range.offset(range.first());
+
+		for (entity_offset i = 0; i < range.ucount(); ++i) {
+			// Construct from a value or a a span of values
+			if constexpr (std::is_same_v<T, Data>) {
+				std::construct_at(&c->data[ent_offset + i], comp_data);
+			} else {
+				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
 			}
 		}
 	}
 
-	void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) noexcept {
+	constexpr void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) noexcept {
 		// If split chunks are encountered, skip forward to the chunk closest to r
-		if (curr->has_split_data()) {
+		if (curr->has_split_data) {
 			while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
 				prev = curr;
 				curr = curr->next;
@@ -474,7 +477,7 @@ private:
 					curr->next = next->next;
 
 					// split_data is true if the next chunk is also in the current range
-					curr->set_split_data((curr->next != nullptr) && (curr->range == curr->next->range));
+					curr->has_split_data = (curr->next != nullptr) && (curr->range == curr->next->range);
 
 					free_chunk(next);
 				}
@@ -483,8 +486,8 @@ private:
 			// There is a gap between the two ranges, so split the chunk
 			if (r < curr->active) {
 				bool const is_head_chunk = (head == curr);
-				bool const curr_owns_data = curr->owns_data();
-				curr->set_owns_data(false);
+				bool const curr_owns_data = curr->owns_data;
+				curr->owns_data = false;
 				curr = create_new_chunk(curr->range, r, curr->data, curr, curr_owns_data, true);
 
 				// Update head pointer
@@ -495,7 +498,7 @@ private:
 				if (prev != nullptr)
 					prev->next = curr;
 			} else {
-				curr->set_split_data(true);
+				curr->has_split_data = true;
 				curr->next = create_new_chunk(curr->range, r, curr->data, curr->next, false, false);
 			}
 		}
@@ -528,7 +531,7 @@ private:
 	}
 
 	// Add new queued entities and components to the main storage.
-	void process_add_components() noexcept {
+	constexpr void process_add_components() noexcept {
 		// Combine the components in to a single vector
 		std::vector<entity_data> adds;
 		std::vector<entity_span> spans;
@@ -547,13 +550,13 @@ private:
 		auto const comparator = [](auto const& l, auto const& r) {
 			return std::get<0>(l) < std::get<0>(r);
 		};
-		if (sizeof(entity_data) * adds.size() < parallelization_size_tipping_point)
-			std::sort(std::execution::seq, adds.begin(), adds.end(), comparator);
+		if (!std::is_constant_evaluated() || (sizeof(entity_data) * adds.size() < parallelization_size_tipping_point))
+			std::sort(adds.begin(), adds.end(), comparator);
 		else
 			std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
 
-		if (sizeof(entity_data) * spans.size() < parallelization_size_tipping_point)
-			std::sort(std::execution::seq, spans.begin(), spans.end(), comparator);
+		if (!std::is_constant_evaluated() || (sizeof(entity_data) * spans.size() < parallelization_size_tipping_point))
+			std::sort(spans.begin(), spans.end(), comparator);
 		else
 			std::sort(std::execution::par, spans.begin(), spans.end(), comparator);
 
@@ -583,7 +586,7 @@ private:
 			curr = head;
 		}
 
-		auto const merge_data = [&](std::forward_iterator auto& iter) {
+		auto const merge_data = [&](std::forward_iterator auto const& iter) {
 			if (curr == nullptr) {
 				auto new_chunk = create_new_chunk(iter);
 				new_chunk->next = curr;
@@ -648,7 +651,7 @@ private:
 	}
 
 	// Removes the entities and components
-	void process_remove_components() noexcept {
+	constexpr void process_remove_components() noexcept {
 		// Collect all the ranges to remove
 		std::vector<entity_range> vec;
 		deferred_removes.gather_flattened(std::back_inserter(vec));
@@ -659,8 +662,8 @@ private:
 		}
 
 		// Sort the ranges to remove
-		if (sizeof(entity_range) * vec.size() < parallelization_size_tipping_point)
-			std::sort(std::execution::seq, vec.begin(), vec.end());
+		if (!std::is_constant_evaluated() || (sizeof(entity_range) * vec.size() < parallelization_size_tipping_point))
+			std::sort(vec.begin(), vec.end());
 		else
 			std::sort(std::execution::par, vec.begin(), vec.end());
 
@@ -671,7 +674,7 @@ private:
 		set_data_removed();
 	}
 
-	void process_remove_components(std::vector<entity_range>& removes) noexcept {
+	constexpr void process_remove_components(std::vector<entity_range>& removes) noexcept {
 		chunk* prev = nullptr;
 		chunk* it_chunk = head;
 		auto it_rem = removes.begin();
@@ -710,12 +713,14 @@ private:
 					it_chunk->active = left_range;
 
 					// Destroy the removed components
-					auto const offset = it_chunk->range.offset(it_rem->first());
-					std::destroy_n(&it_chunk->data[offset], it_rem->ucount());
+					if constexpr (!unbound<T>) {
+						auto const offset = it_chunk->range.offset(it_rem->first());
+						std::destroy_n(&it_chunk->data[offset], it_rem->ucount());
+					}
 
 					if (maybe_split_range.has_value()) {
 						// If two ranges were returned, split this chunk
-						it_chunk->set_split_data(true);
+						it_chunk->has_split_data = true;
 						it_chunk->next =
 							create_new_chunk(it_chunk->range, maybe_split_range.value(), it_chunk->data, it_chunk->next, false);
 					}
@@ -728,7 +733,7 @@ private:
 	}
 
 	// Removes transient components
-	void process_remove_components() noexcept requires transient<T> {
+	constexpr void process_remove_components() noexcept requires transient<T> {
 		// All transient components are removed each cycle
 		free_all_chunks();
 	}
