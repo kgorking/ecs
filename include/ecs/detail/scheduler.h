@@ -26,19 +26,19 @@ struct scheduler_node final {
 		unfinished_dependencies = other.unfinished_dependencies.load();
 	}
 
-	detail::system_base* get_system() const noexcept {
+	constexpr detail::system_base* get_system() const noexcept {
 		return sys;
 	}
 
 	// Add a dependant to this system. This system has to run to
 	// completion before the dependants can run.
-	void add_dependant(size_t node_index) {
+	constexpr void add_dependant(size_t node_index) noexcept {
 		dependants.push_back(node_index);
 	}
 
 	// Increase the dependency counter of this system. These dependencies has to
 	// run to completion before this system can run.
-	void increase_dependency_count() {
+	constexpr void increase_dependency_count() {
 		Expects(dependencies != std::numeric_limits<int16_t>::max());
 		dependencies += 1;
 	}
@@ -168,7 +168,7 @@ public:
 	}
 
 	// Clears all the schedulers data
-	void clear() {
+	constexpr void clear() {
 		groups.clear();
 	}
 

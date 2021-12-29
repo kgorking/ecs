@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
+#include "unittest.h"
 #include <atomic>
-#include <ecs/ecs.h>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -11,6 +11,14 @@ struct type {};
 
 // Tests to make sure the scheduler works as intended.
 TEST_CASE("Scheduler") {
+	SECTION("is constexpr") {
+		auto const test = [] {
+			ecs::detail::scheduler sc;
+			return true;
+		};
+		CONSTEXPR_UNITTEST(test());
+	}
+
 	SECTION("verify wide dependency chains work") {
 		ecs::runtime ecs;
 
