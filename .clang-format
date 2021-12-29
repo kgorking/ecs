@@ -1,5 +1,6 @@
 AccessModifierOffset: '-4'
 AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: Empty
 AlwaysBreakTemplateDeclarations: 'Yes'
 ColumnLimit: '140'
 IndentWidth: '4'

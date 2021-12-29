@@ -19,7 +19,7 @@ endif ()
 if (MSVC)
     # warning level 4
     target_compile_options(ecs INTERFACE
-        /std:c++20
+        /std:c++latest
 
         # enable lots of warnings
         /W4
@@ -40,6 +40,9 @@ if (MSVC)
         /w45219     # implicit conversion from 'type-1' to 'type-2', possible loss of data.
         #/w44388     # signed/unsigned mismatch
         #/w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
+
+		# Shows the layout of the struct name 'chunk'
+		#/d1reportSingleClassLayoutchunk
 
         # Enable address sanitizer
         #/fsanitize=address
@@ -67,7 +70,7 @@ else()
         -Wshadow
         #-Wsign-conversion
         #-ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
-        ${STDLIB})
+	)
     target_link_options(ecs INTERFACE -pthread)
 
     # Disable C++ exceptions.
@@ -123,8 +126,6 @@ if (ECS_STANDALONE_PROJECT)
     add_subdirectory ("examples/mandelbrot")
     add_subdirectory ("examples/parallelism")
     add_subdirectory ("examples/plague_spell")
-    add_subdirectory ("examples/pmr_allocator_support")
-    add_subdirectory ("examples/pmr_custom_component")
     add_subdirectory ("examples/scheduler")
     add_subdirectory ("examples/sorting")
     add_subdirectory ("examples/tagged_components")

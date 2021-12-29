@@ -1,7 +1,6 @@
 #ifndef ECS_SYSTEM_HIERARCHY_H_
 #define ECS_SYSTEM_HIERARCHY_H_
 
-#include <future>
 #include <map>
 #include <unordered_map>
 
@@ -25,9 +24,13 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
-	using entity_info = std::pair<int, entity_type>; // parent count, root id
+	struct entity_info {
+		int parent_count = 0;
+		entity_type root_id;
+	};
+
 	using info_map = std::unordered_map<entity_type, entity_info>;
-	using info_iterator = info_map::const_iterator;
+	using info_iterator = typename info_map::const_iterator;
 
 	using argument = decltype(
 		std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
@@ -60,6 +63,7 @@ private:
 			return;
 		}
 
+		// Count the number of arguments to be constructed
 		size_t count = 0;
 		for (auto const& range : ranges)
 			count += range.ucount();
@@ -71,66 +75,50 @@ private:
 			arguments.resize(count, arg);
 		}
 
+		// TODO insert in set with top. ordering?
+
 		// map of entity and root info
-		tls::collect<std::map<entity_type, size_t>, component_list> tls_roots;
+		std::map<entity_type, int> roots;
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
-		std::for_each(std::execution::par, ranges.begin(), ranges.end(),
-					  [this, &tls_roots, &index, conv = entity_offset_conv{ranges}](auto const& range) {
-						  // Create a walker
-						  thread_local pool_entity_walker<TupPools> walker;
-						  walker.reset(&this->pools, entity_range_view{{range}});
+		auto conv = entity_offset_conv{ranges};
+		pool_entity_walker<TupPools> walker;
+		info_map info;
 
-						  info_map info;
-						  std::map<entity_type, size_t>& roots = tls_roots.local();
+		for (entity_range const& range : ranges) {
+			walker.reset(&this->pools, entity_range_view{{range}});
+			while (!walker.done()) {
+				entity_id const entity = walker.get_entity();
 
-						  while (!walker.done()) {
-							  entity_id const entity = walker.get_entity();
-							  auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
+				info_iterator const ent_info = fill_entity_info(info, entity, index);
 
-							  info_iterator const ent_info = fill_entity_info(info, entity, index);
+				// Add the argument for the entity
+				auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
+				if constexpr (is_entity<FirstComponent>) {
+					arguments[ent_offset] = argument(entity, walker.template get<Components>()..., ent_info->second);
+				} else {
+					arguments[ent_offset] =
+						argument(entity, walker.template get<FirstComponent>(), walker.template get<Components>()..., ent_info->second);
+				}
 
-							  // Add the argument for the entity
-							  if constexpr (is_entity<FirstComponent>) {
-								  arguments[ent_offset] = argument(entity, walker.template get<Components>()..., ent_info->second);
-							  } else {
-								  arguments[ent_offset] = argument(entity, walker.template get<FirstComponent>(),
-																   walker.template get<Components>()..., ent_info->second);
-							  }
+				// Update the root child count
+				auto const root_index = ent_info->second.root_id;
+				roots[root_index] += 1;
 
-							  // Update the root child count
-							  auto const root_index = ent_info->second.second;
-							  roots[root_index] += 1;
-
-							  walker.next();
-						  }
-					  });
-
-		auto const fut = std::async(std::launch::async, [&tls_roots, this]() {
-			// Collapse the thread_local roots maps into the first map
-			auto collection = tls_roots.gather();
-			auto const dest = collection.begin();
-			auto current = std::next(dest);
-			while (current != collection.end()) {
-				dest->merge(std::move(*current));
-				++current;
+				walker.next();
 			}
-
-			// Create the argument spans
-			size_t offset = 0;
-			for (auto const& [id, child_count] : *dest) {
-				argument_spans.emplace_back(arguments.data() + offset, child_count);
-				offset += child_count;
-			}
-
-			dest->clear();
-		});
+		}
 
 		// Do the topological sort of the arguments
 		std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
 
-		fut.wait();
+		// Create the argument spans
+		size_t offset = 0;
+		for (auto const& [id, child_count] : roots) {
+			argument_spans.emplace_back(arguments.data() + offset, child_count);
+			offset += child_count;
+		}
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
@@ -166,11 +154,7 @@ private:
 			return depth_l < depth_r;
 	}
 
-	info_iterator fill_entity_info_aux(info_map& info, entity_id const entity, std::atomic<int>& index) const {
-		auto const ent_it = info.find(entity);
-		if (ent_it != info.end())
-			return ent_it;
-
+	info_iterator fill_entity_info(info_map& info, entity_id const entity, std::atomic<int>& index) const {
 		// Get the parent id
 		entity_id const* parent_id = pool_parent_id->find_component_data(entity);
 		if (parent_id == nullptr) {
@@ -181,20 +165,9 @@ private:
 		}
 
 		// look up the parent info
-		info_iterator const parent_it = fill_entity_info_aux(info, *parent_id, index);
-
-		// insert the entity info
-		auto const& [count, root_index] = parent_it->second;
-		auto const [it, _p] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
-		return it;
-	}
-
-	info_iterator fill_entity_info(info_map& info, entity_id const entity, std::atomic<int>& index) const {
-		// Get the parent id
-		entity_id const* parent_id = pool_parent_id->find_component_data(entity);
-
-		// look up the parent info
-		info_iterator const parent_it = fill_entity_info_aux(info, *parent_id, index);
+		info_iterator parent_it = info.find(*parent_id);
+		if (parent_it == info.end())
+			parent_it = fill_entity_info(info, *parent_id, index);
 
 		// insert the entity info
 		auto const& [count, root_index] = parent_it->second;

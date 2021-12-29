@@ -107,9 +107,6 @@ TEST_CASE("System specification", "[system]") {
 	SECTION("System with all combinations of types works") {
 		ecs::runtime ecs;
 
-		struct vanilla {
-			int x;
-		};
 		struct tagged {
 			ecs_flags(ecs::flag::tag);
 		};
@@ -123,21 +120,26 @@ TEST_CASE("System specification", "[system]") {
 			ecs_flags(ecs::flag::global);
 		};
 
-		auto constexpr vanilla_sort = [](vanilla l, vanilla r) { return l.x < r.x; };
+		auto constexpr vanilla_sort = [](int l, int r) {
+			return l < r;
+		};
 
 		int last = -100'000'000;
 		int run_counter = 0;
 		ecs.make_system<ecs::opts::not_parallel>(
-			[&](vanilla const& v, tagged, transient const&, immutable const&, global const&, short*) {
-				CHECK(last <= v.x);
-				last = v.x;
+			[&](int const& v, tagged, transient const&, immutable const&, global const&, short*) {
+				CHECK(last <= v);
+				last = v;
 
 				run_counter++;
 			},
 			vanilla_sort);
 
-		auto const vanilla_init = [](ecs::entity_id) { return vanilla{rand()}; };
-		ecs.add_component({0, 1000}, vanilla_init, tagged{}, transient{}, immutable{});
+		std::vector<int> ints(1001);
+		std::iota(ints.begin(), ints.end(), 0);
+
+		ecs.add_component_span({0, 1000}, ints);
+		ecs.add_component({0, 1000}, tagged{}, transient{}, immutable{});
 		ecs.add_component({10, 20}, short{0});
 
 		ecs.update();
@@ -147,7 +149,6 @@ TEST_CASE("System specification", "[system]") {
 		ecs.update(); // transient component is gone, so system wont run
 		CHECK(run_counter == 1001 - 11);
 	}
-
 	SECTION("Adding components during a system run works") {
 		// Added this test in response to a bug found by https://github.com/relick
 

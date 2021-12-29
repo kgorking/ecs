@@ -29,7 +29,7 @@ void run_raw(benchmark::State &state) {
 
 // Simulates the hierarchial setup from system_hiearchy
 template <bool parallel>
-void run_raw_hierarchy(benchmark::State &state) {
+void run_hierarchy_raw(benchmark::State &state) {
 	auto const num_items = state.range(0);
 	auto const num_entities = static_cast<ecs::detail::entity_type>(num_items);
 	auto const num_colors = static_cast<size_t>(num_items) + 1;
@@ -86,22 +86,22 @@ void run_raw_hierarchy(benchmark::State &state) {
 	state.SetItemsProcessed(state.iterations() * num_items);
 }
 
-void run_raw_serial(benchmark::State &state) {
+void run_serial_raw(benchmark::State &state) {
 	run_raw<false>(state);
 }
-ECS_BENCHMARK(run_raw_serial);
+ECS_BENCHMARK(run_serial_raw);
 
-void run_raw_parallel(benchmark::State &state) {
+void run_parallel_raw(benchmark::State &state) {
 	run_raw<true>(state);
 }
-ECS_BENCHMARK(run_raw_parallel);
+ECS_BENCHMARK(run_parallel_raw);
 
-void run_raw_hierarchy_serial(benchmark::State &state) {
-	run_raw_hierarchy<false>(state);
+void run_serial_hierarchy_raw(benchmark::State& state) {
+	run_hierarchy_raw<false>(state);
 }
-ECS_BENCHMARK(run_raw_hierarchy_serial);
+ECS_BENCHMARK(run_serial_hierarchy_raw);
 
-void run_raw_hierarchy_parallel(benchmark::State &state) {
-	run_raw_hierarchy<true>(state);
+void run_parallel_hierarchy_raw(benchmark::State &state) {
+	run_hierarchy_raw<true>(state);
 }
-ECS_BENCHMARK(run_raw_hierarchy_parallel);
+ECS_BENCHMARK(run_parallel_hierarchy_raw);

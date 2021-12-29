@@ -51,10 +51,9 @@ The latter command will fetch the submodules required to build this library.
 # Building 
 #### Tested compilers
 The CI build status for msvc, clang 10, and gcc 10 is currently:
-* ![msvc](https://github.com/kgorking/ecs/workflows/msvc/badge.svg?branch=master)
-* ![gcc 11](https://github.com/kgorking/ecs/workflows/gcc%2011/badge.svg?branch=master)
-* ![clang 10 ms-stl](https://github.com/kgorking/ecs/workflows/clang%2010%20ms-stl/badge.svg?branch=master)
-* ![clang 12 libstdc++](https://github.com/kgorking/ecs/workflows/clang%2012%20libstdc++/badge.svg?branch=master)
+* [![msvc 2022](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
+* [![gcc 11](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+* [![clang-13 libstdc++-10](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml)
 
 # Table of Contents
 - [Entities](#entities)
@@ -84,8 +83,6 @@ The CI build status for msvc, clang 10, and gcc 10 is currently:
   - [`transient`](#transient)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/W7hvrnjT6)
   - [`global`](#global)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ETjKzbE7o)
     - [Global systems](#Global-systems)
-- [PMR Allocator support](#PMR-Allocator-support)
-    - [Allocator aware components](#Allocator-aware-components)
 
 # Entities
 Entities are the scaffolding on which you build your objects, and there are two classes in the library for managing entities.
@@ -459,54 +456,4 @@ ecs.make_system([](frame_data& fd) {
     std::chrono::duration<double> const diff = clock_now - clock_last;
     fd.delta_time = clock_diff.count();
 });
-```
-
-# PMR Allocator support[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/j1ooeWKrb)
-TODO: incomplete. See [pmr_allocator_support](https://github.com/kgorking/ecs/blob/master/examples/pmr_allocator_support/pmr_allocator_support.cpp) and [pmr_custom_component](https://github.com/kgorking/ecs/blob/master/examples/pmr_custom_component/pmr_custom_component.cpp) for usage examples.
-TODO: I will probably need to write a replacement container for std::pmr::vector to truly take advantage of data interleaving.
-
-Polymorphic memory resources are used internally for component storage, so components can also take advantage of this.
-
-This allows users to provide `std::pmr::memory_resource` types for component storage to allow for custom memory management.
-
-```cpp
-// Set up a buffer on the stack for storage of 'std::pmr::string's
-constexpr size_t buf_size = 16384;
-char buffer[buf_size]{};
-std::pmr::monotonic_buffer_resource mono_resource(&buffer[0], buf_size);
-
-// Set the buffer resource to be used with components of type std::pmr::string
-ecs.set_memory_resource<std::pmr::string>(&mono_resource);
-
-// Add some components
-ecs.add_component({0, 3}, std::pmr::string{"some kind of semi large string"});
-
-// Creates the strings and string data in `buffer`.
-// The string data would normally go on the heap instead
-ecs.commit_changes();
-```
-### Allocator aware components
-* don't use allocators in custom constructors; components go in temp storage until commit_changes()
-
-```cpp
-struct pmr_greeting {
-    // Use helper macro to enable pmr support and declare defaults
-    ECS_USE_PMR(pmr_greeting);
-
-    // use the pmr-aware string
-    std::pmr::string msg;
-
-    // Constructor that takes a c-string.
-    explicit pmr_greeting(char const *sz) : msg(sz) {}
-
-    //
-    // Required PMR constructors
-    // 
-
-    // These are called from within other stl types, like std::pmr::vector, and pass the allocator along to the pmr::string.
-    // 'allocator_type' is declared by ECS_USE_PMR().
-    explicit pmr_greeting(allocator_type alloc) : msg{alloc} {}
-    pmr_greeting(pmr_greeting const &g, allocator_type alloc) : msg{g.msg, alloc} {}
-    pmr_greeting(pmr_greeting &&g, allocator_type alloc) : msg{std::move(g.msg), alloc} {}
-};
 ```
