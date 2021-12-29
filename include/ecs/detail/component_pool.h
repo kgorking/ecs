@@ -325,8 +325,8 @@ private:
 				// transfer ownership
 				c->next->set_owns_data(true);
 			} else {
-				std::destroy_n(c->data.value(), c->active.ucount());
-				alloc.deallocate(c->data.value(), c->range.count());
+				std::destroy_n(c->data.pointer(), c->active.ucount());
+				alloc.deallocate(c->data.pointer(), c->range.count());
 			}
 		}
 
