@@ -51,9 +51,9 @@ The latter command will fetch the submodules required to build this library.
 # Building 
 #### Tested compilers
 The CI build status for msvc, clang 10, and gcc 10 is currently:
-* [![msvc 2022](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=chunks_instead_of_levels)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
-* [![gcc 11](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=chunks_instead_of_levels)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
-* [![clang-13 libstdc++-10](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml/badge.svg?branch=chunks_instead_of_levels)](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml)
+* [![msvc 2022](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
+* [![gcc 11](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+* [![clang-13 libstdc++-10](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml)
 
 # Table of Contents
 - [Entities](#entities)
