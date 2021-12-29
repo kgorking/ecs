@@ -1,15 +1,9 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include <ecs/ecs.h>
+#include "unittest.h"
 #include <memory_resource>
 #include <string>
 
-
-#if __cpp_lib_constexpr_vector && __cpp_constexpr_dynamic_alloc
-#define CONSTEXPR_UNITTEST(t) static_assert((t))
-#else
-#define CONSTEXPR_UNITTEST(t) ((void)0)
-#endif
 
 
 struct ctr_counter {
@@ -507,5 +501,5 @@ TEST_CASE("Component pool specification", "[component]") {
 			// They should be seperate
 			REQUIRE(chunk->data != chunk->next->data);
 		}
-	}*/
+	}
 }
