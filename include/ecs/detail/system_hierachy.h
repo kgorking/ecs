@@ -1,7 +1,6 @@
 #ifndef ECS_SYSTEM_HIERARCHY_H_
 #define ECS_SYSTEM_HIERARCHY_H_
 
-#include <future>
 #include <map>
 #include <unordered_map>
 
