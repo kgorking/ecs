@@ -5,6 +5,12 @@
 #include <string>
 
 
+#if __cpp_lib_constexpr_vector && __cpp_constexpr_dynamic_alloc
+#define CONSTEXPR_UNITTEST(t) static_assert((t))
+#else
+#define CONSTEXPR_UNITTEST(t) ((void)0)
+#endif
+
 
 struct ctr_counter {
 	inline static size_t def_ctr_count = 0;
@@ -40,7 +46,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			ecs::detail::component_pool<int> pool;
 			return pool.num_entities() == 0 && pool.num_components() == 0 && pool.has_component_count_changed() == false;
 		};
-		static_assert(test());
+		CONSTEXPR_UNITTEST(test());
 		REQUIRE(test());
 	}
 
@@ -50,7 +56,7 @@ TEST_CASE("Component pool specification", "[component]") {
 				ecs::detail::component_pool<int> pool;
 				return nullptr == pool.find_component_data(0);
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 		SECTION("grows when data is added to it") {
@@ -61,7 +67,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return (pool.num_entities() == 5) && (pool.num_components() == 5) && (pool.has_more_components());
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 	}
@@ -77,7 +83,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return (ctr_counter::copy_count == 3) && (ctr_counter::ctr_count == ctr_counter::dtr_count);
 			};
-			// static_assert(test()); // uses static member vars
+			// CONSTEXPR_UNITTEST(test()); // uses static member vars
 			REQUIRE(test());
 		}
 		SECTION("with a span is valid") {
@@ -96,7 +102,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return true;
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 		SECTION("with negative entity ids is fine") {
@@ -107,7 +113,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return (50 == pool.num_components()) && (50 == pool.num_entities());
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 	}
@@ -135,7 +141,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return true;
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 		SECTION("from the front does not invalidate other components") {
@@ -160,7 +166,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return true;
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 		SECTION("from the middle does not invalidate other components") {
@@ -189,7 +195,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return true;
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 
@@ -216,7 +222,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return true;
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 	}
@@ -289,7 +295,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			return true;
 		};
-		static_assert(test());
+		CONSTEXPR_UNITTEST(test());
 		REQUIRE(test());
 	}
 
@@ -309,7 +315,7 @@ TEST_CASE("Component pool specification", "[component]") {
 
 				return true;
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 	}
@@ -329,7 +335,7 @@ TEST_CASE("Component pool specification", "[component]") {
 				auto const ev = pool.get_entities();
 				return (ev.front().first() == -2);
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 	}
@@ -343,7 +349,7 @@ TEST_CASE("Component pool specification", "[component]") {
 				ecs::detail::component_pool<some_global> pool;
 				return (&pool.get_shared_component() != nullptr);
 			};
-			static_assert(test());
+			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
 		}
 	}
