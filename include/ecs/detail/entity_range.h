@@ -56,8 +56,12 @@ constexpr inline std::vector<entity_range> difference_ranges(entity_range_view v
 	auto it_b = view_b.begin();
 
 	auto range_a = *it_a;
-	while (it_a != view_a.end() && it_b != view_b.end()) {
-		if (it_b->contains(range_a)) {
+	while (it_a != view_a.end()) {
+		if (it_b == view_b.end()) {
+			merge_or_add(result, range_a);
+			if (++it_a != view_a.end())
+				range_a = *it_a;
+		} else if (it_b->contains(range_a)) {
 			// Range 'a' is contained entirely in range 'b',
 			// which means that 'a' will not be added.
 			if (++it_a != view_a.end())
@@ -82,17 +86,16 @@ constexpr inline std::vector<entity_range> difference_ranges(entity_range_view v
 				merge_or_add(result, res.first);
 				range_a = *res.second;
 
-				if (++it_b == view_b.end())
-					merge_or_add(result, range_a);
+				++it_b;
 			} else {
 				// Range 'b' removes some of range 'a'
 
 				if (range_a.first() >= it_b->first()) {
-					// The result is an endpiece, so update the range
+					// The result is an endpiece, so update the current range.
+					// The next 'b' might remove more from the current 'a'
 					range_a = res.first;
 
-					if (++it_b == view_b.end())
-						merge_or_add(result, range_a);
+					++it_b;
 				} else {
 					// Add the range
 					merge_or_add(result, res.first);

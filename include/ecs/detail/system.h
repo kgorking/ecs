@@ -239,11 +239,20 @@ protected:
 	static constexpr int parent_index = test_option_index<is_parent, stripped_component_list>;
 	static constexpr bool has_parent_types = (parent_index != -1);
 
+	// count parent components, if any
+	template<class T>
+	static constexpr int get_num_parent_components() {
+		if constexpr (std::is_same_v<void, T>)
+			return 0;
+		else
+			return type_list_size<T>;
+	}
+
 	// The parent type, or void
 	using full_parent_type = type_list_at_or<parent_index, component_list, void>;
-	using stripped_parent_type = std::remove_cvref_t<full_parent_type>;
+	using stripped_parent_type = std::remove_pointer_t<std::remove_cvref_t<full_parent_type>>;
 	using parent_component_list = parent_type_list_t<stripped_parent_type>;
-	static constexpr int num_parent_components = type_list_size<parent_component_list>;
+	static constexpr int num_parent_components = get_num_parent_components<parent_component_list>();
 };
 } // namespace ecs::detail
 

@@ -163,7 +163,6 @@ TEST_CASE("System specification", "[system]") {
 		ecs.update(); // transient component is gone, so system wont run
 		CHECK(run_counter == 1001 - 11);
 	}
-
 	SECTION("Adding components during a system run works") {
 		// Added this test in response to a bug found by https://github.com/relick
 

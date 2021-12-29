@@ -12,7 +12,7 @@ namespace ecs::detail {
 using type_hash = std::uint64_t;
 
 template <class T>
-constexpr auto get_type_name() {
+consteval auto get_type_name() {
 #ifdef _MSC_VER
 	std::string_view fn = __FUNCSIG__;
 	auto const type_start = fn.find("get_type_name<") + 14;
@@ -27,8 +27,8 @@ constexpr auto get_type_name() {
 }
 
 template <class T>
-constexpr type_hash get_type_hash() {
-	constexpr type_hash prime = 0x100000001b3;
+consteval type_hash get_type_hash() {
+	type_hash const prime = 0x100000001b3;
 #ifdef _MSC_VER
 	std::string_view string = __FUNCDNAME__; // has full type info, but is not very readable
 #else
@@ -44,7 +44,7 @@ constexpr type_hash get_type_hash() {
 }
 
 template <bool ignore_first_arg, typename First, typename... Types>
-constexpr auto get_type_hashes_array() {
+consteval auto get_type_hashes_array() {
 	if constexpr (!ignore_first_arg) {
 		std::array<detail::type_hash, 1 + sizeof...(Types)> arr{get_type_hash<First>(), get_type_hash<Types>()...};
 		return arr;

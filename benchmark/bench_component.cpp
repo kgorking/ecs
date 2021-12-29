@@ -7,19 +7,22 @@
 using test_component_type = size_t;
 auto constexpr test_component = test_component_type{9};
 
-void component_generate(benchmark::State& state) {
+void component_add_spans(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+
+	std::vector<int> ints(nentities+1);
+	std::iota(ints.begin(), ints.end(), 9);
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
 
-		ecs.add_component({0, nentities}, [](ecs::entity_id id) { return test_component + id; });
+		ecs.add_component_span({0, nentities}, ints);
 		ecs.commit_changes();
 	}
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
-ECS_BENCHMARK(component_generate);
+ECS_BENCHMARK(component_add_spans);
 
 void component_add(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
