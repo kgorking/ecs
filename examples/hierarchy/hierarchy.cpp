@@ -26,7 +26,7 @@ int main() {
 			" 14        15            16                    \n\n\n";
 
 	// A root
-	ecs.add_component({1}, double{});
+	ecs.add_component({1}, double{1.23});
 
 	// The children
 	ecs.add_component(4, ecs::parent{1}, int{}, short{10});
@@ -49,33 +49,32 @@ int main() {
 	ecs.add_component({102}, double{2}, ecs::parent{101});
 	ecs.add_component({103}, double{3}, ecs::parent{102});
 
-	// Make the systems
-	auto &sys_roots = ecs.make_system(print_roots);
-	auto &sys_all = ecs.make_system(print_all_children);
-	auto &sys_short = ecs.make_system(print_short_children);
-	auto &sys_long = ecs.make_system(print_long_children);
-	auto &sys_float = ecs.make_system(print_float_children);
-	auto &sys_double = ecs.make_system(print_double_children);
-
 	ecs.commit_changes();
 
 	// Run the systems
+	using serial = ecs::opts::not_parallel;
 	cout << "All roots        : ";
+	auto& sys_roots = ecs.make_system<serial>(print_roots);
 	sys_roots.run();
 	cout << '\n'; // 1
 	cout << "All children     : ";
+	auto& sys_all = ecs.make_system<serial>(print_all_children);
 	sys_all.run();
 	cout << '\n'; // 2-16 100-103
 	cout << "short children   : ";
+	auto &sys_short = ecs.make_system<serial>(print_short_children);
 	sys_short.run();
 	cout << '\n'; // 5-7
 	cout << "long children    : ";
+	auto &sys_long = ecs.make_system<serial>(print_long_children);
 	sys_long.run();
 	cout << '\n'; // 8-10
 	cout << "floating children: ";
+	auto &sys_float = ecs.make_system<serial>(print_float_children);
 	sys_float.run();
 	cout << '\n'; // 11-13
 	cout << "double children  : ";
+	auto &sys_double = ecs.make_system<serial>(print_double_children);
 	sys_double.run();
 	cout << '\n'; // 100-103
 }

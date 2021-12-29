@@ -18,11 +18,15 @@ TEST_CASE("Scheduler") {
 
 		// The lambda to execute in the 100 systems
 		std::atomic_int counter = 0;
-		auto const incrementor = [&](sched_test const&) { counter++; };
+		auto const incrementor = [&](sched_test const&) {
+			counter++;
+		};
 
 		// The lambda to run after the 100 systems. Has a dependency on 'lambda'
 		std::atomic_int num_checks = 0;
-		auto const checker = [&](sched_test&) { num_checks++; };
+		auto const checker = [&](sched_test&) {
+			num_checks++;
+		};
 
 		// Create 100 systems that will execute concurrently,
 		// because they have no dependencies on each other.
@@ -59,7 +63,9 @@ TEST_CASE("Scheduler") {
 		std::atomic_bool sys5 = false;
 		std::atomic_bool sys6 = false;
 
-		ecs.make_system([&sys1](type<0>&, type<1> const&) { sys1 = true; });
+		ecs.make_system([&sys1](type<0>&, type<1> const&) {
+			sys1 = true;
+		});
 
 		ecs.make_system([&sys2, &sys1](type<1>&) {
 			CHECK(sys1 == true);

@@ -50,7 +50,10 @@ private:
 	template <class Pools>
 	friend struct detail::pool_entity_walker;
 
-	parent(entity_id id, std::tuple<ParentTypes*...> tup) : entity_id(id), parent_components(tup) {}
+	parent(entity_id id, std::tuple<ParentTypes*...> tup)
+		: entity_id(id)
+		, parent_components(tup) {
+	}
 
 	std::tuple<ParentTypes*...> parent_components;
 };
