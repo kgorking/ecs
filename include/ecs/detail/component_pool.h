@@ -3,6 +3,7 @@
 
 #include <ranges>
 #include <vector>
+#include <execution>
 
 #include "tls/collect.h"
 
