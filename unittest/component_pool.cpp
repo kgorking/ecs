@@ -4,13 +4,11 @@
 #include <memory_resource>
 #include <string>
 
-
 #if __cpp_lib_constexpr_vector && __cpp_constexpr_dynamic_alloc
 #define CONSTEXPR_UNITTEST(t) static_assert((t))
 #else
 #define CONSTEXPR_UNITTEST(t) ((void)0)
 #endif
-
 
 struct ctr_counter {
 	inline static size_t def_ctr_count = 0;
@@ -103,6 +101,24 @@ TEST_CASE("Component pool specification", "[component]") {
 				return true;
 			};
 			CONSTEXPR_UNITTEST(test());
+			REQUIRE(test());
+		}
+		SECTION("with a generator is valid") {
+			auto const test = [] {
+				ecs::detail::component_pool<int> pool;
+				pool.add_generator({0, 9}, [](auto i) {
+					return static_cast<int>(i);
+				});
+				pool.process_changes();
+
+				for (int i = 0; i <= 9; i++) {
+					if (i != *pool.find_component_data(i))
+						return false;
+				}
+
+				return true;
+			};
+			// CONSTEXPR_UNITTEST(test()); // uses std::function which is not constexpr :/
 			REQUIRE(test());
 		}
 		SECTION("with negative entity ids is fine") {

@@ -11,7 +11,7 @@ struct pos {
 	int x, y;
 };
 
-void mandelbrot_system(size_t &color, pos const &p) {
+void mandelbrot_system(size_t& color, pos const& p) {
 	int constexpr max_iterations = 500;
 	double constexpr fr_w = 1.5;
 	double constexpr fr_h = 1.5;
@@ -41,7 +41,8 @@ int main() {
 
 	// Add the size_t component to the pixels/entities
 	ecs::entity_range const ents{0, dimension * dimension - 1};
-	ecs.add_component(ents, size_t{0}, [](ecs::entity_id ent) -> pos {
+	ecs.add_component(ents, size_t{0});
+	ecs.add_component_generator(ents, [](ecs::entity_id ent) -> pos {
 		int const x = ent % dimension;
 		int const y = ent / dimension;
 		return {x, y};
@@ -52,7 +53,7 @@ int main() {
 
 	// Count the pixels equal to one
 	size_t counter = 0;
-	for (size_t const &color : ecs.get_components<size_t>(ents))
+	for (size_t const& color : ecs.get_components<size_t>(ents))
 		if (color == 1)
 			counter++;
 

@@ -62,7 +62,26 @@ public:
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
 		pool.add_span(range, std::span{vals});
 	}
-	
+
+	template <typename Fn>
+	void add_component_generator(entity_range const range, Fn&& gen) {
+		// Return type of 'func'
+		using ComponentType = decltype(std::declval<Fn>()(entity_id{0}));
+		static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
+
+		if constexpr (detail::is_parent<std::remove_cvref_t<ComponentType>>::value) {
+			auto const converter = [gen = std::forward<Fn>(gen)](entity_id id) {
+				return detail::parent_id{gen(id).id()};
+			};
+
+			auto& pool = ctx.get_component_pool<detail::parent_id>();
+			pool.add_generator(range, converter);
+		} else {
+			auto& pool = ctx.get_component_pool<ComponentType>();
+			pool.add_generator(range, std::forward<Fn>(gen));
+		}
+	}
+
 	// Add several components to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename First, typename... T>

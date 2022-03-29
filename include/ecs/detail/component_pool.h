@@ -1,9 +1,10 @@
 #ifndef ECS_DETAIL_COMPONENT_POOL_H
 #define ECS_DETAIL_COMPONENT_POOL_H
 
+#include <execution>
+#include <functional>
 #include <ranges>
 #include <vector>
-#include <execution>
 
 #include "tls/collect.h"
 
@@ -65,7 +66,7 @@ private:
 		bool owns_data = false;
 		bool has_split_data = false;
 	};
-	//static_assert(sizeof(chunk) == 32);
+	// static_assert(sizeof(chunk) == 32);
 
 	allocator_type alloc;
 	std::allocator<chunk> alloc_chunk;
@@ -75,8 +76,10 @@ private:
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
 	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
+	using entity_gen = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<T(entity_id)>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 	std::vector<entity_range> ordered_active_ranges;
@@ -120,6 +123,15 @@ public:
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
+	}
+
+	// Add a component to a range of entities, initialized by the supplied user function generator
+	// Pre: entities has not already been added, or is in queue to be added
+	//      This condition will not be checked until 'process_changes' is called.
+	template <typename Fn>
+	void add_generator(entity_range const range, Fn&& gen) {
+		// Add the range and function to a temp storage
+		deferred_gen.local().emplace_back(range, std::forward<Fn>(gen));
 	}
 
 	// Add a component to a range of entity.
@@ -247,8 +259,8 @@ public:
 	constexpr entity_range_view get_entities() const noexcept {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
-			//static constinit entity_range global_range = entity_range::all();
-			//return entity_range_view{&global_range, 1};
+			// static constinit entity_range global_range = entity_range::all();
+			// return entity_range_view{&global_range, 1};
 			return ordered_active_ranges;
 		} else {
 			return ordered_active_ranges;
@@ -279,6 +291,7 @@ public:
 		free_all_chunks();
 		deferred_adds.reset();
 		deferred_spans.reset();
+		deferred_gen.reset();
 		deferred_removes.reset();
 		ordered_active_ranges.clear();
 		ordered_chunks.clear();
@@ -295,9 +308,9 @@ public:
 
 private:
 	constexpr chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
-							bool owns_data = true, bool split_data = false) noexcept {
+									  bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = alloc_chunk.allocate(1);
-		std::construct_at(c, range, active, data, next, owns_data , split_data);
+		std::construct_at(c, range, active, data, next, owns_data, split_data);
 
 		auto const range_it = find_in_ordered_active_ranges(active);
 		auto const dist = ranges_dist(range_it);
@@ -428,6 +441,8 @@ private:
 			// Construct from a value or a a span of values
 			if constexpr (std::is_same_v<T, Data>) {
 				std::construct_at(&c->data[ent_offset + i], comp_data);
+			} else if constexpr (std::is_invocable_v<Data, entity_id>) {
+				std::construct_at(&c->data[ent_offset + i], comp_data(range.first() + i));
 			} else {
 				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
 			}
@@ -534,54 +549,55 @@ private:
 	// Add new queued entities and components to the main storage.
 	constexpr void process_add_components() noexcept {
 		// Combine the components in to a single vector
-		std::vector<entity_data> adds;
-		std::vector<entity_span> spans;
-		deferred_adds.gather_flattened(std::back_inserter(adds));
-		deferred_spans.gather_flattened(std::back_inserter(spans));
+		std::vector<entity_data> vec_adds;
+		std::vector<entity_span> vec_spans;
+		std::vector<entity_gen> vec_gens;
+		deferred_adds.gather_flattened(std::back_inserter(vec_adds));
+		deferred_spans.gather_flattened(std::back_inserter(vec_spans));
+		deferred_gen.gather_flattened(std::back_inserter(vec_gens));
 
-		if (adds.empty() && spans.empty()) {
+		if (vec_adds.empty() && vec_spans.empty() && vec_gens.empty()) {
 			return;
 		}
 
 		// Clear the current adds
 		deferred_adds.reset();
 		deferred_spans.reset();
+		deferred_gen.reset();
 
-		// Sort the input
+		// Sort the input(s)
 		auto const comparator = [](auto const& l, auto const& r) {
 			return std::get<0>(l) < std::get<0>(r);
 		};
-		if (!std::is_constant_evaluated() || (sizeof(entity_data) * adds.size() < parallelization_size_tipping_point))
-			std::sort(adds.begin(), adds.end(), comparator);
-		else
-			std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
-
-		if (!std::is_constant_evaluated() || (sizeof(entity_data) * spans.size() < parallelization_size_tipping_point))
-			std::sort(spans.begin(), spans.end(), comparator);
-		else
-			std::sort(std::execution::par, spans.begin(), spans.end(), comparator);
+		std::sort(vec_adds.begin(), vec_adds.end(), comparator);
+		std::sort(vec_spans.begin(), vec_spans.end(), comparator);
+		std::sort(vec_gens.begin(), vec_gens.end(), comparator);
 
 		// Merge adjacent ranges that has the same data
 		if constexpr (unbound<T>)
-			combine_erase(adds, combiner_unbound);
+			combine_erase(vec_adds, combiner_unbound);
 		else
-			combine_erase(adds, combiner_bound);
+			combine_erase(vec_adds, combiner_bound);
 
 		// Do the insertions
 		chunk* prev = nullptr;
 		chunk* curr = head;
 
-		auto it_adds = adds.begin();
-		auto it_spans = spans.begin();
+		auto it_adds = vec_adds.begin();
+		auto it_spans = vec_spans.begin();
+		auto it_gens = vec_gens.begin();
 
 		// Create head chunk if needed
 		if (head == nullptr) {
-			if (it_adds != adds.end()) {
+			if (it_adds != vec_adds.end()) {
 				head = create_new_chunk(it_adds);
 				++it_adds;
-			} else {
+			} else if (it_spans != vec_spans.end()) {
 				head = create_new_chunk(it_spans);
 				++it_spans;
+			} else {
+				head = create_new_chunk(it_gens);
+				++it_gens;
 			}
 
 			curr = head;
@@ -631,7 +647,7 @@ private:
 		};
 
 		// Fill in values
-		while (it_adds != adds.end()) {
+		while (it_adds != vec_adds.end()) {
 			merge_data(it_adds);
 			++it_adds;
 		}
@@ -639,9 +655,17 @@ private:
 		// Fill in spans
 		prev = nullptr;
 		curr = head;
-		while (it_spans != spans.end()) {
+		while (it_spans != vec_spans.end()) {
 			merge_data(it_spans);
 			++it_spans;
+		}
+
+		// Fill in generators
+		prev = nullptr;
+		curr = head;
+		while (it_gens != vec_gens.end()) {
+			merge_data(it_gens);
+			++it_gens;
 		}
 
 		// Check it
