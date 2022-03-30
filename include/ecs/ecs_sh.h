@@ -6,6 +6,7 @@
 #include <concepts>
 #include <cstdint>
 #include <execution>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -548,112 +549,130 @@ template <typename...>
 struct type_list;
 
 namespace impl {
-// Implementation of type_list_size.
-template <typename>
-struct type_list_size;
-template <>
-struct type_list_size<void> {
-	static constexpr size_t value = 0;
-};
-template <typename... Types>
-struct type_list_size<type_list<Types...>> {
-	static constexpr size_t value = sizeof...(Types);
-};
+	//
+	// detect type_list
+	template <typename... Types>
+	consteval bool detect_type_list(type_list<Types...>*) {
+		return true;
+	}
+	consteval bool detect_type_list(...) {
+		return false;
+	}
 
-// Implementation of type_list_at.
-template <int, typename>
-struct type_list_at;
-template <int I, typename Type, typename... Types>
-struct type_list_at<I, type_list<Type, Types...>> {
-	using type = typename type_list_at<I - 1, type_list<Types...>>::type;
-};
-template <typename Type, typename... Types>
-struct type_list_at<0, type_list<Type, Types...>> {
-	using type = Type;
-};
 
-// Implementation of type_list_at_or.
-template <int, typename OrType, typename TypeList>
-struct type_list_at_or;
+	//
+	// type_list_size.
+	template <typename> struct type_list_size;
+	template <typename... Types> struct type_list_size<type_list<Types...>> {
+		static constexpr size_t value = sizeof...(Types);
+	};
 
-template <int I, typename OrType, typename Type, typename... Types>
-struct type_list_at_or<I, OrType, type_list<Type, Types...>> {
-	using type = typename type_list_at_or<I - 1, OrType, type_list<Types...>>::type;
-};
+	//
+	// type_list_at.
+	template <int, typename>
+	struct type_list_at;
+	template <int I, typename Type, typename... Types>
+	struct type_list_at<I, type_list<Type, Types...>> {
+		using type = typename type_list_at<I - 1, type_list<Types...>>::type;
+	};
+	template <typename Type, typename... Types>
+	struct type_list_at<0, type_list<Type, Types...>> {
+		using type = Type;
+	};
 
-template <typename Type, typename OrType, typename... Types>
-struct type_list_at_or<0, OrType, type_list<Type, Types...>> {
-	using type = Type;
-};
+	//
+	// type_list_at_or.
+	template <int, typename OrType, typename TypeList>
+	struct type_list_at_or;
 
-template <typename Type, typename OrType, typename... Types>
-struct type_list_at_or<int{-1}, OrType, type_list<Type, Types...>> {
-	using type = OrType;
-};
+	template <int I, typename OrType, typename Type, typename... Types>
+	struct type_list_at_or<I, OrType, type_list<Type, Types...>> {
+		using type = typename type_list_at_or<I - 1, OrType, type_list<Types...>>::type;
+	};
 
-template <typename Type, typename F>
-constexpr decltype(auto) invoke_type(F&& f) {
-	return f.template operator()<Type>();
-}
+	template <typename Type, typename OrType, typename... Types>
+	struct type_list_at_or<0, OrType, type_list<Type, Types...>> {
+		using type = Type;
+	};
 
-template <typename... Types, typename F>
-constexpr void for_each_type(F&& f, type_list<Types...>*) {
-	(invoke_type<Types>(f), ...);
-}
+	template <typename Type, typename OrType, typename... Types>
+	struct type_list_at_or<int{-1}, OrType, type_list<Type, Types...>> {
+		using type = OrType;
+	};
 
-template <typename... Types, typename F>
-constexpr decltype(auto) apply_type(F&& f, type_list<Types...>*) {
-	return f.template operator()<Types...>();
-}
 
-template <typename... Types, typename F>
-constexpr bool all_of_type(F&& f, type_list<Types...>*) {
-	return (invoke_type<Types>(f) && ...);
-}
+	//
+	// type_list concepts
+	template <class TL>
+	concept TypeList = detect_type_list(std::add_pointer_t<TL>{nullptr});
 
-template <typename... Types, typename F>
-constexpr bool any_of_type(F&& f, type_list<Types...>*) {
-	return (invoke_type<Types>(f) || ...);
-}
+
+
+	//
+	// helper functions
+	template <typename Type, typename F>
+	constexpr decltype(auto) invoke_type(F&& f) {
+		return f.template operator()<Type>();
+	}
+
+	template <typename... Types, typename F>
+	constexpr void for_each_type(F&& f, type_list<Types...>*) {
+		(invoke_type<Types>(f), ...);
+	}
+
+	template <typename... Types, typename F>
+	constexpr decltype(auto) apply_type(F&& f, type_list<Types...>*) {
+		return f.template operator()<Types...>();
+	}
+
+	template <typename... Types, typename F>
+	constexpr bool all_of_type(F&& f, type_list<Types...>*) {
+		return (invoke_type<Types>(f) && ...);
+	}
+
+	template <typename... Types, typename F>
+	constexpr bool any_of_type(F&& f, type_list<Types...>*) {
+		return (invoke_type<Types>(f) || ...);
+	}
 } // namespace impl
 
-template <typename Types>
-constexpr size_t type_list_size = impl::type_list_size<Types>::value;
+template <impl::TypeList TL>
+constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
-template <int I, typename Types>
-using type_list_at = typename impl::type_list_at<I, Types>::type;
+template <int I, impl::TypeList TL>
+using type_list_at = typename impl::type_list_at<I, TL>::type;
 
-template <int I, typename Types, typename OrType>
-using type_list_at_or = typename impl::type_list_at_or<I, OrType, Types>::type;
+template <int I, impl::TypeList TL, typename OrType>
+using type_list_at_or = typename impl::type_list_at_or<I, OrType, TL>::type;
 
 // Applies the functor F to each type in the type list.
 // Takes lambdas of the form '[]<typename T>() {}'
-template <typename TypeList, typename F>
+template <impl::TypeList TL, typename F>
 constexpr void for_each_type(F&& f) {
-	impl::for_each_type(f, static_cast<TypeList*>(nullptr));
+	impl::for_each_type(f, static_cast<TL*>(nullptr));
 }
 
 // Applies the functor F to all types in the type list.
 // Takes lambdas of the form '[]<typename ...T>() {}'
-template <typename TypeList, typename F>
+template <impl::TypeList TL, typename F>
 constexpr decltype(auto) apply_type(F&& f) {
-	return impl::apply_type(f, static_cast<TypeList*>(nullptr));
+	return impl::apply_type(f, static_cast<TL*>(nullptr));
 }
 
 // Applies the bool-returning functor F to each type in the type list.
 // Returns true if all of them return true.
 // Takes lambdas of the form '[]<typename T>() -> bool {}'
-template <typename TypeList, typename F>
+template <impl::TypeList TL, typename F>
 constexpr bool all_of_type(F&& f) {
-	return impl::all_of_type(f, static_cast<TypeList*>(nullptr));
+	return impl::all_of_type(f, static_cast<TL*>(nullptr));
 }
 
 // Applies the bool-returning functor F to each type in the type list.
 // Returns true if any of them return true.
 // Takes lambdas of the form '[]<typename T>() -> bool {}'
-template <typename TypeList, typename F>
+template <impl::TypeList TL, typename F>
 constexpr bool any_of_type(F&& f) {
-	return impl::any_of_type(f, static_cast<TypeList*>(nullptr));
+	return impl::any_of_type(f, static_cast<TL*>(nullptr));
 }
 
 } // namespace ecs::detail
@@ -684,7 +703,7 @@ namespace ecs::detail {
 using type_hash = std::uint64_t;
 
 template <class T>
-constexpr auto get_type_name() {
+consteval auto get_type_name() {
 #ifdef _MSC_VER
 	std::string_view fn = __FUNCSIG__;
 	auto const type_start = fn.find("get_type_name<") + 14;
@@ -699,8 +718,8 @@ constexpr auto get_type_name() {
 }
 
 template <class T>
-constexpr type_hash get_type_hash() {
-	constexpr type_hash prime = 0x100000001b3;
+consteval type_hash get_type_hash() {
+	type_hash const prime = 0x100000001b3;
 #ifdef _MSC_VER
 	std::string_view string = __FUNCDNAME__; // has full type info, but is not very readable
 #else
@@ -716,7 +735,7 @@ constexpr type_hash get_type_hash() {
 }
 
 template <bool ignore_first_arg, typename First, typename... Types>
-constexpr auto get_type_hashes_array() {
+consteval auto get_type_hashes_array() {
 	if constexpr (!ignore_first_arg) {
 		std::array<detail::type_hash, 1 + sizeof...(Types)> arr{get_type_hash<First>(), get_type_hash<Types>()...};
 		return arr;
@@ -1345,6 +1364,10 @@ private:
 	using allocator_type = Alloc;
 
 	struct chunk {
+		constexpr chunk(entity_range range, entity_range active, T* data = nullptr, chunk* next = nullptr, bool owns_data = false,
+						bool has_split_data = false) noexcept
+			: range(range), active(active), data(data), next(next), owns_data(owns_data), has_split_data(has_split_data) {}
+
 		// The full range this chunk covers.
 		entity_range range;
 
@@ -1353,16 +1376,16 @@ private:
 
 		// The data for the full range of the chunk (range.count())
 		// The tag signals if this chunk owns this data and should clean it up
-		T* data = nullptr;
+		T* data;
 
 		// Points to the next chunk in the list.
 		// The tag signals if this chunk has been split
-		chunk* next = nullptr;
+		chunk* next;
 
-		bool owns_data = false;
-		bool has_split_data = false;
+		bool owns_data;
+		bool has_split_data;
 	};
-	//static_assert(sizeof(chunk) == 32);
+	// static_assert(sizeof(chunk) == 32);
 
 	allocator_type alloc;
 	std::allocator<chunk> alloc_chunk;
@@ -1372,8 +1395,10 @@ private:
 	// Keep track of which components to add/remove each cycle
 	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
 	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
+	using entity_gen = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<T(entity_id)>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
 	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
 	std::vector<entity_range> ordered_active_ranges;
@@ -1417,6 +1442,15 @@ public:
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
+	}
+
+	// Add a component to a range of entities, initialized by the supplied user function generator
+	// Pre: entities has not already been added, or is in queue to be added
+	//      This condition will not be checked until 'process_changes' is called.
+	template <typename Fn>
+	void add_generator(entity_range const range, Fn&& gen) {
+		// Add the range and function to a temp storage
+		deferred_gen.local().emplace_back(range, std::forward<Fn>(gen));
 	}
 
 	// Add a component to a range of entity.
@@ -1544,8 +1578,8 @@ public:
 	constexpr entity_range_view get_entities() const noexcept {
 		if constexpr (detail::global<T>) {
 			// globals are accessible to all entities
-			//static constinit entity_range global_range = entity_range::all();
-			//return entity_range_view{&global_range, 1};
+			// static constinit entity_range global_range = entity_range::all();
+			// return entity_range_view{&global_range, 1};
 			return ordered_active_ranges;
 		} else {
 			return ordered_active_ranges;
@@ -1576,6 +1610,7 @@ public:
 		free_all_chunks();
 		deferred_adds.reset();
 		deferred_spans.reset();
+		deferred_gen.reset();
 		deferred_removes.reset();
 		ordered_active_ranges.clear();
 		ordered_chunks.clear();
@@ -1592,9 +1627,9 @@ public:
 
 private:
 	constexpr chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
-							bool owns_data = true, bool split_data = false) noexcept {
+									  bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = alloc_chunk.allocate(1);
-		std::construct_at(c, range, active, data, next, owns_data , split_data);
+		std::construct_at(c, range, active, data, next, owns_data, split_data);
 
 		auto const range_it = find_in_ordered_active_ranges(active);
 		auto const dist = ranges_dist(range_it);
@@ -1725,6 +1760,8 @@ private:
 			// Construct from a value or a a span of values
 			if constexpr (std::is_same_v<T, Data>) {
 				std::construct_at(&c->data[ent_offset + i], comp_data);
+			} else if constexpr (std::is_invocable_v<Data, entity_id>) {
+				std::construct_at(&c->data[ent_offset + i], comp_data(range.first() + i));
 			} else {
 				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
 			}
@@ -1831,54 +1868,55 @@ private:
 	// Add new queued entities and components to the main storage.
 	constexpr void process_add_components() noexcept {
 		// Combine the components in to a single vector
-		std::vector<entity_data> adds;
-		std::vector<entity_span> spans;
-		deferred_adds.gather_flattened(std::back_inserter(adds));
-		deferred_spans.gather_flattened(std::back_inserter(spans));
+		std::vector<entity_data> vec_adds;
+		std::vector<entity_span> vec_spans;
+		std::vector<entity_gen> vec_gens;
+		deferred_adds.gather_flattened(std::back_inserter(vec_adds));
+		deferred_spans.gather_flattened(std::back_inserter(vec_spans));
+		deferred_gen.gather_flattened(std::back_inserter(vec_gens));
 
-		if (adds.empty() && spans.empty()) {
+		if (vec_adds.empty() && vec_spans.empty() && vec_gens.empty()) {
 			return;
 		}
 
 		// Clear the current adds
 		deferred_adds.reset();
 		deferred_spans.reset();
+		deferred_gen.reset();
 
-		// Sort the input
+		// Sort the input(s)
 		auto const comparator = [](auto const& l, auto const& r) {
 			return std::get<0>(l) < std::get<0>(r);
 		};
-		if (!std::is_constant_evaluated() || (sizeof(entity_data) * adds.size() < parallelization_size_tipping_point))
-			std::sort(adds.begin(), adds.end(), comparator);
-		else
-			std::sort(std::execution::par, adds.begin(), adds.end(), comparator);
-
-		if (!std::is_constant_evaluated() || (sizeof(entity_data) * spans.size() < parallelization_size_tipping_point))
-			std::sort(spans.begin(), spans.end(), comparator);
-		else
-			std::sort(std::execution::par, spans.begin(), spans.end(), comparator);
+		std::sort(vec_adds.begin(), vec_adds.end(), comparator);
+		std::sort(vec_spans.begin(), vec_spans.end(), comparator);
+		std::sort(vec_gens.begin(), vec_gens.end(), comparator);
 
 		// Merge adjacent ranges that has the same data
 		if constexpr (unbound<T>)
-			combine_erase(adds, combiner_unbound);
+			combine_erase(vec_adds, combiner_unbound);
 		else
-			combine_erase(adds, combiner_bound);
+			combine_erase(vec_adds, combiner_bound);
 
 		// Do the insertions
 		chunk* prev = nullptr;
 		chunk* curr = head;
 
-		auto it_adds = adds.begin();
-		auto it_spans = spans.begin();
+		auto it_adds = vec_adds.begin();
+		auto it_spans = vec_spans.begin();
+		auto it_gens = vec_gens.begin();
 
 		// Create head chunk if needed
 		if (head == nullptr) {
-			if (it_adds != adds.end()) {
+			if (it_adds != vec_adds.end()) {
 				head = create_new_chunk(it_adds);
 				++it_adds;
-			} else {
+			} else if (it_spans != vec_spans.end()) {
 				head = create_new_chunk(it_spans);
 				++it_spans;
+			} else {
+				head = create_new_chunk(it_gens);
+				++it_gens;
 			}
 
 			curr = head;
@@ -1928,7 +1966,7 @@ private:
 		};
 
 		// Fill in values
-		while (it_adds != adds.end()) {
+		while (it_adds != vec_adds.end()) {
 			merge_data(it_adds);
 			++it_adds;
 		}
@@ -1936,9 +1974,17 @@ private:
 		// Fill in spans
 		prev = nullptr;
 		curr = head;
-		while (it_spans != spans.end()) {
+		while (it_spans != vec_spans.end()) {
 			merge_data(it_spans);
 			++it_spans;
+		}
+
+		// Fill in generators
+		prev = nullptr;
+		curr = head;
+		while (it_gens != vec_gens.end()) {
+			merge_data(it_gens);
+			++it_gens;
 		}
 
 		// Check it
@@ -2518,80 +2564,59 @@ namespace ecs::detail {
 // Given a type T, if it is callable with an entity argument,
 // resolve to the return type of the callable. Otherwise assume the type T.
 template <typename T>
-struct get_type {
-	using type = T;
-};
+using get_type_t = std::conditional_t<std::invocable<T, entity_type>,
+	std::invoke_result<T, entity_type>,
+	std::type_identity<T>>;
 
-template <std::invocable<entity_type> T>
-struct get_type<T> {
-	using type = std::invoke_result_t<T, entity_type>;
-};
-
-template <typename T>
-using get_type_t = typename get_type<T>::type;
 
 // Returns true if all types passed are unique
 template <typename First, typename... T>
-constexpr bool unique_types() {
+constexpr bool is_unique_types() {
 	if constexpr ((std::is_same_v<First, T> || ...))
 		return false;
 	else {
 		if constexpr (sizeof...(T) == 0)
 			return true;
 		else
-			return unique_types<T...>();
+			return is_unique_types<T...>();
 	}
 }
 
-template <typename First, typename... T>
-constexpr static bool unique_types_v = unique_types<get_type<First>, get_type_t<T>...>();
 
-// Ensure that any type in the parameter pack T is only present once.
-template <typename First, typename... T>
-concept unique = unique_types_v<First, T...>;
+// Find the types a sorting predicate takes
+template <class R, class T>
+constexpr std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
-// Gets the type a sorting function operates on.
-template <class R, class A, class B, class... C>
-struct get_sorter_types_impl {
-	explicit get_sorter_types_impl(R (*)(A, B)) {
-		static_assert(sizeof...(C) == 0, "two arguments expected in sorting predicate");
-		static_assert(std::is_same_v<A, B>, "types must be identical");
+template <class R, class C, class T>
+constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
+template <class R, class C, class T>
+constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
+
+
+template <class Pred>
+constexpr auto get_sorter_type() {
+	// Verify predicate
+	static_assert(
+		requires {
+			{ Pred{}({}, {}) } -> std::same_as<bool>;
+		},
+		"predicates must take two arguments and return a bool");
+
+	if constexpr (requires { &Pred::operator(); }) {
+		return get_sorter_type(&Pred::operator());
+	} else {
+		return get_sorter_type(Pred{});
 	}
-	explicit get_sorter_types_impl(R (A::*)(B, C...) const) {
-		static_assert(sizeof...(C) == 1, "two arguments expected in sorting predicate");
-		static_assert(std::is_same_v<B, C...>, "types must be identical");
-	}
+}
 
-	using type1 = std::conditional_t<sizeof...(C) == 0, std::remove_cvref_t<A>, std::remove_cvref_t<B>>;
-	using type2 = std::conditional_t<sizeof...(C) == 0, std::remove_cvref_t<B>, std::remove_cvref_t<type_list_at<0, type_list<C...>>>>;
-};
+template <class Pred>
+using sorter_predicate_type_t = decltype(get_sorter_type<Pred>());
 
-template <class T1, class T2>
-struct get_sorter_types {
-	template <class T>
-	requires requires {
-		&T::operator();
-	}
-	explicit get_sorter_types(T) {}
-
-	template <class R, class A, class B>
-	explicit get_sorter_types(R (*)(A, B)) {}
-
-	using type1 = std::remove_cvref_t<T1>;
-	using type2 = std::remove_cvref_t<T2>;
-};
-
-template <class R, class A, class B>
-get_sorter_types(R (*)(A, B)) -> get_sorter_types<A, B>;
-
-template <class T>
-get_sorter_types(T) -> get_sorter_types< // get_sorter_types(&T::operator()) // deduction guides can't refer to other guides :/
-	typename decltype(get_sorter_types_impl(&T::operator()))::type1, typename decltype(get_sorter_types_impl(&T::operator()))::type2>;
 
 // Implement the requirements for ecs::parent components
 template <typename C>
 constexpr void verify_parent_component() {
-	if constexpr (detail::is_parent<std::remove_cvref_t<C>>::value) {
+	if constexpr (detail::is_parent<C>::value) {
 		using parent_subtypes = parent_type_list_t<std::remove_cvref_t<C>>;
 		constexpr size_t total_subtypes = type_list_size<parent_subtypes>;
 
@@ -2602,7 +2627,6 @@ constexpr void verify_parent_component() {
 
 			// Count all the types minus filters in the parent type
 			constexpr size_t num_parent_subtypes = total_subtypes - num_subtype_filters;
-			// std::tuple_size_v<parent_types_tuple_t<std::remove_cvref_t<C>>> - num_parent_subtype_filters;
 
 			// If there is one-or-more sub-components,
 			// then the parent must be passed as a reference
@@ -2638,7 +2662,7 @@ template <class R, class FirstArg, class... Args>
 constexpr void system_verifier() {
 	static_assert(std::is_same_v<R, void>, "systems can not have returnvalues");
 
-	static_assert(unique_types_v<FirstArg, Args...>, "component parameter types can only be specified once");
+	static_assert(is_unique_types<FirstArg, Args...>(), "component parameter types can only be specified once");
 
 	if constexpr (is_entity<FirstArg>) {
 		static_assert(sizeof...(Args) > 0, "systems must take at least one component argument");
@@ -2662,31 +2686,19 @@ constexpr void system_verifier() {
 
 // A small bridge to allow the Lambda to activate the system verifier
 template <class R, class C, class FirstArg, class... Args>
-struct system_to_lambda_bridge {
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-};
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class C, class FirstArg, class... Args>
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class C, class FirstArg, class... Args>
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class C, class FirstArg, class... Args>
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 // A small bridge to allow the function to activate the system verifier
 template <class R, class FirstArg, class... Args>
-struct system_to_func_bridge {
-	explicit system_to_func_bridge(R (*)(FirstArg, Args...)) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-	explicit system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) {
-		system_verifier<R, FirstArg, Args...>();
-	};
-};
+constexpr void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+template <class R, class FirstArg, class... Args>
+constexpr void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 template <typename T>
 concept type_is_lambda = requires {
@@ -2695,11 +2707,11 @@ concept type_is_lambda = requires {
 
 template <typename T>
 concept type_is_function = requires(T t) {
-	system_to_func_bridge{t};
+	system_to_func_bridge(t);
 };
 
-template <typename TupleOptions, typename SystemFunc, typename SortFunc>
-void make_system_parameter_verifier() {
+template <typename OptionsTypeList, typename SystemFunc, typename SortFunc>
+constexpr void make_system_parameter_verifier() {
 	bool constexpr is_lambda = type_is_lambda<SystemFunc>;
 	bool constexpr is_func = type_is_function<SystemFunc>;
 
@@ -2707,26 +2719,20 @@ void make_system_parameter_verifier() {
 
 	// verify the system function
 	if constexpr (is_lambda) {
-		system_to_lambda_bridge const stlb(&SystemFunc::operator());
+		system_to_lambda_bridge(&SystemFunc::operator());
 	} else if constexpr (is_func) {
-		system_to_func_bridge const stfb(SystemFunc{});
+		system_to_func_bridge(SystemFunc{});
 	}
 
 	// verify the sort function
 	if constexpr (!std::is_same_v<std::nullptr_t, SortFunc>) {
-		bool constexpr is_sort_lambda = type_is_lambda<SystemFunc>;
-		bool constexpr is_sort_func = type_is_function<SystemFunc>;
+		bool constexpr is_sort_lambda = type_is_lambda<SortFunc>;
+		bool constexpr is_sort_func = type_is_function<SortFunc>;
 
 		static_assert(is_sort_lambda || is_sort_func, "invalid sorting function");
 
-		using sort_types = decltype(get_sorter_types(SortFunc{}));
-		if constexpr (is_sort_lambda) {
-			static_assert(std::predicate<SortFunc, typename sort_types::type1, typename sort_types::type2>,
-						  "Sorting function is not a predicate");
-		} else if constexpr (is_sort_func) {
-			static_assert(std::predicate<SortFunc, typename sort_types::type1, typename sort_types::type2>,
-						  "Sorting function is not a predicate");
-		}
+		using sort_types = sorter_predicate_type_t<SortFunc>;
+		static_assert(std::predicate<SortFunc, sort_types, sort_types>, "Sorting function is not a predicate");
 	}
 }
 
@@ -3201,11 +3207,20 @@ protected:
 	static constexpr int parent_index = test_option_index<is_parent, stripped_component_list>;
 	static constexpr bool has_parent_types = (parent_index != -1);
 
+	// count parent components, if any
+	template<class T>
+	static constexpr int get_num_parent_components() {
+		if constexpr (std::is_same_v<void, T>)
+			return 0;
+		else
+			return type_list_size<T>;
+	}
+
 	// The parent type, or void
 	using full_parent_type = type_list_at_or<parent_index, component_list, void>;
-	using stripped_parent_type = std::remove_cvref_t<full_parent_type>;
+	using stripped_parent_type = std::remove_pointer_t<std::remove_cvref_t<full_parent_type>>;
 	using parent_component_list = parent_type_list_t<stripped_parent_type>;
-	static constexpr int num_parent_components = type_list_size<parent_component_list>;
+	static constexpr int num_parent_components = get_num_parent_components<parent_component_list>();
 };
 } // namespace ecs::detail
 
@@ -3294,7 +3309,7 @@ private:
 	// True if the data needs to be sorted
 	bool needs_sorting = false;
 
-	using sort_types = typename decltype(get_sorter_types(SortFunc{}))::type1;
+	using sort_types = sorter_predicate_type_t<SortFunc>;
 };
 } // namespace ecs::detail
 
@@ -3386,8 +3401,8 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 	using info_map = std::unordered_map<entity_type, entity_info>;
 	using info_iterator = typename info_map::const_iterator;
 
-	using argument = decltype(
-		std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(), std::tuple<entity_info>{}));
+	using argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(),
+											 std::tuple<entity_info>{}));
 
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
@@ -3844,10 +3859,7 @@ public:
 		sched.clear();
 		type_pool_lookup.clear();
 		component_pools.clear();
-
-		type_caches.for_each([](auto& cache) { cache.reset(); });
-		// type_caches.clear();  // DON'T! It will remove access to existing thread_local vars,
-		// which means they can't be reached and reset
+		type_caches.reset();
 	}
 
 	// Returns a reference to a components pool.
@@ -4021,7 +4033,7 @@ public:
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename First, typename... T>
 	constexpr void add_component(entity_range const range, First&& first_val, T&&... vals) {
-		static_assert(detail::unique<First, T...>, "the same component was specified more than once");
+		static_assert(detail::is_unique_types<First, T...>(), "the same component was specified more than once");
 		static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
 					  "can not add pointers to entities; wrap them in a struct");
@@ -4062,7 +4074,26 @@ public:
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
 		pool.add_span(range, std::span{vals});
 	}
-	
+
+	template <typename Fn>
+	void add_component_generator(entity_range const range, Fn&& gen) {
+		// Return type of 'func'
+		using ComponentType = decltype(std::declval<Fn>()(entity_id{0}));
+		static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
+
+		if constexpr (detail::is_parent<std::remove_cvref_t<ComponentType>>::value) {
+			auto const converter = [gen = std::forward<Fn>(gen)](entity_id id) {
+				return detail::parent_id{gen(id).id()};
+			};
+
+			auto& pool = ctx.get_component_pool<detail::parent_id>();
+			pool.add_generator(range, converter);
+		} else {
+			auto& pool = ctx.get_component_pool<ComponentType>();
+			pool.add_generator(range, std::forward<Fn>(gen));
+		}
+	}
+
 	// Add several components to an entity. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename First, typename... T>
