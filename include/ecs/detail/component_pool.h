@@ -3,6 +3,7 @@
 
 #include <execution>
 #include <functional>
+#include <memory>
 #include <ranges>
 #include <vector>
 
@@ -49,6 +50,10 @@ private:
 	using allocator_type = Alloc;
 
 	struct chunk {
+		constexpr chunk(entity_range range, entity_range active, T* data = nullptr, chunk* next = nullptr, bool owns_data = false,
+						bool has_split_data = false) noexcept
+			: range(range), active(active), data(data), next(next), owns_data(owns_data), has_split_data(has_split_data) {}
+
 		// The full range this chunk covers.
 		entity_range range;
 
@@ -57,14 +62,14 @@ private:
 
 		// The data for the full range of the chunk (range.count())
 		// The tag signals if this chunk owns this data and should clean it up
-		T* data = nullptr;
+		T* data;
 
 		// Points to the next chunk in the list.
 		// The tag signals if this chunk has been split
-		chunk* next = nullptr;
+		chunk* next;
 
-		bool owns_data = false;
-		bool has_split_data = false;
+		bool owns_data;
+		bool has_split_data;
 	};
 	// static_assert(sizeof(chunk) == 32);
 
