@@ -361,9 +361,14 @@ TEST_CASE("Component pool specification", "[component]") {
 			auto const test = [] {
 				struct some_global {
 					ecs_flags(ecs::flag::global);
+					int v = 0;
 				};
 				ecs::detail::component_pool<some_global> pool;
-				return (&pool.get_shared_component() != nullptr);
+
+				// if the component is not available, this will crash/fail
+				pool.get_shared_component().v += 1;
+
+				return true;
 			};
 			CONSTEXPR_UNITTEST(test());
 			REQUIRE(test());
