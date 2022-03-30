@@ -14,7 +14,7 @@ The following example shows the basics of the library.
 
 ```cpp
 #include <iostream>
-#include <ecs/ecs.h>
+#include <ecs/rt.h>
 
 // The component
 struct greeting {
@@ -22,18 +22,18 @@ struct greeting {
 };
 
 int main() {
-    ecs::runtime ecs;
+    ecs::runtime rt;
 
     // The system
-    ecs.make_system([](greeting const& g) {
+    rt.make_system([](greeting const& g) {
         std::cout << g.msg;
     });
 
     // The entities
-    ecs.add_component({0, 2}, greeting{"alright "});
+    rt.add_component({0, 2}, greeting{"alright "});
 
     // Run it
-    ecs.update();
+    rt.update();
 }
 ```
 
@@ -104,19 +104,41 @@ You can add as many different components to an entity as you need; there is no u
 <br>
 
 ## Adding components to entities[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/E3hrxEez8)
-Adding components is done with the function `ecs::add_component()`.
+Adding components is done with the following functions:
 
+### `ecs::runtime::add_component()`
+Adds singular values to one-or-more entities.
 ```cpp
-ecs.add_component(0, 4UL, 3.14f, 6.28); // add an unsigned long, a float, and a double to entity 0
+rt.add_component(0, 4UL, 3.14f, 6.28); // add an unsigned long, a float, and a double to entity 0
 
-ecs.entity_id ent{1};
-ecs.add_component(ent, "hello"sv);      // add std::string_view to entity 1
+rt.entity_id ent{1};
+rt.add_component(ent, "hello"sv);      // add std::string_view to entity 1
 
 ecs::entity_range more_ents{1,100};     // entity range of ids from 1 to (and including) 100
-ecs.add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 floats with value 0.1f
-ecs.add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entities
+rt.add_component(more_ents, 3, 0.1f);  // add 100 ints with value 3 and 100 floats with value 0.1f
+rt.add_component({1,50}, 'A', 2.2);    // add a char and a double to 50 entities
 // etc..
 ```
+
+### `ecs::runtime::add_component_span()`
+Copies the values from a user provided span that satisfies [std::ranges::contiguous_range](https://en.cppreference.com/w/cpp/ranges/contiguous_range). The entity- and component count must be equal.
+```cpp
+std::vector<int> vec{ /* ... */ }
+ecs::entity_range range{1, vec.size()};
+rt.add_component_span(range, vec);
+```
+
+### `ecs::runtime::add_component_generator()`
+Fills the components of an entity range with the result of calling a user-supplied generator function. The function must be of the format `T(ecs::entity_id)`, where `T` is the component type returned by the function. The function will be called, in order, for each entity id in the range. The component type is automatically deduced from the generators return type.
+
+```cpp
+ecs::entity_range range{25, 99};
+auto const gen = [](ecs::entity_id id) {
+    return rand() + static_cast<int>(id);
+};
+rt.add_component_generator(range, gen);
+```
+
 
 <br>
 
@@ -141,7 +163,7 @@ struct pos {
 
 // ...
 
-ecs.add_component({ 0, dimension * dimension},
+rt.add_component({ 0, dimension * dimension},
     [](ecs::entity_id ent) -> pos {
         int const x = ent % dimension;
         int const y = ent / dimension;
@@ -154,7 +176,7 @@ ecs.add_component({ 0, dimension * dimension},
 Systems holds the logic that operates on components that are attached to entities, and are built using `ecs::runtime::make_system` by passing it a lambda or a free-standing function.
 
 ```cpp
-#include <ecs/ecs.h>
+#include <ecs/rt.h>
 
 struct component1;
 struct component2;
@@ -165,9 +187,9 @@ auto read_write_system = [](component1&, component2 const&) { /* logic */ }
 
 int main() {
     ecs::runtime ecs;
-    ecs.make_system(read_only_system);
-    ecs.make_system(read_write_system);
-    ecs.make_system([](component2&, component3&) { // read/write to two components
+    rt.make_system(read_only_system);
+    rt.make_system(read_write_system);
+    rt.make_system([](component2&, component3&) { // read/write to two components
         /* logic */
     });
 }
@@ -191,7 +213,7 @@ There are a few requirements and restrictions put on the lambdas:
 ## Parallel-by-default systems
 Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up loosing performance instead. A good profiler can often help with this determination.
 
-The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code if your system accesses data outside the purview of ecs.
+The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code if your system accesses data outside the purview of rt.
 
 Adding and removing components from entities in parallel systems is a thread-safe operation.
 
@@ -214,7 +236,7 @@ Multiple systems that read from the same component can safely run concurrently.
 If you need access to the entity currently being processed by a system, make the first parameter type an `ecs::entity_id`. The entity will only be passed as a value, so trying to accept it as anything else will result in a compile time error.
 
 ```cpp
-ecs.make_system([](ecs::entity_id ent, greeting const& g) {
+rt.make_system([](ecs::entity_id ent, greeting const& g) {
     std::cout << "entity with id " << ent << " says: " << g.msg << '\n';
 });
 ```
@@ -227,17 +249,17 @@ An additional function object can be passed along to `ecs::runtime::make_system`
 ecs::runtime ecs;
 
 // sort descending
-auto &sys_dec = ecs.make_system(
+auto &sys_dec = rt.make_system(
     [](int const&) { /* ... */ },
     std::less<int>());
 
 // sort ascending
-auto & sys_asc = ecs.make_system(
+auto & sys_asc = rt.make_system(
     [](int const&) { /* ... */ },
     std::greater<int>());
 
 // sort length
-auto &sys_pos = ecs.make_system(
+auto &sys_pos = rt.make_system(
     [](position& pos, some_component const&) { /* ... */ },
     [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
 ```
@@ -255,7 +277,7 @@ Sorting functions must correspond to a type that is processed by the system, or 
 ## Filtering[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/zE9Yh5Kbh)
 Components can be filtered by marking the component you wish to filter as a pointer argument:
 ```cpp
-ecs.make_system([](int&, float*) { /* ... */ });
+rt.make_system([](int&, float*) { /* ... */ });
 ```
 This system will run on all entities that has an `int` component and no `float` component.
 
@@ -267,12 +289,12 @@ More than one filter can be present; there is no limit.
 ## Hierarchies
 Hierarchies can be created by adding the special component `ecs::parent` to an entity:
 ```cpp
-ecs.add_component({1}, ecs::parent{0});
+rt.add_component({1}, ecs::parent{0});
 ```
 This alone does not create a hierarchy, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter:
 
 ```cpp
-ecs.make_system([](entity_id id, parent<> const& p) {
+rt.make_system([](entity_id id, parent<> const& p) {
   // id == 1, p.id() == 0
 });
 ```
@@ -285,38 +307,38 @@ If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must alw
 
  More than one sub-component can be specified; there is no upper limit.
 ```cpp
-ecs.add_component(2, short{10});
-ecs.add_component(3, long{20});
-ecs.add_component(4, float{30});
+rt.add_component(2, short{10});
+rt.add_component(3, long{20});
+rt.add_component(4, float{30});
 
-ecs.add_component({5, 7}, ecs::parent{2});  // short children, parent 2 has a short
-ecs.add_component({7, 9}, ecs::parent{3});  // long children, parent 3 has a long
-ecs.add_component({9, 11}, ecs::parent{4}); // float children, parent 4 has a float
+rt.add_component({5, 7}, ecs::parent{2});  // short children, parent 2 has a short
+rt.add_component({7, 9}, ecs::parent{3});  // long children, parent 3 has a long
+rt.add_component({9, 11}, ecs::parent{4}); // float children, parent 4 has a float
 
 // Systems that only runs on entities that has a parent with a specific component,
-ecs.make_system([](ecs::parent<short> const& p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
-ecs.make_system([](ecs::parent<long>  const& p) { /* 20 == p.get<long>() */ });   // runs on entities 7-9
-ecs.make_system([](ecs::parent<float> const& p) { /* 30 == p.get<float>() */ });  // runs on entities 9-11
-ecs.make_system([](ecs::parent<short, long> const& p) { // runs on entity 7
+rt.make_system([](ecs::parent<short> const& p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
+rt.make_system([](ecs::parent<long>  const& p) { /* 20 == p.get<long>() */ });   // runs on entities 7-9
+rt.make_system([](ecs::parent<float> const& p) { /* 30 == p.get<float>() */ });  // runs on entities 9-11
+rt.make_system([](ecs::parent<short, long> const& p) { // runs on entity 7
   /* 10 == p.get<short>() */
   /* 20 == p.get<long>() */
 ); 
 
 // Fails
-//ecs.make_system([](ecs::parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
+//rt.make_system([](ecs::parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
 ```
 
 ### Filtering on parents components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/v14T1efbK)
 Filters work like regular component filters and can be specified on a parents sub-components:
 ```cpp
-ecs.make_system([](ecs::parent<short*> p) { });  // runs on entities 8-11
+rt.make_system([](ecs::parent<short*> p) { });  // runs on entities 8-11
 ```
 An `ecs::parent` that only consist of filters does not need to be passed as a reference.
 
 
 Marking the parent itself as a filter means that any entity with a parent component on it will be ignored. Any sub-components specified are ignored.
 ```cpp
-ecs.make_system([](int, ecs::parent<> *p) { });  // runs on entities with an int and no parents
+rt.make_system([](int, ecs::parent<> *p) { });  // runs on entities with an int and no parents
 ```
 
 ### Traversal and layout
@@ -332,7 +354,7 @@ The following options can be passed along to `make_system` calls in order to cha
 `opts::interval` takes a millisecond count and an optional microsecond count (defaults to zero). An `opts::interval<0, 0>` is considered to have no interval and will run every cycle.
 
 ```cpp
-ecs.make_system<ecs::opts::interval<16, 667>>([](int const&) {
+rt.make_system<ecs::opts::interval<16, 667>>([](int const&) {
     std::cout << "at least 16.667 ms has passed\n";
 });
 ```
@@ -342,18 +364,18 @@ ecs.make_system<ecs::opts::interval<16, 667>>([](int const&) {
 Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
 
 ```cpp
-ecs.make_system<ecs::opts::group<1>>([](int const&) {
+rt.make_system<ecs::opts::group<1>>([](int const&) {
     std::cout << "hello from group one\n";
 });
-ecs.make_system<ecs::opts::group<-1>>([](int const&) {
+rt.make_system<ecs::opts::group<-1>>([](int const&) {
     std::cout << "hello from group negative one\n";
 });
-ecs.make_system([](int const&) { // same as 'ecs::opts::group<0>'
+rt.make_system([](int const&) { // same as 'ecs::opts::group<0>'
     std::cout << "hello from group whatever\n";
 });
 // ...
-ecs.add_component(0, int{});
-ecs.update();
+rt.add_component(0, int{});
+rt.update();
 ```
 
 Running the above code will print out
@@ -369,10 +391,10 @@ Systems marked as being manually updated will not be added to the scheduler, and
 Calls to `ecs::runtime::commit_changes()` will still cause the system to respond to changes in components.
 
 ```cpp
-auto& manual_sys = ecs.make_system<ecs::opts::manual_update>([](int const&) { /* ... */ });
+auto& manual_sys = rt.make_system<ecs::opts::manual_update>([](int const&) { /* ... */ });
 // ...
-ecs.add_component(0, int{});
-ecs.update(); // will not run 'manual_sys'
+rt.add_component(0, int{});
+rt.update(); // will not run 'manual_sys'
 manual_sys.run(); // required to run the system
 ```
 
@@ -401,7 +423,7 @@ always passed by value. This is to discourage the use of tags to share some kind
 for instead.
 
 ```cpp
-ecs.make_system([](greeting const& g, freezable) {
+rt.make_system([](greeting const& g, freezable) {
   // code to operate on entities that has a greeting and are freezable
 });
 ```
@@ -421,9 +443,9 @@ struct damage {
     double value;
 };
 // ...
-ecs.add_component({0,99}, damage{9001});
-ecs.commit_changes(); // adds the 100 damage components
-ecs.commit_changes(); // removes the 100 damage components
+rt.add_component({0,99}, damage{9001});
+rt.commit_changes(); // adds the 100 damage components
+rt.commit_changes(); // removes the 100 damage components
 ```
 
 ### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ETjKzbE7o)
@@ -435,9 +457,9 @@ struct frame_data {
     double delta_time = 0.0;
 };
 // ...
-ecs.add_component({0, 100}, position{}, velocity{});
+rt.add_component({0, 100}, position{}, velocity{});
 // ...
-ecs.make_system([](position& pos, velocity const& vel, frame_data const& fd) {
+rt.make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
 });
 ```
@@ -450,7 +472,7 @@ Global components can contain `std::atomic<>` types, unlike regular components, 
 With [global components](#global) it is also possible to create *global systems*, which are a special kind of system that only operates on global components. Global systems are only run once per update cycle.
 
 ```cpp
-ecs.make_system([](frame_data& fd) {
+rt.make_system([](frame_data& fd) {
     static auto clock_last = std::chrono::high_resolution_clock::now();
     auto const clock_now = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> const diff = clock_now - clock_last;
