@@ -49,6 +49,7 @@ $files = (
 #include <concepts>
 #include <cstdint>
 #include <execution>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
