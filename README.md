@@ -111,7 +111,7 @@ Adds singular values to one-or-more entities.
 ```cpp
 rt.add_component(0, 4UL, 3.14f, 6.28); // add an unsigned long, a float, and a double to entity 0
 
-rt.entity_id ent{1};
+ecs::entity_id ent{1};
 rt.add_component(ent, "hello"sv);      // add std::string_view to entity 1
 
 ecs::entity_range more_ents{1,100};     // entity range of ids from 1 to (and including) 100
@@ -128,30 +128,9 @@ ecs::entity_range range{1, vec.size()};
 rt.add_component_span(range, vec);
 ```
 
-### `ecs::runtime::add_component_generator()`
+### `ecs::runtime::add_component_generator()` [<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/xefMMz93r)
 Fills the components of an entity range with the result of calling a user-supplied generator function. The function must be of the format `T(ecs::entity_id)`, where `T` is the component type returned by the function. The function will be called, in order, for each entity id in the range. The component type is automatically deduced from the generators return type.
 
-```cpp
-ecs::entity_range range{25, 99};
-auto const gen = [](ecs::entity_id id) {
-    return rand() + static_cast<int>(id);
-};
-rt.add_component_generator(range, gen);
-```
-
-
-<br>
-
-## Committing component changes[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/8sTcG9YYv)
-Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
-
-By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
-
-
-## Generators[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/GoMdKobx5)
-When adding components to entities, you can specify a generator instead of a default constructed component
-if you need the individual components to have different initial states. Generators have the signature
-of `T(ecs::entity_id)`, where `T` is the component type that the generator makes.
 In the [mandelbrot](https://github.com/kgorking/ecs/blob/master/examples/mandelbrot/mandelbrot.cpp) example,
 a generator is used to create the (x,y) coordinates of the individual pixels from the entity id:
 
@@ -163,7 +142,7 @@ struct pos {
 
 // ...
 
-rt.add_component({ 0, dimension * dimension},
+rt.add_component_generator({ 0, dimension * dimension},
     [](ecs::entity_id ent) -> pos {
         int const x = ent % dimension;
         int const y = ent / dimension;
@@ -171,6 +150,14 @@ rt.add_component({ 0, dimension * dimension},
     }
 );
 ```
+
+<br>
+
+## Committing component changes[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/8sTcG9YYv)
+Adding and removing components from entities are deferred, and will not be processed until a call to `ecs::commit_changes()` or `ecs::update()` is called, where the latter function also calls the former. Changes should only be committed once per cycle.
+
+By deferring the components changes to entities, it is possible to safely add and remove components in parallel systems, without the fear of causing data-races or doing unneeded locks.
+
 
 # Systems
 Systems holds the logic that operates on components that are attached to entities, and are built using `ecs::runtime::make_system` by passing it a lambda or a free-standing function.
