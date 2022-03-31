@@ -50,9 +50,9 @@ private:
 	using allocator_type = Alloc;
 
 	struct chunk {
-		constexpr chunk(entity_range range, entity_range active, T* data = nullptr, chunk* next = nullptr, bool owns_data = false,
-						bool has_split_data = false) noexcept
-			: range(range), active(active), data(data), next(next), owns_data(owns_data), has_split_data(has_split_data) {}
+		constexpr chunk(entity_range range_, entity_range active_, T* data_ = nullptr, chunk* next_ = nullptr, bool owns_data_ = false,
+						bool has_split_data_ = false) noexcept
+			: range(range_), active(active_), data(data_), next(next_), owns_data(owns_data_), has_split_data(has_split_data_) {}
 
 		// The full range this chunk covers.
 		entity_range range;
