@@ -181,11 +181,11 @@ private:
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	auto& create_system(UpdateFn update_func, SortFn sort_func) {
 
-		// TODO amend options with FirstComponent == entity_id
+		// TODO amend options with FirstComponent == entity_id/meta
 
 		// Find potential parent type
 		using parent_type =
-			test_option_type_or<is_parent, type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
+			test_option_type_or<is_parent, type_list<FirstComponent, Components...>, void>;
 
 		// Do some checks on the systems
 		bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
