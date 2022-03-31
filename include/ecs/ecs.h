@@ -1,4 +1,4 @@
-#if 1
+#if 0
 #include "runtime.h"
 #else
 // test single-include header
