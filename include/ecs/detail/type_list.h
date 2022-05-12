@@ -67,20 +67,15 @@ namespace impl {
 	//
 	// type_list concepts
 	template <class TL>
-	concept TypeList = detect_type_list(std::add_pointer_t<TL>{nullptr});
+	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
 
 
 
 	//
 	// helper functions
-	template <typename Type, typename F>
-	constexpr decltype(auto) invoke_type(F&& f) {
-		return f.template operator()<Type>();
-	}
-
 	template <typename... Types, typename F>
 	constexpr void for_each_type(F&& f, type_list<Types...>*) {
-		(invoke_type<Types>(f), ...);
+		(f.template operator()<Types>(), ...);
 	}
 
 	template <typename... Types, typename F>
@@ -90,12 +85,12 @@ namespace impl {
 
 	template <typename... Types, typename F>
 	constexpr bool all_of_type(F&& f, type_list<Types...>*) {
-		return (invoke_type<Types>(f) && ...);
+		return (f.template operator()<Types>() && ...);
 	}
 
 	template <typename... Types, typename F>
 	constexpr bool any_of_type(F&& f, type_list<Types...>*) {
-		return (invoke_type<Types>(f) || ...);
+		return (f.template operator()<Types>() || ...);
 	}
 } // namespace impl
 
@@ -103,7 +98,8 @@ template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
 template <int I, impl::TypeList TL>
-using type_list_at = typename impl::type_list_at<I, TL>::type;
+using type_list_at = impl::type_list_at<I, TL>;
+//using type_list_at = typename impl::type_list_at<I, TL>::type;
 
 template <int I, impl::TypeList TL, typename OrType>
 using type_list_at_or = typename impl::type_list_at_or<I, OrType, TL>::type;
