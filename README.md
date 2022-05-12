@@ -66,7 +66,7 @@ The CI build status for msvc, clang, and gcc is currently:
   - [Parallel-by-default systems](#parallel-by-default-systems)
   - [Automatic concurrency](#automatic-concurrency)
   - [The current entity](#the-current-entity)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/z9xYvd4Gc)
-  - [Sorting](#sorting)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ocnoPW9dT)
+  - [Sorting](#sorting)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/xKfTdWqnY)
   - [Filtering](#filtering)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/zE9Yh5Kbh)
   - [Hierarchies](#hierarchies)
     - [Accessing parent components](#Accessing-parent-components)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/Toxc5MTbj)
@@ -229,7 +229,7 @@ rt.make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ocnoPW9dT)
+## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/xKfTdWqnY)
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
