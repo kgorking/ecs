@@ -11,6 +11,8 @@
 
 //#include "component_pool.h"
 namespace ecs::detail {
+class component_pool_base;
+
 template <typename, typename>
 class component_pool;
 }
