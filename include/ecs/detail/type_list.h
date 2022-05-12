@@ -98,8 +98,7 @@ template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
 template <int I, impl::TypeList TL>
-using type_list_at = impl::type_list_at<I, TL>;
-//using type_list_at = typename impl::type_list_at<I, TL>::type;
+using type_list_at = typename impl::type_list_at<I, TL>::type;
 
 template <int I, impl::TypeList TL, typename OrType>
 using type_list_at_or = typename impl::type_list_at_or<I, OrType, TL>::type;
