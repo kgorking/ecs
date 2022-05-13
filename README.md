@@ -163,7 +163,7 @@ By deferring the components changes to entities, it is possible to safely add an
 Systems holds the logic that operates on components that are attached to entities, and are built using `ecs::runtime::make_system` by passing it a lambda or a free-standing function.
 
 ```cpp
-#include <ecs/rt.h>
+#include <ecs/ecs.h>
 
 struct component1;
 struct component2;
