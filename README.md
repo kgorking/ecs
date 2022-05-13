@@ -9,7 +9,7 @@ More detail on what ecs is can be found [here](http://gameprogrammingpatterns.co
 
 Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-explorer logo next to them have a compiler-explorer example that you can play around with. Ctrl/CMD+Click the icon to open it in a new window.
 
-# An example[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/9Tjnvb8eW)
+# An example[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/6eoxx5PTs)
 The following example shows the basics of the library.
 
 ```cpp
