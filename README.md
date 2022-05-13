@@ -14,7 +14,7 @@ The following example shows the basics of the library.
 
 ```cpp
 #include <iostream>
-#include <ecs/rt.h>
+#include <ecs/ecs.h>
 
 // The component
 struct greeting {
