@@ -14,6 +14,10 @@ public:
 
 private:
 	void do_run() override {
+		
+		// slet tuple
+		// apply_type med .get_shared_component() på pølen
+
 		this->update_func(*std::get<std::remove_cvref_t<FirstComponent>*>(argument),
 						  *std::get<std::remove_cvref_t<Components>*>(argument)...);
 	}

@@ -11,7 +11,6 @@
 #include <limits>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <numeric>
 #include <optional>
 #include <ranges>
@@ -166,13 +165,13 @@ private:
 	thread_data *head{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
-	std::mutex* mtx_storage{};
+	std::shared_mutex* mtx_storage{};
 
 	// Data that is only used in constexpr evaluations
 	thread_data consteval_data{};
 
 protected:
-	[[nodiscard]] std::mutex& get_runtime_mutex() noexcept {
+	[[nodiscard]] std::shared_mutex& get_runtime_mutex() noexcept {
 		return *mtx_storage;
 	}
 
@@ -221,7 +220,7 @@ protected:
 public:
 	constexpr split() noexcept {
 		if (!std::is_constant_evaluated())
-			mtx_storage = new std::mutex;
+			mtx_storage = new std::shared_mutex;
 	}
 	constexpr split(split const&) = delete;
 	constexpr split(split&&) noexcept = default;
@@ -363,12 +362,12 @@ private:
 	std::vector<T> data{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
-	std::mutex* mtx_ptr{};
+	std::shared_mutex* mtx_ptr{};
 
 	// Data that is only used in constexpr evaluations
 	thread_data consteval_data;
 
-	[[nodiscard]] std::mutex& get_runtime_mutex() noexcept {
+	[[nodiscard]] std::shared_mutex& get_runtime_mutex() noexcept {
 		return *mtx_ptr;
 	}
 
@@ -424,7 +423,7 @@ private:
 public:
 	constexpr collect() noexcept {
 		if (!std::is_constant_evaluated())
-			mtx_ptr = new std::mutex{};
+			mtx_ptr = new std::shared_mutex{};
 	}
 	constexpr collect(collect const&) = delete;
 	constexpr collect(collect&&) noexcept = default;
@@ -604,20 +603,26 @@ namespace impl {
 	//
 	// type_list concepts
 	template <class TL>
-	concept TypeList = detect_type_list(std::add_pointer_t<TL>{nullptr});
+	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
 
 
 
 	//
 	// helper functions
-	template <typename Type, typename F>
-	constexpr decltype(auto) invoke_type(F&& f) {
-		return f.template operator()<Type>();
-	}
-
 	template <typename... Types, typename F>
 	constexpr void for_each_type(F&& f, type_list<Types...>*) {
-		(invoke_type<Types>(f), ...);
+		(f.template operator()<Types>(), ...);
+	}
+
+	template <typename T, typename... Types, typename F>
+	constexpr void for_specific_type(F&& f, type_list<Types...>*) {
+		auto const runner = []<typename X> {
+			if constexpr (std::is_same_v<T, X>) {
+				f();
+			}
+		};
+
+		(runner.template operator()<Types>(), ...);
 	}
 
 	template <typename... Types, typename F>
@@ -627,13 +632,28 @@ namespace impl {
 
 	template <typename... Types, typename F>
 	constexpr bool all_of_type(F&& f, type_list<Types...>*) {
-		return (invoke_type<Types>(f) && ...);
+		return (f.template operator()<Types>() && ...);
 	}
 
 	template <typename... Types, typename F>
 	constexpr bool any_of_type(F&& f, type_list<Types...>*) {
-		return (invoke_type<Types>(f) || ...);
+		return (f.template operator()<Types>() || ...);
 	}
+
+	template <template <class O> class Tester, typename... Types, typename F>
+	constexpr auto run_if(F&& /*f*/, type_list<>*) {
+		return;
+	}
+
+	template <template <class O> class Tester, typename FirstType, typename... Types, typename F>
+	constexpr auto run_if(F&& f, type_list<FirstType, Types...>*) {
+		if constexpr (Tester<FirstType>::value) {
+			return f.template operator()<FirstType>();
+		} else {
+			return run_if<Tester, Types...>(f, static_cast<type_list<Types...>*>(nullptr));
+		}
+	}
+
 } // namespace impl
 
 template <impl::TypeList TL>
@@ -650,6 +670,13 @@ using type_list_at_or = typename impl::type_list_at_or<I, OrType, TL>::type;
 template <impl::TypeList TL, typename F>
 constexpr void for_each_type(F&& f) {
 	impl::for_each_type(f, static_cast<TL*>(nullptr));
+}
+
+// Applies the functor F to a specific type in the type list.
+// Takes lambdas of the form '[]() {}'
+template <typename T, impl::TypeList TL, typename F>
+constexpr void for_specific_type(F&& f) {
+	impl::for_specific_type<T>(f, static_cast<TL*>(nullptr));
 }
 
 // Applies the functor F to all types in the type list.
@@ -673,6 +700,12 @@ constexpr bool all_of_type(F&& f) {
 template <impl::TypeList TL, typename F>
 constexpr bool any_of_type(F&& f) {
 	return impl::any_of_type(f, static_cast<TL*>(nullptr));
+}
+
+// Runs F once when a type satifies the tester. F takes a template parameter and can return values.
+template <template <class O> class Tester, impl::TypeList TL, typename F>
+constexpr auto run_if(F&& f) {
+	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
 }
 
 } // namespace ecs::detail
@@ -1016,11 +1049,11 @@ using entity_range_view = std::span<entity_range const>;
 
 
 namespace ecs::detail {
-template <typename Component, typename Pools>
-auto get_component(entity_id const, Pools const&);
+	template <typename Component, typename Pools>
+	auto get_component(entity_id const, Pools const&);
 
-template <class Pools>
-struct pool_entity_walker;
+	template <class Pools> struct pool_entity_walker;
+	template <class Pools> struct pool_range_walker;
 } // namespace ecs::detail
 
 namespace ecs {
@@ -1057,8 +1090,8 @@ private:
 	template <typename Component, typename Pools>
 	friend auto detail::get_component(entity_id const, Pools const&);
 
-	template <class Pools>
-	friend struct detail::pool_entity_walker;
+	template <class Pools> friend struct detail::pool_entity_walker;
+	template <class Pools> friend struct detail::pool_range_walker;
 
 	parent(entity_id id, std::tuple<ParentTypes*...> tup)
 		: entity_id(id)
@@ -1221,83 +1254,93 @@ struct is_parent {
 	static constexpr bool value = false;
 };
 template <typename T>
-requires requires {
-	typename T::_ecs_parent;
-}
+requires requires { typename std::remove_cvref_t<T>::_ecs_parent; }
 struct is_parent<T> {
 	static constexpr bool value = true;
 };
 
+
+
 // Contains detectors for the options
 namespace detect {
-template <int Index, template <class O> class Tester, class ListOptions>
-constexpr int find_tester_index() {
-	if constexpr (Index == type_list_size<ListOptions>) {
-		return -1; // type not found
-	} else if constexpr (Tester<type_list_at<Index, ListOptions>>::value) {
-		return Index;
-	} else {
-		return find_tester_index<Index + 1, Tester, ListOptions>();
-	}
-}
+	template <template <class O> class Tester, class ListOptions>
+	constexpr int find_tester_index() {
+		int found = 0;
+		int index = 0;
+		for_each_type<ListOptions>([&]<typename OptionFromList>() {
+			found = !found && Tester<OptionFromList>::value;
+			index += !found;
+		});
 
-template <int Index, typename Option, class ListOptions>
-constexpr int find_type_index() {
-	if constexpr (Index == type_list_size<ListOptions>) {
-		return -1; // type not found
-	} else if constexpr (std::is_same_v<Option, type_list_at<Index, ListOptions>>) {
-		return Index;
-	} else {
-		return find_type_index<Index + 1, Option, ListOptions>();
+		if (index == type_list_size<ListOptions>)
+			return -1;
+		return index;
 	}
-}
 
-// A detector that applies Tester to each option.
-template <template <class O> class Tester, class ListOptions, class NotFoundType = void>
-constexpr auto test_option() {
-	if constexpr (type_list_size<ListOptions> == 0) {
-		return (NotFoundType*)0;
-	} else {
-		constexpr int option_index = find_tester_index<0, Tester, ListOptions>();
-		if constexpr (option_index != -1) {
-			using opt_type = type_list_at<option_index, ListOptions>;
-			return (opt_type*)0;
+	template <typename Option, class ListOptions>
+	constexpr int find_type_index() {
+		int found = 0;
+		int index = 0;
+		for_each_type<ListOptions>([&]<typename OptionFromList>() {
+			found = !found && std::is_same_v<Option, OptionFromList>;
+			index += !found;
+		});
+
+		if (index == type_list_size<ListOptions>)
+			return -1;
+		return index;
+	}
+
+	// A detector that applies Tester to each option.
+	template <template <class O> class Tester, class ListOptions, class NotFoundType = void>
+	constexpr auto test_option() {
+		using Type = decltype(run_if<Tester, ListOptions>([]<typename T>() {
+			return static_cast<std::remove_cvref_t<T>*>(nullptr);
+		}));
+
+		if constexpr (!std::is_same_v<Type, void>) {
+			return Type{};
 		} else {
-			return (NotFoundType*)0;
+			return static_cast<NotFoundType*>(nullptr);
 		}
 	}
-}
 
-template <class Option, class ListOptions>
-constexpr bool has_option() {
-	if constexpr (type_list_size<ListOptions> == 0) {
-		return false;
-	} else {
-		constexpr int option_index = find_type_index<0, Option, ListOptions>();
-		return option_index != -1;
-	}
-}
+	template <class Type>
+	struct type_detector {
+		template<typename... Types>
+		consteval static bool test(type_list<Types...>*) noexcept {
+			return (test(static_cast<Types*>(nullptr)) || ...);
+		}
+
+		consteval static bool test(Type*) noexcept {
+			return true;
+		}
+		consteval static bool test(...) noexcept {
+			return false;
+		}
+	};
+
 } // namespace detect
 
-// Use a tester to check the options. Takes a tester structure and a tuple of options to test against.
+// Use a tester to check the options. Takes a tester structure and a type_list of options to test against.
 // The tester must have static member 'value' that determines if the option passed to it
 // is what it is looking for, see 'is_group' for an example.
 // STL testers like 'std::is_execution_policy' can also be used
-template <template <class O> class Tester, class TupleOptions>
-using test_option_type = std::remove_pointer_t<decltype(detect::test_option<Tester, TupleOptions>())>;
+template <template <class O> class Tester, class TypelistOptions>
+using test_option_type = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions>())>;
 
 // Use a tester to check the options. Results in 'NotFoundType' if the tester
 // does not find a viable option.
-template <template <class O> class Tester, class TupleOptions, class NotFoundType>
-using test_option_type_or = std::remove_pointer_t<decltype(detect::test_option<Tester, TupleOptions, NotFoundType>())>;
+template <template <class O> class Tester, class TypelistOptions, class NotFoundType>
+using test_option_type_or = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions, NotFoundType>())>;
 
 // Use a tester to find the index of a type in the tuple. Results in -1 if not found
-template <template <class O> class Tester, class TupleOptions>
-static constexpr int test_option_index = detect::find_tester_index<0, Tester, TupleOptions>();
+template <template <class O> class Tester, class TypelistOptions>
+static constexpr int test_option_index = detect::find_tester_index<Tester, TypelistOptions>();
 
-template <class Option, class TupleOptions>
+template <class Option, class ListOptions>
 constexpr bool has_option() {
-	return detect::has_option<Option, TupleOptions>();
+	return detect::type_detector<Option>::test(static_cast<ListOptions*>(nullptr));
 }
 
 } // namespace ecs::detail
@@ -1364,9 +1407,9 @@ private:
 	using allocator_type = Alloc;
 
 	struct chunk {
-		constexpr chunk(entity_range range, entity_range active, T* data = nullptr, chunk* next = nullptr, bool owns_data = false,
-						bool has_split_data = false) noexcept
-			: range(range), active(active), data(data), next(next), owns_data(owns_data), has_split_data(has_split_data) {}
+		constexpr chunk(entity_range range_, entity_range active_, T* data_ = nullptr, chunk* next_ = nullptr, bool owns_data_ = false,
+						bool has_split_data_ = false) noexcept
+			: range(range_), active(active_), data(data_), next(next_), owns_data(owns_data_), has_split_data(has_split_data_) {}
 
 		// The full range this chunk covers.
 		entity_range range;
@@ -2160,7 +2203,7 @@ struct parent_type_list<Parent<ParentComponents...>> {
 	using type = type_list<ParentComponents...>;
 };
 template <typename T>
-using parent_type_list_t = typename parent_type_list<T>::type;
+using parent_type_list_t = typename parent_type_list<std::remove_cvref_t<T>>::type;
 
 // Helper to extract the parent pool types
 template <typename T>
@@ -2220,12 +2263,10 @@ template <typename Component, typename Pools>
 		using parent_type = std::remove_cvref_t<Component>;
 		parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
-		parent_type_list_t<parent_type> pt;
-		auto const tup_parent_ptrs = apply(
-			[&](auto*... parent_types) {
-				return std::make_tuple(get_entity_data<std::remove_pointer_t<decltype(parent_types)>>(pid, pools)...);
-			},
-			pt);
+		auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+			[&]<typename... ParentTypes>() {
+				return std::make_tuple(get_entity_data<std::remove_pointer_t<ParentTypes>>(pid, pools)...);
+			});
 
 		return parent_type{pid, tup_parent_ptrs};
 
@@ -2486,12 +2527,10 @@ struct pool_range_walker {
 			using parent_type = std::remove_cvref_t<Component>;
 			parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
-			parent_type_list_t<parent_type> pt;
-			auto const tup_parent_ptrs = apply(
-				[&](auto*... parent_types) {
-					return std::make_tuple(get_entity_data<std::remove_pointer_t<decltype(parent_types)>>(pid, pools)...);
-				},
-				pt);
+			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+				[&]<typename... ParentTypes>() {
+					return std::make_tuple(get_entity_data<std::remove_pointer_t<ParentTypes>>(pid, pools)...);
+				});
 
 			return parent_type{pid, tup_parent_ptrs};
 
@@ -2985,9 +3024,18 @@ private:
 #define ECS_SYSTEM
 
 
+namespace ecs::detail {
+template <typename, typename>
+class component_pool;
+}
+
 
 namespace ecs::detail {
 // The implementation of a system specialized on its components
+
+// TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
+//       snildt komme tilbage til en component_pool<T>
+
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
 class system : public system_base {
 	virtual void do_run() = 0;
@@ -3038,7 +3086,9 @@ public:
 	}
 
 	constexpr bool has_component(detail::type_hash hash) const noexcept override {
-		auto const check_hash = [hash]<typename T>() { return get_type_hash<T>() == hash; };
+		auto const check_hash = [hash]<typename T>() {
+			return get_type_hash<T>() == hash;
+		};
 
 		if (any_of_type<stripped_component_list>(check_hash))
 			return true;
@@ -3083,7 +3133,9 @@ public:
 	}
 
 	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
-		auto const check_writes = [hash]<typename T>() { return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>(); };
+		auto const check_writes = [hash]<typename T>() {
+			return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>();
+		};
 
 		if (any_of_type<component_list>(check_writes))
 			return true;
@@ -3107,7 +3159,11 @@ private:
 			return;
 		}
 
-		bool const modified = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
+		bool const modified = std::apply(
+			[](auto... p) {
+				return (p->has_component_count_changed() || ...);
+			},
+			pools);
 
 		if (modified) {
 			find_entities();
@@ -3203,12 +3259,8 @@ protected:
 	//
 	// ecs::parent related stuff
 
-	// The index of potential ecs::parent<> component
-	static constexpr int parent_index = test_option_index<is_parent, stripped_component_list>;
-	static constexpr bool has_parent_types = (parent_index != -1);
-
 	// count parent components, if any
-	template<class T>
+	template <class T>
 	static constexpr int get_num_parent_components() {
 		if constexpr (std::is_same_v<void, T>)
 			return 0;
@@ -3217,9 +3269,10 @@ protected:
 	}
 
 	// The parent type, or void
-	using full_parent_type = type_list_at_or<parent_index, component_list, void>;
+	using full_parent_type = test_option_type_or<is_parent, stripped_component_list, void>;
 	using stripped_parent_type = std::remove_pointer_t<std::remove_cvref_t<full_parent_type>>;
 	using parent_component_list = parent_type_list_t<stripped_parent_type>;
+	static constexpr bool has_parent_types = !std::is_same_v<full_parent_type, void>;
 	static constexpr int num_parent_components = get_num_parent_components<parent_component_list>();
 };
 } // namespace ecs::detail
@@ -3547,7 +3600,7 @@ private:
 private:
 	using base::has_parent_types;
 	using base::num_parent_components;
-	using base::parent_index;
+	//using base::parent_index;
 	using base::pool_parent_id;
 	using typename base::component_list;
 	using typename base::full_parent_type;
@@ -3585,6 +3638,10 @@ public:
 
 private:
 	void do_run() override {
+		
+		// slet tuple
+		// apply_type med .get_shared_component() på pølen
+
 		this->update_func(*std::get<std::remove_cvref_t<FirstComponent>*>(argument),
 						  *std::get<std::remove_cvref_t<Components>*>(argument)...);
 	}
@@ -3791,6 +3848,13 @@ public:
 
 
 
+namespace ecs::detail {
+class component_pool_base;
+
+template <typename, typename>
+class component_pool;
+}
+
 
 namespace ecs::detail {
 // The central class of the ecs implementation. Maintains the state of the system.
@@ -3816,7 +3880,9 @@ public:
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
-		auto constexpr process_changes = [](auto const& inst) { inst->process_changes(); };
+		auto constexpr process_changes = [](auto const& inst) {
+			inst->process_changes();
+		};
 
 		// Let the component pools handle pending add/remove requests for components
 		std::for_each(std::execution::par, component_pools.begin(), component_pools.end(), process_changes);
@@ -3946,9 +4012,12 @@ private:
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	auto& create_system(UpdateFn update_func, SortFn sort_func) {
+
+		// TODO amend options with FirstComponent == entity_id/meta
+
 		// Find potential parent type
 		using parent_type =
-			test_option_type_or<is_parent, type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
+			test_option_type_or<is_parent, type_list<FirstComponent, Components...>, void>;
 
 		// Do some checks on the systems
 		bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;

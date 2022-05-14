@@ -9,7 +9,14 @@
 #include "tls/cache.h"
 #include "tls/split.h"
 
-#include "component_pool.h"
+//#include "component_pool.h"
+namespace ecs::detail {
+class component_pool_base;
+
+template <typename, typename>
+class component_pool;
+}
+
 #include "scheduler.h"
 #include "system.h"
 #include "system_global.h"
@@ -43,7 +50,9 @@ public:
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
-		auto constexpr process_changes = [](auto const& inst) { inst->process_changes(); };
+		auto constexpr process_changes = [](auto const& inst) {
+			inst->process_changes();
+		};
 
 		// Let the component pools handle pending add/remove requests for components
 		std::for_each(std::execution::par, component_pools.begin(), component_pools.end(), process_changes);
@@ -173,9 +182,12 @@ private:
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	auto& create_system(UpdateFn update_func, SortFn sort_func) {
+
+		// TODO amend options with FirstComponent == entity_id/meta
+
 		// Find potential parent type
 		using parent_type =
-			test_option_type_or<is_parent, type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>, void>;
+			test_option_type_or<is_parent, type_list<FirstComponent, Components...>, void>;
 
 		// Do some checks on the systems
 		bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;

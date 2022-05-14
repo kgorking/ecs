@@ -178,7 +178,7 @@ private:
 private:
 	using base::has_parent_types;
 	using base::num_parent_components;
-	using base::parent_index;
+	//using base::parent_index;
 	using base::pool_parent_id;
 	using typename base::component_list;
 	using typename base::full_parent_type;
