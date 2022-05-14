@@ -78,6 +78,17 @@ namespace impl {
 		(f.template operator()<Types>(), ...);
 	}
 
+	template <typename T, typename... Types, typename F>
+	constexpr void for_specific_type(F&& f, type_list<Types...>*) {
+		auto const runner = []<typename X> {
+			if constexpr (std::is_same_v<T, X>) {
+				f();
+			}
+		};
+
+		(runner.template operator()<Types>(), ...);
+	}
+
 	template <typename... Types, typename F>
 	constexpr decltype(auto) apply_type(F&& f, type_list<Types...>*) {
 		return f.template operator()<Types...>();
@@ -92,6 +103,21 @@ namespace impl {
 	constexpr bool any_of_type(F&& f, type_list<Types...>*) {
 		return (f.template operator()<Types>() || ...);
 	}
+
+	template <template <class O> class Tester, typename... Types, typename F>
+	constexpr auto run_if(F&& /*f*/, type_list<>*) {
+		return;
+	}
+
+	template <template <class O> class Tester, typename FirstType, typename... Types, typename F>
+	constexpr auto run_if(F&& f, type_list<FirstType, Types...>*) {
+		if constexpr (Tester<FirstType>::value) {
+			return f.template operator()<FirstType>();
+		} else {
+			return run_if<Tester, Types...>(f, static_cast<type_list<Types...>*>(nullptr));
+		}
+	}
+
 } // namespace impl
 
 template <impl::TypeList TL>
@@ -108,6 +134,13 @@ using type_list_at_or = typename impl::type_list_at_or<I, OrType, TL>::type;
 template <impl::TypeList TL, typename F>
 constexpr void for_each_type(F&& f) {
 	impl::for_each_type(f, static_cast<TL*>(nullptr));
+}
+
+// Applies the functor F to a specific type in the type list.
+// Takes lambdas of the form '[]() {}'
+template <typename T, impl::TypeList TL, typename F>
+constexpr void for_specific_type(F&& f) {
+	impl::for_specific_type<T>(f, static_cast<TL*>(nullptr));
 }
 
 // Applies the functor F to all types in the type list.
@@ -131,6 +164,12 @@ constexpr bool all_of_type(F&& f) {
 template <impl::TypeList TL, typename F>
 constexpr bool any_of_type(F&& f) {
 	return impl::any_of_type(f, static_cast<TL*>(nullptr));
+}
+
+// Runs F once when a type satifies the tester. F takes a template parameter and can return values.
+template <template <class O> class Tester, impl::TypeList TL, typename F>
+constexpr auto run_if(F&& f) {
+	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
 }
 
 } // namespace ecs::detail

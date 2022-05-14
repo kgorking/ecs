@@ -81,16 +81,14 @@ namespace detect {
 	// A detector that applies Tester to each option.
 	template <template <class O> class Tester, class ListOptions, class NotFoundType = void>
 	constexpr auto test_option() {
-		if constexpr (type_list_size<ListOptions> == 0) {
-			return static_cast<NotFoundType*>(nullptr);
+		using Type = decltype(run_if<Tester, ListOptions>([]<typename T>() {
+			return static_cast<std::remove_cvref_t<T>*>(nullptr);
+		}));
+
+		if constexpr (!std::is_same_v<Type, void>) {
+			return Type{};
 		} else {
-			constexpr int option_index = find_tester_index<Tester, ListOptions>();
-			if constexpr (option_index != -1) {
-				using opt_type = std::remove_cvref_t<type_list_at<option_index, ListOptions>>;
-				return static_cast<opt_type*>(nullptr);
-			} else {
-				return static_cast<NotFoundType*>(nullptr);
-			}
+			return static_cast<NotFoundType*>(nullptr);
 		}
 	}
 
