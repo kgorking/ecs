@@ -2,15 +2,17 @@
 #define ECS_SYSTEM
 
 #include <array>
-#include <tuple>
 #include <type_traits>
-#include <unordered_set>
 #include <utility>
-#include <vector>
 
 #include "../entity_id.h"
 #include "../entity_range.h"
-#include "component_pool.h"
+//#include "component_pool.h"
+namespace ecs::detail {
+template <typename, typename>
+class component_pool;
+}
+
 #include "entity_range.h"
 #include "interval_limiter.h"
 #include "options.h"
@@ -20,6 +22,10 @@
 
 namespace ecs::detail {
 // The implementation of a system specialized on its components
+
+// TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
+//       snildt komme tilbage til en component_pool<T>
+
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
 class system : public system_base {
 	virtual void do_run() = 0;
@@ -70,7 +76,9 @@ public:
 	}
 
 	constexpr bool has_component(detail::type_hash hash) const noexcept override {
-		auto const check_hash = [hash]<typename T>() { return get_type_hash<T>() == hash; };
+		auto const check_hash = [hash]<typename T>() {
+			return get_type_hash<T>() == hash;
+		};
 
 		if (any_of_type<stripped_component_list>(check_hash))
 			return true;
@@ -115,7 +123,9 @@ public:
 	}
 
 	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
-		auto const check_writes = [hash]<typename T>() { return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>(); };
+		auto const check_writes = [hash]<typename T>() {
+			return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>();
+		};
 
 		if (any_of_type<component_list>(check_writes))
 			return true;
@@ -139,7 +149,11 @@ private:
 			return;
 		}
 
-		bool const modified = std::apply([](auto... p) { return (p->has_component_count_changed() || ...); }, pools);
+		bool const modified = std::apply(
+			[](auto... p) {
+				return (p->has_component_count_changed() || ...);
+			},
+			pools);
 
 		if (modified) {
 			find_entities();
@@ -235,12 +249,8 @@ protected:
 	//
 	// ecs::parent related stuff
 
-	// The index of potential ecs::parent<> component
-	static constexpr int parent_index = test_option_index<is_parent, stripped_component_list>;
-	static constexpr bool has_parent_types = (parent_index != -1);
-
 	// count parent components, if any
-	template<class T>
+	template <class T>
 	static constexpr int get_num_parent_components() {
 		if constexpr (std::is_same_v<void, T>)
 			return 0;
@@ -249,9 +259,10 @@ protected:
 	}
 
 	// The parent type, or void
-	using full_parent_type = type_list_at_or<parent_index, component_list, void>;
+	using full_parent_type = test_option_type_or<is_parent, stripped_component_list, void>;
 	using stripped_parent_type = std::remove_pointer_t<std::remove_cvref_t<full_parent_type>>;
 	using parent_component_list = parent_type_list_t<stripped_parent_type>;
+	static constexpr bool has_parent_types = !std::is_same_v<full_parent_type, void>;
 	static constexpr int num_parent_components = get_num_parent_components<parent_component_list>();
 };
 } // namespace ecs::detail

@@ -9,12 +9,12 @@ More detail on what ecs is can be found [here](http://gameprogrammingpatterns.co
 
 Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-explorer logo next to them have a compiler-explorer example that you can play around with. Ctrl/CMD+Click the icon to open it in a new window.
 
-# An example[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/9Tjnvb8eW)
+# An example[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/6eoxx5PTs)
 The following example shows the basics of the library.
 
 ```cpp
 #include <iostream>
-#include <ecs/rt.h>
+#include <ecs/ecs.h>
 
 // The component
 struct greeting {
@@ -66,7 +66,7 @@ The CI build status for msvc, clang, and gcc is currently:
   - [Parallel-by-default systems](#parallel-by-default-systems)
   - [Automatic concurrency](#automatic-concurrency)
   - [The current entity](#the-current-entity)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/z9xYvd4Gc)
-  - [Sorting](#sorting)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ocnoPW9dT)
+  - [Sorting](#sorting)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/xKfTdWqnY)
   - [Filtering](#filtering)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/zE9Yh5Kbh)
   - [Hierarchies](#hierarchies)
     - [Accessing parent components](#Accessing-parent-components)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/Toxc5MTbj)
@@ -163,7 +163,7 @@ By deferring the components changes to entities, it is possible to safely add an
 Systems holds the logic that operates on components that are attached to entities, and are built using `ecs::runtime::make_system` by passing it a lambda or a free-standing function.
 
 ```cpp
-#include <ecs/rt.h>
+#include <ecs/ecs.h>
 
 struct component1;
 struct component2;
@@ -229,7 +229,7 @@ rt.make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ocnoPW9dT)
+## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/xKfTdWqnY)
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
