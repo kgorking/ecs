@@ -46,7 +46,7 @@ namespace impl {
 
 	template <typename T, typename... Types, typename F>
 	constexpr void for_specific_type(F&& f, type_list<Types...>*) {
-		auto const runner = []<typename X> {
+		auto const runner = [&f]<typename X> {
 			if constexpr (std::is_same_v<T, X>) {
 				f();
 			}
