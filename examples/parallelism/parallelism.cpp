@@ -9,10 +9,12 @@ int main() {
 	// The lambda used by both the serial- and parallel systems
 	auto constexpr sys_sleep = [](short const &) { std::this_thread::sleep_for(50ms); };
 
+	using namespace ecs::opts;
+
 	// Make the systems
 	ecs::runtime ecs;
-	auto &serial_sys = ecs.make_system<ecs::opts::not_parallel>(sys_sleep);
-	auto &parallel_sys = ecs.make_system(sys_sleep);
+	auto &serial_sys = ecs.make_system<not_parallel, manual_update>(sys_sleep);
+	auto &parallel_sys = ecs.make_system<manual_update>(sys_sleep);
 
 	// Create a range of entities that would
 	// take 5 seconds to process serially

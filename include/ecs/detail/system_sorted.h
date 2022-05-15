@@ -15,7 +15,9 @@ struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstCom
 
 public:
 	system_sorted(UpdateFn func, SortFunc sort, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>(func, in_pools), sort_func{sort} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>(func, in_pools), sort_func{sort} {
+		this->process_changes(true);
+	}
 
 private:
 	void do_run() override {

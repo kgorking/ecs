@@ -14,7 +14,9 @@ class system_ranged final : public system<Options, UpdateFn, TupPools, FirstComp
 
 public:
 	system_ranged(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {
+		this->process_changes(true);
+	}
 
 private:
 	void do_run() override {

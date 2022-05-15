@@ -9,8 +9,10 @@ template <class Options, class UpdateFn, class TupPools, class FirstComponent, c
 class system_global final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
 public:
 	system_global(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools},
-		  argument{&get_pool<FirstComponent>(in_pools).get_shared_component(), &get_pool<Components>(in_pools).get_shared_component()...} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}
+		, argument{&get_pool<FirstComponent>(in_pools).get_shared_component(), &get_pool<Components>(in_pools).get_shared_component()...} {
+		this->process_changes(true);
+	  }
 
 private:
 	void do_run() override {

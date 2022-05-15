@@ -130,19 +130,19 @@ public:
 
 	// Regular function
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename FirstArg, typename... Args>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R(FirstArg, Args...)) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R(FirstArg, Args...)) {
 		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 	// Const lambda with sort
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg, typename... Args>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
 		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 	// Mutable lambda with sort
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstComponent, typename... Components>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
 		return create_system<Options, UpdateFn, SortFn, FirstComponent, Components...>(update_func, sort_func);
 	}
 
@@ -181,7 +181,7 @@ private:
 	}
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
-	auto& create_system(UpdateFn update_func, SortFn sort_func) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
 
 		// TODO amend options with FirstComponent == entity_id/meta
 
@@ -199,10 +199,27 @@ private:
 
 		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
-		// Create the system instance
-		std::unique_ptr<system_base> sys;
-		if constexpr (has_parent) {
+		// Helper-lambda to insert system
+		auto const insert_system = [this](auto& system) -> decltype(auto) {
+			std::unique_lock system_lock(system_mutex);
 
+			[[maybe_unused]] auto sys_ptr = system.get();
+
+			systems.push_back(std::move(system));
+			detail::system_base* ptr_system = systems.back().get();
+			Ensures(ptr_system != nullptr);
+
+			// -vv-  msvc shenanigans
+			[[maybe_unused]] bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
+			if constexpr (!request_manual_update) {
+				sched.insert(ptr_system);
+			} else {
+				return (*sys_ptr);
+			}
+		};
+
+		// Create the system instance
+		if constexpr (has_parent) {
 			// Find the component pools
 			auto const all_pools = apply_type<parent_type_list_t<parent_type>>([&]<typename... T>() {
 				// The pools for the regular components
@@ -218,32 +235,24 @@ private:
 			});
 
 			using typed_system = system_hierarchy<Options, UpdateFn, decltype(all_pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, all_pools);
+			auto sys = std::make_unique<typed_system>(update_func, all_pools);
+			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
 			auto const pools = make_tuple_pools<FirstComponent, Components...>();
 			using typed_system = system_global<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, pools);
+			auto sys = std::make_unique<typed_system>(update_func, pools);
+			return insert_system(sys);
 		} else if constexpr (has_sort_func) {
 			auto const pools = make_tuple_pools<FirstComponent, Components...>();
 			using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+			auto sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+			return insert_system(sys);
 		} else {
 			auto const pools = make_tuple_pools<FirstComponent, Components...>();
 			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, pools);
+			auto sys = std::make_unique<typed_system>(update_func, pools);
+			return insert_system(sys);
 		}
-
-		std::unique_lock system_lock(system_mutex);
-		sys->process_changes(true);
-		systems.push_back(std::move(sys));
-		detail::system_base* ptr_system = systems.back().get();
-		Ensures(ptr_system != nullptr);
-
-		bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
-		if constexpr (!request_manual_update)
-			sched.insert(ptr_system);
-
-		return *ptr_system;
 	}
 
 	// Create a component pool for a new type
