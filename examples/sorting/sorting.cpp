@@ -20,10 +20,12 @@ bool sort_even_odd(int const& l, int const& r) {
 int main() {
 	ecs::runtime ecs;
 
-	auto& sys_no_sort = ecs.make_system<ecs::opts::not_parallel>(printer);
-	auto& sys_sort_asc = ecs.make_system<ecs::opts::not_parallel>(printer, std::less<int>{});
-	auto& sys_sort_des = ecs.make_system<ecs::opts::not_parallel>(printer, std::greater<int>{});
-	auto& sys_sort_eo = ecs.make_system<ecs::opts::not_parallel>(printer, sort_even_odd);
+	using namespace ecs::opts;
+
+	auto& sys_no_sort = ecs.make_system<not_parallel, manual_update>(printer);
+	auto& sys_sort_asc = ecs.make_system<not_parallel, manual_update>(printer, std::less<int>{});
+	auto& sys_sort_des = ecs.make_system<not_parallel, manual_update>(printer, std::greater<int>{});
+	auto& sys_sort_eo = ecs.make_system<not_parallel, manual_update>(printer, sort_even_odd);
 
 	ecs.add_component_generator({0, 9}, generator);
 	ecs.commit_changes();

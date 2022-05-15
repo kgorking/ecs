@@ -62,7 +62,7 @@ void run_hierarchy(benchmark::State& state) {
 
 	if constexpr (parallel) {
 		ecs::runtime ecs;
-		auto& sys = ecs.make_system(hierarch_lambda);
+		auto& sys = ecs.make_system<ecs::opts::manual_update>(hierarch_lambda);
 
 		build_hierarchies(ecs, nentities);
 
@@ -71,7 +71,7 @@ void run_hierarchy(benchmark::State& state) {
 		}
 	} else {
 		ecs::runtime ecs;
-		auto& sys = ecs.make_system<ecs::opts::not_parallel>(hierarch_lambda);
+		auto& sys = ecs.make_system<ecs::opts::manual_update, ecs::opts::not_parallel>(hierarch_lambda);
 
 		build_hierarchies(ecs, nentities);
 

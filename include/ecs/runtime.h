@@ -200,7 +200,7 @@ public:
 
 	// Make a new system
 	template <typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
-	auto& make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
+	decltype(auto) make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
 		using opts = detail::type_list<Options...>;
 
 		// verify the input

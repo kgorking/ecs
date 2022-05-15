@@ -130,19 +130,19 @@ public:
 
 	// Regular function
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename FirstArg, typename... Args>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R(FirstArg, Args...)) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R(FirstArg, Args...)) {
 		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 	// Const lambda with sort
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg, typename... Args>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
 		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 	// Mutable lambda with sort
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstComponent, typename... Components>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
 		return create_system<Options, UpdateFn, SortFn, FirstComponent, Components...>(update_func, sort_func);
 	}
 
@@ -181,7 +181,7 @@ private:
 	}
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
-	auto& create_system(UpdateFn update_func, SortFn sort_func) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
 
 		// TODO amend options with FirstComponent == entity_id/meta
 
@@ -203,17 +203,19 @@ private:
 		auto const insert_system = [this](auto& system) -> decltype(auto) {
 			std::unique_lock system_lock(system_mutex);
 
-			auto sys_ptr = system.get();
+			[[maybe_unused]] auto sys_ptr = system.get();
 
 			systems.push_back(std::move(system));
 			detail::system_base* ptr_system = systems.back().get();
 			Ensures(ptr_system != nullptr);
 
+			// -vv-  msvc shenanigans
 			[[maybe_unused]] bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
-			if constexpr (!request_manual_update)
+			if constexpr (!request_manual_update) {
 				sched.insert(ptr_system);
-
-			return (*sys_ptr);
+			} else {
+				return (*sys_ptr);
+			}
 		};
 
 		// Create the system instance

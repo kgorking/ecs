@@ -10,7 +10,7 @@ TEST_CASE("System specification", "[system]") {
 			int c;
 		};
 		// Add a system for the local component
-		auto& sys = ecs.make_system([](local1& l) { l.c++; });
+		auto& sys = ecs.make_system<ecs::opts::manual_update>([](local1& l) { l.c++; });
 
 		// Add the component to an entity
 		ecs.add_component(0, local1{0});
@@ -30,7 +30,7 @@ TEST_CASE("System specification", "[system]") {
 		ecs::runtime ecs;
 
 		struct local2 {};
-		auto& sys = ecs.make_system([](local2 const& /*c*/) {});
+		auto& sys = ecs.make_system<ecs::opts::manual_update>([](local2 const& /*c*/) {});
 
 		REQUIRE(true == sys.is_enabled());
 		sys.disable();
@@ -48,7 +48,7 @@ TEST_CASE("System specification", "[system]") {
 			int c;
 		};
 		// Add a system for the local component
-		auto& sys = ecs.make_system([](local3& l) { l.c++; });
+		auto& sys = ecs.make_system<ecs::opts::manual_update>([](local3& l) { l.c++; });
 
 		ecs.add_component(0, local3{0});
 		ecs.commit_changes();
@@ -75,7 +75,7 @@ TEST_CASE("System specification", "[system]") {
 			int c;
 		};
 		// Add a system for the local component
-		auto& sys = ecs.make_system([](local4& l) { l.c++; });
+		auto& sys = ecs.make_system<ecs::opts::manual_update>([](local4& l) { l.c++; });
 		sys.disable();
 
 		ecs.add_component(0, local4{0});
@@ -91,15 +91,15 @@ TEST_CASE("System specification", "[system]") {
 	SECTION("Read/write info on systems is correct") {
 		ecs::runtime ecs;
 
-		auto const& sys1 = ecs.make_system([](int const&, float const&) {});
+		auto const& sys1 = ecs.make_system<ecs::opts::manual_update>([](int const&, float const&) {});
 		CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<int>()));
 		CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<float>()));
 
-		auto const& sys2 = ecs.make_system([](int&, float const&) {});
+		auto const& sys2 = ecs.make_system<ecs::opts::manual_update>([](int&, float const&) {});
 		CHECK(true == sys2.writes_to_component(ecs::detail::get_type_hash<int>()));
 		CHECK(false == sys2.writes_to_component(ecs::detail::get_type_hash<float>()));
 
-		auto const& sys3 = ecs.make_system([](int&, float&) {});
+		auto const& sys3 = ecs.make_system<ecs::opts::manual_update>([](int&, float&) {});
 		CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<int>()));
 		CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<float>()));
 	}
