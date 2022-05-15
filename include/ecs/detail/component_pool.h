@@ -108,7 +108,7 @@ public:
 	constexpr component_pool(component_pool&&) = delete;
 	constexpr component_pool& operator=(component_pool const&) = delete;
 	constexpr component_pool& operator=(component_pool&&) = delete;
-	/*constexpr*/ ~component_pool() noexcept override {
+	constexpr ~component_pool() noexcept override {
 		if constexpr (global<T>) {
 			std::destroy_n(head->data, head->range.ucount());
 			alloc.deallocate(head->data, head->range.count());
@@ -680,24 +680,13 @@ private:
 	}
 
 	// Removes the entities and components
-	/*constexpr*/ void process_remove_components() noexcept {
-		// Collect all the ranges to remove
-		std::vector<entity_range> vec;
-		deferred_removes.gather_flattened(std::back_inserter(vec));
-
-		// Dip if there is nothing to do
-		if (vec.empty() || nullptr == head) {
-			return;
-		}
-
-		// Sort the ranges to remove
-		if (!std::is_constant_evaluated() || (sizeof(entity_range) * vec.size() < parallelization_size_tipping_point))
+	constexpr void process_remove_components() noexcept {
+		deferred_removes.for_each([this](std::vector<entity_range>& vec) {
+			// Sort the ranges to remove
 			std::sort(vec.begin(), vec.end());
-		else
-			std::sort(std::execution::par, vec.begin(), vec.end());
-
-		// Remove ranges
-		process_remove_components(vec);
+			this->process_remove_components(vec);
+		});
+		deferred_removes.reset();
 
 		// Update the state
 		set_data_removed();
