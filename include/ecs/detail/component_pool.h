@@ -108,7 +108,7 @@ public:
 	constexpr component_pool(component_pool&&) = delete;
 	constexpr component_pool& operator=(component_pool const&) = delete;
 	constexpr component_pool& operator=(component_pool&&) = delete;
-	constexpr ~component_pool() noexcept override {
+	/*constexpr*/ ~component_pool() noexcept override {
 		if constexpr (global<T>) {
 			std::destroy_n(head->data, head->range.ucount());
 			alloc.deallocate(head->data, head->range.count());
@@ -680,7 +680,7 @@ private:
 	}
 
 	// Removes the entities and components
-	constexpr void process_remove_components() noexcept {
+	/*constexpr*/ void process_remove_components() noexcept {
 		// Collect all the ranges to remove
 		std::vector<entity_range> vec;
 		deferred_removes.gather_flattened(std::back_inserter(vec));
