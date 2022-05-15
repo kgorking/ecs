@@ -97,7 +97,8 @@ private:
 public:
 	constexpr component_pool() noexcept {
 		if constexpr (global<T>) {
-			head = create_new_chunk({0, 0}, {0, 0});
+			head = alloc_chunk.allocate(1);
+			std::construct_at(head, entity_range{0, 0}, entity_range{0, 0}, nullptr, nullptr, true, false);
 			head->data = alloc.allocate(1);
 			std::construct_at(head->data);
 			ordered_active_ranges.push_back(entity_range::all());
@@ -110,7 +111,7 @@ public:
 	constexpr component_pool& operator=(component_pool&&) = delete;
 	constexpr ~component_pool() noexcept override {
 		if constexpr (global<T>) {
-			std::destroy_n(head->data, head->range.ucount());
+			std::destroy_at(head->data);
 			alloc.deallocate(head->data, head->range.count());
 			std::destroy_at(head);
 			alloc_chunk.deallocate(head, 1);
@@ -201,8 +202,10 @@ public:
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
 	constexpr void process_changes() noexcept override {
-		process_remove_components();
-		process_add_components();
+		if constexpr (!global<T>) {
+			process_remove_components();
+			process_add_components();
+		}
 	}
 
 	// Returns the number of active entities in the pool
@@ -550,58 +553,22 @@ private:
 		}
 	}
 
-	// Add new queued entities and components to the main storage.
-	constexpr void process_add_components() noexcept {
-		// Combine the components in to a single vector
-		std::vector<entity_data> vec_adds;
-		std::vector<entity_span> vec_spans;
-		std::vector<entity_gen> vec_gens;
-		deferred_adds.gather_flattened(std::back_inserter(vec_adds));
-		deferred_spans.gather_flattened(std::back_inserter(vec_spans));
-		deferred_gen.gather_flattened(std::back_inserter(vec_gens));
-
-		if (vec_adds.empty() && vec_spans.empty() && vec_gens.empty()) {
+	constexpr void process_add_components(auto& vec) noexcept {
+		if (vec.empty()) {
 			return;
 		}
-
-		// Clear the current adds
-		deferred_adds.reset();
-		deferred_spans.reset();
-		deferred_gen.reset();
-
-		// Sort the input(s)
-		auto const comparator = [](auto const& l, auto const& r) {
-			return std::get<0>(l) < std::get<0>(r);
-		};
-		std::sort(vec_adds.begin(), vec_adds.end(), comparator);
-		std::sort(vec_spans.begin(), vec_spans.end(), comparator);
-		std::sort(vec_gens.begin(), vec_gens.end(), comparator);
-
-		// Merge adjacent ranges that has the same data
-		if constexpr (unbound<T>)
-			combine_erase(vec_adds, combiner_unbound);
-		else
-			combine_erase(vec_adds, combiner_bound);
 
 		// Do the insertions
 		chunk* prev = nullptr;
 		chunk* curr = head;
 
-		auto it_adds = vec_adds.begin();
-		auto it_spans = vec_spans.begin();
-		auto it_gens = vec_gens.begin();
+		auto it_adds = vec.begin();
 
 		// Create head chunk if needed
 		if (head == nullptr) {
-			if (it_adds != vec_adds.end()) {
+			if (it_adds != vec.end()) {
 				head = create_new_chunk(it_adds);
 				++it_adds;
-			} else if (it_spans != vec_spans.end()) {
-				head = create_new_chunk(it_spans);
-				++it_spans;
-			} else {
-				head = create_new_chunk(it_gens);
-				++it_gens;
 			}
 
 			curr = head;
@@ -651,26 +618,40 @@ private:
 		};
 
 		// Fill in values
-		while (it_adds != vec_adds.end()) {
+		while (it_adds != vec.end()) {
 			merge_data(it_adds);
 			++it_adds;
 		}
+	}
 
-		// Fill in spans
-		prev = nullptr;
-		curr = head;
-		while (it_spans != vec_spans.end()) {
-			merge_data(it_spans);
-			++it_spans;
-		}
+	// Add new queued entities and components to the main storage.
+	constexpr void process_add_components() noexcept {
+		auto const adder = [this](auto& vec) {
+			// Sort the input(s)
+			auto const comparator = [](auto const& l, auto const& r) {
+				return std::get<0>(l) < std::get<0>(r);
+			};
+			std::sort(vec.begin(), vec.end(), comparator);
 
-		// Fill in generators
-		prev = nullptr;
-		curr = head;
-		while (it_gens != vec_gens.end()) {
-			merge_data(it_gens);
-			++it_gens;
-		}
+			// Merge adjacent ranges that has the same data
+			if constexpr (std::is_same_v<entity_data*, decltype(vec.data())>) {
+				if constexpr (unbound<T>)
+					combine_erase(vec, combiner_unbound);
+				else
+					combine_erase(vec, combiner_bound);
+			}
+
+			process_add_components(vec);
+		};
+
+		deferred_adds.for_each(adder);
+		deferred_adds.reset();
+
+		deferred_spans.for_each(adder);
+		deferred_spans.reset();
+
+		deferred_gen.for_each(adder);
+		deferred_gen.reset();
 
 		// Check it
 		Expects(false == has_duplicate_entities());
