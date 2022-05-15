@@ -58,6 +58,7 @@ $files = (
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <mutex> // needed for scoped_lock
 #include <span>
 #include <string_view>
 #include <tuple>
