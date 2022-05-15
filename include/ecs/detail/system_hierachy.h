@@ -37,7 +37,9 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, parent_pools{make_parent_types_tuple()} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, parent_pools{make_parent_types_tuple()} {
+		this->process_changes(true);
+	}
 
 private:
 	void do_run() override {

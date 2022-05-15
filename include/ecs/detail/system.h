@@ -137,7 +137,7 @@ public:
 		}
 	}
 
-private:
+protected:
 	// Handle changes when the component pools change
 	void process_changes(bool force_rebuild) override {
 		if (force_rebuild) {
@@ -160,6 +160,7 @@ private:
 		}
 	}
 
+private:
 	// Locate all the entities affected by this system
 	// and send them to the argument builder
 	void find_entities() {
