@@ -15,6 +15,7 @@
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <mutex> // needed for scoped_lock
 #include <span>
 #include <string_view>
 #include <tuple>
@@ -566,45 +567,11 @@ namespace impl {
 		static constexpr size_t value = sizeof...(Types);
 	};
 
-	//
-	// type_list_at.
-	template <int, typename>
-	struct type_list_at;
-	template <int I, typename Type, typename... Types>
-	struct type_list_at<I, type_list<Type, Types...>> {
-		using type = typename type_list_at<I - 1, type_list<Types...>>::type;
-	};
-	template <typename Type, typename... Types>
-	struct type_list_at<0, type_list<Type, Types...>> {
-		using type = Type;
-	};
 
 	//
-	// type_list_at_or.
-	template <int, typename OrType, typename TypeList>
-	struct type_list_at_or;
-
-	template <int I, typename OrType, typename Type, typename... Types>
-	struct type_list_at_or<I, OrType, type_list<Type, Types...>> {
-		using type = typename type_list_at_or<I - 1, OrType, type_list<Types...>>::type;
-	};
-
-	template <typename Type, typename OrType, typename... Types>
-	struct type_list_at_or<0, OrType, type_list<Type, Types...>> {
-		using type = Type;
-	};
-
-	template <typename Type, typename OrType, typename... Types>
-	struct type_list_at_or<int{-1}, OrType, type_list<Type, Types...>> {
-		using type = OrType;
-	};
-
-
-	//
-	// type_list concepts
+	// type_list concept
 	template <class TL>
 	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
-
 
 
 	//
@@ -616,7 +583,7 @@ namespace impl {
 
 	template <typename T, typename... Types, typename F>
 	constexpr void for_specific_type(F&& f, type_list<Types...>*) {
-		auto const runner = []<typename X> {
+		auto const runner = [&f]<typename X> {
 			if constexpr (std::is_same_v<T, X>) {
 				f();
 			}
@@ -658,12 +625,6 @@ namespace impl {
 
 template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
-
-template <int I, impl::TypeList TL>
-using type_list_at = typename impl::type_list_at<I, TL>::type;
-
-template <int I, impl::TypeList TL, typename OrType>
-using type_list_at_or = typename impl::type_list_at_or<I, OrType, TL>::type;
 
 // Applies the functor F to each type in the type list.
 // Takes lambdas of the form '[]<typename T>() {}'
@@ -3147,7 +3108,7 @@ public:
 		}
 	}
 
-private:
+protected:
 	// Handle changes when the component pools change
 	void process_changes(bool force_rebuild) override {
 		if (force_rebuild) {
@@ -3170,6 +3131,7 @@ private:
 		}
 	}
 
+private:
 	// Locate all the entities affected by this system
 	// and send them to the argument builder
 	void find_entities() {
@@ -3293,7 +3255,9 @@ struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstCom
 
 public:
 	system_sorted(UpdateFn func, SortFunc sort, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>(func, in_pools), sort_func{sort} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>(func, in_pools), sort_func{sort} {
+		this->process_changes(true);
+	}
 
 private:
 	void do_run() override {
@@ -3381,7 +3345,9 @@ class system_ranged final : public system<Options, UpdateFn, TupPools, FirstComp
 
 public:
 	system_ranged(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {
+		this->process_changes(true);
+	}
 
 private:
 	void do_run() override {
@@ -3459,7 +3425,9 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, parent_pools{make_parent_types_tuple()} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, parent_pools{make_parent_types_tuple()} {
+		this->process_changes(true);
+	}
 
 private:
 	void do_run() override {
@@ -3633,8 +3601,10 @@ template <class Options, class UpdateFn, class TupPools, class FirstComponent, c
 class system_global final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
 public:
 	system_global(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools},
-		  argument{&get_pool<FirstComponent>(in_pools).get_shared_component(), &get_pool<Components>(in_pools).get_shared_component()...} {}
+		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}
+		, argument{&get_pool<FirstComponent>(in_pools).get_shared_component(), &get_pool<Components>(in_pools).get_shared_component()...} {
+		this->process_changes(true);
+	  }
 
 private:
 	void do_run() override {
@@ -3960,19 +3930,19 @@ public:
 
 	// Regular function
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename FirstArg, typename... Args>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R(FirstArg, Args...)) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R(FirstArg, Args...)) {
 		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 	// Const lambda with sort
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg, typename... Args>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...) const) {
 		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 	// Mutable lambda with sort
 	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstComponent, typename... Components>
-	auto& create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
 		return create_system<Options, UpdateFn, SortFn, FirstComponent, Components...>(update_func, sort_func);
 	}
 
@@ -4011,7 +3981,7 @@ private:
 	}
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
-	auto& create_system(UpdateFn update_func, SortFn sort_func) {
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
 
 		// TODO amend options with FirstComponent == entity_id/meta
 
@@ -4029,10 +3999,27 @@ private:
 
 		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
-		// Create the system instance
-		std::unique_ptr<system_base> sys;
-		if constexpr (has_parent) {
+		// Helper-lambda to insert system
+		auto const insert_system = [this](auto& system) -> decltype(auto) {
+			std::unique_lock system_lock(system_mutex);
 
+			[[maybe_unused]] auto sys_ptr = system.get();
+
+			systems.push_back(std::move(system));
+			detail::system_base* ptr_system = systems.back().get();
+			Ensures(ptr_system != nullptr);
+
+			// -vv-  msvc shenanigans
+			[[maybe_unused]] bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
+			if constexpr (!request_manual_update) {
+				sched.insert(ptr_system);
+			} else {
+				return (*sys_ptr);
+			}
+		};
+
+		// Create the system instance
+		if constexpr (has_parent) {
 			// Find the component pools
 			auto const all_pools = apply_type<parent_type_list_t<parent_type>>([&]<typename... T>() {
 				// The pools for the regular components
@@ -4048,32 +4035,24 @@ private:
 			});
 
 			using typed_system = system_hierarchy<Options, UpdateFn, decltype(all_pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, all_pools);
+			auto sys = std::make_unique<typed_system>(update_func, all_pools);
+			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
 			auto const pools = make_tuple_pools<FirstComponent, Components...>();
 			using typed_system = system_global<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, pools);
+			auto sys = std::make_unique<typed_system>(update_func, pools);
+			return insert_system(sys);
 		} else if constexpr (has_sort_func) {
 			auto const pools = make_tuple_pools<FirstComponent, Components...>();
 			using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+			auto sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+			return insert_system(sys);
 		} else {
 			auto const pools = make_tuple_pools<FirstComponent, Components...>();
 			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
-			sys = std::make_unique<typed_system>(update_func, pools);
+			auto sys = std::make_unique<typed_system>(update_func, pools);
+			return insert_system(sys);
 		}
-
-		std::unique_lock system_lock(system_mutex);
-		sys->process_changes(true);
-		systems.push_back(std::move(sys));
-		detail::system_base* ptr_system = systems.back().get();
-		Ensures(ptr_system != nullptr);
-
-		bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
-		if constexpr (!request_manual_update)
-			sched.insert(ptr_system);
-
-		return *ptr_system;
 	}
 
 	// Create a component pool for a new type
@@ -4281,7 +4260,7 @@ public:
 
 	// Make a new system
 	template <typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
-	auto& make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
+	decltype(auto) make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
 		using opts = detail::type_list<Options...>;
 
 		// verify the input
