@@ -4,7 +4,6 @@
 #include <execution>
 #include <functional>
 #include <memory>
-#include <ranges>
 #include <vector>
 
 #include "tls/collect.h"
