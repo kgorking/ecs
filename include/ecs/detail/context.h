@@ -217,7 +217,6 @@ private:
 		};
 
 		// Create the system instance
-		//std::unique_ptr<system_base> sys;
 		if constexpr (has_parent) {
 			// Find the component pools
 			auto const all_pools = apply_type<parent_type_list_t<parent_type>>([&]<typename... T>() {
