@@ -84,6 +84,11 @@ namespace impl {
 		}
 	}
 
+	template <typename... Types, typename F>
+	constexpr std::size_t count_if(F&& f, type_list<Types...>*) {
+		return (static_cast<std::size_t>(f.template operator()<Types>()) + ...);
+	}
+
 } // namespace impl
 
 template <impl::TypeList TL>
@@ -126,10 +131,16 @@ constexpr bool any_of_type(F&& f) {
 	return impl::any_of_type(f, static_cast<TL*>(nullptr));
 }
 
-// Runs F once when a type satifies the tester. F takes a template parameter and can return values.
+// Runs F once when a type satifies the tester. F takes a type template parameter and can return a value.
 template <template <class O> class Tester, impl::TypeList TL, typename F>
 constexpr auto run_if(F&& f) {
 	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
+}
+
+// Returns the count of all types that satisfy the predicate. F takes a type template parameter and returns a boolean.
+template <impl::TypeList TL, typename F>
+constexpr std::size_t count_if(F&& f) {
+	return impl::count_if(f, static_cast<TL*>(nullptr));
 }
 
 } // namespace ecs::detail
