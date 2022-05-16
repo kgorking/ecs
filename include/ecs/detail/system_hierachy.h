@@ -38,6 +38,7 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
 		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, parent_pools{make_parent_types_tuple()} {
+		pool_parent_id = &detail::get_pool<parent_id>(this->pools);
 		this->process_changes(true);
 	}
 
@@ -56,7 +57,41 @@ private:
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
-	void do_build(entity_range_view ranges) override {
+	void do_build(/* entity_range_view ranges*/) override {
+		std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(this->pools);
+
+		// the vector of ranges to remove
+		std::vector<entity_range> ents_to_remove;
+		for (entity_range const& range : ranges) {
+			for (entity_id const ent : range) {
+				// Get the parent ids in the range
+				parent_id const pid = *pool_parent_id->find_component_data(ent);
+
+				// Does tests on the parent sub-components to see they satisfy the constraints
+				// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
+				// has an int.
+				for_each_type<parent_component_list>([&pid, this, ent, &ents_to_remove]<typename T>() {
+					// Get the pool of the parent sub-component
+					auto const& sub_pool = detail::get_pool<T>(this->pools);
+
+					if constexpr (std::is_pointer_v<T>) {
+						// The type is a filter, so the parent is _not_ allowed to have this component
+						if (sub_pool.has_entity(pid)) {
+							merge_or_add(ents_to_remove, entity_range{ent, ent});
+						}
+					} else {
+						// The parent must have this component
+						if (!sub_pool.has_entity(pid)) {
+							merge_or_add(ents_to_remove, entity_range{ent, ent});
+						}
+					}
+				});
+			}
+		}
+
+		// Remove entities from the result
+		ranges = difference_ranges(ranges, ents_to_remove);
+
 		// Clear the arguments
 		arguments.clear();
 		argument_spans.clear();
@@ -80,13 +115,15 @@ private:
 		// TODO insert in set with top. ordering?
 
 		// map of entity and root info
-		std::map<entity_type, int> roots;
+		std::unordered_map<entity_type, int> roots;
+		roots.reserve(count);
 
 		// Build the arguments for the ranges
 		std::atomic<int> index = 0;
 		auto conv = entity_offset_conv{ranges};
 		pool_entity_walker<TupPools> walker;
 		info_map info;
+		info.reserve(count);
 
 		for (entity_range const& range : ranges) {
 			walker.reset(&this->pools, entity_range_view{{range}});
@@ -117,6 +154,7 @@ private:
 
 		// Create the argument spans
 		size_t offset = 0;
+		argument_spans.reserve(roots.size());
 		for (auto const& [id, child_count] : roots) {
 			argument_spans.emplace_back(arguments.data() + offset, child_count);
 			offset += child_count;
@@ -179,9 +217,7 @@ private:
 
 private:
 	using base::has_parent_types;
-	using base::num_parent_components;
-	//using base::parent_index;
-	using base::pool_parent_id;
+	//using base::pool_parent_id;
 	using typename base::component_list;
 	using typename base::full_parent_type;
 	using typename base::parent_component_list;
@@ -196,6 +232,9 @@ private:
 
 	// The spans over each tree in the argument vector
 	std::vector<std::span<argument>> argument_spans;
+
+	// The pool that holds 'parent_id's
+	component_pool<parent_id> const* pool_parent_id;
 
 	// A tuple of the fully typed component pools used the parent component
 	parent_pool_tuple_t<stripped_parent_type> const parent_pools;

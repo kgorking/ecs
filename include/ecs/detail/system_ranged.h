@@ -38,12 +38,14 @@ private:
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
-	void do_build(entity_range_view entities) override {
+	void do_build() override {
+		std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(this->pools);
+
 		// Clear current arguments
 		arguments.clear();
 
 		// Reset the walker
-		walker.reset(entities);
+		walker.reset(ranges);
 
 		while (!walker.done()) {
 			if constexpr (is_entity<FirstComponent>) {

@@ -44,15 +44,17 @@ private:
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
-	void do_build(entity_range_view entities) override {
-		if (entities.size() == 0) {
+	void do_build() override {
+		std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(this->pools);
+
+		if (ranges.size() == 0) {
 			arguments.clear();
 			return;
 		}
 
 		// Count the total number of arguments
 		size_t arg_count = 0;
-		for (auto const& range : entities) {
+		for (auto const& range : ranges) {
 			arg_count += range.ucount();
 		}
 
@@ -61,7 +63,7 @@ private:
 		arguments.reserve(arg_count);
 
 		// Build the arguments for the ranges
-		for (auto const& range : entities) {
+		for (auto const& range : ranges) {
 			for (entity_id const& entity : range) {
 				if constexpr (is_entity<FirstComponent>) {
 					arguments.emplace_back(entity, get_component<Components>(entity, this->pools)...);

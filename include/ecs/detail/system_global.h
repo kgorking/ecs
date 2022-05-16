@@ -24,7 +24,7 @@ private:
 						  *std::get<std::remove_cvref_t<Components>*>(argument)...);
 	}
 
-	void do_build(entity_range_view) override {
+	void do_build() override {
 		// Does nothing
 	}
 
