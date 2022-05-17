@@ -88,7 +88,6 @@ template <typename Component, typename Pools>
 
 		// Tag: return a pointer to some dummy storage
 	} else if constexpr (tagged<T>) {
-		// TODO thread_local. static syncs threads
 		thread_local char dummy_arr[sizeof(T)];
 		return reinterpret_cast<T*>(dummy_arr);
 
@@ -103,7 +102,7 @@ template <typename Component, typename Pools>
 
 		auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
 			[&]<typename... ParentTypes>() {
-				return std::make_tuple(get_entity_data<std::remove_pointer_t<ParentTypes>>(pid, pools)...);
+				return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
 			});
 
 		return parent_type{pid, tup_parent_ptrs};

@@ -34,40 +34,7 @@ struct pool_range_walker {
 	// Get an entities component from a component pool
 	template <typename Component>
 	[[nodiscard]] auto get() const {
-		using T = std::remove_cvref_t<Component>;
-
-		entity_id const entity = it->first();
-
-		// Filter: return a nullptr
-		if constexpr (std::is_pointer_v<T>) {
-			static_cast<void>(entity);
-			return nullptr;
-
-			// Tag: return a pointer to some dummy storage
-		} else if constexpr (tagged<T>) {
-			static char dummy_arr[sizeof(T)];
-			return reinterpret_cast<T*>(dummy_arr);
-
-			// Global: return the shared component
-		} else if constexpr (global<T>) {
-			return &get_pool<T>(pools).get_shared_component();
-
-			// Parent component: return the parent with the types filled out
-		} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
-			using parent_type = std::remove_cvref_t<Component>;
-			parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
-
-			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
-				[&]<typename... ParentTypes>() {
-					return std::make_tuple(get_entity_data<std::remove_pointer_t<ParentTypes>>(pid, pools)...);
-				});
-
-			return parent_type{pid, tup_parent_ptrs};
-
-			// Standard: return the component from the pool
-		} else {
-			return get_pool<T>(pools).find_component_data(entity);
-		}
+		return get_component<Component>(get_range().first(), pools);
 	}
 
 private:

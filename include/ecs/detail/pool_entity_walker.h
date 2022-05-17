@@ -83,54 +83,8 @@ struct pool_entity_walker {
 	// Get an entities component from a component pool
 	template <typename Component>
 	[[nodiscard]] auto get() const {
-		using T = std::remove_cvref_t<Component>;
-
-		if constexpr (std::is_pointer_v<T>) {
-			// Filter: return a nullptr
-			return nullptr;
-
-		} else if constexpr (tagged<T>) {
-			// Tag: return a pointer to some dummy storage
-			thread_local char dummy_arr[sizeof(T)];
-			return reinterpret_cast<T*>(dummy_arr);
-
-		} else if constexpr (global<T>) {
-			// Global: return the shared component
-			return &get_pool<T>(*pools).get_shared_component();
-
-		} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
-			// Parent component: return the parent with the types filled out
-			using parent_type = std::remove_cvref_t<Component>;
-			parent_id* pid = get_pool<parent_id>(*pools).find_component_data(ranges_it->first() + offset);
-
-			auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>([&]<typename... ParentType>() {
-				return std::make_tuple(get_entity_data<ParentType>(*pid, *pools)...);
-			});
-
-			return parent_type{*pid, tup_parent_ptrs};
-		} else {
-			// Standard: return the component from the pool
-			return get_pool<T>(*pools).find_component_data(ranges_it->first() + offset);
-		}
+		return get_component<Component>(get_entity(), *pools);
 	}
-
-private:
-	//void update_pool_offsets() {
-	//	if (done())
-	//		return;
-
-	//	std::apply(
-	//		[this](auto* const... in_pools) {
-	//			auto const f = [&](auto pool) {
-	//				using pool_inner_type = typename pool_type_detect<decltype(pool)>::type;
-	//				auto const component_ptr = pool->find_component_data(ranges_it->first());
-	//				std::get<pool_inner_type*>(pointers) = component_ptr;
-	//			};
-
-	//			(f(in_pools), ...);
-	//		},
-	//		*pools);
-	//}
 
 private:
 	// The ranges to iterate over
