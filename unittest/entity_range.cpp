@@ -5,6 +5,10 @@
 using ecs::detail::iter_pair;
 using Iter = typename std::vector<ecs::entity_range>::const_iterator;
 
+std::vector<ecs::entity_range> intersect(std::vector<ecs::entity_range> const vec_a, std::vector<ecs::entity_range> const vec_b) {
+	return ecs::detail::intersect_ranges_iter(iter_pair{vec_a.begin(), vec_a.end()}, iter_pair{vec_b.begin(), vec_b.end()});
+}
+
 TEST_CASE("entity_range ", "[entity]") {
 	SECTION("iterator overflow test") {
 		constexpr auto max = std::numeric_limits<ecs::detail::entity_type>::max();
@@ -26,7 +30,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{};
 			std::vector<ecs::entity_range> const vec_b{{5, 7}, {13, 15}, {21, 23}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			CHECK(result.empty());
 		}
@@ -37,7 +41,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{0, 4}, {8, 12}, {16, 20}};
 			std::vector<ecs::entity_range> const vec_b{};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			CHECK(result.empty());
 		}
@@ -48,7 +52,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{0, 4}, {8, 12}, {16, 20}};
 			std::vector<ecs::entity_range> const vec_b{{5, 7}, {13, 15}, {21, 23}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(result.empty());
 		}
@@ -59,7 +63,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{0, 4}, {5, 9}, {10, 14}};
 			std::vector<ecs::entity_range> const vec_b{{1, 3}, {6, 8}, {11, 13}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{3} == result.size());
 			CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
@@ -73,7 +77,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{1, 3}, {6, 8}, {11, 13}};
 			std::vector<ecs::entity_range> const vec_b{{0, 4}, {5, 9}, {10, 14}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{3} == result.size());
 			CHECK(ecs::entity_range{1, 3}.equals(result.at(0)));
@@ -87,7 +91,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{0, 4}, {7, 11}, {14, 18}};
 			std::vector<ecs::entity_range> const vec_b{{4, 6}, {11, 13}, {18, 20}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{3} == result.size());
 			CHECK(ecs::entity_range{4, 4} == result.at(0));
@@ -101,7 +105,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{4, 6}, {11, 13}, {18, 20}};
 			std::vector<ecs::entity_range> const vec_b{{0, 4}, {7, 11}, {14, 18}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{3} == result.size());
 			CHECK(ecs::entity_range{4, 4} == result.at(0));
@@ -115,7 +119,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{0, 8}, {9, 17}};
 			std::vector<ecs::entity_range> const vec_b{{1, 3}, {5, 7}, {10, 12}, {14, 16}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{4} == result.size());
 			CHECK(ecs::entity_range{1, 3} == result.at(0));
@@ -130,7 +134,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{1, 3}, {5, 7}, {10, 12}, {14, 16}};
 			std::vector<ecs::entity_range> const vec_b{{0, 8}, {9, 17}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{4} == result.size());
 			CHECK(ecs::entity_range{1, 3} == result.at(0));
@@ -145,7 +149,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{1, 3}, {5, 7}};
 			std::vector<ecs::entity_range> const vec_b{{2, 6}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{2} == result.size());
 			CHECK(ecs::entity_range{2, 3} == result.at(0));
@@ -158,7 +162,7 @@ TEST_CASE("entity_range ", "[entity]") {
 			std::vector<ecs::entity_range> const vec_a{{2, 6}};
 			std::vector<ecs::entity_range> const vec_b{{1, 3}, {5, 7}};
 
-			auto const result = ecs::detail::intersect_ranges_iter(iter_pair{vec_a}, iter_pair{vec_b});
+			auto const result = intersect(vec_a, vec_b);
 
 			REQUIRE(size_t{2} == result.size());
 			CHECK(ecs::entity_range{2, 3} == result.at(0));
