@@ -641,7 +641,7 @@ private:
 					combine_erase(vec, combiner_bound);
 			}
 
-			process_add_components(vec);
+			this->process_add_components(vec);
 		};
 
 		deferred_adds.for_each(adder);
