@@ -15,11 +15,14 @@ void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) 
 	if constexpr (detail::global<T>) {
 		// do nothing
 	} else if constexpr (detail::is_parent<T>::value) {
-		ranges = intersect_ranges(ranges, get_pool<parent_id>(pools).get_entities());
+		auto const ents = get_pool<parent_id>(pools).get_entities();
+		ranges = intersect_ranges_iter(iter_pair{ranges.begin(), ranges.end()}, iter_pair{ents.begin(), ents.end()});
 	} else if constexpr (std::is_pointer_v<T>) {
 		// do nothing
 	} else {
-		ranges = intersect_ranges(ranges, get_pool<T>(pools).get_entities());
+		//ranges = intersect_ranges(ranges, get_pool<T>(pools).get_entities());
+		auto const ents = get_pool<T>(pools).get_entities();
+		ranges = intersect_ranges_iter(iter_pair{ranges.begin(), ranges.end()}, iter_pair{ents.begin(), ents.end()});
 	}
 }
 
