@@ -58,7 +58,6 @@ private:
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build(/* entity_range_view ranges*/) override {
-		//std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(this->pools);
 		std::vector<entity_range> ranges;
 		std::vector<entity_range> ents_to_remove;
 
@@ -66,10 +65,12 @@ private:
 		find_entity_pool_intersections_cb<base::component_list>(this->pools, [&](entity_range range) {
 			ranges.push_back(range);
 
+			// Get the parent ids in the range
+			parent_id const* pid_ptr = pool_parent_id->find_component_data(range.first());
+
 			// the ranges to remove
 			for (entity_id const ent : range) {
-				// Get the parent ids in the range
-				parent_id const pid = *pool_parent_id->find_component_data(ent);
+				parent_id const pid = pid_ptr[range.offset(ent)];
 
 				// Does tests on the parent sub-components to see they satisfy the constraints
 				// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
