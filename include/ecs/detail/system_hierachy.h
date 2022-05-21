@@ -58,7 +58,11 @@ private:
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build(/* entity_range_view ranges*/) override {
-		std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(this->pools);
+		//std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(this->pools);
+		std::vector<entity_range> ranges;
+		find_entity_pool_intersections_cb<base::component_list>(this->pools, [&ranges](entity_range r) {
+			ranges.push_back(r);
+		});
 
 		// the vector of ranges to remove
 		std::vector<entity_range> ents_to_remove;

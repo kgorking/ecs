@@ -100,12 +100,14 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 		if constexpr (type_list_size<typename SplitPairList::second> == 1) {
 			iter_components[0].curr += 1;
 		} else {
+			bool intersection_found = false;
 			for (size_t i = 1; i < iter_components.size(); ++i) {
 				auto& it_a = iter_components[i - 1].curr;
 				auto& it_b = iter_components[i].curr;
 
 				if (curr_range.overlaps(*it_b)) {
 					curr_range = entity_range::intersect(curr_range, *it_b);
+					intersection_found = true;
 				}
 
 				if (it_a->last() < it_b->last()) {
@@ -122,6 +124,9 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 					++it_b;
 				}
 			}
+
+			if (!intersection_found)
+				continue;
 		}
 
 		// Filter the range, if needed
