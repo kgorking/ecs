@@ -88,8 +88,8 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 	auto iter_filters = get_pool_iterators<typename SplitPairList::first>(pools);
 	auto iter_components = get_pool_iterators<typename SplitPairList::second>(pools);
 
-	auto const done = [](auto iter) {
-		return iter.curr == iter.end;
+	auto const done = [](auto it) {
+		return it.curr == it.end;
 	};
 
 	while (!std::any_of(iter_components.begin(), iter_components.end(), done)) {
@@ -102,26 +102,29 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 		} else {
 			bool intersection_found = false;
 			for (size_t i = 1; i < iter_components.size(); ++i) {
-				auto& it_a = iter_components[i - 1].curr;
-				auto& it_b = iter_components[i].curr;
+				auto& it_a = iter_components[i - 1];
+				auto& it_b = iter_components[i];
 
-				if (curr_range.overlaps(*it_b)) {
-					curr_range = entity_range::intersect(curr_range, *it_b);
+				if (done(it_a) /*|| done(it_b)*/)
+					break;
+
+				if (curr_range.overlaps(*it_b.curr)) {
+					curr_range = entity_range::intersect(curr_range, *it_b.curr);
 					intersection_found = true;
 				}
 
-				if (it_a->last() < it_b->last()) {
+				if (it_a.curr->last() < it_b.curr->last()) {
 					// range a is inside range b, move to
 					// the next range in a
-					++it_b;
-				} else if (it_b->last() < it_a->last()) {
+					++it_a.curr;
+				} else if (it_b.curr->last() < it_a.curr->last()) {
 					// range b is inside range a,
 					// move to the next range in b
-					++it_b;
+					++it_b.curr;
 				} else {
 					// ranges are equal, move to next ones
-					++it_a;
-					++it_b;
+					++it_a.curr;
+					++it_b.curr;
 				}
 			}
 
