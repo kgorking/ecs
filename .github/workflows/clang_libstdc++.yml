@@ -1,6 +1,6 @@
 name: clang-13 libstdc++-11
 
-on: [push]
+# on: [push]  # disabled until clang gets its shit together.
 
 jobs:
   build:
