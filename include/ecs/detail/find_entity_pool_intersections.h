@@ -105,9 +105,6 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 				auto& it_a = iter_components[i - 1];
 				auto& it_b = iter_components[i];
 
-				if (done(it_a) /*|| done(it_b)*/)
-					break;
-
 				if (curr_range.overlaps(*it_b.curr)) {
 					curr_range = entity_range::intersect(curr_range, *it_b.curr);
 					intersection_found = true;
@@ -117,6 +114,9 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 					// range a is inside range b, move to
 					// the next range in a
 					++it_a.curr;
+					if (done(it_a))
+						break;
+
 				} else if (it_b.curr->last() < it_a.curr->last()) {
 					// range b is inside range a,
 					// move to the next range in b
@@ -124,6 +124,9 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 				} else {
 					// ranges are equal, move to next ones
 					++it_a.curr;
+					if (done(it_a))
+						break;
+
 					++it_b.curr;
 				}
 			}
