@@ -3,9 +3,40 @@
 
 #include "../entity_range.h"
 
-namespace ecs::detail {
 // Find the intersectsions between two sets of ranges
-inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
+namespace ecs::detail {
+template <typename Iter>
+struct iter_pair {
+	Iter curr;
+	Iter end;
+};
+
+template <typename Iter1, typename Iter2>
+std::vector<entity_range> intersect_ranges_iter(iter_pair<Iter1> it_a, iter_pair<Iter2> it_b) {
+	std::vector<entity_range> result;
+
+	while (it_a.curr != it_a.end && it_b.curr != it_b.end) {
+		if (it_a.curr->overlaps(*it_b.curr)) {
+			result.push_back(entity_range::intersect(*it_a.curr, *it_b.curr));
+		}
+
+		if (it_a.curr->last() < it_b.curr->last()) { // range a is inside range b, move to
+													 // the next range in a
+			++it_a.curr;
+		} else if (it_b.curr->last() < it_a.curr->last()) { // range b is inside range a,
+															// move to the next range in b
+			++it_b.curr;
+		} else { // ranges are equal, move to next ones
+			++it_a.curr;
+			++it_b.curr;
+		}
+	}
+
+	return result;
+}
+
+// Find the intersectsions between two sets of ranges
+/* inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
 	std::vector<entity_range> result;
 
 	if (view_a.empty() || view_b.empty()) {
@@ -33,7 +64,7 @@ inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, enti
 	}
 
 	return result;
-}
+}*/
 
 // Merges a range into the last range in the vector, or adds a new range
 inline void merge_or_add(std::vector<entity_range>& v, entity_range r) {
@@ -58,7 +89,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 	auto range_a = *it_a;
 	while (it_a != view_a.end()) {
 		if (it_b == view_b.end()) {
-			merge_or_add(result, range_a);
+			result.push_back(range_a);
 			if (++it_a != view_a.end())
 				range_a = *it_a;
 		} else if (it_b->contains(range_a)) {
@@ -68,7 +99,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 				range_a = *it_a;
 		} else if (range_a < *it_b) {
 			// The whole 'a' range is before 'b', so add range 'a'
-			merge_or_add(result, range_a);
+			result.push_back(range_a);
 
 			if (++it_a != view_a.end())
 				range_a = *it_a;
@@ -83,7 +114,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 			if (res.second) {
 				// Range 'a' was split in two by range 'b'. Add the first range and update
 				// range 'a' with the second range
-				merge_or_add(result, res.first);
+				result.push_back(res.first);
 				range_a = *res.second;
 
 				++it_b;
@@ -98,7 +129,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 					++it_b;
 				} else {
 					// Add the range
-					merge_or_add(result, res.first);
+					result.push_back(res.first);
 
 					if (++it_a != view_a.end())
 						range_a = *it_a;

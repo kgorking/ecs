@@ -3,8 +3,10 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <vector>
+#include <execution>
 
 #include "tls/cache.h"
 #include "tls/split.h"

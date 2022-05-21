@@ -8,6 +8,8 @@ namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
 template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
 class system_ranged final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
+	using base = system<Options, UpdateFn, TupPools, FirstComponent, Components...>;
+
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
@@ -38,22 +40,15 @@ private:
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
-	void do_build(entity_range_view entities) override {
+	void do_build() override {
 		// Clear current arguments
 		arguments.clear();
 
-		// Reset the walker
-		walker.reset(entities);
-
-		while (!walker.done()) {
-			if constexpr (is_entity<FirstComponent>) {
-				arguments.emplace_back(walker.get_range(), walker.template get<Components>()...);
-			} else {
-				arguments.emplace_back(walker.get_range(), walker.template get<FirstComponent>(), walker.template get<Components>()...);
-			}
-
-			walker.next();
-		}
+		find_entity_pool_intersections_cb<typename base::component_list>(this->pools, [this](entity_range found_range) {
+			apply_type<typename base::component_list>([&]<typename... Comps>() {
+				arguments.emplace_back(found_range, get_component<Comps>(found_range.first(), this->pools)...);
+			});
+		});
 	}
 
 private:
