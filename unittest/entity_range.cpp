@@ -6,7 +6,7 @@ using ecs::detail::iter_pair;
 using Iter = typename std::vector<ecs::entity_range>::const_iterator;
 
 std::vector<ecs::entity_range> intersect(std::vector<ecs::entity_range> const vec_a, std::vector<ecs::entity_range> const vec_b) {
-	return ecs::detail::intersect_ranges_iter(iter_pair{vec_a.begin(), vec_a.end()}, iter_pair{vec_b.begin(), vec_b.end()});
+	return ecs::detail::intersect_ranges_iter(iter_pair<Iter>{vec_a.begin(), vec_a.end()}, iter_pair<Iter>{vec_b.begin(), vec_b.end()});
 }
 
 TEST_CASE("entity_range ", "[entity]") {
@@ -259,11 +259,13 @@ TEST_CASE("entity_range ", "[entity]") {
 
 			auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
-			REQUIRE(size_t{4} == result.size());
+			REQUIRE(size_t{6} == result.size());
 			CHECK(ecs::entity_range{0, 0}.equals(result.at(0)));
-			CHECK(ecs::entity_range{4, 5}.equals(result.at(1)));
-			CHECK(ecs::entity_range{9, 10}.equals(result.at(2)));
-			CHECK(ecs::entity_range{14, 14}.equals(result.at(3)));
+			CHECK(ecs::entity_range{4, 4}.equals(result.at(1)));
+			CHECK(ecs::entity_range{5, 5}.equals(result.at(2)));
+			CHECK(ecs::entity_range{9, 9}.equals(result.at(3)));
+			CHECK(ecs::entity_range{10, 10}.equals(result.at(4)));
+			CHECK(ecs::entity_range{14, 14}.equals(result.at(5)));
 		}
 
 		SECTION("Ranges in A are contained in ranges in B") {
@@ -313,12 +315,13 @@ TEST_CASE("entity_range ", "[entity]") {
 
 			auto const result = ecs::detail::difference_ranges(vec_a, vec_b);
 
-			REQUIRE(size_t{5} == result.size());
+			REQUIRE(size_t{6} == result.size());
 			CHECK(ecs::entity_range{0, 0} == result.at(0));
 			CHECK(ecs::entity_range{4, 4} == result.at(1));
-			CHECK(ecs::entity_range{8, 9} == result.at(2));
-			CHECK(ecs::entity_range{13, 13} == result.at(3));
-			CHECK(ecs::entity_range{17, 17} == result.at(4));
+			CHECK(ecs::entity_range{8, 8} == result.at(2));
+			CHECK(ecs::entity_range{9, 9} == result.at(3));
+			CHECK(ecs::entity_range{13, 13} == result.at(4));
+			CHECK(ecs::entity_range{17, 17} == result.at(5));
 		}
 
 		SECTION("Ranges in B overlap multiple ranges in A") {

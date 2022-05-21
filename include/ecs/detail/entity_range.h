@@ -89,7 +89,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 	auto range_a = *it_a;
 	while (it_a != view_a.end()) {
 		if (it_b == view_b.end()) {
-			merge_or_add(result, range_a);
+			result.push_back(range_a);
 			if (++it_a != view_a.end())
 				range_a = *it_a;
 		} else if (it_b->contains(range_a)) {
@@ -99,7 +99,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 				range_a = *it_a;
 		} else if (range_a < *it_b) {
 			// The whole 'a' range is before 'b', so add range 'a'
-			merge_or_add(result, range_a);
+			result.push_back(range_a);
 
 			if (++it_a != view_a.end())
 				range_a = *it_a;
@@ -114,7 +114,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 			if (res.second) {
 				// Range 'a' was split in two by range 'b'. Add the first range and update
 				// range 'a' with the second range
-				merge_or_add(result, res.first);
+				result.push_back(res.first);
 				range_a = *res.second;
 
 				++it_b;
@@ -129,7 +129,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 					++it_b;
 				} else {
 					// Add the range
-					merge_or_add(result, res.first);
+					result.push_back(res.first);
 
 					if (++it_a != view_a.end())
 						range_a = *it_a;

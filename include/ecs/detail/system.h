@@ -165,8 +165,8 @@ protected:
 	TupPools const pools;
 
 	// List of components used
-	using component_list = type_list<FirstComponent, Components...>;
-	using stripped_component_list = type_list<std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>;
+	using component_list = std::conditional_t<is_entity<FirstComponent>, type_list<Components...>, type_list<FirstComponent, Components...>>;
+	using stripped_component_list = transform_type<component_list, std::remove_cvref_t>;
 
 	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
 	using interval_type =
