@@ -9,6 +9,8 @@ namespace ecs::detail {
 // will be passed to the user supplied lambda in a sorted manner
 template <typename Options, typename UpdateFn, typename SortFunc, class TupPools, class FirstComponent, class... Components>
 struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
+	using base = system<Options, UpdateFn, TupPools, FirstComponent, Components...>;
+
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
@@ -45,34 +47,15 @@ private:
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
-		std::vector<entity_range> ranges = find_entity_pool_intersections<FirstComponent, Components...>(this->pools);
-
-		if (ranges.size() == 0) {
-			arguments.clear();
-			return;
-		}
-
-		// Count the total number of arguments
-		size_t arg_count = 0;
-		for (auto const& range : ranges) {
-			arg_count += range.ucount();
-		}
-
-		// Reserve space for the arguments
 		arguments.clear();
-		arguments.reserve(arg_count);
 
-		// Build the arguments for the ranges
-		for (auto const& range : ranges) {
+		find_entity_pool_intersections_cb<typename base::component_list>(this->pools, [this](entity_range range) {
 			for (entity_id const& entity : range) {
-				if constexpr (is_entity<FirstComponent>) {
-					arguments.emplace_back(entity, get_component<Components>(entity, this->pools)...);
-				} else {
-					arguments.emplace_back(entity, get_component<FirstComponent>(entity, this->pools),
-										   get_component<Components>(entity, this->pools)...);
-				}
+				apply_type<typename base::component_list>([&]<typename... Comps>() {
+					arguments.emplace_back(entity, get_component<Comps>(entity, this->pools)...);
+				});
 			}
-		}
+		});
 
 		needs_sorting = true;
 	}

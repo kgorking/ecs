@@ -62,7 +62,7 @@ private:
 		std::vector<entity_range> ents_to_remove;
 
 		// Find the entities
-		find_entity_pool_intersections_cb<base::component_list>(this->pools, [&](entity_range range) {
+		find_entity_pool_intersections_cb<typename base::component_list>(this->pools, [&](entity_range range) {
 			ranges.push_back(range);
 
 			// Get the parent ids in the range
