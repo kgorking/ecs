@@ -77,10 +77,33 @@ private:
 
 	chunk* head = nullptr;
 
+
+	//
+	struct entity_empty {
+		entity_range rng;
+	};
+
+	struct entity_data_member {
+		entity_range rng;
+		T data;
+	};	
+	struct entity_span_member {
+		entity_range rng;
+		std::span<const T> data;
+	};
+	struct entity_gen_member {
+		entity_range rng;
+		std::function<T(entity_id)> data;
+	};
+
+	using entity_data = std::conditional_t<unbound<T>, entity_empty, entity_data_member>;
+	using entity_span = std::conditional_t<unbound<T>, entity_empty, entity_span_member>;
+	using entity_gen = std::conditional_t<unbound<T>, entity_empty, entity_gen_member>;
+
 	// Keep track of which components to add/remove each cycle
-	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
-	using entity_gen = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<T(entity_id)>>>;
+//	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
+//	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
+//	using entity_gen = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<T(entity_id)>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
@@ -109,7 +132,7 @@ public:
 	constexpr component_pool(component_pool&&) = delete;
 	constexpr component_pool& operator=(component_pool const&) = delete;
 	constexpr component_pool& operator=(component_pool&&) = delete;
-	constexpr ~component_pool() noexcept override {
+	/*constexpr*/ ~component_pool() noexcept override {
 		if constexpr (global<T>) {
 			std::destroy_at(head->data);
 			alloc.deallocate(head->data, head->range.count());
@@ -127,7 +150,7 @@ public:
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
-		deferred_spans.local().emplace_back(range, span);
+		deferred_spans.local().push_back({range, span});
 	}
 
 	// Add a component to a range of entities, initialized by the supplied user function generator
@@ -136,7 +159,7 @@ public:
 	template <typename Fn>
 	void add_generator(entity_range const range, Fn&& gen) {
 		// Add the range and function to a temp storage
-		deferred_gen.local().emplace_back(range, std::forward<Fn>(gen));
+		deferred_gen.local().push_back({range, std::forward<Fn>(gen)});
 	}
 
 	// Add a component to a range of entity.
@@ -144,9 +167,9 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	constexpr void add(entity_range const range, T&& component) noexcept {
 		if constexpr (tagged<T>) {
-			deferred_adds.local().push_back(range);
+			deferred_adds.local().push_back({range});
 		} else {
-			deferred_adds.local().emplace_back(range, std::forward<T>(component));
+			deferred_adds.local().push_back({range, std::forward<T>(component)});
 		}
 	}
 
@@ -155,9 +178,9 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	constexpr void add(entity_range const range, T const& component) noexcept {
 		if constexpr (tagged<T>) {
-			deferred_adds.local().push_back(range);
+			deferred_adds.local().push_back({range});
 		} else {
-			deferred_adds.local().emplace_back(range, component);
+			deferred_adds.local().push_back({range, component});
 		}
 	}
 
@@ -330,11 +353,11 @@ private:
 	}
 
 	constexpr chunk* create_new_chunk(std::forward_iterator auto iter) noexcept {
-		entity_range const r = std::get<0>(*iter);
+		entity_range const r = iter->rng;
 		chunk* c = create_new_chunk(r, r);
 		if constexpr (!unbound<T>) {
 			c->data = alloc.allocate(r.ucount());
-			construct_range_in_chunk(c, r, std::get<1>(*iter));
+			construct_range_in_chunk(c, r, iter->data);
 		}
 
 		return c;
@@ -529,11 +552,11 @@ private:
 
 	// Try to combine two ranges. With data
 	constexpr static bool combiner_bound(entity_data& a, entity_data const& b) requires(!unbound<T>) {
-		auto& [a_rng, a_data] = a;
-		auto const& [b_rng, b_data] = b;
+		//auto& [a_rng, a_data] = a;
+		//auto const& [b_rng, b_data] = b;
 
-		if (a_rng.adjacent(b_rng) && is_equal(a_data, b_data)) {
-			a_rng = entity_range::merge(a_rng, b_rng);
+		if (a.rng.adjacent(b.rng) && is_equal(a.data, b.data)) {
+			a.rng = entity_range::merge(a.rng, b.rng);
 			return true;
 		} else {
 			return false;
@@ -581,7 +604,8 @@ private:
 				curr = new_chunk;
 				prev->next = curr;
 			} else {
-				entity_range const r = std::get<0>(*iter);
+				//entity_range const r = std::get<0>(*iter);
+				entity_range const r = iter->rng;//std::get<0>(*iter);
 
 				// Move current chunk pointer forward
 				while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
@@ -593,7 +617,7 @@ private:
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, prev, r);
 					if constexpr (!unbound<T>) {
-						construct_range_in_chunk(curr, r, std::get<1>(*iter));
+						construct_range_in_chunk(curr, r, iter->data);
 					}
 				} else if (curr->range < r) {
 					// Incoming range is larger than the current one, so add it after 'curr'
@@ -626,10 +650,10 @@ private:
 
 	// Add new queued entities and components to the main storage.
 	constexpr void process_add_components() noexcept {
-		auto const adder = [this](auto& vec) {
+		auto const adder = [this]<typename C>(std::vector<C>& vec) {
 			// Sort the input(s)
 			auto const comparator = [](auto const& l, auto const& r) {
-				return std::get<0>(l) < std::get<0>(r);
+				return l.rng < r.rng;
 			};
 			std::sort(vec.begin(), vec.end(), comparator);
 

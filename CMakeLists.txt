@@ -69,7 +69,7 @@ else()
         -Wpedantic
         -Wshadow
         #-Wsign-conversion
-        #-ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
+        -ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
 	)
     target_link_options(ecs INTERFACE -pthread)
 
