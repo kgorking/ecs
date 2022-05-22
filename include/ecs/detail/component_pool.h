@@ -125,7 +125,7 @@ public:
 	constexpr component_pool(component_pool&&) = delete;
 	constexpr component_pool& operator=(component_pool const&) = delete;
 	constexpr component_pool& operator=(component_pool&&) = delete;
-	/*constexpr*/ ~component_pool() noexcept override {
+	constexpr ~component_pool() noexcept override {
 		if constexpr (global<T>) {
 			std::destroy_at(head->data);
 			alloc.deallocate(head->data, head->range.count());
