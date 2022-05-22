@@ -84,12 +84,17 @@ private:
 
 	struct entity_data_member : entity_empty {
 		T data;
+		constexpr entity_data_member(entity_range r, T const& t) noexcept : entity_empty{r}, data(t) {}
+		constexpr entity_data_member(entity_range r, T&& t) noexcept : entity_empty{r}, data(std::forward<T>(t)) {}
 	};
 	struct entity_span_member : entity_empty {
 		std::span<const T> data;
+		constexpr entity_span_member(entity_range r, std::span<const T> t) noexcept : entity_empty{r}, data(t) {}
 	};
 	struct entity_gen_member : entity_empty {
 		std::function<T(entity_id)> data;
+		constexpr entity_gen_member(entity_range r, std::function<T(entity_id)>&& t) noexcept
+			: entity_empty{r}, data(std::forward<std::function<T(entity_id)>>(t)) {}
 	};
 
 	using entity_data = std::conditional_t<unbound<T>, entity_empty, entity_data_member>;
@@ -143,7 +148,7 @@ public:
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
-		deferred_spans.local().push_back({{range}, span});
+		deferred_spans.local().emplace_back(range, span);
 	}
 
 	// Add a component to a range of entities, initialized by the supplied user function generator
@@ -152,7 +157,7 @@ public:
 	template <typename Fn>
 	void add_generator(entity_range const range, Fn&& gen) {
 		// Add the range and function to a temp storage
-		deferred_gen.local().push_back({{range}, std::forward<Fn>(gen)});
+		deferred_gen.local().emplace_back(range, std::forward<Fn>(gen));
 	}
 
 	// Add a component to a range of entity.
@@ -160,9 +165,9 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	constexpr void add(entity_range const range, T&& component) noexcept {
 		if constexpr (tagged<T>) {
-			deferred_adds.local().push_back({range});
+			deferred_adds.local().emplace_back(range);
 		} else {
-			deferred_adds.local().push_back({{range}, std::forward<T>(component)});
+			deferred_adds.local().emplace_back(range, std::forward<T>(component));
 		}
 	}
 
@@ -171,9 +176,9 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	constexpr void add(entity_range const range, T const& component) noexcept {
 		if constexpr (tagged<T>) {
-			deferred_adds.local().push_back({range});
+			deferred_adds.local().emplace_back(range);
 		} else {
-			deferred_adds.local().push_back({{range}, component});
+			deferred_adds.local().emplace_back(range, component);
 		}
 	}
 
