@@ -77,22 +77,18 @@ private:
 
 	chunk* head = nullptr;
 
-
 	//
 	struct entity_empty {
 		entity_range rng;
 	};
 
-	struct entity_data_member {
-		entity_range rng;
+	struct entity_data_member : entity_empty {
 		T data;
-	};	
-	struct entity_span_member {
-		entity_range rng;
+	};
+	struct entity_span_member : entity_empty {
 		std::span<const T> data;
 	};
-	struct entity_gen_member {
-		entity_range rng;
+	struct entity_gen_member : entity_empty {
 		std::function<T(entity_id)> data;
 	};
 
@@ -101,9 +97,6 @@ private:
 	using entity_gen = std::conditional_t<unbound<T>, entity_empty, entity_gen_member>;
 
 	// Keep track of which components to add/remove each cycle
-//	using entity_data = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, T>>;
-//	using entity_span = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::span<const T>>>;
-//	using entity_gen = std::conditional_t<unbound<T>, std::tuple<entity_range>, std::tuple<entity_range, std::function<T(entity_id)>>>;
 	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
@@ -150,7 +143,7 @@ public:
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
-		deferred_spans.local().push_back({range, span});
+		deferred_spans.local().push_back({{range}, span});
 	}
 
 	// Add a component to a range of entities, initialized by the supplied user function generator
@@ -159,7 +152,7 @@ public:
 	template <typename Fn>
 	void add_generator(entity_range const range, Fn&& gen) {
 		// Add the range and function to a temp storage
-		deferred_gen.local().push_back({range, std::forward<Fn>(gen)});
+		deferred_gen.local().push_back({{range}, std::forward<Fn>(gen)});
 	}
 
 	// Add a component to a range of entity.
@@ -169,7 +162,7 @@ public:
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back({range});
 		} else {
-			deferred_adds.local().push_back({range, std::forward<T>(component)});
+			deferred_adds.local().push_back({{range}, std::forward<T>(component)});
 		}
 	}
 
@@ -180,7 +173,7 @@ public:
 		if constexpr (tagged<T>) {
 			deferred_adds.local().push_back({range});
 		} else {
-			deferred_adds.local().push_back({range, component});
+			deferred_adds.local().push_back({{range}, component});
 		}
 	}
 
@@ -552,9 +545,6 @@ private:
 
 	// Try to combine two ranges. With data
 	constexpr static bool combiner_bound(entity_data& a, entity_data const& b) requires(!unbound<T>) {
-		//auto& [a_rng, a_data] = a;
-		//auto const& [b_rng, b_data] = b;
-
 		if (a.rng.adjacent(b.rng) && is_equal(a.data, b.data)) {
 			a.rng = entity_range::merge(a.rng, b.rng);
 			return true;
@@ -576,7 +566,8 @@ private:
 		}
 	}
 
-	constexpr void process_add_components(auto& vec) noexcept {
+	template <typename U>
+	constexpr void process_add_components(std::vector<U> const& vec) noexcept {
 		if (vec.empty()) {
 			return;
 		}
@@ -597,15 +588,15 @@ private:
 			curr = head;
 		}
 
-		auto const merge_data = [&](std::forward_iterator auto const& iter) {
+		using iterator = typename std::vector<U>::const_iterator;
+		auto const merge_data = [&](iterator const& iter) {
 			if (curr == nullptr) {
 				auto new_chunk = create_new_chunk(iter);
 				new_chunk->next = curr;
 				curr = new_chunk;
 				prev->next = curr;
 			} else {
-				//entity_range const r = std::get<0>(*iter);
-				entity_range const r = iter->rng;//std::get<0>(*iter);
+				entity_range const r = iter->rng;
 
 				// Move current chunk pointer forward
 				while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
@@ -652,7 +643,7 @@ private:
 	constexpr void process_add_components() noexcept {
 		auto const adder = [this]<typename C>(std::vector<C>& vec) {
 			// Sort the input(s)
-			auto const comparator = [](auto const& l, auto const& r) {
+			auto const comparator = [](entity_empty const& l, entity_empty const& r) {
 				return l.rng < r.rng;
 			};
 			std::sort(vec.begin(), vec.end(), comparator);
