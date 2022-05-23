@@ -96,7 +96,7 @@ namespace impl {
 	}
 
 	
-	template <impl::TypeList TL, template <class O> class Transformer>
+	template <typename TL, template <class O> class Transformer>
 	struct transform_type {
 		template <typename... Types>
 		constexpr static type_list<Transformer<Types>...>* helper(type_list<Types...>*);
@@ -104,15 +104,15 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <impl::TypeList TL, template <class O> class Transformer>
+	template <typename TL, template <class... O> class Transformer>
 	struct transform_type_all {
 		template <typename... Types>
 		constexpr static Transformer<Types...>* helper(type_list<Types...>*);
 
-		using type = decltype(helper(static_cast<TL*>(nullptr)));
+		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 
-	template <impl::TypeList TL, typename T>
+	template <typename TL, typename T>
 	struct add_type {
 		template <typename... Types>
 		constexpr static type_list<Types..., T>* helper(type_list<Types...>*);
@@ -120,7 +120,7 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <impl::TypeList TL, template <class O> class Predicate>
+	template <typename TL, template <class O> class Predicate>
 	struct split_types_if {
 		template <typename ListTrue, typename ListFalse, typename Front, typename... Rest >
 		constexpr static auto helper(type_list<Front, Rest...>*) {
@@ -158,7 +158,10 @@ template <impl::TypeList TL, template <class O> class Transformer>
 using transform_type = typename impl::transform_type<TL, Transformer>::type;
 
 // Transforms all the types in a type_list at once
-// Takes transformer that results in new type
+// Takes a transformer that results in a new type
+// Ex.
+// 	template <typename... Types>
+//  using transformer = std::tuple<entity_id, Types...>;
 template <impl::TypeList TL, template <class... O> class Transformer>
 using transform_type_all = typename impl::transform_type_all<TL, Transformer>::type;
 
