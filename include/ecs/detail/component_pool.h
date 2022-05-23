@@ -80,6 +80,7 @@ private:
 	//
 	struct entity_empty {
 		entity_range rng;
+		constexpr entity_empty(entity_range r) noexcept : rng{r} {}
 	};
 
 	struct entity_data_member : entity_empty {
