@@ -24,9 +24,9 @@ namespace ecs::detail {
 // The implementation of a system specialized on its components
 
 // TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
-//       snildt komme tilbage til en component_pool<T>
+//       snildt komme tilbage til en component_pool<T> uden brug af tuples
 
-template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
+template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
@@ -47,19 +47,20 @@ public:
 		do_run();
 
 		// Notify pools if data was written to them
-		if constexpr (!is_entity<FirstComponent>) {
-			notify_pool_modifed<FirstComponent>();
-		}
-		(notify_pool_modifed<Components>(), ...);
+		for_each_type<ComponentsList>([this]<typename T>() {
+			this->notify_pool_modifed<T>();
+		});
 	}
 
 	template <typename T>
 	void notify_pool_modifed() {
 		if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
 			// Recurse into the parent types
-			for_each_type<parent_type_list_t<T>>([this]<typename... ParentTypes>() { (this->notify_pool_modifed<ParentTypes>(), ...); });
+			for_each_type<parent_type_list_t<T>>([this]<typename... ParentTypes>() {
+				(this->notify_pool_modifed<ParentTypes>(), ...);
+			});
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
-			get_pool<reduce_parent_t<std::remove_cvref_t<T>>>(pools).notify_components_modified();
+			get_pool<T>(pools).notify_components_modified();
 		}
 	}
 
@@ -124,7 +125,7 @@ public:
 			return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>();
 		};
 
-		if (any_of_type<component_list>(check_writes))
+		if (any_of_type<ComponentsList>(check_writes))
 			return true;
 
 		if constexpr (has_parent_types) {
@@ -164,9 +165,8 @@ protected:
 	// A tuple of the fully typed component pools used by this system
 	TupPools const pools;
 
-	// List of components used
-	using component_list = std::conditional_t<is_entity<FirstComponent>, type_list<Components...>, type_list<FirstComponent, Components...>>;
-	using stripped_component_list = transform_type<component_list, std::remove_cvref_t>;
+	// List of components used, with any modifiers stripped
+	using stripped_component_list = transform_type<ComponentsList, std::remove_cvref_t>;
 
 	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
 	using interval_type =
@@ -174,19 +174,15 @@ protected:
 						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
 	interval_type interval_checker;
 
-	// Number of arguments
-	static constexpr size_t num_arguments = 1 + sizeof...(Components);
-
 	// Number of components
-	static constexpr size_t num_components = sizeof...(Components) + !is_entity<FirstComponent>;
+	static constexpr size_t num_components = type_list_size<ComponentsList>;
 
 	// Number of filters
-	static constexpr size_t num_filters = (std::is_pointer_v<FirstComponent> + ... + std::is_pointer_v<Components>);
+	static constexpr size_t num_filters = any_of_type<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
 	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
 
 	// Hashes of stripped types used by this system ('int' instead of 'int const&')
-	static constexpr std::array<detail::type_hash, num_components> type_hashes =
-		get_type_hashes_array<is_entity<FirstComponent>, std::remove_cvref_t<FirstComponent>, std::remove_cvref_t<Components>...>();
+	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
 
 	//
 	// ecs::parent related stuff
