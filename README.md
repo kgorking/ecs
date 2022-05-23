@@ -319,7 +319,7 @@ rt.make_system([](ecs::parent<short, long> const& p) { // runs on entity 7
 ### Filtering on parents components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/v14T1efbK)
 Filters work like regular component filters and can be specified on a parents sub-components:
 ```cpp
-rt.make_system([](ecs::parent<short*> p) { });  // runs on entities 8-11
+rt.make_system([](ecs::parent<short*> p) { });  // runs on entities 7-11
 ```
 An `ecs::parent` that only consist of filters does not need to be passed as a reference.
 
