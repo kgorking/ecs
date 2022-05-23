@@ -159,23 +159,16 @@ protected:
 	}
 
 protected:
-	// The user supplied system
-	UpdateFn update_func;
+	// Number of components
+	static constexpr size_t num_components = type_list_size<ComponentsList>;
 
-	// A tuple of the fully typed component pools used by this system
-	TupPools const pools;
-
-	// List of components used, with any modifiers stripped
+	// List of components used, with all modifiers stripped
 	using stripped_component_list = transform_type<ComponentsList, std::remove_cvref_t>;
 
 	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
 	using interval_type =
 		std::conditional_t<(user_interval::_ecs_duration > 0.0),
 						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
-	interval_type interval_checker;
-
-	// Number of components
-	static constexpr size_t num_components = type_list_size<ComponentsList>;
 
 	// Number of filters
 	static constexpr size_t num_filters = any_of_type<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
@@ -192,6 +185,16 @@ protected:
 	using stripped_parent_type = std::remove_pointer_t<std::remove_cvref_t<full_parent_type>>;
 	using parent_component_list = parent_type_list_t<stripped_parent_type>;
 	static constexpr bool has_parent_types = !std::is_same_v<full_parent_type, void>;
+
+
+	// The user supplied system
+	UpdateFn update_func;
+
+	// A tuple of the fully typed component pools used by this system
+	TupPools const pools;
+	component_pool_base* base_pools[num_components]; // todo
+
+	interval_type interval_checker;
 };
 } // namespace ecs::detail
 
