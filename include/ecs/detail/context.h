@@ -143,9 +143,9 @@ public:
 	}
 
 	// Mutable lambda with sort
-	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstComponent, typename... Components>
-	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
-		return create_system<Options, UpdateFn, SortFn, FirstComponent, Components...>(update_func, sort_func);
+	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg, typename... Args>
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...)) {
+		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 private:
