@@ -136,26 +136,6 @@ template <typename Component>
 using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Component>>::value,
 											  std::remove_cvref_t<Component>,	// parent components are stored as copies
 											  std::remove_cvref_t<Component>*>; // rest are pointers
-
-// Holds a pointer to the first component from each pool
-template <class FirstComponent, class... Components>
-using argument_tuple = std::conditional_t<is_entity<FirstComponent>, std::tuple<component_argument<Components>...>,
-										  std::tuple<component_argument<FirstComponent>, component_argument<Components>...>>;
-
-// Holds a single entity id and its arguments
-template <class FirstComponent, class... Components>
-using single_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
-
-// Holds an entity range and its arguments
-template <class FirstComponent, class... Components>
-using range_argument =
-	decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, std::declval<argument_tuple<FirstComponent, Components...>>()));
-
-// Tuple holding component pools
-template <class FirstComponent, class... Components>
-using tup_pools = std::conditional_t<is_entity<FirstComponent>, std::tuple<pool<reduce_parent_t<Components>>...>,
-									 std::tuple<pool<reduce_parent_t<FirstComponent>>, pool<reduce_parent_t<Components>>...>>;
-
 } // namespace ecs::detail
 
 #endif // !ECS_SYSTEM_DEFS_H_

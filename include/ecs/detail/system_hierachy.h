@@ -16,9 +16,9 @@
 #include "type_list.h"
 
 namespace ecs::detail {
-template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
-class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
-	using base = system<Options, UpdateFn, TupPools, FirstComponent, Components...>;
+template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
+	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
@@ -32,12 +32,13 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstC
 	using info_map = std::unordered_map<entity_type, entity_info>;
 	using info_iterator = typename info_map::const_iterator;
 
-	using argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>(),
-											 std::tuple<entity_info>{}));
+	template <typename... Types>
+	using tuple_from_types = std::tuple<entity_id, component_argument<Types>..., entity_info>;
+	using argument = transform_type_all<ComponentsList, tuple_from_types>;
 
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, parent_pools{make_parent_types_tuple()} {
+		: base{func, in_pools}, parent_pools{make_parent_types_tuple()} {
 		pool_parent_id = &detail::get_pool<parent_id>(this->pools);
 		this->process_changes(true);
 	}
@@ -47,11 +48,13 @@ private:
 		auto const e_p = execution_policy{}; // cannot pass directly to 'for_each' in gcc
 		std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto const local_span) {
 			for (argument& arg : local_span) {
-				if constexpr (is_entity<FirstComponent>) {
-					this->update_func(std::get<entity_id>(arg), extract<Components>(arg)...);
-				} else {
-					this->update_func(extract<FirstComponent>(arg), extract<Components>(arg)...);
-				}
+				apply_type<ComponentsList>([&]<typename... Types>(){
+					if constexpr (FirstIsEntity) {
+						this->update_func(std::get<entity_id>(arg), extract<Types>(arg)...);
+					} else {
+						this->update_func(/*                     */ extract<Types>(arg)...);
+					}
+					});
 			}
 		});
 	}
@@ -62,7 +65,7 @@ private:
 		std::vector<entity_range> ents_to_remove;
 
 		// Find the entities
-		find_entity_pool_intersections_cb<typename base::component_list>(this->pools, [&](entity_range range) {
+		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [&](entity_range range) {
 			ranges.push_back(range);
 
 			// Get the parent ids in the range
@@ -109,13 +112,10 @@ private:
 		size_t count = 0;
 		for (auto const& range : ranges)
 			count += range.ucount();
-		if constexpr (is_entity<FirstComponent>) {
-			argument arg{entity_id{0}, component_argument<Components>{0}..., entity_info{}};
-			arguments.resize(count, arg);
-		} else {
-			argument arg{entity_id{0}, component_argument<FirstComponent>{0}, component_argument<Components>{0}..., entity_info{}};
-			arguments.resize(count, arg);
-		}
+
+		arguments.resize(count, apply_type<ComponentsList>([]<typename... Types>() {
+			return argument{entity_id{0}, component_argument<Types>{0}..., entity_info{}};
+		}));
 
 		// TODO insert in set with top. ordering?
 
@@ -139,12 +139,10 @@ private:
 
 				// Add the argument for the entity
 				auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
-				if constexpr (is_entity<FirstComponent>) {
-					arguments[ent_offset] = argument(entity, walker.template get<Components>()..., ent_info->second);
-				} else {
-					arguments[ent_offset] =
-						argument(entity, walker.template get<FirstComponent>(), walker.template get<Components>()..., ent_info->second);
-				}
+
+				apply_type<ComponentsList>([&]<typename... Types>() {
+					arguments[ent_offset] = argument(entity, walker.template get<Types>()..., ent_info->second);
+				});
 
 				// Update the root child count
 				auto const root_index = ent_info->second.root_id;
@@ -222,8 +220,6 @@ private:
 
 private:
 	using base::has_parent_types;
-	//using base::pool_parent_id;
-	using typename base::component_list;
 	using typename base::full_parent_type;
 	using typename base::parent_component_list;
 	using typename base::stripped_component_list;
