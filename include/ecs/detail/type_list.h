@@ -61,6 +61,19 @@ namespace impl {
 		(runner.template operator()<Types>(), ...);
 	}
 
+	template <typename T, typename... Types, typename F, typename NF>
+	constexpr void for_specific_type_or(F&& f, NF&& nf, type_list<Types...>*) {
+		auto const runner = [&]<typename X>() {
+			if constexpr (std::is_same_v<T, X>) {
+				f();
+			} else {
+				nf();
+			}
+		};
+
+		(runner.template operator()<Types>(), ...);
+	}
+
 	template <typename... Types, typename F>
 	constexpr decltype(auto) apply_type(F&& f, type_list<Types...>*) {
 		return f.template operator()<Types...>();
@@ -181,6 +194,14 @@ constexpr void for_each_type(F&& f) {
 template <typename T, impl::TypeList TL, typename F>
 constexpr void for_specific_type(F&& f) {
 	impl::for_specific_type<T>(f, static_cast<TL*>(nullptr));
+}
+
+// Applies the functor F when a specific type in the type list is found,
+// applies NF when not found
+// Takes lambdas of the form '[]() {}'
+template <typename T, impl::TypeList TL, typename F, typename NF>
+constexpr void for_specific_type_or(F&& f, NF&& nf) {
+	impl::for_specific_type_or<T>(f, nf, static_cast<TL*>(nullptr));
 }
 
 // Applies the functor F to all types in the type list.
