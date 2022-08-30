@@ -81,22 +81,22 @@ template <typename Component, typename Pools>
 [[nodiscard]] auto get_component(entity_id const entity, Pools const& pools) {
 	using T = std::remove_cvref_t<Component>;
 
-	// Filter: return a nullptr
 	if constexpr (std::is_pointer_v<T>) {
+		// Filter: return a nullptr
 		static_cast<void>(entity);
 		return nullptr;
 
-		// Tag: return a pointer to some dummy storage
 	} else if constexpr (tagged<T>) {
+		// Tag: return a pointer to some dummy storage
 		thread_local char dummy_arr[sizeof(T)];
 		return reinterpret_cast<T*>(dummy_arr);
 
-		// Global: return the shared component
 	} else if constexpr (global<T>) {
+		// Global: return the shared component
 		return &get_pool<T>(pools).get_shared_component();
 
-		// Parent component: return the parent with the types filled out
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
+		// Parent component: return the parent with the types filled out
 		using parent_type = std::remove_cvref_t<Component>;
 		parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
@@ -107,8 +107,8 @@ template <typename Component, typename Pools>
 
 		return parent_type{pid, tup_parent_ptrs};
 
-		// Standard: return the component from the pool
 	} else {
+		// Standard: return the component from the pool
 		return get_pool<T>(pools).find_component_data(entity);
 	}
 }
