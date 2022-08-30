@@ -21,11 +21,26 @@ class component_pool;
 #include "type_hash.h"
 
 namespace ecs::detail {
-// The implementation of a system specialized on its components
 
 // TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
 //       snildt komme tilbage til en component_pool<T> uden brug af tuples
+template <class ComponentsList>
+struct component_pools : type_list_indices<ComponentsList> {
+	component_pool_base* base_pools[type_list_size<ComponentsList>];
 
+	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
+		Expects((pools != nullptr) && ...);
+	}
+
+	template <typename Component>
+	requires !std::is_reference_v<Component> && !std::is_pointer_v<Component>
+	consteval auto& get() noexcept {
+		consteval int index = index_of(static_cast<Component*>(nullptr));
+		return *static_cast<component_pool<Component>*>(base_pools[index]);
+	}
+};
+
+// The implementation of a system specialized on its components
 template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
@@ -170,13 +185,6 @@ protected:
 		std::conditional_t<(user_interval::_ecs_duration > 0.0),
 						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
 
-	// Number of filters
-	static constexpr size_t num_filters = any_of_type<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
-	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
-
-	// Hashes of stripped types used by this system ('int' instead of 'int const&')
-	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
-
 	//
 	// ecs::parent related stuff
 
@@ -187,12 +195,19 @@ protected:
 	static constexpr bool has_parent_types = !std::is_same_v<full_parent_type, void>;
 
 
+	// Number of filters
+	static constexpr size_t num_filters = any_of_type<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
+	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
+
+	// Hashes of stripped types used by this system ('int' instead of 'int const&')
+	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
+
 	// The user supplied system
 	UpdateFn update_func;
 
 	// A tuple of the fully typed component pools used by this system
 	TupPools const pools;
-	component_pool_base* base_pools[num_components]; // todo
+	//component_pools<ComponentsList> new_pools; // todo
 
 	interval_type interval_checker;
 };

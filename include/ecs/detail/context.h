@@ -157,6 +157,19 @@ private:
 		});
 	}
 
+	template<typename T>
+	using stripper = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
+
+	template <impl::TypeList ComponentList>
+	auto make_pools() {
+		using stripped_list = transform_type<ComponentList, stripper>;
+
+		return apply_type<stripped_list>([this]<typename... Types>() {
+			return detail::component_pools<stripped_list>{
+				&this->get_component_pool<Types>()...};
+		});
+	}
+
 	template <typename BF, typename... B, typename... A>
 	static auto tuple_cat_unique(std::tuple<A...> const& a, BF* const bf, B... b) {
 		if constexpr ((std::is_same_v<BF* const, A> || ...)) {
@@ -248,6 +261,8 @@ private:
 			auto sys = std::make_unique<typed_system>(update_func, sort_func, pools);
 			return insert_system(sys);
 		} else {
+			auto const new_pools = make_pools<component_list>();
+
 			auto const pools = make_tuple_pools<component_list>();
 			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
 			auto sys = std::make_unique<typed_system>(update_func, pools);

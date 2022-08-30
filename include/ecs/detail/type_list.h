@@ -38,6 +38,24 @@ namespace impl {
 
 
 	//
+	// type_list indices
+	template<int Index, typename...>
+	struct type_list_index {
+		using type_not_found_in_list = decltype([]{});
+		consteval static int index_of(type_not_found_in_list*);
+	};
+
+	template<int Index, typename T, typename... Rest>
+	struct type_list_index<Index, T, Rest...> : type_list_index<1+Index, Rest...> {
+		using type_list_index<1+Index, Rest...>::index_of;
+
+		consteval static int index_of(T*) {
+			return Index;
+		}
+	};
+
+
+	//
 	// type_list concept
 	template <class TL>
 	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
@@ -164,6 +182,20 @@ namespace impl {
 
 template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
+
+// Classes can inherit from type_list_indices with a provided type_list
+// to have 'index_of(T*)' functions injected into it, for O(1) lookups
+// of the indices of the types in the type_list
+template<typename TL>
+struct type_list_indices : decltype(
+	[]<typename... Types>(type_list<Types...>*) {
+		struct all_indexers : impl::type_list_index<0, Types...> {
+			using impl::type_list_index<0, Types...>::index_of;
+		};
+		return all_indexers{};
+	} (static_cast<TL*>(nullptr))
+) {};
+
 
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
