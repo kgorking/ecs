@@ -24,7 +24,7 @@ public:
 private:
 	void do_run() override {
 		// Sort the arguments if the component data has been modified
-		if (needs_sorting || std::get<pool<sort_types>>(this->pools)->has_components_been_modified()) {
+		if (needs_sorting || this->pools.get<sort_types>().has_components_been_modified()) {
 			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
 			std::sort(e_p, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
 				sort_types* t_l = std::get<sort_types*>(l);
