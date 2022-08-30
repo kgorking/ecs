@@ -251,7 +251,7 @@ private:
 			auto sys = std::make_unique<typed_system>(update_func, all_pools);
 			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
-			auto const pools = make_tuple_pools<component_list>();
+			auto const pools = make_pools<component_list>();
 			using typed_system = system_global<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
 			auto sys = std::make_unique<typed_system>(update_func, pools);
 			return insert_system(sys);
