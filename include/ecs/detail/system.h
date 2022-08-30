@@ -34,20 +34,26 @@ struct component_pools : type_list_indices<ComponentsList> {
 
 	template <typename Component>
 	requires !std::is_reference_v<Component> && !std::is_pointer_v<Component>
-	consteval auto& get() noexcept {
-		consteval int index = index_of(static_cast<Component*>(nullptr));
+	constexpr auto& get() const noexcept {
+		static constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
 		return *static_cast<component_pool<Component>*>(base_pools[index]);
+	}
+
+	constexpr bool has_component_count_changed() const {
+		return any_of_type<ComponentsList>([this]<typename T>() {
+			return this->get<T>().has_component_count_changed();
+		});
 	}
 };
 
 // The implementation of a system specialized on its components
-template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
 
 public:
-	system(UpdateFn func, TupPools tup_pools) : update_func{func}, pools{tup_pools} {
+	system(UpdateFn func, Pools pools) : update_func{func}, pools{pools} {
 	}
 
 	void run() override {
@@ -162,13 +168,7 @@ protected:
 			return;
 		}
 
-		bool const modified = std::apply(
-			[](auto... p) {
-				return (p->has_component_count_changed() || ...);
-			},
-			pools);
-
-		if (modified) {
+		if (pools.has_component_count_changed()) {
 			do_build();
 		}
 	}
@@ -206,8 +206,8 @@ protected:
 	UpdateFn update_func;
 
 	// A tuple of the fully typed component pools used by this system
-	TupPools const pools;
-	//component_pools<ComponentsList> new_pools; // todo
+	Pools const pools;
+	//component_pools<stripped_component_list> new_pools; // todo
 
 	interval_type interval_checker;
 };
