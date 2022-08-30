@@ -178,6 +178,42 @@ namespace impl {
 			std::remove_pointer_t<decltype(helper<type_list<>, type_list<>>(static_cast<TL*>(nullptr)))>;
 	};
 
+	template<typename First, typename... Types>
+	constexpr bool is_unique_types(type_list<First, Types...>*) {
+		if constexpr ((std::is_same_v<First, Types> || ...))
+			return false;
+		else {
+			if constexpr (sizeof...(Types) == 0)
+				return true;
+			else
+				return is_unique_types<Types...>({});
+		}
+	}
+
+	template <typename TL1, typename TL2>
+	struct merge_type_list {
+		template <typename... Types1, typename First2, typename... Types2>
+		constexpr static auto* helper(type_list<Types1...>* in1, type_list<First2, Types2...>*) {
+			using NewTL2 = type_list<Types2...>;
+
+			if constexpr (contains_type<First2, TL1>()) {
+				if constexpr(sizeof...(Types2) == 0)
+					return in1;
+				else
+					return merge_type_list<TL1, NewTL2>::helper(in1, static_cast<NewTL2*>(nullptr));
+			} else {
+				using NewTL1 = type_list<Types1..., First2>;
+
+				if constexpr(sizeof...(Types2) == 0)
+					return static_cast<NewTL1*>(nullptr);
+				else
+					return merge_type_list<NewTL1, NewTL2>::helper(static_cast<NewTL1*>(nullptr), static_cast<NewTL2*>(nullptr));
+			}
+		}
+
+		using type = std::remove_pointer_t<decltype(helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
+	};
+
 } // namespace impl
 
 template <impl::TypeList TL>
@@ -270,6 +306,37 @@ template <impl::TypeList TL, typename F>
 constexpr std::size_t count_if(F&& f) {
 	return impl::count_if(f, static_cast<TL*>(nullptr));
 }
+
+// Returns true if all types in the list are unique
+template <impl::TypeList TL>
+constexpr bool is_unique_types() {
+	return impl::is_unique_types(static_cast<TL*>(nullptr));
+}
+
+// Returns true if a type list contains the type
+template <typename T, impl::TypeList TL>
+constexpr bool contains_type() {
+	return impl::any_of_type([]<typename U>() {
+		return std::is_same_v<T,U>;
+	}, static_cast<TL*>(nullptr));
+}
+
+// concatenates two type_list
+template <impl::TypeList TL1, impl::TypeList TL2>
+using concat_type_lists = std::remove_pointer_t<decltype(
+	[] {
+		auto constexpr meh = 
+			[]<typename... Types1, typename... Types2>(type_list<Types1...>*, type_list<Types2...>*)
+			-> type_list<Types1..., Types2...>* {
+				return nullptr;
+			};
+
+		return meh(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr));
+	}())>;
+
+// merge two type_list, duplicate types are ignored
+template <impl::TypeList TL1, impl::TypeList TL2>
+using merge_type_lists = typename impl::merge_type_list<TL1, TL2>::type;
 
 } // namespace ecs::detail
 #endif // !TYPE_LIST_H_
