@@ -149,14 +149,6 @@ public:
 	}
 
 private:
-	template <impl::TypeList ComponentList>
-	auto make_tuple_pools() {
-		return apply_type<ComponentList>([this]<typename... Types>() {
-			return std::tuple<pool<Types>...>(
-				&this->get_component_pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<Types>>>>()...);
-		});
-	}
-
 	template<typename T>
 	using stripper = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
 
