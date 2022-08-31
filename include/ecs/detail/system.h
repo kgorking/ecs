@@ -21,18 +21,39 @@ class component_pool;
 #include "type_hash.h"
 
 namespace ecs::detail {
-// The implementation of a system specialized on its components
 
 // TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
 //       snildt komme tilbage til en component_pool<T> uden brug af tuples
+template <class ComponentsList>
+struct component_pools : type_list_indices<ComponentsList> {
+	component_pool_base* base_pools[type_list_size<ComponentsList>];
 
-template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
+		Expects((pools != nullptr) && ...);
+	}
+
+	template <typename Component>
+	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
+	constexpr auto& get() const noexcept {
+		constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
+		return *static_cast<component_pool<Component>*>(base_pools[index]);
+	}
+
+	constexpr bool has_component_count_changed() const {
+		return any_of_type<ComponentsList>([this]<typename T>() {
+			return this->get<T>().has_component_count_changed();
+		});
+	}
+};
+
+// The implementation of a system specialized on its components
+template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
 
 public:
-	system(UpdateFn func, TupPools tup_pools) : update_func{func}, pools{tup_pools} {
+	system(UpdateFn func, Pools in_pools) : update_func{func}, pools{in_pools} {
 	}
 
 	void run() override {
@@ -147,13 +168,7 @@ protected:
 			return;
 		}
 
-		bool const modified = std::apply(
-			[](auto... p) {
-				return (p->has_component_count_changed() || ...);
-			},
-			pools);
-
-		if (modified) {
+		if (pools.has_component_count_changed()) {
 			do_build();
 		}
 	}
@@ -170,13 +185,6 @@ protected:
 		std::conditional_t<(user_interval::_ecs_duration > 0.0),
 						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
 
-	// Number of filters
-	static constexpr size_t num_filters = any_of_type<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
-	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
-
-	// Hashes of stripped types used by this system ('int' instead of 'int const&')
-	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
-
 	//
 	// ecs::parent related stuff
 
@@ -187,12 +195,19 @@ protected:
 	static constexpr bool has_parent_types = !std::is_same_v<full_parent_type, void>;
 
 
+	// Number of filters
+	static constexpr size_t num_filters = count_if<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
+	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
+
+	// Hashes of stripped types used by this system ('int' instead of 'int const&')
+	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
+
 	// The user supplied system
 	UpdateFn update_func;
 
 	// A tuple of the fully typed component pools used by this system
-	TupPools const pools;
-	component_pool_base* base_pools[num_components]; // todo
+	Pools const pools;
+	//component_pools<stripped_component_list> new_pools; // todo
 
 	interval_type interval_checker;
 };
