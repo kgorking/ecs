@@ -197,27 +197,24 @@ namespace impl {
 		}
 	}
 
-	template <typename T, impl::TypeList TL>
-	static constexpr bool contains_type = []<typename... Types>(type_list<Types...>*) {
-			return (std::is_same_v<T, Types> || ...);
-		}(static_cast<TL*>(nullptr));
+	template <typename T, typename... Types>
+	static constexpr bool contains_type(type_list<Types...>*) {
+		return (std::is_same_v<T, Types> || ...);
+	}
 
-	template <typename TL1, typename TL2>
 	struct merge_type_list {
 		template <typename... Types1>
 		static auto helper(type_list<Types1...>*, type_list<>*)
 		-> type_list<Types1...>*;
 
 		template <typename... Types1, typename First2, typename... Types2>
-		    requires (!contains_type<First2, type_list<Types1...>>)
+		    requires (!contains_type<First2>(static_cast<type_list<Types1...>*>(nullptr)))
 		static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*)
 		-> decltype(helper(static_cast<type_list<Types1..., First2>*>(nullptr), static_cast<type_list<Types2...>*>(nullptr)));
 
 		template <typename... Types1, typename First2, typename... Types2>
 		static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*)
 		-> decltype(helper(static_cast<type_list<Types1...>*>(nullptr), static_cast<type_list<Types2...>*>(nullptr)));
-
-		using type = std::remove_pointer_t<decltype(helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 	};
 
 } // namespace impl
@@ -315,7 +312,7 @@ constexpr bool is_unique_types() {
 // Returns true if a type list contains the type
 template <typename T, impl::TypeList TL>
 constexpr bool contains_type() {
-	return impl::contains_type<T, TL>;
+	return impl::contains_type<T>(static_cast<TL*>(nullptr));
 }
 
 // concatenates two type_list
@@ -333,7 +330,7 @@ using concat_type_lists = std::remove_pointer_t<decltype(
 
 // merge two type_list, duplicate types are ignored
 template <impl::TypeList TL1, impl::TypeList TL2>
-using merge_type_lists = typename impl::merge_type_list<TL1, TL2>::type;
+using merge_type_lists = std::remove_pointer_t<decltype(impl::merge_type_list::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 } // namespace ecs::detail
 #endif // !TYPE_LIST_H_
