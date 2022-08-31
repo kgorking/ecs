@@ -202,19 +202,42 @@ namespace impl {
 		return (std::is_same_v<T, Types> || ...);
 	}
 
-	struct merge_type_list {
-		template <typename... Types1>
-		static auto helper(type_list<Types1...>*, type_list<>*)
-		-> type_list<Types1...>*;
+	struct merger {
+		template <typename... Left>
+		static auto helper(type_list<Left...>*, type_list<>*)
+		-> type_list<Left...>*;
 
-		template <typename... Types1, typename First2, typename... Types2>
-		    requires (!contains_type<First2>(static_cast<type_list<Types1...>*>(nullptr)))
-		static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*)
-		-> decltype(helper(static_cast<type_list<Types1..., First2>*>(nullptr), static_cast<type_list<Types2...>*>(nullptr)));
+	#ifdef _MSC_VER
+		template <typename... Left, typename FirstRight, typename... Right>
+		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
+		-> decltype(helper(
+			static_cast<type_list<Left...>*>(nullptr),
+			static_cast<type_list<Right...>*>(nullptr)));
 
+		template <typename... Left, typename FirstRight, typename... Right>
+		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
+		-> decltype(helper(
+			static_cast<type_list<Left..., FirstRight>*>(nullptr),
+			static_cast<type_list<Right...>*>(nullptr)))
+		requires(!contains_type<FirstRight>(static_cast<type_list<Left...>*>(nullptr)));
+	#else
 		template <typename... Types1, typename First2, typename... Types2>
-		static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*)
-		-> decltype(helper(static_cast<type_list<Types1...>*>(nullptr), static_cast<type_list<Types2...>*>(nullptr)));
+		constexpr static auto* helper(type_list<Types1...>*, type_list<First2, Types2...>*) {
+			using NewTL2 = type_list<Types2...>;
+
+			if constexpr (contains_type<First2>(static_cast<type_list<Types1...>*>(nullptr))) {
+				if constexpr(sizeof...(Types2) == 0)
+					return static_cast<type_list<Types1...>*>(nullptr);
+				else
+					return helper(static_cast<type_list<Types1...>*>(nullptr), static_cast<NewTL2*>(nullptr));
+			} else {
+				if constexpr(sizeof...(Types2) == 0)
+					return static_cast<type_list<Types1..., First2>*>(nullptr);
+				else
+					return helper(static_cast<type_list<Types1..., First2>*>(nullptr), static_cast<NewTL2*>(nullptr));
+			}
+		}
+	#endif
 	};
 
 } // namespace impl
@@ -329,8 +352,9 @@ using concat_type_lists = std::remove_pointer_t<decltype(
 	}())>;
 
 // merge two type_list, duplicate types are ignored
-template <impl::TypeList TL1, impl::TypeList TL2>
-using merge_type_lists = std::remove_pointer_t<decltype(impl::merge_type_list::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
+template <typename TL1, typename TL2>
+using merge_type_lists = std::remove_pointer_t<decltype(
+	impl::merger::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 } // namespace ecs::detail
 #endif // !TYPE_LIST_H_
