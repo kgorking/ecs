@@ -6,17 +6,16 @@
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
-class system_ranged final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
-	using base = system<Options, UpdateFn, TupPools, FirstComponent, Components...>;
+template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
+class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
+	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools}, walker{in_pools} {
+	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools}, walker{in_pools} {
 		this->process_changes(true);
 	}
 
@@ -30,11 +29,13 @@ private:
 			std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
 				auto const offset = ent - first_id;
 
-				if constexpr (is_entity<FirstComponent>) {
-					this->update_func(ent, extract_arg<Components>(argument, offset)...);
-				} else {
-					this->update_func(extract_arg<FirstComponent>(argument, offset), extract_arg<Components>(argument, offset)...);
-				}
+				apply_type<ComponentsList>([&]<typename... Types>(){
+					if constexpr (FirstIsEntity) {
+						this->update_func(ent, extract_arg<Types>(argument, offset)...);
+					} else {
+						this->update_func(/**/ extract_arg<Types>(argument, offset)...);
+					}
+				});
 			});
 		}
 	}
@@ -44,19 +45,22 @@ private:
 		// Clear current arguments
 		arguments.clear();
 
-		find_entity_pool_intersections_cb<typename base::component_list>(this->pools, [this](entity_range found_range) {
-			apply_type<typename base::component_list>([&]<typename... Comps>() {
+		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
+			apply_type<ComponentsList>([&]<typename... Comps>() {
 				arguments.emplace_back(found_range, get_component<Comps>(found_range.first(), this->pools)...);
 			});
 		});
 	}
 
 private:
+	template<typename... Types>
+	using tuple_from_types = std::tuple<entity_range, component_argument<Types>...>;
+
 	// Holds the arguments for a range of entities
-	using argument_type = range_argument<FirstComponent, Components...>;
+	using argument_type = transform_type_all<ComponentsList, tuple_from_types>;
 	std::vector<argument_type> arguments;
 
-	pool_range_walker<TupPools> walker;
+	pool_range_walker<Pools> walker;
 };
 } // namespace ecs::detail
 

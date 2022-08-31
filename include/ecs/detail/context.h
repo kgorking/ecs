@@ -143,58 +143,42 @@ public:
 	}
 
 	// Mutable lambda with sort
-	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstComponent, typename... Components>
-	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstComponent, Components...)) {
-		return create_system<Options, UpdateFn, SortFn, FirstComponent, Components...>(update_func, sort_func);
+	template <typename Options, typename UpdateFn, typename SortFn, typename R, typename C, typename FirstArg, typename... Args>
+	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func, R (C::*)(FirstArg, Args...)) {
+		return create_system<Options, UpdateFn, SortFn, FirstArg, Args...>(update_func, sort_func);
 	}
 
 private:
-	template <typename T, typename... R>
-	auto make_tuple_pools() {
-		using Tr = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
-		if constexpr (!is_entity<Tr>) {
-			std::tuple<pool<Tr>, pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>...> t(
-				&get_component_pool<Tr>(), &get_component_pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>()...);
-			return t;
-		} else {
-			std::tuple<pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>...> t(
-				&get_component_pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<R>>>>()...);
-			return t;
-		}
-	}
+	template<typename T>
+	using stripper = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
 
-	template <typename BF, typename... B, typename... A>
-	static auto tuple_cat_unique(std::tuple<A...> const& a, BF* const bf, B... b) {
-		if constexpr ((std::is_same_v<BF* const, A> || ...)) {
-			// BF exists in tuple a, so skip it
-			(void)bf;
-			if constexpr (sizeof...(B) > 0) {
-				return tuple_cat_unique(a, b...);
-			} else {
-				return a;
-			}
-		} else {
-			if constexpr (sizeof...(B) > 0) {
-				return tuple_cat_unique(std::tuple_cat(a, std::tuple<BF* const>{bf}), b...);
-			} else {
-				return std::tuple_cat(a, std::tuple<BF* const>{bf});
-			}
-		}
+	template <impl::TypeList ComponentList>
+	auto make_pools() {
+		using stripped_list = transform_type<ComponentList, stripper>;
+
+		return apply_type<stripped_list>([this]<typename... Types>() {
+			return detail::component_pools<stripped_list>{
+				&this->get_component_pool<Types>()...};
+		});
 	}
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
+		// Is the first component an entity_id?
+		static constexpr bool first_is_entity = is_entity<FirstComponent>;
 
-		// TODO amend options with FirstComponent == entity_id/meta
-
+		// The type_list of components
+		using component_list = std::conditional_t<first_is_entity, type_list<Components...>, type_list<FirstComponent, Components...>>;
+	
 		// Find potential parent type
-		using parent_type =
-			test_option_type_or<is_parent, type_list<FirstComponent, Components...>, void>;
+		using parent_type = test_option_type_or<is_parent, component_list, void>;
 
 		// Do some checks on the systems
-		bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
-		bool constexpr has_parent = !std::is_same_v<void, parent_type>;
-		bool constexpr is_global_sys = detail::global<FirstComponent> && (detail::global<Components> && ...);
+		static bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
+		static bool constexpr has_parent = !std::is_same_v<void, parent_type>;
+		static bool constexpr is_global_sys = apply_type<component_list>([]<typename... Types>() {
+				return (detail::global<Types> && ...);
+			});
 
 		// Global systems cannot have a sort function
 		static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
@@ -222,36 +206,23 @@ private:
 
 		// Create the system instance
 		if constexpr (has_parent) {
-			// Find the component pools
-			auto const all_pools = apply_type<parent_type_list_t<parent_type>>([&]<typename... T>() {
-				// The pools for the regular components
-				auto const pools = make_tuple_pools<FirstComponent, Components...>();
-
-				// Add the pools for the parents components
-				if constexpr (sizeof...(T) > 0) {
-					return tuple_cat_unique(pools,
-											&get_component_pool<reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>>()...);
-				} else {
-					return pools;
-				}
-			});
-
-			using typed_system = system_hierarchy<Options, UpdateFn, decltype(all_pools), FirstComponent, Components...>;
-			auto sys = std::make_unique<typed_system>(update_func, all_pools);
+			auto const pools = make_pools<detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>>();
+			using typed_system = system_hierarchy<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
+			auto sys = std::make_unique<typed_system>(update_func, pools);
 			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
-			auto const pools = make_tuple_pools<FirstComponent, Components...>();
-			using typed_system = system_global<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
+			auto const pools = make_pools<component_list>();
+			using typed_system = system_global<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
 			auto sys = std::make_unique<typed_system>(update_func, pools);
 			return insert_system(sys);
 		} else if constexpr (has_sort_func) {
-			auto const pools = make_tuple_pools<FirstComponent, Components...>();
-			using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), FirstComponent, Components...>;
+			auto const pools = make_pools<component_list>();
+			using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), first_is_entity, component_list>;
 			auto sys = std::make_unique<typed_system>(update_func, sort_func, pools);
 			return insert_system(sys);
 		} else {
-			auto const pools = make_tuple_pools<FirstComponent, Components...>();
-			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), FirstComponent, Components...>;
+			auto const pools = make_pools<component_list>();
+			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
 			auto sys = std::make_unique<typed_system>(update_func, pools);
 			return insert_system(sys);
 		}

@@ -60,7 +60,7 @@ using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
 template <typename Component, typename Pools>
 auto& get_pool(Pools const& pools) {
 	using T = std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<Component>>>;
-	return *std::get<component_pool<T> *const>(pools);
+	return pools.template get<T>();
 }
 
 // Get a pointer to an entities component data from a component pool tuple.
@@ -81,22 +81,22 @@ template <typename Component, typename Pools>
 [[nodiscard]] auto get_component(entity_id const entity, Pools const& pools) {
 	using T = std::remove_cvref_t<Component>;
 
-	// Filter: return a nullptr
 	if constexpr (std::is_pointer_v<T>) {
+		// Filter: return a nullptr
 		static_cast<void>(entity);
 		return nullptr;
 
-		// Tag: return a pointer to some dummy storage
 	} else if constexpr (tagged<T>) {
+		// Tag: return a pointer to some dummy storage
 		thread_local char dummy_arr[sizeof(T)];
 		return reinterpret_cast<T*>(dummy_arr);
 
-		// Global: return the shared component
 	} else if constexpr (global<T>) {
+		// Global: return the shared component
 		return &get_pool<T>(pools).get_shared_component();
 
-		// Parent component: return the parent with the types filled out
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
+		// Parent component: return the parent with the types filled out
 		using parent_type = std::remove_cvref_t<Component>;
 		parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
@@ -107,8 +107,8 @@ template <typename Component, typename Pools>
 
 		return parent_type{pid, tup_parent_ptrs};
 
-		// Standard: return the component from the pool
 	} else {
+		// Standard: return the component from the pool
 		return get_pool<T>(pools).find_component_data(entity);
 	}
 }
@@ -136,26 +136,6 @@ template <typename Component>
 using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Component>>::value,
 											  std::remove_cvref_t<Component>,	// parent components are stored as copies
 											  std::remove_cvref_t<Component>*>; // rest are pointers
-
-// Holds a pointer to the first component from each pool
-template <class FirstComponent, class... Components>
-using argument_tuple = std::conditional_t<is_entity<FirstComponent>, std::tuple<component_argument<Components>...>,
-										  std::tuple<component_argument<FirstComponent>, component_argument<Components>...>>;
-
-// Holds a single entity id and its arguments
-template <class FirstComponent, class... Components>
-using single_argument = decltype(std::tuple_cat(std::tuple<entity_id>{0}, std::declval<argument_tuple<FirstComponent, Components...>>()));
-
-// Holds an entity range and its arguments
-template <class FirstComponent, class... Components>
-using range_argument =
-	decltype(std::tuple_cat(std::tuple<entity_range>{{0, 1}}, std::declval<argument_tuple<FirstComponent, Components...>>()));
-
-// Tuple holding component pools
-template <class FirstComponent, class... Components>
-using tup_pools = std::conditional_t<is_entity<FirstComponent>, std::tuple<pool<reduce_parent_t<Components>>...>,
-									 std::tuple<pool<reduce_parent_t<FirstComponent>>, pool<reduce_parent_t<Components>>...>>;
-
 } // namespace ecs::detail
 
 #endif // !ECS_SYSTEM_DEFS_H_

@@ -43,15 +43,11 @@ consteval type_hash get_type_hash() {
 	return hash;
 }
 
-template <bool ignore_first_arg, typename First, typename... Types>
+template <typename TypesList>
 consteval auto get_type_hashes_array() {
-	if constexpr (!ignore_first_arg) {
-		std::array<detail::type_hash, 1 + sizeof...(Types)> arr{get_type_hash<First>(), get_type_hash<Types>()...};
-		return arr;
-	} else {
-		std::array<detail::type_hash, sizeof...(Types)> arr{get_type_hash<Types>()...};
-		return arr;
-	}
+	return apply_type<TypesList>([]<typename... Types>() {
+		return std::array<detail::type_hash, sizeof...(Types)>{get_type_hash<Types>()...};
+	});
 }
 
 } // namespace ecs::detail

@@ -8,6 +8,12 @@
 using namespace ecs::detail;
 
 using tl = type_list<int, float, char, char[2], double>;
+
+using tl1 = ecs::detail::type_list<int, float>;
+using tl2 = ecs::detail::type_list<double, short, int>;
+using tl1_concat_tl2 = ecs::detail::type_list<int, float, double, short, int>;
+using tl1_merge_tl2 = ecs::detail::type_list<int, float, double, short>;
+
 //using tl = type_list<int, char>;
 /*
 static_assert(std::is_same_v<type_list_at<0, tl>, int>);
@@ -43,5 +49,25 @@ TEST_CASE("type_list") {
 
         CHECK(1 == runs);
         CHECK(1 == ret_run);
+    }
+
+    SECTION("is_unique_types") {
+        static_assert(ecs::detail::is_unique_types<tl1>());
+        static_assert(ecs::detail::is_unique_types<tl2>());
+        static_assert(not ecs::detail::is_unique_types<tl1_concat_tl2>());
+    }
+
+    SECTION("contains_type") {
+        static_assert(ecs::detail::contains_type<float, tl>());
+        static_assert(not ecs::detail::contains_type<long, tl>());
+    }
+
+    SECTION("concat_type_lists") {
+        static_assert(std::is_same_v<tl1_concat_tl2, ecs::detail::concat_type_lists<tl1, tl2>>);
+    }
+
+    SECTION("merge_type_lists") {
+        static_assert(std::is_same_v<tl1_merge_tl2, ecs::detail::merge_type_lists<tl1, tl2>>);
+        static_assert(std::is_same_v<tl1, ecs::detail::merge_type_lists<tl1, tl1>>);
     }
 }
