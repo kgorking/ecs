@@ -202,7 +202,7 @@ namespace impl {
 		-> type_list<Types1...>*;
 
 		template <typename... Types1, typename First2, typename... Types2>
-		    requires !contains_type<First2, type_list<Types1...>>
+		    requires (!contains_type<First2, type_list<Types1...>>)
 		static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*)
 		-> decltype(helper(static_cast<type_list<Types1..., First2>*>(nullptr), static_cast<type_list<Types2...>*>(nullptr)));
 
