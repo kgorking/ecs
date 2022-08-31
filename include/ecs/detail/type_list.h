@@ -190,26 +190,25 @@ namespace impl {
 		}
 	}
 
+	template <typename T, impl::TypeList TL>
+	static constexpr bool contains_type = []<typename... Types>(type_list<Types...>*) {
+			return (std::is_same_v<T, Types> || ...);
+		}(static_cast<TL*>(nullptr));
+
 	template <typename TL1, typename TL2>
 	struct merge_type_list {
+		template <typename... Types1>
+		static auto helper(type_list<Types1...>*, type_list<>*)
+		-> type_list<Types1...>*;
+
 		template <typename... Types1, typename First2, typename... Types2>
-		constexpr static auto* helper(type_list<Types1...>* in1, type_list<First2, Types2...>*) {
-			using NewTL2 = type_list<Types2...>;
+		    requires !contains_type<First2, type_list<Types1...>>
+		static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*)
+		-> decltype(helper(static_cast<type_list<Types1..., First2>*>(nullptr), static_cast<type_list<Types2...>*>(nullptr)));
 
-			if constexpr (contains_type<First2, TL1>()) {
-				if constexpr(sizeof...(Types2) == 0)
-					return in1;
-				else
-					return merge_type_list<TL1, NewTL2>::helper(in1, static_cast<NewTL2*>(nullptr));
-			} else {
-				using NewTL1 = type_list<Types1..., First2>;
-
-				if constexpr(sizeof...(Types2) == 0)
-					return static_cast<NewTL1*>(nullptr);
-				else
-					return merge_type_list<NewTL1, NewTL2>::helper(static_cast<NewTL1*>(nullptr), static_cast<NewTL2*>(nullptr));
-			}
-		}
+		template <typename... Types1, typename First2, typename... Types2>
+		static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*)
+		-> decltype(helper(static_cast<type_list<Types1...>*>(nullptr), static_cast<type_list<Types2...>*>(nullptr)));
 
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 	};
@@ -316,9 +315,7 @@ constexpr bool is_unique_types() {
 // Returns true if a type list contains the type
 template <typename T, impl::TypeList TL>
 constexpr bool contains_type() {
-	return impl::any_of_type([]<typename U>() {
-		return std::is_same_v<T,U>;
-	}, static_cast<TL*>(nullptr));
+	return impl::contains_type<T, TL>;
 }
 
 // concatenates two type_list
