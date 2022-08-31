@@ -60,7 +60,7 @@ using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
 template <typename Component, typename Pools>
 auto& get_pool(Pools const& pools) {
 	using T = std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<Component>>>;
-	return pools.get<T>();
+	return pools.template get<T>();
 }
 
 // Get a pointer to an entities component data from a component pool tuple.

@@ -33,9 +33,9 @@ struct component_pools : type_list_indices<ComponentsList> {
 	}
 
 	template <typename Component>
-	requires !std::is_reference_v<Component> && !std::is_pointer_v<Component>
+	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
 	constexpr auto& get() const noexcept {
-		static constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
+		constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
 		return *static_cast<component_pool<Component>*>(base_pools[index]);
 	}
 
@@ -53,7 +53,7 @@ class system : public system_base {
 	virtual void do_build() = 0;
 
 public:
-	system(UpdateFn func, Pools pools) : update_func{func}, pools{pools} {
+	system(UpdateFn func, Pools in_pools) : update_func{func}, pools{in_pools} {
 	}
 
 	void run() override {

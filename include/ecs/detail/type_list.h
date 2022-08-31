@@ -54,6 +54,13 @@ namespace impl {
 		}
 	};
 
+	template<typename... Types>
+	auto type_list_indices(type_list<Types...>*) {
+		struct all_indexers : impl::type_list_index<0, Types...> {
+			using impl::type_list_index<0, Types...>::index_of;
+		};
+		return all_indexers{};
+	};
 
 	//
 	// type_list concept
@@ -222,14 +229,7 @@ constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 // to have 'index_of(T*)' functions injected into it, for O(1) lookups
 // of the indices of the types in the type_list
 template<typename TL>
-struct type_list_indices : decltype(
-	[]<typename... Types>(type_list<Types...>*) {
-		struct all_indexers : impl::type_list_index<0, Types...> {
-			using impl::type_list_index<0, Types...>::index_of;
-		};
-		return all_indexers{};
-	} (static_cast<TL*>(nullptr))
-) {};
+using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
 
 // Transforms the types in a type_list
