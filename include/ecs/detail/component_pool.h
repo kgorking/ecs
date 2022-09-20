@@ -134,7 +134,7 @@ public:
 	constexpr ~component_pool() noexcept override {
 		if constexpr (global<T>) {
 			std::destroy_at(head->data);
-			alloc.deallocate(head->data, head->range.count());
+			alloc.deallocate(head->data, head->range.ucount());
 			std::destroy_at(head);
 			alloc_chunk.deallocate(head, 1);
 		} else {
