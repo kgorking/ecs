@@ -42,7 +42,7 @@ if (MSVC)
         /w44826     # Conversion from 'type1' to 'type2' is sign-extended. This may cause unexpected runtime behavior.
         /w45219     # implicit conversion from 'type-1' to 'type-2', possible loss of data.
         /w44388     # signed/unsigned mismatch
-        /w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
+        #/w44365     # 'action': conversion from 'type_1' to 'type_2', signed/unsigned mismatch.
 
 		# Shows the layout of the struct name 'chunk'
 		#/d1reportSingleClassLayoutchunk

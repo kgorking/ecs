@@ -171,7 +171,7 @@ TEST_CASE("Hierarchies") {
 		ecs.update();
 
 		// Make sure all children where visited
-		CHECK(traversal_order.size() == nentities);
+		CHECK(traversal_order.size() == size_t{nentities});
 	}
 
 	SECTION("works on multiple trees in parallel") {
