@@ -250,8 +250,8 @@ public:
 	}
 
 	// Returns the number of chunks in use
-	constexpr size_t num_chunks() const noexcept {
-		return ordered_chunks.size();
+	constexpr ptrdiff_t num_chunks() const noexcept {
+		return std::ssize(ordered_chunks);
 	}
 
 	constexpr chunk const* get_head_chunk() const noexcept {
@@ -372,7 +372,7 @@ private:
 			} else {
 				if constexpr (!unbound<T>) {
 					std::destroy_n(c->data, c->active.ucount());
-					alloc.deallocate(c->data, c->range.count());
+					alloc.deallocate(c->data, c->range.ucount());
 				}
 			}
 		}
@@ -466,14 +466,14 @@ private:
 		// Offset into the chunks data
 		auto const ent_offset = c->range.offset(range.first());
 
-		for (entity_offset i = 0; i < range.ucount(); ++i) {
+		for (auto const i : range) {
 			// Construct from a value or a a span of values
 			if constexpr (std::is_same_v<T, Data>) {
 				std::construct_at(&c->data[ent_offset + i], comp_data);
 			} else if constexpr (std::is_invocable_v<Data, entity_id>) {
 				std::construct_at(&c->data[ent_offset + i], comp_data(range.first() + i));
 			} else {
-				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
+				std::construct_at(&c->data[ent_offset + i], comp_data[static_cast<std::size_t>(i)]);
 			}
 		}
 	}
