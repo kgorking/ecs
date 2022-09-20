@@ -231,18 +231,18 @@ public:
 	}
 
 	// Returns the number of active entities in the pool
-	constexpr size_t num_entities() const noexcept {
-		size_t count = 0;
+	constexpr ptrdiff_t num_entities() const noexcept {
+		ptrdiff_t count = 0;
 
 		for (entity_range const r : ordered_active_ranges) {
-			count += r.ucount();
+			count += r.count();
 		}
 
 		return count;
 	}
 
 	// Returns the number of active components in the pool
-	constexpr size_t num_components() const noexcept {
+	constexpr ptrdiff_t num_components() const noexcept {
 		if constexpr (unbound<T>)
 			return 1;
 		else
