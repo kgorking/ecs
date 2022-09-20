@@ -466,14 +466,15 @@ private:
 		// Offset into the chunks data
 		auto const ent_offset = c->range.offset(range.first());
 
-		for (auto const i : range) {
+		entity_id ent = range.first();
+		for (size_t i = 0; i < range.ucount(); ++i, ++ent) {
 			// Construct from a value or a a span of values
 			if constexpr (std::is_same_v<T, Data>) {
 				std::construct_at(&c->data[ent_offset + i], comp_data);
 			} else if constexpr (std::is_invocable_v<Data, entity_id>) {
-				std::construct_at(&c->data[ent_offset + i], comp_data(range.first() + i));
+				std::construct_at(&c->data[ent_offset + i], comp_data(ent));
 			} else {
-				std::construct_at(&c->data[ent_offset + i], comp_data[static_cast<std::size_t>(i)]);
+				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
 			}
 		}
 	}
