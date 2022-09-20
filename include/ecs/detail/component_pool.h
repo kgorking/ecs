@@ -435,15 +435,13 @@ private:
 	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
 	constexpr bool has_duplicate_entities() const noexcept {
-		if (!ordered_active_ranges.empty()) {
-			for (size_t i = 0; i < ordered_active_ranges.size() - 1; ++i) {
-				if (ordered_active_ranges[i].overlaps(ordered_active_ranges[i + 1]))
-					return true;
-			}
+		for (size_t i = 1; i < ordered_active_ranges.size(); ++i) {
+			if (ordered_active_ranges[i - 1].overlaps(ordered_active_ranges[i]))
+				return true;
 		}
 
 		return false;
-	};
+	}
 
 	constexpr static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
 		return lhs == rhs;
