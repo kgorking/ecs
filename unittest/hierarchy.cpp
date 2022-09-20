@@ -91,7 +91,7 @@ TEST_CASE("Hierarchies") {
 		ecs.update();
 
 		// Make sure all children where visited
-		CHECK(traversal_order.size() == (1 + ecs.get_component_count<ecs::detail::parent_id>()));
+		CHECK(std::ssize(traversal_order) == (1 + ecs.get_component_count<ecs::detail::parent_id>()));
 	}
 
 	SECTION("works on multiple trees") {
@@ -135,7 +135,7 @@ TEST_CASE("Hierarchies") {
 		ecs.update();
 
 		// Make sure all children where visited
-		CHECK(traversal_order.size() == (3 + ecs.get_component_count<ecs::detail::parent_id>()));
+		CHECK(std::ssize(traversal_order) == (3 + ecs.get_component_count<ecs::detail::parent_id>()));
 	}
 
 	SECTION("works on lots of trees") {
@@ -215,7 +215,7 @@ TEST_CASE("Hierarchies") {
 		ecs.update();
 
 		// Make sure all children where visited
-		CHECK(traversal_order.size() == (3 + ecs.get_component_count<ecs::detail::parent_id>()));
+		CHECK(std::ssize(traversal_order) == (3 + ecs.get_component_count<ecs::detail::parent_id>()));
 	}
 
 	SECTION("can be built bottoms-up") {
@@ -260,7 +260,7 @@ TEST_CASE("Hierarchies") {
 		ecs.update();
 
 		// Make sure all children where visited
-		CHECK(traversal_order.size() == (1 + ecs.get_component_count<ecs::detail::parent_id>()));
+		CHECK(std::ssize(traversal_order) == (1 + ecs.get_component_count<ecs::detail::parent_id>()));
 	}
 
 	SECTION("can be built in reverse") {
@@ -305,7 +305,7 @@ TEST_CASE("Hierarchies") {
 		ecs.update();
 
 		// Make sure all children where visited
-		CHECK(traversal_order.size() == (1 + ecs.get_component_count<ecs::detail::parent_id>()));
+		CHECK(std::ssize(traversal_order) == (1 + ecs.get_component_count<ecs::detail::parent_id>()));
 	}
 
 	SECTION("interactions with parents are correct") {
