@@ -104,7 +104,7 @@ private:
 		arguments.clear();
 		argument_spans.clear();
 
-		if (ranges.size() == 0) {
+		if (ranges.empty()) {
 			return;
 		}
 
