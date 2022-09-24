@@ -36,7 +36,7 @@ TEST_CASE("The runtime interface") {
 			ecs.add_component({0, 9}, runtime_ctr_counter{});
 			ecs.commit_changes();
 
-			CHECK(ecs.get_component_count<runtime_ctr_counter>() == 10);
+			CHECK(ecs.get_component_count<runtime_ctr_counter>() == size_t{10});
 			CHECK(runtime_ctr_counter::def_ctr_count == 1);
 			CHECK(runtime_ctr_counter::move_count == 1);
 			CHECK(runtime_ctr_counter::dtr_count == 2);

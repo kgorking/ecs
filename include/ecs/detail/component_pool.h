@@ -134,7 +134,7 @@ public:
 	constexpr ~component_pool() noexcept override {
 		if constexpr (global<T>) {
 			std::destroy_at(head->data);
-			alloc.deallocate(head->data, head->range.count());
+			alloc.deallocate(head->data, head->range.ucount());
 			std::destroy_at(head);
 			alloc_chunk.deallocate(head, 1);
 		} else {
@@ -231,18 +231,18 @@ public:
 	}
 
 	// Returns the number of active entities in the pool
-	constexpr size_t num_entities() const noexcept {
-		size_t count = 0;
+	constexpr ptrdiff_t num_entities() const noexcept {
+		ptrdiff_t count = 0;
 
 		for (entity_range const r : ordered_active_ranges) {
-			count += r.ucount();
+			count += r.count();
 		}
 
 		return count;
 	}
 
 	// Returns the number of active components in the pool
-	constexpr size_t num_components() const noexcept {
+	constexpr ptrdiff_t num_components() const noexcept {
 		if constexpr (unbound<T>)
 			return 1;
 		else
@@ -250,8 +250,8 @@ public:
 	}
 
 	// Returns the number of chunks in use
-	constexpr size_t num_chunks() const noexcept {
-		return ordered_chunks.size();
+	constexpr ptrdiff_t num_chunks() const noexcept {
+		return std::ssize(ordered_chunks);
 	}
 
 	constexpr chunk const* get_head_chunk() const noexcept {
@@ -372,7 +372,7 @@ private:
 			} else {
 				if constexpr (!unbound<T>) {
 					std::destroy_n(c->data, c->active.ucount());
-					alloc.deallocate(c->data, c->range.count());
+					alloc.deallocate(c->data, c->range.ucount());
 				}
 			}
 		}
@@ -435,15 +435,13 @@ private:
 	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
 	constexpr bool has_duplicate_entities() const noexcept {
-		if (!ordered_active_ranges.empty()) {
-			for (size_t i = 0; i < ordered_active_ranges.size() - 1; ++i) {
-				if (ordered_active_ranges[i].overlaps(ordered_active_ranges[i + 1]))
-					return true;
-			}
+		for (size_t i = 1; i < ordered_active_ranges.size(); ++i) {
+			if (ordered_active_ranges[i - 1].overlaps(ordered_active_ranges[i]))
+				return true;
 		}
 
 		return false;
-	};
+	}
 
 	constexpr static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
 		return lhs == rhs;
@@ -466,12 +464,13 @@ private:
 		// Offset into the chunks data
 		auto const ent_offset = c->range.offset(range.first());
 
-		for (entity_offset i = 0; i < range.ucount(); ++i) {
+		entity_id ent = range.first();
+		for (size_t i = 0; i < range.ucount(); ++i, ++ent) {
 			// Construct from a value or a a span of values
 			if constexpr (std::is_same_v<T, Data>) {
 				std::construct_at(&c->data[ent_offset + i], comp_data);
 			} else if constexpr (std::is_invocable_v<Data, entity_id>) {
-				std::construct_at(&c->data[ent_offset + i], comp_data(range.first() + i));
+				std::construct_at(&c->data[ent_offset + i], comp_data(ent));
 			} else {
 				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
 			}

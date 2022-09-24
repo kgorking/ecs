@@ -141,7 +141,7 @@ public:
 
 	// Returns the number of active components for a specific type of components
 	template <typename T>
-	size_t get_component_count() {
+	ptrdiff_t get_component_count() {
 		if (!ctx.has_component_pool<T>())
 			return 0;
 
@@ -152,7 +152,7 @@ public:
 
 	// Returns the number of entities that has the component.
 	template <typename T>
-	size_t get_entity_count() {
+	ptrdiff_t get_entity_count() {
 		if (!ctx.has_component_pool<T>())
 			return 0;
 

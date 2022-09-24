@@ -55,7 +55,7 @@ TEST_CASE("Global components", "[component][global]") {
 		ecs.commit_changes();
 
 		// Only 1 test_s should exist
-		CHECK(1 == ecs.get_component_count<test_s>());
+		CHECK(size_t{1} == ecs.get_component_count<test_s>());
 
 		// Test the content of the entities
 		ecs.run_systems();
