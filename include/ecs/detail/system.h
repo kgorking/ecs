@@ -175,7 +175,7 @@ protected:
 	// The user supplied system
 	UpdateFn update_func;
 
-	// Class of the fully typed component pools used by this system
+	// Fully typed component pools used by this system
 	Pools const pools;
 
 	interval_type interval_checker;
