@@ -234,7 +234,7 @@ rt.make_system([](ecs::entity_id ent, greeting const& g) {
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
-ecs::runtime ecs;
+ecs::runtime rt;
 
 // sort descending
 auto &sys_dec = rt.make_system(
