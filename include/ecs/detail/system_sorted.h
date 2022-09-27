@@ -36,8 +36,8 @@ private:
 		}
 
 		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-		std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
-			apply_type<ComponentsList>([&]<typename... Types>(){
+		apply_type<ComponentsList>([&]<typename... Types>(){
+			std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
 				if constexpr (FirstIsEntity) {
 					this->update_func(std::get<0>(packed_arg), extract_arg<Types>(packed_arg, 0)...);
 				} else {
@@ -51,12 +51,12 @@ private:
 	void do_build() override {
 		arguments.clear();
 
-		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range range) {
-			for (entity_id const& entity : range) {
-				apply_type<ComponentsList>([&]<typename... Comps>() {
+		apply_type<ComponentsList>([&]<typename... Comps>() {
+			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range range) {
+				for (entity_id const entity : range) {
 					arguments.emplace_back(entity, get_component<Comps>(entity, this->pools)...);
-				});
-			}
+				}
+			});
 		});
 
 		needs_sorting = true;

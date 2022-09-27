@@ -32,8 +32,8 @@ private:
 		// Clear current arguments
 		lambda_arguments.clear();
 
-		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-			apply_type<ComponentsList>([&]<typename... Types>() {
+		apply_type<ComponentsList>([&]<typename... Types>() {
+			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
 				lambda_arguments.emplace_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
 			});
 		});
@@ -46,11 +46,13 @@ private:
 			std::for_each(e_p, range.begin(), range.end(), [=, first_id = range.first()](entity_id ent) mutable {
 				auto const offset = ent - first_id;
 
-				if constexpr (FirstIsEntity) {
-					update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
-				} else {
-					update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
-				}
+				apply_type<ComponentsList>([&]<typename... Ts>() {
+					if constexpr (FirstIsEntity) {
+						update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+					} else {
+						update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+					}
+				});
 			});
 		};
 	}
