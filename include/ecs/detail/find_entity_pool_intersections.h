@@ -8,7 +8,7 @@
 
 namespace ecs::detail {
 
-template <class Component, typename TuplePools>
+template <typename Component, typename TuplePools>
 void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) {
 	using T = std::remove_cvref_t<Component>;
 	using iter1 = typename std::vector<entity_range>::iterator;
@@ -29,7 +29,7 @@ void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) 
 	}
 }
 
-template <class Component, typename TuplePools>
+template <typename Component, typename TuplePools>
 void pool_difference(std::vector<entity_range>& ranges, TuplePools const& pools) {
 	using T = std::remove_cvref_t<Component>;
 
@@ -45,7 +45,7 @@ void pool_difference(std::vector<entity_range>& ranges, TuplePools const& pools)
 }
 
 // Find the intersection of the sets of entities in the specified pools
-template <class FirstComponent, class... Components, typename TuplePools>
+template <typename FirstComponent, typename... Components, typename TuplePools>
 std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools) {
 	std::vector<entity_range> ranges{entity_range::all()};
 
@@ -63,7 +63,7 @@ std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools
 	return ranges;
 }
 
-template <class ComponentList, typename TuplePools>
+template <typename ComponentList, typename TuplePools>
 auto get_pool_iterators(TuplePools pools) {
 	using iter = iter_pair<entity_range_view::iterator>;
 
@@ -76,7 +76,7 @@ auto get_pool_iterators(TuplePools pools) {
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <class ComponentList, typename TuplePools, typename F>
+template <typename ComponentList, typename TuplePools, typename F>
 void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
 

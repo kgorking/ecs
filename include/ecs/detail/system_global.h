@@ -5,7 +5,7 @@
 
 namespace ecs::detail {
 // The implementation of a system specialized on its components
-template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
 class system_global final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 public:
 	system_global(UpdateFn func, TupPools in_pools)

@@ -6,7 +6,7 @@
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
 class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
 

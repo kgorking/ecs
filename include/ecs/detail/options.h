@@ -50,7 +50,7 @@ struct is_parent<T> {
 
 // Contains detectors for the options
 namespace detect {
-	template <template <class O> class Tester, class ListOptions>
+	template <template <typename O> typename Tester, typename ListOptions>
 	constexpr int find_tester_index() {
 		int found = 0;
 		int index = 0;
@@ -64,7 +64,7 @@ namespace detect {
 		return index;
 	}
 
-	template <typename Option, class ListOptions>
+	template <typename Option, typename ListOptions>
 	constexpr int find_type_index() {
 		int found = 0;
 		int index = 0;
@@ -79,7 +79,7 @@ namespace detect {
 	}
 
 	// A detector that applies Tester to each option.
-	template <template <class O> class Tester, class ListOptions, class NotFoundType = void>
+	template <template <typename O> typename Tester, typename ListOptions, typename NotFoundType = void>
 	constexpr auto test_option() {
 		auto const lambda = []<typename T>() {
 			return static_cast<std::remove_cvref_t<T>*>(nullptr);
@@ -93,7 +93,7 @@ namespace detect {
 		}
 	}
 
-	template <class Type>
+	template <typename Type>
 	struct type_detector {
 		template<typename... Types>
 		consteval static bool test(type_list<Types...>*) noexcept {
@@ -114,19 +114,19 @@ namespace detect {
 // The tester must have static member 'value' that determines if the option passed to it
 // is what it is looking for, see 'is_group' for an example.
 // STL testers like 'std::is_execution_policy' can also be used
-template <template <class O> class Tester, class TypelistOptions>
+template <template <typename O> typename Tester, typename TypelistOptions>
 using test_option_type = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions>())>;
 
 // Use a tester to check the options. Results in 'NotFoundType' if the tester
 // does not find a viable option.
-template <template <class O> class Tester, class TypelistOptions, class NotFoundType>
+template <template <typename O> typename Tester, typename TypelistOptions, typename NotFoundType>
 using test_option_type_or = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions, NotFoundType>())>;
 
 // Use a tester to find the index of a type in the tuple. Results in -1 if not found
-template <template <class O> class Tester, class TypelistOptions>
+template <template <typename O> typename Tester, typename TypelistOptions>
 static constexpr int test_option_index = detect::find_tester_index<Tester, TypelistOptions>();
 
-template <class Option, class ListOptions>
+template <typename Option, typename ListOptions>
 constexpr bool has_option() {
 	return detect::type_detector<Option>::test(static_cast<ListOptions*>(nullptr));
 }

@@ -17,7 +17,7 @@
 namespace ecs::detail {
 
 // The implementation of a system specialized on its components
-template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;

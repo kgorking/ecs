@@ -16,7 +16,7 @@
 #include "type_list.h"
 
 namespace ecs::detail {
-template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
 class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
 

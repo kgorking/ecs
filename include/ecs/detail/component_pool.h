@@ -20,7 +20,7 @@ namespace ecs::detail {
 
 constexpr static std::size_t parallelization_size_tipping_point = 4096;
 
-template <class ForwardIt, class BinaryPredicate>
+template <typename ForwardIt, typename BinaryPredicate>
 constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
 		return last;
@@ -35,7 +35,7 @@ constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPre
 	return ++result;
 }
 
-template <class Cont, class BinaryPredicate>
+template <typename Cont, typename BinaryPredicate>
 constexpr void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	auto const end = std_combine_erase(cont.begin(), cont.end(), static_cast<BinaryPredicate&&>(p));
 	cont.erase(end, cont.end());
