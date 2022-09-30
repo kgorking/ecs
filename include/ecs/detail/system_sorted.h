@@ -23,59 +23,77 @@ public:
 
 private:
 	void do_run() override {
+		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+
 		// Sort the arguments if the component data has been modified
 		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
-			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::sort(e_p, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
-				sort_types* t_l = std::get<sort_types*>(l);
-				sort_types* t_r = std::get<sort_types*>(r);
-				return sort_func(*t_l, *t_r);
+			std::sort(e_p, sorted_args.begin(), sorted_args.end(), [this](sort_help const& l, sort_help const& r) {
+				return sort_func(*l.sort_val_ptr, *r.sort_val_ptr);
 			});
 
 			needs_sorting = false;
 		}
 
-		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-		std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
-			apply_type<ComponentsList>([&]<typename... Types>(){
-				if constexpr (FirstIsEntity) {
-					this->update_func(std::get<0>(packed_arg), extract_arg<Types>(packed_arg, 0)...);
-				} else {
-					this->update_func(/*                    */ extract_arg<Types>(packed_arg, 0)...);
-				}
-			});
-		});
+		for (sort_help const& sh : sorted_args) {
+			lambda_arguments[sh.arg_index](this->update_func, sh.offset);
+		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
-		arguments.clear();
+		sorted_args.clear();
+		lambda_arguments.clear();
 
-		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range range) {
-			for (entity_id const& entity : range) {
-				apply_type<ComponentsList>([&]<typename... Comps>() {
-					arguments.emplace_back(entity, get_component<Comps>(entity, this->pools)...);
-				});
-			}
+		apply_type<ComponentsList>([&]<typename... Types>() {
+			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
+				lambda_arguments.emplace_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
+
+				for (entity_id const entity : range) {
+					entity_offset const offset = range.offset(entity);
+					sorted_args.emplace_back(index, offset, get_component<sort_types>(entity, this->pools));
+				}
+
+				index += 1;
+			});
 		});
 
 		needs_sorting = true;
+	}
+
+	template <typename... Ts>
+	static auto make_argument(entity_range range, auto... args) {
+		return [=](auto update_func, entity_offset offset) {
+			entity_id const ent = range.first() + offset;
+			if constexpr (FirstIsEntity) {
+				update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+			} else {
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+			}
+		};
 	}
 
 private:
 	// The user supplied sorting function
 	SortFunc sort_func;
 
-	// The vector of unrolled arguments, sorted using 'sort_func'
-	template <typename... Types>
-	using tuple_from_types = std::tuple<entity_id, component_argument<Types>...>;
-	using argument = transform_type_all<ComponentsList, tuple_from_types>;
-	std::vector<argument> arguments;
+	// The type used for sorting
+	using sort_types = sorter_predicate_type_t<SortFunc>;
 
 	// True if the data needs to be sorted
 	bool needs_sorting = false;
 
-	using sort_types = sorter_predicate_type_t<SortFunc>;
+	struct sort_help {
+		unsigned arg_index;
+		entity_offset offset;
+		sort_types* sort_val_ptr;
+	};
+	std::vector<sort_help> sorted_args;
+
+	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
+		}));
+	
+	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
 };
 } // namespace ecs::detail
 

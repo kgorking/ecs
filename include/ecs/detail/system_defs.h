@@ -84,7 +84,7 @@ template <typename Component, typename Pools>
 	if constexpr (std::is_pointer_v<T>) {
 		// Filter: return a nullptr
 		static_cast<void>(entity);
-		return nullptr;
+		return static_cast<T*>(nullptr);
 
 	} else if constexpr (tagged<T>) {
 		// Tag: return a pointer to some dummy storage
@@ -127,6 +127,24 @@ decltype(auto) extract_arg(Tuple& tuple, [[maybe_unused]] ptrdiff_t offset) {
 		return std::get<T>(tuple);
 	} else {
 		T* ptr = std::get<T*>(tuple);
+		return *(ptr + offset);
+	}
+}
+
+// Extracts a component argument from a pointer+offset
+template <typename Component>
+decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset) {
+	using T = std::remove_cvref_t<Component>;
+
+	if constexpr (std::is_pointer_v<T>) {
+		return static_cast<T>(nullptr);
+	} else if constexpr (detail::unbound<T>) {
+		T* ptr = cmp;
+		return *ptr;
+	} else if constexpr (detail::is_parent<T>::value) {
+		return cmp;
+	} else {
+		T* ptr = cmp;
 		return *(ptr + offset);
 	}
 }

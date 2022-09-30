@@ -7,12 +7,6 @@
 
 #include "../entity_id.h"
 #include "../entity_range.h"
-//#include "component_pool.h"
-namespace ecs::detail {
-template <typename, typename>
-class component_pool;
-}
-
 #include "entity_range.h"
 #include "interval_limiter.h"
 #include "options.h"
@@ -21,30 +15,6 @@ class component_pool;
 #include "type_hash.h"
 
 namespace ecs::detail {
-
-// TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
-//       snildt komme tilbage til en component_pool<T> uden brug af tuples
-template <class ComponentsList>
-struct component_pools : type_list_indices<ComponentsList> {
-	component_pool_base* base_pools[type_list_size<ComponentsList>];
-
-	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
-		Expects((pools != nullptr) && ...);
-	}
-
-	template <typename Component>
-	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
-	constexpr auto& get() const noexcept {
-		constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
-		return *static_cast<component_pool<Component>*>(base_pools[index]);
-	}
-
-	constexpr bool has_component_count_changed() const {
-		return any_of_type<ComponentsList>([this]<typename T>() {
-			return this->get<T>().has_component_count_changed();
-		});
-	}
-};
 
 // The implementation of a system specialized on its components
 template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
@@ -205,9 +175,8 @@ protected:
 	// The user supplied system
 	UpdateFn update_func;
 
-	// A tuple of the fully typed component pools used by this system
+	// Fully typed component pools used by this system
 	Pools const pools;
-	//component_pools<stripped_component_list> new_pools; // todo
 
 	interval_type interval_checker;
 };

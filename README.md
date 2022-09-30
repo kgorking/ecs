@@ -174,7 +174,7 @@ void read_only_system(component1 const&) { /* logic */ }
 auto read_write_system = [](component1&, component2 const&) { /* logic */ }
 
 int main() {
-    ecs::runtime ecs;
+    ecs::runtime rt;
     rt.make_system(read_only_system);
     rt.make_system(read_write_system);
     rt.make_system([](component2&, component3&) { // read/write to two components

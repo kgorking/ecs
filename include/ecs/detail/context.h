@@ -11,14 +11,7 @@
 #include "tls/cache.h"
 #include "tls/split.h"
 
-//#include "component_pool.h"
-namespace ecs::detail {
-class component_pool_base;
-
-template <typename, typename>
-class component_pool;
-}
-
+#include "component_pools.h"
 #include "scheduler.h"
 #include "system.h"
 #include "system_global.h"

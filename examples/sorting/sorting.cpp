@@ -30,15 +30,19 @@ int main() {
 	ecs.add_component_generator({0, 9}, generator);
 	ecs.commit_changes();
 
+	std::cout << "Unsorted:   ";
 	sys_no_sort.run();
 	std::cout << '\n';
 
+	std::cout << "Ascending:  ";
 	sys_sort_asc.run();
 	std::cout << '\n';
 
+	std::cout << "Descending: ";
 	sys_sort_des.run();
 	std::cout << '\n';
 
+	std::cout << "even/odd:   ";
 	sys_sort_eo.run();
 	std::cout << '\n';
 }
