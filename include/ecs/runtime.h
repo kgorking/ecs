@@ -26,7 +26,7 @@ public:
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
 					  "can not add pointers to entities; wrap them in a struct");
 
-		auto const adder = [this, range]<class Type>(Type&& val) {
+		auto const adder = [this, range]<typename Type>(Type&& val) {
 			// Add it to the component pool
 			if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
 				auto& pool = ctx.get_component_pool<detail::parent_id>();
@@ -222,21 +222,21 @@ public:
 	}
 
 	// Set the memory resource to use to store a specific type of component
-	/*template <class Component>
+	/*template <typename Component>
 	void set_memory_resource(std::pmr::memory_resource* resource) {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(resource);
 	}
 
 	// Returns the memory resource used to store a specific type of component
-	template <class Component>
+	template <typename Component>
 	std::pmr::memory_resource* get_memory_resource() {
 		auto& pool = ctx.get_component_pool<Component>();
 		return pool.get_memory_resource();
 	}
 
 	// Resets the memory resource to the default
-	template <class Component>
+	template <typename Component>
 	void reset_memory_resource() {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(std::pmr::get_default_resource());

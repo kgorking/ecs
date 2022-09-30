@@ -7,7 +7,7 @@
 #include "type_list.h"
 
 namespace ecs::detail {
-template <class T>
+template <typename T>
 constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
 // If given a parent, convert to detail::parent_id, otherwise do nothing
@@ -17,7 +17,7 @@ using reduce_parent_t =
 					   std::conditional_t<is_parent<T>::value, parent_id, T>>;
 
 // Alias for stored pools
-template <class T>
+template <typename T>
 using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<T>>>>* const;
 
 // Returns true if a type is read-only
@@ -35,7 +35,7 @@ struct parent_type_list<void> {
 	using type = void;
 }; // partial specialization for void
 
-template <template <class...> class Parent, class... ParentComponents> // partial specialization
+template <template <typename...> typename Parent, typename... ParentComponents> // partial specialization
 struct parent_type_list<Parent<ParentComponents...>> {
 	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
 	using type = type_list<ParentComponents...>;
@@ -47,7 +47,7 @@ using parent_type_list_t = typename parent_type_list<std::remove_cvref_t<T>>::ty
 template <typename T>
 struct parent_pool_detect; // primary template
 
-template <template <class...> class Parent, class... ParentComponents> // partial specialization
+template <template <typename...> typename Parent, typename... ParentComponents> // partial specialization
 struct parent_pool_detect<Parent<ParentComponents...>> {
 	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
 	using type = std::tuple<pool<ParentComponents>...>;

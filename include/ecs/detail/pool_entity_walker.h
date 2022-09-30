@@ -15,11 +15,11 @@ using walker_argument = reduce_parent_t<std::remove_cvref_t<Component>>*;
 template <typename T>
 struct pool_type_detect; // primary template
 
-template <template <class> class Pool, class Type>
+template <template <typename> typename Pool, typename Type>
 struct pool_type_detect<Pool<Type>> {
 	using type = Type;
 };
-template <template <class> class Pool, class Type>
+template <template <typename> typename Pool, typename Type>
 struct pool_type_detect<Pool<Type>*> {
 	using type = Type;
 };
@@ -27,7 +27,7 @@ struct pool_type_detect<Pool<Type>*> {
 template <typename T>
 struct tuple_pool_type_detect; // primary template
 
-template <template <class...> class Tuple, class... PoolTypes> // partial specialization
+template <template <typename...> typename Tuple, typename... PoolTypes> // partial specialization
 struct tuple_pool_type_detect<const Tuple<PoolTypes* const...>> {
 	using type = std::tuple<typename pool_type_detect<PoolTypes>::type*...>;
 };
@@ -37,7 +37,7 @@ using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 
 // Linearly walks one-or-more component pools
 // TODO why is this not called an iterator?
-template <class Pools>
+template <typename Pools>
 struct pool_entity_walker {
 	void reset(Pools* _pools, entity_range_view view) {
 		pools = _pools;

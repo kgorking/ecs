@@ -31,7 +31,7 @@
 
 namespace tls {
 // A class using a cache-line to cache data.
-template <class Key, class Value, Key empty_slot = Key{}, size_t cache_line = 64UL>
+template <typename Key, class Value, Key empty_slot = Key{}, size_t cache_line = 64UL>
 class cache {
 	// If you trigger this assert, then either your key- or value size is too large,
 	// or you cache_line size is too small.
@@ -47,7 +47,7 @@ public:
 
 	// Returns the value if it exists in the cache,
 	// otherwise inserts 'or_fn(k)' in cache and returns it
-	template <class Fn>
+	template <typename Fn>
 	constexpr Value get_or(Key const k, Fn or_fn) {
 		size_t index = num_entries;
 		for (size_t i = 0; i < num_entries; i++) {
@@ -493,7 +493,7 @@ public:
 	}
 
 	// Perform an action on all threads data
-	template <class Fn>
+	template <typename Fn>
 	constexpr void for_each(Fn&& fn) noexcept {
 		auto const for_each_impl = [&]() noexcept {
 			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
@@ -601,7 +601,7 @@ namespace impl {
 
 	//
 	// type_list concept
-	template <class TL>
+	template <typename TL>
 	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
 
 
@@ -651,12 +651,12 @@ namespace impl {
 		return (f.template operator()<Types>() || ...);
 	}
 
-	template <template <class O> class Tester, typename... Types, typename F>
+	template <template <typename O> class Tester, typename... Types, typename F>
 	constexpr auto run_if(F&& /*f*/, type_list<>*) {
 		return;
 	}
 
-	template <template <class O> class Tester, typename FirstType, typename... Types, typename F>
+	template <template <typename O> class Tester, typename FirstType, typename... Types, typename F>
 	constexpr auto run_if(F&& f, type_list<FirstType, Types...>*) {
 		if constexpr (Tester<FirstType>::value) {
 			return f.template operator()<FirstType>();
@@ -671,7 +671,7 @@ namespace impl {
 	}
 
 	
-	template <typename TL, template <class O> class Transformer>
+	template <typename TL, template <typename O> class Transformer>
 	struct transform_type {
 		template <typename... Types>
 		constexpr static type_list<Transformer<Types>...>* helper(type_list<Types...>*);
@@ -679,7 +679,7 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <typename TL, template <class... O> class Transformer>
+	template <typename TL, template <typename... O> class Transformer>
 	struct transform_type_all {
 		template <typename... Types>
 		constexpr static Transformer<Types...>* helper(type_list<Types...>*);
@@ -695,7 +695,7 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <typename TL, template <class O> class Predicate>
+	template <typename TL, template <typename O> class Predicate>
 	struct split_types_if {
 		template <typename ListTrue, typename ListFalse, typename Front, typename... Rest >
 		constexpr static auto helper(type_list<Front, Rest...>*) {
@@ -791,7 +791,7 @@ using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(null
 
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
-template <impl::TypeList TL, template <class O> class Transformer>
+template <impl::TypeList TL, template <typename O> class Transformer>
 using transform_type = typename impl::transform_type<TL, Transformer>::type;
 
 // Transforms all the types in a type_list at once
@@ -799,10 +799,10 @@ using transform_type = typename impl::transform_type<TL, Transformer>::type;
 // Ex.
 // 	template <typename... Types>
 //  using transformer = std::tuple<entity_id, Types...>;
-template <impl::TypeList TL, template <class... O> class Transformer>
+template <impl::TypeList TL, template <typename... O> class Transformer>
 using transform_type_all = typename impl::transform_type_all<TL, Transformer>::type;
 
-template <impl::TypeList TL, template <class O> class Predicate>
+template <impl::TypeList TL, template <typename O> class Predicate>
 using split_types_if = typename impl::split_types_if<TL, Predicate>::list_pair;
 
 
@@ -852,7 +852,7 @@ constexpr bool any_of_type(F&& f) {
 }
 
 // Runs F once when a type satifies the tester. F takes a type template parameter and can return a value.
-template <template <class O> class Tester, impl::TypeList TL, typename F>
+template <template <typename O> class Tester, impl::TypeList TL, typename F>
 constexpr auto run_if(F&& f) {
 	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
 }
@@ -920,7 +920,7 @@ namespace ecs::detail {
 
 using type_hash = std::uint64_t;
 
-template <class T>
+template <typename T>
 consteval auto get_type_name() {
 #ifdef _MSC_VER
 	std::string_view fn = __FUNCSIG__;
@@ -935,7 +935,7 @@ consteval auto get_type_name() {
 #endif
 }
 
-template <class T>
+template <typename T>
 consteval type_hash get_type_hash() {
 	type_hash const prime = 0x100000001b3;
 #ifdef _MSC_VER
@@ -1233,8 +1233,8 @@ namespace ecs::detail {
 	template <typename Component, typename Pools>
 	auto get_component(entity_id const, Pools const&);
 
-	template <class Pools> struct pool_entity_walker;
-	template <class Pools> struct pool_range_walker;
+	template <typename Pools> struct pool_entity_walker;
+	template <typename Pools> struct pool_range_walker;
 } // namespace ecs::detail
 
 namespace ecs {
@@ -1271,8 +1271,8 @@ private:
 	template <typename Component, typename Pools>
 	friend auto detail::get_component(entity_id const, Pools const&);
 
-	template <class Pools> friend struct detail::pool_entity_walker;
-	template <class Pools> friend struct detail::pool_range_walker;
+	template <typename Pools> friend struct detail::pool_entity_walker;
+	template <typename Pools> friend struct detail::pool_range_walker;
 
 	parent(entity_id id, std::tuple<ParentTypes*...> tup)
 		: entity_id(id)
@@ -1444,7 +1444,7 @@ struct is_parent<T> {
 
 // Contains detectors for the options
 namespace detect {
-	template <template <class O> class Tester, class ListOptions>
+	template <template <typename O> class Tester, class ListOptions>
 	constexpr int find_tester_index() {
 		int found = 0;
 		int index = 0;
@@ -1473,7 +1473,7 @@ namespace detect {
 	}
 
 	// A detector that applies Tester to each option.
-	template <template <class O> class Tester, class ListOptions, class NotFoundType = void>
+	template <template <typename O> class Tester, class ListOptions, class NotFoundType = void>
 	constexpr auto test_option() {
 		auto const lambda = []<typename T>() {
 			return static_cast<std::remove_cvref_t<T>*>(nullptr);
@@ -1487,7 +1487,7 @@ namespace detect {
 		}
 	}
 
-	template <class Type>
+	template <typename Type>
 	struct type_detector {
 		template<typename... Types>
 		consteval static bool test(type_list<Types...>*) noexcept {
@@ -1508,19 +1508,19 @@ namespace detect {
 // The tester must have static member 'value' that determines if the option passed to it
 // is what it is looking for, see 'is_group' for an example.
 // STL testers like 'std::is_execution_policy' can also be used
-template <template <class O> class Tester, class TypelistOptions>
+template <template <typename O> class Tester, class TypelistOptions>
 using test_option_type = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions>())>;
 
 // Use a tester to check the options. Results in 'NotFoundType' if the tester
 // does not find a viable option.
-template <template <class O> class Tester, class TypelistOptions, class NotFoundType>
+template <template <typename O> class Tester, class TypelistOptions, class NotFoundType>
 using test_option_type_or = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions, NotFoundType>())>;
 
 // Use a tester to find the index of a type in the tuple. Results in -1 if not found
-template <template <class O> class Tester, class TypelistOptions>
+template <template <typename O> class Tester, class TypelistOptions>
 static constexpr int test_option_index = detect::find_tester_index<Tester, TypelistOptions>();
 
-template <class Option, class ListOptions>
+template <typename Option, class ListOptions>
 constexpr bool has_option() {
 	return detect::type_detector<Option>::test(static_cast<ListOptions*>(nullptr));
 }
@@ -1560,7 +1560,7 @@ namespace ecs::detail {
 
 constexpr static std::size_t parallelization_size_tipping_point = 4096;
 
-template <class ForwardIt, class BinaryPredicate>
+template <typename ForwardIt, class BinaryPredicate>
 constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
 		return last;
@@ -1575,7 +1575,7 @@ constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPre
 	return ++result;
 }
 
-template <class Cont, class BinaryPredicate>
+template <typename Cont, class BinaryPredicate>
 constexpr void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	auto const end = std_combine_erase(cont.begin(), cont.end(), static_cast<BinaryPredicate&&>(p));
 	cont.erase(end, cont.end());
@@ -2342,7 +2342,7 @@ struct no_interval_limiter {
 // Contains definitions that are used by the systems classes
 
 namespace ecs::detail {
-template <class T>
+template <typename T>
 constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_id>;
 
 // If given a parent, convert to detail::parent_id, otherwise do nothing
@@ -2352,7 +2352,7 @@ using reduce_parent_t =
 					   std::conditional_t<is_parent<T>::value, parent_id, T>>;
 
 // Alias for stored pools
-template <class T>
+template <typename T>
 using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<T>>>>* const;
 
 // Returns true if a type is read-only
@@ -2370,7 +2370,7 @@ struct parent_type_list<void> {
 	using type = void;
 }; // partial specialization for void
 
-template <template <class...> class Parent, class... ParentComponents> // partial specialization
+template <template <typename...> typename Parent, typename... ParentComponents> // partial specialization
 struct parent_type_list<Parent<ParentComponents...>> {
 	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
 	using type = type_list<ParentComponents...>;
@@ -2382,7 +2382,7 @@ using parent_type_list_t = typename parent_type_list<std::remove_cvref_t<T>>::ty
 template <typename T>
 struct parent_pool_detect; // primary template
 
-template <template <class...> class Parent, class... ParentComponents> // partial specialization
+template <template <typename...> typename Parent, typename... ParentComponents> // partial specialization
 struct parent_pool_detect<Parent<ParentComponents...>> {
 	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
 	using type = std::tuple<pool<ParentComponents>...>;
@@ -2487,11 +2487,11 @@ using walker_argument = reduce_parent_t<std::remove_cvref_t<Component>>*;
 template <typename T>
 struct pool_type_detect; // primary template
 
-template <template <class> class Pool, class Type>
+template <template <typename> typename Pool, typename Type>
 struct pool_type_detect<Pool<Type>> {
 	using type = Type;
 };
-template <template <class> class Pool, class Type>
+template <template <typename> typename Pool, typename Type>
 struct pool_type_detect<Pool<Type>*> {
 	using type = Type;
 };
@@ -2499,7 +2499,7 @@ struct pool_type_detect<Pool<Type>*> {
 template <typename T>
 struct tuple_pool_type_detect; // primary template
 
-template <template <class...> class Tuple, class... PoolTypes> // partial specialization
+template <template <typename...> typename Tuple, typename... PoolTypes> // partial specialization
 struct tuple_pool_type_detect<const Tuple<PoolTypes* const...>> {
 	using type = std::tuple<typename pool_type_detect<PoolTypes>::type*...>;
 };
@@ -2509,7 +2509,7 @@ using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
 
 // Linearly walks one-or-more component pools
 // TODO why is this not called an iterator?
-template <class Pools>
+template <typename Pools>
 struct pool_entity_walker {
 	void reset(Pools* _pools, entity_range_view view) {
 		pools = _pools;
@@ -2585,7 +2585,7 @@ private:
 namespace ecs::detail {
 
 // Linearly walks one-or-more component pools
-template <class Pools>
+template <typename Pools>
 struct pool_range_walker {
 	pool_range_walker(Pools const _pools) : pools(_pools) {}
 
@@ -2696,16 +2696,16 @@ constexpr bool is_unique_types() {
 
 
 // Find the types a sorting predicate takes
-template <class R, class T>
+template <typename R, class T>
 constexpr std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
-template <class R, class C, class T>
+template <typename R, class C, class T>
 constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
-template <class R, class C, class T>
+template <typename R, class C, class T>
 constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
 
 
-template <class Pred>
+template <typename Pred>
 constexpr auto get_sorter_type() {
 	// Verify predicate
 	static_assert(
@@ -2721,7 +2721,7 @@ constexpr auto get_sorter_type() {
 	}
 }
 
-template <class Pred>
+template <typename Pred>
 using sorter_predicate_type_t = decltype(get_sorter_type<Pred>());
 
 
@@ -2770,7 +2770,7 @@ constexpr void verify_immutable_component() {
 		static_assert(std::is_const_v<std::remove_reference_t<C>>, "components flagged as 'immutable' must also be const");
 }
 
-template <class R, class FirstArg, class... Args>
+template <typename R, typename FirstArg, typename... Args>
 constexpr void system_verifier() {
 	static_assert(std::is_same_v<R, void>, "systems can not have returnvalues");
 
@@ -2797,19 +2797,19 @@ constexpr void system_verifier() {
 }
 
 // A small bridge to allow the Lambda to activate the system verifier
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 // A small bridge to allow the function to activate the system verifier
-template <class R, class FirstArg, class... Args>
+template <typename R, typename FirstArg, typename... Args>
 constexpr void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class FirstArg, class... Args>
+template <typename R, typename FirstArg, typename... Args>
 constexpr void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 template <typename T>
@@ -3001,7 +3001,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 
 namespace ecs::detail {
 
-template <class Component, typename TuplePools>
+template <typename Component, typename TuplePools>
 void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) {
 	using T = std::remove_cvref_t<Component>;
 	using iter1 = typename std::vector<entity_range>::iterator;
@@ -3022,7 +3022,7 @@ void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) 
 	}
 }
 
-template <class Component, typename TuplePools>
+template <typename Component, typename TuplePools>
 void pool_difference(std::vector<entity_range>& ranges, TuplePools const& pools) {
 	using T = std::remove_cvref_t<Component>;
 
@@ -3038,7 +3038,7 @@ void pool_difference(std::vector<entity_range>& ranges, TuplePools const& pools)
 }
 
 // Find the intersection of the sets of entities in the specified pools
-template <class FirstComponent, class... Components, typename TuplePools>
+template <typename FirstComponent, typename... Components, typename TuplePools>
 std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools) {
 	std::vector<entity_range> ranges{entity_range::all()};
 
@@ -3056,7 +3056,7 @@ std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools
 	return ranges;
 }
 
-template <class ComponentList, typename TuplePools>
+template <typename ComponentList, typename TuplePools>
 auto get_pool_iterators(TuplePools pools) {
 	using iter = iter_pair<entity_range_view::iterator>;
 
@@ -3069,7 +3069,7 @@ auto get_pool_iterators(TuplePools pools) {
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <class ComponentList, typename TuplePools, typename F>
+template <typename ComponentList, typename TuplePools, typename F>
 void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
 
@@ -3271,7 +3271,7 @@ namespace ecs::detail {
 
 // TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
 //       snildt komme tilbage til en component_pool<T> uden brug af tuples
-template <class ComponentsList>
+template <typename ComponentsList>
 struct component_pools : type_list_indices<ComponentsList> {
 	component_pool_base* base_pools[type_list_size<ComponentsList>];
 
@@ -3294,7 +3294,7 @@ struct component_pools : type_list_indices<ComponentsList> {
 };
 
 // The implementation of a system specialized on its components
-template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
@@ -3547,7 +3547,7 @@ private:
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <class Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
 class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
 
@@ -3613,7 +3613,7 @@ private:
 
 
 namespace ecs::detail {
-template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
 class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
 
@@ -3846,7 +3846,7 @@ private:
 
 namespace ecs::detail {
 // The implementation of a system specialized on its components
-template <class Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
 class system_global final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 public:
 	system_global(UpdateFn func, TupPools in_pools)
@@ -4492,21 +4492,21 @@ public:
 	}
 
 	// Set the memory resource to use to store a specific type of component
-	/*template <class Component>
+	/*template <typename Component>
 	void set_memory_resource(std::pmr::memory_resource* resource) {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(resource);
 	}
 
 	// Returns the memory resource used to store a specific type of component
-	template <class Component>
+	template <typename Component>
 	std::pmr::memory_resource* get_memory_resource() {
 		auto& pool = ctx.get_component_pool<Component>();
 		return pool.get_memory_resource();
 	}
 
 	// Resets the memory resource to the default
-	template <class Component>
+	template <typename Component>
 	void reset_memory_resource() {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(std::pmr::get_default_resource());

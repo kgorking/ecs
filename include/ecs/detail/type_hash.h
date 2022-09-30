@@ -11,7 +11,7 @@ namespace ecs::detail {
 
 using type_hash = std::uint64_t;
 
-template <class T>
+template <typename T>
 consteval auto get_type_name() {
 #ifdef _MSC_VER
 	std::string_view fn = __FUNCSIG__;
@@ -26,7 +26,7 @@ consteval auto get_type_name() {
 #endif
 }
 
-template <class T>
+template <typename T>
 consteval type_hash get_type_hash() {
 	type_hash const prime = 0x100000001b3;
 #ifdef _MSC_VER

@@ -7,7 +7,7 @@
 namespace ecs::detail {
 // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
 // will be passed to the user supplied lambda in a sorted manner
-template <typename Options, typename UpdateFn, typename SortFunc, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename SortFunc, typename TupPools, bool FirstIsEntity, typename ComponentsList>
 struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
 

@@ -9,7 +9,7 @@
 namespace ecs::detail {
 
 // Linearly walks one-or-more component pools
-template <class Pools>
+template <typename Pools>
 struct pool_range_walker {
 	pool_range_walker(Pools const _pools) : pools(_pools) {}
 

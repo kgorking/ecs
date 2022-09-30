@@ -64,7 +64,7 @@ namespace impl {
 
 	//
 	// type_list concept
-	template <class TL>
+	template <typename TL>
 	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
 
 
@@ -114,12 +114,12 @@ namespace impl {
 		return (f.template operator()<Types>() || ...);
 	}
 
-	template <template <class O> class Tester, typename... Types, typename F>
+	template <template <typename O> typename Tester, typename... Types, typename F>
 	constexpr auto run_if(F&& /*f*/, type_list<>*) {
 		return;
 	}
 
-	template <template <class O> class Tester, typename FirstType, typename... Types, typename F>
+	template <template <typename O> typename Tester, typename FirstType, typename... Types, typename F>
 	constexpr auto run_if(F&& f, type_list<FirstType, Types...>*) {
 		if constexpr (Tester<FirstType>::value) {
 			return f.template operator()<FirstType>();
@@ -134,7 +134,7 @@ namespace impl {
 	}
 
 	
-	template <typename TL, template <class O> class Transformer>
+	template <typename TL, template <typename O> typename Transformer>
 	struct transform_type {
 		template <typename... Types>
 		constexpr static type_list<Transformer<Types>...>* helper(type_list<Types...>*);
@@ -142,7 +142,7 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <typename TL, template <class... O> class Transformer>
+	template <typename TL, template <typename... O> typename Transformer>
 	struct transform_type_all {
 		template <typename... Types>
 		constexpr static Transformer<Types...>* helper(type_list<Types...>*);
@@ -158,7 +158,7 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <typename TL, template <class O> class Predicate>
+	template <typename TL, template <typename O> typename Predicate>
 	struct split_types_if {
 		template <typename ListTrue, typename ListFalse, typename Front, typename... Rest >
 		constexpr static auto helper(type_list<Front, Rest...>*) {
@@ -254,7 +254,7 @@ using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(null
 
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
-template <impl::TypeList TL, template <class O> class Transformer>
+template <impl::TypeList TL, template <typename O> typename Transformer>
 using transform_type = typename impl::transform_type<TL, Transformer>::type;
 
 // Transforms all the types in a type_list at once
@@ -262,10 +262,10 @@ using transform_type = typename impl::transform_type<TL, Transformer>::type;
 // Ex.
 // 	template <typename... Types>
 //  using transformer = std::tuple<entity_id, Types...>;
-template <impl::TypeList TL, template <class... O> class Transformer>
+template <impl::TypeList TL, template <typename... O> typename Transformer>
 using transform_type_all = typename impl::transform_type_all<TL, Transformer>::type;
 
-template <impl::TypeList TL, template <class O> class Predicate>
+template <impl::TypeList TL, template <typename O> typename Predicate>
 using split_types_if = typename impl::split_types_if<TL, Predicate>::list_pair;
 
 
@@ -315,7 +315,7 @@ constexpr bool any_of_type(F&& f) {
 }
 
 // Runs F once when a type satifies the tester. F takes a type template parameter and can return a value.
-template <template <class O> class Tester, impl::TypeList TL, typename F>
+template <template <typename O> typename Tester, impl::TypeList TL, typename F>
 constexpr auto run_if(F&& f) {
 	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
 }
