@@ -41,7 +41,7 @@ template <typename Pools>
 struct pool_entity_walker {
 	void reset(Pools* _pools, entity_range_view view) {
 		pools = _pools;
-		ranges.assign(view.begin(), view.end());
+		ranges = view;
 		ranges_it = ranges.begin();
 		offset = 0;
 
@@ -88,10 +88,10 @@ struct pool_entity_walker {
 
 private:
 	// The ranges to iterate over
-	std::vector<entity_range> ranges;
+	entity_range_view ranges;
 
 	// Iterator over the current range
-	std::vector<entity_range>::iterator ranges_it;
+	entity_range_view::iterator ranges_it;
 
 	// Pointers to the start of each pools data
 	//tuple_pool_type_detect_t<Pools> pointers;
