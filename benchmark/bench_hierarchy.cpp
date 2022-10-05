@@ -60,13 +60,24 @@ template <bool parallel>
 void run_hierarchy(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	ecs::runtime ecs;
-	auto& sys = (parallel) ? ecs.make_system(hierarch_lambda) : ecs.make_system<ecs::opts::not_parallel>(hierarch_lambda);
+	if constexpr (parallel) {
+		ecs::runtime ecs;
+		auto& sys = ecs.make_system<ecs::opts::manual_update>(hierarch_lambda);
 
-	build_hierarchies(ecs, nentities);
+		build_hierarchies(ecs, nentities);
 
-	for ([[maybe_unused]] auto const _ : state) {
-		sys.run();
+		for ([[maybe_unused]] auto const _ : state) {
+			sys.run();
+		}
+	} else {
+		ecs::runtime ecs;
+		auto& sys = ecs.make_system<ecs::opts::manual_update, ecs::opts::not_parallel>(hierarch_lambda);
+
+		build_hierarchies(ecs, nentities);
+
+		for ([[maybe_unused]] auto const _ : state) {
+			sys.run();
+		}
 	}
 
 	state.SetItemsProcessed(state.iterations() * nentities);

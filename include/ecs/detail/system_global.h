@@ -5,27 +5,23 @@
 
 namespace ecs::detail {
 // The implementation of a system specialized on its components
-template <class Options, class UpdateFn, class TupPools, class FirstComponent, class... Components>
-class system_global final : public system<Options, UpdateFn, TupPools, FirstComponent, Components...> {
+template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
+class system_global final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 public:
 	system_global(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstComponent, Components...>{func, in_pools},
-		  argument{&get_pool<FirstComponent>(in_pools).get_shared_component(), &get_pool<Components>(in_pools).get_shared_component()...} {}
+		: system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>{func, in_pools} {
+		this->process_changes(true);
+	  }
 
 private:
 	void do_run() override {
-		this->update_func(*std::get<std::remove_cvref_t<FirstComponent>*>(argument),
-						  *std::get<std::remove_cvref_t<Components>*>(argument)...);
+		apply_type<ComponentsList>([&]<typename... Types>(){
+			this->update_func(get_pool<Types>(this->pools).get_shared_component()...);
+		});
 	}
 
-	void do_build(entity_range_view) override {
-		// Does nothing
+	void do_build() override {
 	}
-
-private:
-	// The arguments for the system
-	using global_argument = std::tuple<std::remove_cvref_t<FirstComponent>*, std::remove_cvref_t<Components>*...>;
-	global_argument argument;
 };
 } // namespace ecs::detail
 

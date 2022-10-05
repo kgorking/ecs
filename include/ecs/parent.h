@@ -6,11 +6,11 @@
 #include <tuple>
 
 namespace ecs::detail {
-template <typename Component, typename Pools>
-auto get_component(entity_id const, Pools const&);
+	template <typename Component, typename Pools>
+	auto get_component(entity_id const, Pools const&);
 
-template <class Pools>
-struct pool_entity_walker;
+	template <typename Pools> struct pool_entity_walker;
+	template <typename Pools> struct pool_range_walker;
 } // namespace ecs::detail
 
 namespace ecs {
@@ -47,8 +47,8 @@ private:
 	template <typename Component, typename Pools>
 	friend auto detail::get_component(entity_id const, Pools const&);
 
-	template <class Pools>
-	friend struct detail::pool_entity_walker;
+	template <typename Pools> friend struct detail::pool_entity_walker;
+	template <typename Pools> friend struct detail::pool_range_walker;
 
 	parent(entity_id id, std::tuple<ParentTypes*...> tup)
 		: entity_id(id)

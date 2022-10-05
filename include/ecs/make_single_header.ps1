@@ -49,15 +49,16 @@ $files = (
 #include <concepts>
 #include <cstdint>
 #include <execution>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <numeric>
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <mutex> // needed for scoped_lock
 #include <span>
 #include <string_view>
 #include <tuple>

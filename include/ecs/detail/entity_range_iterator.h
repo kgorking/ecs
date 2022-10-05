@@ -68,7 +68,7 @@ public:
 		// Can't compare iterators from different sources
 		Expects(ranges.data() == other.ranges.data());
 
-		return current_range == other.current_range && range_it == other.range_it;
+		return current_range_index == other.current_range_index && range_it == other.range_it;
 	}
 
 	constexpr bool operator!=(entity_range_iterator other) const {
@@ -81,7 +81,7 @@ public:
 
 protected:
 	constexpr bool is_at_end() const {
-		return current_range == ranges.size();
+		return current_range_index == ranges.size();
 	}
 
 	// Step forward 'diff' entities.
@@ -97,28 +97,28 @@ protected:
 			auto remainder = diff - current_range_dist;
 
 			// Go to the next range
-			current_range += 1;
+			current_range_index += 1;
 
 			// If I have hit the end, this is now an end-iterator
-			if (current_range == ranges.size()) {
+			if (current_range_index == ranges.size()) {
 				return;
 			}
 
 			// Find the range
-			auto const count = static_cast<ptrdiff_t>(ranges[current_range].count());
+			auto const count = static_cast<ptrdiff_t>(ranges[current_range_index].count());
 			while (remainder >= count) {
 				// Update the remainder
 				remainder -= count;
 
-				current_range += 1;
-				if (current_range == ranges.size()) {
+				current_range_index += 1;
+				if (current_range_index == ranges.size()) {
 					return;
 				}
 			};
 
 			// Update the iterators
-			range_it = ranges[current_range].begin() + remainder;
-			range_end = ranges[current_range].end();
+			range_it = ranges[current_range_index].begin() + remainder;
+			range_end = ranges[current_range_index].end();
 		}
 	}
 
@@ -131,7 +131,7 @@ private:
 	entity_iterator range_end;
 
 	// The range currently being iterated
-	size_t current_range = 0;
+	size_t current_range_index = 0;
 };
 
 } // namespace ecs::detail

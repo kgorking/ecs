@@ -34,16 +34,16 @@ constexpr bool is_unique_types() {
 
 
 // Find the types a sorting predicate takes
-template <class R, class T>
+template <typename R, typename T>
 constexpr std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
-template <class R, class C, class T>
+template <typename R, typename C, typename T>
 constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
-template <class R, class C, class T>
+template <typename R, typename C, typename T>
 constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
 
 
-template <class Pred>
+template <typename Pred>
 constexpr auto get_sorter_type() {
 	// Verify predicate
 	static_assert(
@@ -59,7 +59,7 @@ constexpr auto get_sorter_type() {
 	}
 }
 
-template <class Pred>
+template <typename Pred>
 using sorter_predicate_type_t = decltype(get_sorter_type<Pred>());
 
 
@@ -108,7 +108,7 @@ constexpr void verify_immutable_component() {
 		static_assert(std::is_const_v<std::remove_reference_t<C>>, "components flagged as 'immutable' must also be const");
 }
 
-template <class R, class FirstArg, class... Args>
+template <typename R, typename FirstArg, typename... Args>
 constexpr void system_verifier() {
 	static_assert(std::is_same_v<R, void>, "systems can not have returnvalues");
 
@@ -135,19 +135,19 @@ constexpr void system_verifier() {
 }
 
 // A small bridge to allow the Lambda to activate the system verifier
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class C, class FirstArg, class... Args>
+template <typename R, typename C, typename FirstArg, typename... Args>
 constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 // A small bridge to allow the function to activate the system verifier
-template <class R, class FirstArg, class... Args>
+template <typename R, typename FirstArg, typename... Args>
 constexpr void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
-template <class R, class FirstArg, class... Args>
+template <typename R, typename FirstArg, typename... Args>
 constexpr void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 template <typename T>

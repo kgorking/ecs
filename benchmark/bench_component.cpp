@@ -10,7 +10,7 @@ auto constexpr test_component = test_component_type{9};
 void component_add_spans(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	std::vector<int> ints(nentities+1);
+	std::vector<test_component_type> ints(nentities + 1);
 	std::iota(ints.begin(), ints.end(), 9);
 
 	for ([[maybe_unused]] auto const _ : state) {

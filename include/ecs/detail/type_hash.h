@@ -11,7 +11,7 @@ namespace ecs::detail {
 
 using type_hash = std::uint64_t;
 
-template <class T>
+template <typename T>
 consteval auto get_type_name() {
 #ifdef _MSC_VER
 	std::string_view fn = __FUNCSIG__;
@@ -26,7 +26,7 @@ consteval auto get_type_name() {
 #endif
 }
 
-template <class T>
+template <typename T>
 consteval type_hash get_type_hash() {
 	type_hash const prime = 0x100000001b3;
 #ifdef _MSC_VER
@@ -43,15 +43,11 @@ consteval type_hash get_type_hash() {
 	return hash;
 }
 
-template <bool ignore_first_arg, typename First, typename... Types>
+template <typename TypesList>
 consteval auto get_type_hashes_array() {
-	if constexpr (!ignore_first_arg) {
-		std::array<detail::type_hash, 1 + sizeof...(Types)> arr{get_type_hash<First>(), get_type_hash<Types>()...};
-		return arr;
-	} else {
-		std::array<detail::type_hash, sizeof...(Types)> arr{get_type_hash<Types>()...};
-		return arr;
-	}
+	return apply_type<TypesList>([]<typename... Types>() {
+		return std::array<detail::type_hash, sizeof...(Types)>{get_type_hash<Types>()...};
+	});
 }
 
 } // namespace ecs::detail

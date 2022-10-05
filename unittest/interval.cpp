@@ -34,9 +34,11 @@ TEST_CASE("System frequency") {
 
 	// Verify the counter
 	for (size_t i = 0; i < 4; i++) {
+		CHECK(counters[i] > 0);
 		CHECK(counters[i] <= 1'000 / intervals[i]);
 	}
 	for (size_t i = 4; i < num_intervals; i++) {
+		CHECK(counters[i] > 0);
 		CHECK(counters[i] <= 1'000'000 / intervals[i]);
 	}
 }

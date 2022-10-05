@@ -28,7 +28,7 @@ public:
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
 					  "can not add pointers to entities; wrap them in a struct");
 
-		auto const adder = [this, range]<class Type>(Type&& val) {
+		auto const adder = [this, range]<typename Type>(Type&& val) {
 			// Add it to the component pool
 			if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
 				auto& pool = ctx.get_component_pool<detail::parent_id>();
@@ -63,6 +63,25 @@ public:
 		// Add it to the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
 		pool.add_span(range, std::span{vals});
+	}
+
+	template <typename Fn>
+	void add_component_generator(entity_range const range, Fn&& gen) {
+		// Return type of 'func'
+		using ComponentType = decltype(std::declval<Fn>()(entity_id{0}));
+		static_assert(!std::is_same_v<ComponentType, void>, "Initializer functions must return a component");
+
+		if constexpr (detail::is_parent<std::remove_cvref_t<ComponentType>>::value) {
+			auto const converter = [gen = std::forward<Fn>(gen)](entity_id id) {
+				return detail::parent_id{gen(id).id()};
+			};
+
+			auto& pool = ctx.get_component_pool<detail::parent_id>();
+			pool.add_generator(range, converter);
+		} else {
+			auto& pool = ctx.get_component_pool<ComponentType>();
+			pool.add_generator(range, std::forward<Fn>(gen));
+		}
 	}
 
 	// Add several components to an entity. Will not be added until 'commit_changes()' is called.
@@ -124,7 +143,7 @@ public:
 
 	// Returns the number of active components for a specific type of components
 	template <typename T>
-	size_t get_component_count() {
+	ptrdiff_t get_component_count() {
 		if (!ctx.has_component_pool<T>())
 			return 0;
 
@@ -135,7 +154,7 @@ public:
 
 	// Returns the number of entities that has the component.
 	template <typename T>
-	size_t get_entity_count() {
+	ptrdiff_t get_entity_count() {
 		if (!ctx.has_component_pool<T>())
 			return 0;
 
@@ -183,7 +202,7 @@ public:
 
 	// Make a new system
 	template <typename... Options, typename SystemFunc, typename SortFn = std::nullptr_t>
-	auto& make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
+	decltype(auto) make_system(SystemFunc sys_func, SortFn sort_func = nullptr) {
 		using opts = detail::type_list<Options...>;
 
 		// verify the input
@@ -205,21 +224,21 @@ public:
 	}
 
 	// Set the memory resource to use to store a specific type of component
-	/*template <class Component>
+	/*template <typename Component>
 	void set_memory_resource(std::pmr::memory_resource* resource) {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(resource);
 	}
 
 	// Returns the memory resource used to store a specific type of component
-	template <class Component>
+	template <typename Component>
 	std::pmr::memory_resource* get_memory_resource() {
 		auto& pool = ctx.get_component_pool<Component>();
 		return pool.get_memory_resource();
 	}
 
 	// Resets the memory resource to the default
-	template <class Component>
+	template <typename Component>
 	void reset_memory_resource() {
 		auto& pool = ctx.get_component_pool<Component>();
 		pool.set_memory_resource(std::pmr::get_default_resource());

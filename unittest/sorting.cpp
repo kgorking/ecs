@@ -9,38 +9,40 @@ TEST_CASE("Sorting") {
     std::random_device rd;
 	std::mt19937 gen{rd()};
 
-	std::vector<int> ints(10);
+	std::vector<unsigned> ints(10);
 	std::iota(ints.begin(), ints.end(), 0);
 	std::shuffle(ints.begin(), ints.end(), gen);
 
 	ecs.add_component({0, 9}, ints);
 	ecs.commit_changes();
 
-	int test = std::numeric_limits<int>::min();
-	auto& asc = ecs.make_system<ecs::opts::not_parallel>(
-		[&test](int const& i) {
+	unsigned test = std::numeric_limits<unsigned>::min();
+	auto& asc = ecs.make_system<ecs::opts::not_parallel, ecs::opts::manual_update>(
+		[&test](unsigned const& i) {
 			CHECK(test <= i);
 			test = i;
 		},
-		std::less<int>());
+		std::less<unsigned>());
 	asc.run();
 
-	test = std::numeric_limits<int>::max();
-	auto& dec = ecs.make_system<ecs::opts::not_parallel>(
-		[&test](int const& i) {
+	test = std::numeric_limits<unsigned>::max();
+	auto& dec = ecs.make_system<ecs::opts::not_parallel, ecs::opts::manual_update>(
+		[&test](unsigned const& i) {
 			CHECK(test >= i);
 			test = i;
 		},
-		std::greater<int>());
+		std::greater<unsigned>());
 	dec.run();
 
 	// modify the components and re-check
-	auto& mod = ecs.make_system([&gen](int& i) { i = gen(); });
+	auto& mod = ecs.make_system<ecs::opts::not_parallel, ecs::opts::manual_update>([&gen](unsigned& i) {
+		i = gen();
+	});
 	mod.run();
 
-	test = std::numeric_limits<int>::min();
+	test = std::numeric_limits<unsigned>::min();
 	asc.run();
 
-	test = std::numeric_limits<int>::max();
+	test = std::numeric_limits<unsigned>::max();
 	dec.run();
 }

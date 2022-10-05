@@ -2,9 +2,19 @@
 #include "catch.hpp"
 #include <ecs/ecs.h>
 
-constexpr bool intersect_overflow_test() noexcept {
-	constexpr auto max = std::numeric_limits<ecs::detail::entity_type>::max();
-	ecs::entity_range r{max - 1, max};
+using ecs::detail::iter_pair;
+using Iter = typename std::vector<ecs::entity_range>::const_iterator;
+
+std::vector<ecs::entity_range> intersect(std::vector<ecs::entity_range> const vec_a, std::vector<ecs::entity_range> const vec_b) {
+	return ecs::detail::intersect_ranges_iter(iter_pair<Iter>{vec_a.begin(), vec_a.end()}, iter_pair<Iter>{vec_b.begin(), vec_b.end()});
+}
+
+TEST_CASE("entity_range ", "[entity]") {
+	SECTION("iterator overflow test") {
+		constexpr auto max = std::numeric_limits<ecs::detail::entity_type>::max();
+		ecs::entity_range r{max - 1, max};
+		int64_t counter = 0;
+		for (auto const ent : r) {
 
 	int64_t counter = 0;
 	for (auto const ent : r) {
