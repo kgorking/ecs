@@ -44,10 +44,10 @@ int main() {
 	ecs.add_component(16, ecs::parent{13}, int{});
 
 	// second small tree
-	ecs.add_component({100}, double{0});
-	ecs.add_component({101}, double{1}, ecs::parent{100});
-	ecs.add_component({102}, double{2}, ecs::parent{101});
-	ecs.add_component({103}, double{3}, ecs::parent{102});
+	ecs.add_component({100}, double{0.0});
+	ecs.add_component({101}, double{0.1}, ecs::parent{100});
+	ecs.add_component({102}, double{0.2}, ecs::parent{101});
+	ecs.add_component({103}, double{0.3}, ecs::parent{102});
 
 	ecs.commit_changes();
 
