@@ -69,8 +69,8 @@ auto get_pool_iterators(TuplePools pools) {
 
 	return apply_type<ComponentList>([&]<typename... Components>() {
 		return std::array<iter, sizeof...(Components)>{
-			iter{get_pool<std::conditional_t<detail::is_parent<Components>::value, parent_id, Components>>(pools).get_entities().begin(),
-				 get_pool<std::conditional_t<detail::is_parent<Components>::value, parent_id, Components>>(pools).get_entities().end()}...};
+			iter{get_pool<Components>(pools).get_entities().begin(),
+				 get_pool<Components>(pools).get_entities().end()}...};
 	});
 }
 
@@ -88,6 +88,12 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 	auto iter_filters = get_pool_iterators<typename SplitPairList::first>(pools);
 	auto iter_components = get_pool_iterators<typename SplitPairList::second>(pools);
 
+	// Sort the filters
+	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
+		return *a.curr < *b.curr;
+	});
+
+	// helper lambda to test if an iterator has reached its end
 	auto const done = [](auto it) {
 		return it.curr == it.end;
 	};
@@ -137,46 +143,41 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 
 		// Filter the range, if needed
 		if constexpr (type_list_size<typename SplitPairList::first> > 0) {
-			// Sort the filters
-			std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
-				return *a.curr < *b.curr;
-			});
-
 			bool completely_filtered = false;
 			for (iter& it : iter_filters) {
-				// If this filter has reached its end, skip ahead to next filter
-				if (done(it))
-					continue;
-
-				if (it.curr->contains(curr_range)) {
-					// 'curr_range' is contained entirely in filter range,
-					// which means that it will not be sent to the callback
-					completely_filtered = true;
-					break;
-				} else if (curr_range < *it.curr) {
-					// The whole 'curr_range' is before the filter, so don't touch it
-				} else if (*it.curr < curr_range) {
-					// The filter precedes the range, so advance it
-					it.curr++;
-				} else {
-					// The two ranges overlap
-					auto const res = entity_range::remove(curr_range, *it.curr);
-
-					if (res.second) {
-						// 'curr_range' was split in two by the filter.
-						// Send the first range and update
-						// 'curr_range' to be the second range
-						callback(res.first);
-						curr_range = *res.second;
-
+				while(!done(it)) {
+					if (it.curr->contains(curr_range)) {
+						// 'curr_range' is contained entirely in filter range,
+						// which means that it will not be sent to the callback
+						completely_filtered = true;
+						break;
+					} else if (curr_range < *it.curr) {
+						// The whole 'curr_range' is before the filter, so don't touch it
+						break;
+					} else if (*it.curr < curr_range) {
+						// The filter precedes the range, so advance it and restart
 						it.curr++;
+						continue;
 					} else {
-						// The result is an endpiece, so update the current range.
-						// The next filter might remove more from 'curr_range'
-						curr_range = res.first;
+						// The two ranges overlap
+						auto const res = entity_range::remove(curr_range, *it.curr);
 
-						if (curr_range.first() >= it.curr->first()) {
-							++it.curr;
+						if (res.second) {
+							// 'curr_range' was split in two by the filter.
+							// Send the first range and update
+							// 'curr_range' to be the second range
+							callback(res.first);
+							curr_range = *res.second;
+
+							it.curr++;
+						} else {
+							// The result is an endpiece, so update the current range.
+							// The next filter might remove more from 'curr_range'
+							curr_range = res.first;
+
+							if (curr_range.first() >= it.curr->first()) {
+								++it.curr;
+							}
 						}
 					}
 				}
