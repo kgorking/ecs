@@ -72,29 +72,26 @@ private:
 			parent_id const* pid_ptr = pool_parent_id->find_component_data(range.first());
 
 			// the ranges to remove
-			for (entity_id const ent : range) {
-				parent_id const pid = pid_ptr[range.offset(ent)];
+			for_each_type<parent_component_list>([this, pid_ptr, range, &ents_to_remove]<typename T>() {
+				// Get the pool of the parent sub-component
+				using X = std::remove_pointer_t<T>;
+				component_pool<X> const& sub_pool = this->pools.template get<X>();
 
-				// Does tests on the parent sub-components to see they satisfy the constraints
-				// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
-				// has an int.
-				for_each_type<parent_component_list>([&pid, this, ent, &ents_to_remove]<typename T>() {
-					// Get the pool of the parent sub-component
-					auto const& sub_pool = detail::get_pool<T>(this->pools);
+				for (size_t pid_index = 0; entity_id const ent : range) {
+					parent_id const pid = pid_ptr[pid_index/*range.offset(ent)*/];
+					pid_index += 1;
 
-					if constexpr (std::is_pointer_v<T>) {
-						// The type is a filter, so the parent is _not_ allowed to have this component
-						if (sub_pool.has_entity(pid)) {
-							merge_or_add(ents_to_remove, entity_range{ent, ent});
-						}
-					} else {
-						// The parent must have this component
-						if (!sub_pool.has_entity(pid)) {
-							merge_or_add(ents_to_remove, entity_range{ent, ent});
-						}
+					// Does tests on the parent sub-components to see they satisfy the constraints
+					// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
+					// has an int.
+					if (std::is_pointer_v<T> == sub_pool.has_entity(pid)) {
+						// Above 'if' statement is the same as
+						//   if (!pointer && !has_entity)	// The type is a filter, so the parent is _not_ allowed to have this component
+						//   if (pointer && has_entity)		// The parent must have this component
+						merge_or_add(ents_to_remove, entity_range{ent, ent});
 					}
-				});
-			}
+				}
+			});
 		});
 
 		// Remove entities from the result
@@ -110,7 +107,7 @@ private:
 
 		// Count the number of arguments to be constructed
 		size_t count = 0;
-		for (auto const& range : ranges)
+		for (entity_range const& range : ranges)
 			count += range.ucount();
 
 		arguments.resize(count, apply_type<ComponentsList>([]<typename... Types>() {
@@ -124,32 +121,29 @@ private:
 		roots.reserve(count);
 
 		// Build the arguments for the ranges
-		std::atomic<int> index = 0;
-		auto conv = entity_offset_conv{ranges};
+		int index = 0;
 		pool_entity_walker<TupPools> walker;
 		info_map info;
 		info.reserve(count);
 
-		for (entity_range const& range : ranges) {
-			walker.reset(&this->pools, entity_range_view{{range}});
-			while (!walker.done()) {
-				entity_id const entity = walker.get_entity();
+		walker.reset(&this->pools, entity_range_view{ranges});
+		int ent_offset = 0;
+		while (!walker.done()) {
+			entity_id const entity = walker.get_entity();
 
-				info_iterator const ent_info = fill_entity_info(info, entity, index);
+			info_iterator const it = fill_entity_info(info, entity, index);
 
-				// Add the argument for the entity
-				auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
+			// Add the argument for the entity
+			apply_type<ComponentsList>([&]<typename... Types>() {
+				arguments[ent_offset] = argument(entity, walker.template get<Types>()..., it->second);
+			});
+			ent_offset += 1;
 
-				apply_type<ComponentsList>([&]<typename... Types>() {
-					arguments[ent_offset] = argument(entity, walker.template get<Types>()..., ent_info->second);
-				});
+			// Update the root child count
+			auto const root_index = it->second.root_id;
+			roots[root_index] += 1;
 
-				// Update the root child count
-				auto const root_index = ent_info->second.root_id;
-				roots[root_index] += 1;
-
-				walker.next();
-			}
+			walker.next();
 		}
 
 		// Do the topological sort of the arguments
@@ -197,7 +191,7 @@ private:
 			return depth_l < depth_r;
 	}
 
-	info_iterator fill_entity_info(info_map& info, entity_id const entity, std::atomic<int>& index) const {
+	info_iterator fill_entity_info(info_map& info, entity_id const entity, int& index) const {
 		// Get the parent id
 		entity_id const* parent_id = pool_parent_id->find_component_data(entity);
 		if (parent_id == nullptr) {
