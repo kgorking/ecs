@@ -96,6 +96,14 @@ public:
 		return static_cast<detail::entity_offset>(ent - first_);
 	}
 
+	// Returns the entity id at the specified offset
+	// Pre: 'offset' is in the range
+	[[nodiscard]] entity_id at(detail::entity_offset const offset) const {
+		entity_id const id = static_cast<entity_id>(first() + offset);
+		Expects(id <= last());
+		return id;
+	}
+
 	// Returns true if the two ranges touches each other
 	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
 		return first_ <= other.last_ && other.first_ <= last_;
