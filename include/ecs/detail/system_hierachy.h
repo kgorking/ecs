@@ -1,16 +1,11 @@
 #ifndef ECS_SYSTEM_HIERARCHY_H_
 #define ECS_SYSTEM_HIERARCHY_H_
 
-#include <map>
-#include <unordered_map>
-
 #include "tls/collect.h"
 
 #include "../parent.h"
 #include "entity_offset.h"
-#include "entity_range_iterator.h"
 #include "find_entity_pool_intersections.h"
-#include "pool_entity_walker.h"
 #include "system.h"
 #include "system_defs.h"
 #include "type_list.h"
@@ -24,18 +19,6 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstI
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
-	struct entity_info {
-		int parent_count = 0;
-		entity_type root_id;
-	};
-
-	using info_map = std::unordered_map<entity_type, entity_info>;
-	using info_iterator = typename info_map::const_iterator;
-
-	template <typename... Types>
-	using tuple_from_types = std::tuple<entity_id, component_argument<Types>..., entity_info>;
-	using argument = transform_type_all<ComponentsList, tuple_from_types>;
-
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
 		: base{func, in_pools}, parent_pools{make_parent_types_tuple()} {
@@ -45,22 +28,13 @@ public:
 
 private:
 	void do_run() override {
-		auto const e_p = execution_policy{}; // cannot pass directly to 'for_each' in gcc
-		std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto const local_span) {
-			for (argument& arg : local_span) {
-				apply_type<ComponentsList>([&]<typename... Types>(){
-					if constexpr (FirstIsEntity) {
-						this->update_func(std::get<entity_id>(arg), extract<Types>(arg)...);
-					} else {
-						this->update_func(/*                     */ extract<Types>(arg)...);
-					}
-					});
-			}
-		});
+		for(entity_info const& info : infos) {
+			arguments[info.range_index](this->update_func, info.offset);
+		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
-	void do_build(/* entity_range_view ranges*/) override {
+	void do_build() override {
 		std::vector<entity_range> ranges;
 		std::vector<entity_range> ents_to_remove;
 
@@ -99,117 +73,88 @@ private:
 
 		// Clear the arguments
 		arguments.clear();
-		argument_spans.clear();
+		infos.clear();
+		//argument_spans.clear();
 
 		if (ranges.empty()) {
 			return;
 		}
 
-		// Count the number of arguments to be constructed
-		size_t count = 0;
-		for (entity_range const& range : ranges)
-			count += range.ucount();
-
-		arguments.resize(count, apply_type<ComponentsList>([]<typename... Types>() {
-			return argument{entity_id{0}, component_argument<Types>{0}..., entity_info{}};
-		}));
-
-		// TODO insert in set with top. ordering?
-
-		// map of entity and root info
-		std::unordered_map<entity_type, int> roots;
-		roots.reserve(count);
-
 		// Build the arguments for the ranges
-		int index = 0;
-		pool_entity_walker<TupPools> walker;
-		info_map info;
-		info.reserve(count);
+		apply_type<ComponentsList>([&]<typename... T>() {
+			for (int index = 0; entity_range const range : ranges) {
+				arguments.emplace_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
-		walker.reset(&this->pools, entity_range_view{ranges});
-		int ent_offset = 0;
-		while (!walker.done()) {
-			entity_id const entity = walker.get_entity();
+				for (entity_id const id : range) {
+					infos.emplace_back(entity_info{0, *(pool_parent_id->find_component_data(id)), index, range.offset(id)});
+				}
 
-			info_iterator const it = fill_entity_info(info, entity, index);
+				index += 1;
+			}
+		});
 
-			// Add the argument for the entity
-			apply_type<ComponentsList>([&]<typename... Types>() {
-				arguments[ent_offset] = argument(entity, walker.template get<Types>()..., it->second);
+		// partition the roots
+		auto begin = std::partition(infos.begin(), infos.end(), [&](entity_info const& info) {
+			return false == pool_parent_id->has_entity(info.root_id);
+		});
+
+		// data needed by the partition lambda
+		auto prev_begin = infos.begin();
+		int hierarchy_level = 1;
+
+		// The lambda used to partion non-root entities
+		const auto parter = [&](entity_info& info) {
+			// update the parent count while we are here anyway
+			info.parent_count = hierarchy_level;
+
+			auto const it = std::find_if(prev_begin, begin, [&](entity_info const& parent_info) {
+				entity_id const parent_id = ranges[parent_info.range_index].at(parent_info.offset);
+				return parent_id == info.root_id;
 			});
-			ent_offset += 1;
 
-			// Update the root child count
-			auto const root_index = it->second.root_id;
-			roots[root_index] += 1;
+			if (begin != it) {
+				// Propagate the root id downwards to its children
+				info.root_id = it->root_id;
 
-			walker.next();
+				// A parent was found in the previous partition
+				return true;
+			}
+			return false;
+		};
+
+		// partition the levels below the roots
+		while (begin != infos.end()) {
+			auto new_begin = std::partition(begin, infos.end(), parter);
+
+			if (new_begin == begin)
+				break;
+
+			prev_begin = begin;
+			begin = new_begin;
+
+			hierarchy_level += 1;
 		}
 
 		// Do the topological sort of the arguments
-		std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
+		//std::sort(infos.begin(), infos.end());
+	}
 
-		// Create the argument spans
-		size_t offset = 0;
-		argument_spans.reserve(roots.size());
-		for (auto const& [id, child_count] : roots) {
-			argument_spans.emplace_back(arguments.data() + offset, child_count);
-			offset += child_count;
-		}
+	template <typename... Ts>
+	static auto make_argument(entity_range range, auto... args) {
+		return [=](auto update_func, entity_offset offset) mutable {
+			entity_id const ent = range.first() + offset;
+			if constexpr (FirstIsEntity) {
+				update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+			} else {
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+			}
+		};
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
 		return apply_type<parent_component_list>([this]<typename... T>() {
 			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
 		});
-	}
-
-	// Extracts a component argument from a tuple
-	template <typename Component, typename Tuple>
-	static decltype(auto) extract(Tuple& tuple) {
-		using T = std::remove_cvref_t<Component>;
-
-		if constexpr (std::is_pointer_v<T>) {
-			return nullptr;
-		} else if constexpr (detail::is_parent<T>::value) {
-			return std::get<T>(tuple);
-		} else {
-			T* ptr = std::get<T*>(tuple);
-			return *(ptr);
-		}
-	}
-
-	static bool topological_sort_func(argument const& arg_l, argument const& arg_r) {
-		auto const& [depth_l, root_l] = std::get<entity_info>(arg_l);
-		auto const& [depth_r, root_r] = std::get<entity_info>(arg_r);
-
-		// order by roots
-		if (root_l != root_r)
-			return root_l < root_r;
-		else
-			// order by depth
-			return depth_l < depth_r;
-	}
-
-	info_iterator fill_entity_info(info_map& info, entity_id const entity, int& index) const {
-		// Get the parent id
-		entity_id const* parent_id = pool_parent_id->find_component_data(entity);
-		if (parent_id == nullptr) {
-			// This entity does not have a 'parent_id' component,
-			// which means that this entity is a root
-			auto const [it, _] = info.emplace(std::make_pair(entity, entity_info{0, index++}));
-			return it;
-		}
-
-		// look up the parent info
-		info_iterator parent_it = info.find(*parent_id);
-		if (parent_it == info.end())
-			parent_it = fill_entity_info(info, *parent_id, index);
-
-		// insert the entity info
-		auto const& [count, root_index] = parent_it->second;
-		auto const [it, _p] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
-		return it;
 	}
 
 private:
@@ -219,14 +164,32 @@ private:
 	using typename base::stripped_component_list;
 	using typename base::stripped_parent_type;
 
+	// The argument for parameter to pass to system func
+	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+		return make_argument<Types...>(entity_range{0, 0}, component_argument<Types>{0}...);
+	}));
+
 	// Ensure we have a parent type
 	static_assert(has_parent_types, "no parent component found");
 
+	struct entity_info {
+		int parent_count;
+		entity_type root_id;
+
+		int range_index;
+		entity_offset offset;
+
+		auto operator<=>(entity_info const&) const = default;
+	};
+
+	// The vector of entity/parent info
+	std::vector<entity_info> infos;
+
 	// The vector of unrolled arguments
-	std::vector<argument> arguments;
+	std::vector<std::remove_const_t<base_argument>> arguments;
 
 	// The spans over each tree in the argument vector
-	std::vector<std::span<argument>> argument_spans;
+	//std::vector<std::span<argument>> argument_spans;
 
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const* pool_parent_id;
