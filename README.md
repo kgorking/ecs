@@ -291,7 +291,7 @@ The angular brackets are needed because `ecs::parent` is a templated component w
 ### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Toxc5MTbj)
 A parents sub-components can be accessed by specifying them in a systems parent parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to accesss. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
 
-If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must always be taken as a reference in systems, or an error will be reported.
+If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must always be taken as a value or a constant reference in systems, or an error will be reported.
 
  More than one sub-component can be specified; there is no upper limit.
 ```cpp
@@ -321,7 +321,7 @@ Filters work like regular component filters and can be specified on a parents su
 ```cpp
 rt.make_system([](ecs::parent<short*> p) { });  // runs on entities 8-11
 ```
-An `ecs::parent` that only consist of filters does not need to be passed as a reference.
+An `ecs::parent` that only consist of filters does not need to be passed as a constant reference.
 
 
 Marking the parent itself as a filter means that any entity with a parent component on it will be ignored. Any sub-components specified are ignored.

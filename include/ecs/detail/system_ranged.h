@@ -47,9 +47,9 @@ private:
 				auto const offset = ent - first_id;
 
 				if constexpr (FirstIsEntity) {
-					update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 				} else {
-					update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+					update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
 				}
 			});
 		};

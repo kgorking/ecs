@@ -47,10 +47,10 @@ int main() {
 	rt.add_component({2, 16}, int{1});
 
 	// The children
-	//std::array<ecs::detail::parent_id, 12> parents{4, 4, 4, 3, 3, 3, 2, 2, 2, 5, 9, 13};
-	//rt.add_component_span({5, 16}, parents);
+	std::array<ecs::detail::parent_id, 12> parents{4, 4, 4, 3, 3, 3, 2, 2, 2, 5, 9, 13};
+	rt.add_component_span({5, 16}, parents);
 
-	rt.add_component({5, 7}, ecs::parent{4});
+	/*rt.add_component({5, 7}, ecs::parent{4});
 	rt.add_component({8, 10}, ecs::parent{3});
 	rt.add_component({11, 13}, ecs::parent{2});
 
@@ -58,7 +58,7 @@ int main() {
 	rt.add_component(14, ecs::parent{5});
 	rt.add_component(15, ecs::parent{9});
 	rt.add_component(16, ecs::parent{13});
-
+	*/
 	rt.commit_changes();
 
 	/*std::cout << "Trees before update:\n";

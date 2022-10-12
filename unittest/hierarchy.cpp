@@ -326,7 +326,7 @@ TEST_CASE("Hierarchies") {
 		ecs.commit_changes();
 
 		using namespace ecs::opts;
-		ecs.make_system<not_parallel>([](ecs::parent<int>& p) { p.get<int>() += 1; });
+		ecs.make_system<not_parallel>([](ecs::parent<int> p) { p.get<int>() += 1; });
 
 		int num_correct = 0;
 		ecs.make_system<not_parallel>([&num_correct](int i, ecs::parent<>*) {

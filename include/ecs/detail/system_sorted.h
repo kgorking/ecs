@@ -65,9 +65,9 @@ private:
 		return [=](auto update_func, entity_offset offset) {
 			entity_id const ent = range.first() + offset;
 			if constexpr (FirstIsEntity) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 			} else {
-				update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
 			}
 		};
 	}

@@ -96,16 +96,18 @@ template <typename Component, typename Pools>
 		return &get_pool<T>(pools).get_shared_component();
 
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
+		return get_pool<parent_id>(pools).find_component_data(entity);
+
 		// Parent component: return the parent with the types filled out
-		using parent_type = std::remove_cvref_t<Component>;
-		parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
+		//parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
-		auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
-			[&]<typename... ParentTypes>() {
-				return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
-			});
+		// using parent_type = std::remove_cvref_t<Component>;
+		// auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+		//	[&]<typename... ParentTypes>() {
+		//		return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
+		//	});
 
-		return parent_type{pid, tup_parent_ptrs};
+		//return parent_type{pid, tup_parent_ptrs};
 
 	} else {
 		// Standard: return the component from the pool
@@ -133,7 +135,7 @@ decltype(auto) extract_arg(Tuple& tuple, [[maybe_unused]] ptrdiff_t offset) {
 
 // Extracts a component argument from a pointer+offset
 template <typename Component>
-decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset) {
+decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, [[maybe_unused]] auto pools = std::ptrdiff_t{0}) {
 	using T = std::remove_cvref_t<Component>;
 
 	if constexpr (std::is_pointer_v<T>) {
@@ -142,7 +144,19 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset) 
 		T* ptr = cmp;
 		return *ptr;
 	} else if constexpr (detail::is_parent<T>::value) {
-		return cmp;
+		parent_id const pid = *(cmp + offset);
+
+		// TODO store this in seperate container in system_hierarchy? might not be
+		//      needed after O(1) pool lookup implementation
+		using parent_type = std::remove_cvref_t<Component>;
+		auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+			[&]<typename... ParentTypes>() {
+				return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
+		});
+
+		return parent_type{pid, tup_parent_ptrs};
+
+		//return cmp;
 	} else {
 		T* ptr = cmp;
 		return *(ptr + offset);
@@ -152,7 +166,7 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset) 
 // The type of a single component argument
 template <typename Component>
 using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Component>>::value,
-											  std::remove_cvref_t<Component>,	// parent components are stored as copies
+											  std::remove_cvref_t<reduce_parent_t<Component>>*,	// parent components are stored as copies
 											  std::remove_cvref_t<Component>*>; // rest are pointers
 } // namespace ecs::detail
 

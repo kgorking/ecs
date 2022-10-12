@@ -55,7 +55,7 @@ public:
 		using T = typename std::remove_cvref_t<decltype(vals)>::value_type;
 		static_assert(!detail::global<T>, "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<T>>, "can not add pointers to entities; wrap them in a struct");
-		static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported");
+		//static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported"); // should work
 		static_assert(std::copyable<T>, "Type must be copyable");
 
 		// Add it to the component pool

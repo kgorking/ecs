@@ -25,7 +25,7 @@ struct parent : entity_id {
 	parent& operator=(parent const&) = default;
 
 	entity_id id() const {
-		return (entity_id) * this;
+		return static_cast<entity_id>(*this);
 	}
 
 	template <typename T>
@@ -44,8 +44,8 @@ struct parent : entity_id {
 	struct _ecs_parent {};
 
 private:
-	template <typename Component, typename Pools>
-	friend auto detail::get_component(entity_id const, Pools const&);
+	template <typename Component>
+	friend decltype(auto) detail::extract_arg_lambda(auto& cmp, ptrdiff_t offset, auto pools);
 
 	template <typename Pools> friend struct detail::pool_entity_walker;
 	template <typename Pools> friend struct detail::pool_range_walker;
@@ -55,6 +55,7 @@ private:
 		, parent_components(tup) {
 	}
 
+	// TODO void*, type_list_indices, cast, delete tuple
 	std::tuple<ParentTypes*...> parent_components;
 };
 } // namespace ecs

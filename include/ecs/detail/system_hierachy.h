@@ -28,8 +28,9 @@ public:
 
 private:
 	void do_run() override {
+		auto const pools = this->pools;
 		for(entity_info const& info : infos) {
-			arguments[info.range_index](this->update_func, info.offset);
+			arguments[info.range_index](this->update_func, info.offset, pools);
 		}
 	}
 
@@ -140,13 +141,13 @@ private:
 	}
 
 	template <typename... Ts>
-	static auto make_argument(entity_range range, auto... args) {
-		return [=](auto update_func, entity_offset offset) mutable {
+	static auto make_argument(entity_range range, auto... args) noexcept {
+		return [=](auto update_func, entity_offset offset, auto& pools) mutable {
 			entity_id const ent = range.first() + offset;
 			if constexpr (FirstIsEntity) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
 			} else {
-				update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, pools)...);
 			}
 		};
 	}
