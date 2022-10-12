@@ -15,7 +15,7 @@ class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntit
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools}, walker{in_pools} {
+	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools} {
 		this->process_changes(true);
 	}
 
@@ -56,8 +56,6 @@ private:
 	}
 
 private:
-	pool_range_walker<Pools> walker;
-
 	/// XXX
 	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
