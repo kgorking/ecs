@@ -19,7 +19,7 @@ struct component_pools : type_list_indices<ComponentsList> {
 	template <typename Component>
 	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
 	constexpr auto& get() const noexcept {
-		static constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
+		constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
 		return *static_cast<component_pool<Component>*>(base_pools[index]);
 	}
 
