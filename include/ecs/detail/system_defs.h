@@ -149,14 +149,9 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 		// TODO store this in seperate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
 		using parent_type = std::remove_cvref_t<Component>;
-		auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
-			[&]<typename... ParentTypes>() {
-				return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
+		return apply_type<parent_type_list_t<parent_type>>([&]<typename... ParentTypes>() {
+			return parent_type{pid, get_entity_data<ParentTypes>(pid, pools)...};
 		});
-
-		return parent_type{pid, tup_parent_ptrs};
-
-		//return cmp;
 	} else {
 		T* ptr = cmp;
 		return *(ptr + offset);
