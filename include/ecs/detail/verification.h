@@ -79,7 +79,7 @@ constexpr void verify_parent_component() {
 			constexpr size_t num_parent_subtypes = total_subtypes - num_subtype_filters;
 
 			// If there is one-or-more sub-components,
-			// then the parent must be passed as a reference
+			// then the parent must be passed as a const reference or value
 			if constexpr (num_parent_subtypes > 0) {
 				constexpr bool cref_or_value = !(std::is_reference_v<C> && !std::is_const_v<std::remove_reference_t<C>>);
 				static_assert(cref_or_value, "parent with non-filter sub-components must be passed as a value or const&");
