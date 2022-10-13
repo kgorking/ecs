@@ -55,12 +55,12 @@ namespace impl {
 	};
 
 	template<typename... Types>
-	auto type_list_indices(type_list<Types...>*) {
+	consteval auto type_list_indices(type_list<Types...>*) {
 		struct all_indexers : impl::type_list_index<0, Types...> {
 			using impl::type_list_index<0, Types...>::index_of;
 		};
 		return all_indexers{};
-	};
+	}
 
 	//
 	// type_list concept
