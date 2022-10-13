@@ -35,13 +35,14 @@ int main() {
 	using namespace ecs::opts;
 	ecs::runtime rt;
 
-	// Creates the following trees, with ids shown as their nodes
-	// 
-	//   4       3          2
-	//  /|\     /|\       / | \
-    // 5 6 7   8 9 10   11  12 13
-	// |         |             |
-	// 14        15            16
+	/* Creates the following trees, with ids shown as their nodes
+
+		   4       3          2
+		  /|\     /|\       / | \
+		 5 6 7   8 9 10   11  12 13
+		 |         |             |
+		 14        15            16
+	*/
 
 	// The node values
 	rt.add_component({2, 16}, int{1});
