@@ -251,6 +251,11 @@ constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
+// Small helper to get the index in 'type_list_indices'
+template <typename T, typename TLI>
+consteval int index_of() {
+	return TLI::index_of(static_cast<T*>(nullptr));
+}
 
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
