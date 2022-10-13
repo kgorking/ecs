@@ -28,9 +28,9 @@ public:
 
 private:
 	void do_run() override {
-		auto const pools = this->pools;
+		auto const this_pools = this->pools;
 		for(entity_info const& info : infos) {
-			arguments[info.range_index](this->update_func, info.offset, pools);
+			arguments[info.range_index](this->update_func, info.offset, this_pools);
 		}
 	}
 
