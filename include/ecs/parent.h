@@ -33,13 +33,7 @@ struct parent : entity_id,
 	}
 
 	template <typename T>
-	[[nodiscard]] T& get() {
-		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
-		return *static_cast<T*>(this->te_ptrs[detail::index_of<T, indexer>()]);
-	}
-
-	template <typename T>
-	[[nodiscard]] T const& get() const {
+	[[nodiscard]] T& get() const {
 		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
 		return *static_cast<T*>(this->te_ptrs[detail::index_of<T, indexer>()]);
 	}
