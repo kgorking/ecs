@@ -43,30 +43,22 @@ int main() {
 	// |         |             |
 	// 14        15            16
 
-	// The roots
+	// The node values
 	rt.add_component({2, 16}, int{1});
 
-	// The children
-	std::array<ecs::detail::parent_id, 12> parents{4, 4, 4, 3, 3, 3, 2, 2, 2, 5, 9, 13};
+	// The parents of the children
+	constexpr std::array<ecs::detail::parent_id, 12> parents{4, 4, 4, 3, 3, 3, 2, 2, 2, 5, 9, 13};
 	rt.add_component_span({5, 16}, parents);
 
-	/*rt.add_component({5, 7}, ecs::parent{4});
-	rt.add_component({8, 10}, ecs::parent{3});
-	rt.add_component({11, 13}, ecs::parent{2});
 
-	// The grandchildren
-	rt.add_component(14, ecs::parent{5});
-	rt.add_component(15, ecs::parent{9});
-	rt.add_component(16, ecs::parent{13});
-	*/
 	rt.commit_changes();
 
-	/*std::cout << "Trees before update:\n";
+	std::cout << "Trees before update:\n";
 	print_trees(rt);
 
 
 	std::cout << "Add parents value to children:\n";
-	auto& adder = rt.make_system<manual_update>([](int& i, ecs::parent<int>& p) {
+	auto& adder = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
 		i += p.get<int>();
 	});
 	adder.run();
@@ -75,22 +67,25 @@ int main() {
 
 	std::cout << "Reset tree with new values:\n";
 	auto& reset = rt.make_system<manual_update>([](int& i) {
-		i = 3;
+		i = 2;
 	});
 	reset.run();
 	print_trees(rt);
 
 
-	std::cout << "Adding parents to children again:\n";
-	adder.run();
-	print_trees(rt);
-
-
 	std::cout << "Subtract parents value from children:\n";
-	auto& subber = rt.make_system<manual_update>([](int& i, ecs::parent<int>& p) {
+	auto& subber = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
 		i -= p.get<int>();
 	});
 	subber.run();
+	print_trees(rt);
+
+
+	std::cout << "Add childrens value to parents:\n";
+	auto& inv_adder = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
+		p.get<int>() += i;
+	});
+	inv_adder.run();
 	print_trees(rt);
 
 
@@ -99,7 +94,7 @@ int main() {
 		std::cout << id << ' ';
 	});
 	print_ids.run();
-	std::cout << '\n';*/
+	std::cout << '\n';
 
 	std::cout << "Print parent ids in traversal order:\n";
 	auto& print_parent_ids = rt.make_system<manual_update, not_parallel>([](int, ecs::parent<> p) {

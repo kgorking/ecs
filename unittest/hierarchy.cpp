@@ -97,13 +97,14 @@ TEST_CASE("Hierarchies") {
 	SECTION("works on multiple trees") {
 		ecs::runtime ecs;
 
-		//
-		//
-		//   4       3          2
-		//  /|\     /|\       / | \
-        // 5 6 7   8 9 10   11  12 13
-		// |         |             |
-		// 14        15            16
+		
+		/*
+		   4       3          2
+		  /|\     /|\       / | \
+         5 6 7   8 9 10   11  12 13
+		 |         |             |
+		 14        15            16
+		*/
 
 		// The roots
 		ecs.add_component(4, int{1});
@@ -177,13 +178,14 @@ TEST_CASE("Hierarchies") {
 	SECTION("works on multiple trees in parallel") {
 		ecs::runtime ecs;
 
-		//
-		//
-		//   4       3          2
-		//  /|\     /|\       / | \
-        // 5 6 7   8 9 10   11  12 13
-		// |         |             |
-		// 14        15            16
+		
+		/*
+		   4       3          2
+		  /|\     /|\       / | \
+         5 6 7   8 9 10   11  12 13
+		 |         |             |
+		 14        15            16
+		*/
 
 		// The roots
 		ecs.add_component(4, int{1});
@@ -266,13 +268,14 @@ TEST_CASE("Hierarchies") {
 	SECTION("can be built in reverse") {
 		ecs::runtime ecs;
 
-		//      ______16________
-		//     /      |         \
-        //    13      14        15
-		//   /| \    /|\        /|\
-        // 10 11 12 7 8 9      4 5 6
-		//  |         |            |
-		//  3         2            1
+		/*    ______16________
+		     /      |         \
+            13      14        15
+		   /| \    /|\        /|\
+         10 11 12 7 8 9      4 5 6
+		  |         |            |
+		  3         2            1
+		*/
 
 		// The root
 		ecs.add_component({16}, int{});
