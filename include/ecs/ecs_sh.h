@@ -1,4 +1,7 @@
 ﻿// Auto-generated single-header include file
+#if 0 //defined(__has_cpp_attribute) && __has_cpp_attribute(__cpp_lib_modules)
+import std;
+#else
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -23,6 +26,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#endif
 
 
 #ifndef TLS_CACHE
@@ -31,7 +35,7 @@
 
 namespace tls {
 // A class using a cache-line to cache data.
-template <typename Key, class Value, Key empty_slot = Key{}, size_t cache_line = 64UL>
+template <class Key, class Value, Key empty_slot = Key{}, size_t cache_line = 64UL>
 class cache {
 	// If you trigger this assert, then either your key- or value size is too large,
 	// or you cache_line size is too small.
@@ -47,7 +51,7 @@ public:
 
 	// Returns the value if it exists in the cache,
 	// otherwise inserts 'or_fn(k)' in cache and returns it
-	template <typename Fn>
+	template <class Fn>
 	constexpr Value get_or(Key const k, Fn or_fn) {
 		size_t index = num_entries;
 		for (size_t i = 0; i < num_entries; i++) {
@@ -493,7 +497,7 @@ public:
 	}
 
 	// Perform an action on all threads data
-	template <typename Fn>
+	template <class Fn>
 	constexpr void for_each(Fn&& fn) noexcept {
 		auto const for_each_impl = [&]() noexcept {
 			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
@@ -592,12 +596,12 @@ namespace impl {
 	};
 
 	template<typename... Types>
-	auto type_list_indices(type_list<Types...>*) {
+	consteval auto type_list_indices(type_list<Types...>*) {
 		struct all_indexers : impl::type_list_index<0, Types...> {
 			using impl::type_list_index<0, Types...>::index_of;
 		};
 		return all_indexers{};
-	};
+	}
 
 	//
 	// type_list concept
@@ -651,12 +655,12 @@ namespace impl {
 		return (f.template operator()<Types>() || ...);
 	}
 
-	template <template <typename O> class Tester, typename... Types, typename F>
+	template <template <typename O> typename Tester, typename... Types, typename F>
 	constexpr auto run_if(F&& /*f*/, type_list<>*) {
 		return;
 	}
 
-	template <template <typename O> class Tester, typename FirstType, typename... Types, typename F>
+	template <template <typename O> typename Tester, typename FirstType, typename... Types, typename F>
 	constexpr auto run_if(F&& f, type_list<FirstType, Types...>*) {
 		if constexpr (Tester<FirstType>::value) {
 			return f.template operator()<FirstType>();
@@ -671,7 +675,7 @@ namespace impl {
 	}
 
 	
-	template <typename TL, template <typename O> class Transformer>
+	template <typename TL, template <typename O> typename Transformer>
 	struct transform_type {
 		template <typename... Types>
 		constexpr static type_list<Transformer<Types>...>* helper(type_list<Types...>*);
@@ -679,7 +683,7 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <typename TL, template <typename... O> class Transformer>
+	template <typename TL, template <typename... O> typename Transformer>
 	struct transform_type_all {
 		template <typename... Types>
 		constexpr static Transformer<Types...>* helper(type_list<Types...>*);
@@ -695,7 +699,7 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 	
-	template <typename TL, template <typename O> class Predicate>
+	template <typename TL, template <typename O> typename Predicate>
 	struct split_types_if {
 		template <typename ListTrue, typename ListFalse, typename Front, typename... Rest >
 		constexpr static auto helper(type_list<Front, Rest...>*) {
@@ -744,16 +748,16 @@ namespace impl {
 		static auto helper(type_list<Left...>*, type_list<>*)
 		-> type_list<Left...>*;
 
-	#ifdef _MSC_VER
+	#if defined(_MSC_VER) && !defined(__clang__)
 		template <typename... Left, typename FirstRight, typename... Right>
 		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(helper(
+		-> decltype(merger::helper(
 			static_cast<type_list<Left...>*>(nullptr),
 			static_cast<type_list<Right...>*>(nullptr)));
 
 		template <typename... Left, typename FirstRight, typename... Right>
 		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(helper(
+		-> decltype(merger::helper(
 			static_cast<type_list<Left..., FirstRight>*>(nullptr),
 			static_cast<type_list<Right...>*>(nullptr)))
 		requires(!contains_type<FirstRight>(static_cast<type_list<Left...>*>(nullptr)));
@@ -788,10 +792,15 @@ constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
+// Small helper to get the index in 'type_list_indices'
+template <typename T, typename TLI>
+consteval int index_of() {
+	return TLI::index_of(static_cast<T*>(nullptr));
+}
 
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
-template <impl::TypeList TL, template <typename O> class Transformer>
+template <impl::TypeList TL, template <typename O> typename Transformer>
 using transform_type = typename impl::transform_type<TL, Transformer>::type;
 
 // Transforms all the types in a type_list at once
@@ -799,10 +808,10 @@ using transform_type = typename impl::transform_type<TL, Transformer>::type;
 // Ex.
 // 	template <typename... Types>
 //  using transformer = std::tuple<entity_id, Types...>;
-template <impl::TypeList TL, template <typename... O> class Transformer>
+template <impl::TypeList TL, template <typename... O> typename Transformer>
 using transform_type_all = typename impl::transform_type_all<TL, Transformer>::type;
 
-template <impl::TypeList TL, template <typename O> class Predicate>
+template <impl::TypeList TL, template <typename O> typename Predicate>
 using split_types_if = typename impl::split_types_if<TL, Predicate>::list_pair;
 
 
@@ -852,7 +861,7 @@ constexpr bool any_of_type(F&& f) {
 }
 
 // Runs F once when a type satifies the tester. F takes a type template parameter and can return a value.
-template <template <typename O> class Tester, impl::TypeList TL, typename F>
+template <template <typename O> typename Tester, impl::TypeList TL, typename F>
 constexpr auto run_if(F&& f) {
 	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
 }
@@ -1062,6 +1071,140 @@ private:
 } // namespace ecs::detail
 
 #endif // !ECS_ENTITY_RANGE
+#ifndef ECS_DETAIL_OPTIONS_H
+#define ECS_DETAIL_OPTIONS_H
+
+
+namespace ecs::detail {
+
+//
+// Check if type is a group
+template <typename T>
+struct is_group {
+	static constexpr bool value = false;
+};
+template <typename T>
+requires requires {
+	T::group_id;
+}
+struct is_group<T> {
+	static constexpr bool value = true;
+};
+
+//
+// Check if type is an interval
+template <typename T>
+struct is_interval {
+	static constexpr bool value = false;
+};
+template <typename T>
+requires requires {
+	T::_ecs_duration;
+}
+struct is_interval<T> {
+	static constexpr bool value = true;
+};
+
+//
+// Check if type is a parent
+template <typename T>
+struct is_parent {
+	static constexpr bool value = false;
+};
+template <typename T>
+requires requires { typename std::remove_cvref_t<T>::_ecs_parent; }
+struct is_parent<T> {
+	static constexpr bool value = true;
+};
+
+
+
+// Contains detectors for the options
+namespace detect {
+	template <template <typename O> typename Tester, typename ListOptions>
+	constexpr int find_tester_index() {
+		int found = 0;
+		int index = 0;
+		for_each_type<ListOptions>([&]<typename OptionFromList>() {
+			found = !found && Tester<OptionFromList>::value;
+			index += !found;
+		});
+
+		if (index == type_list_size<ListOptions>)
+			return -1;
+		return index;
+	}
+
+	template <typename Option, typename ListOptions>
+	constexpr int find_type_index() {
+		int found = 0;
+		int index = 0;
+		for_each_type<ListOptions>([&]<typename OptionFromList>() {
+			found = !found && std::is_same_v<Option, OptionFromList>;
+			index += !found;
+		});
+
+		if (index == type_list_size<ListOptions>)
+			return -1;
+		return index;
+	}
+
+	// A detector that applies Tester to each option.
+	template <template <typename O> typename Tester, typename ListOptions, typename NotFoundType = void>
+	constexpr auto test_option() {
+		auto const lambda = []<typename T>() {
+			return static_cast<std::remove_cvref_t<T>*>(nullptr);
+		};
+		using Type = decltype(run_if<Tester, ListOptions>(lambda));
+
+		if constexpr (!std::is_same_v<Type, void>) {
+			return Type{};
+		} else {
+			return static_cast<NotFoundType*>(nullptr);
+		}
+	}
+
+	template <typename Type>
+	struct type_detector {
+		template<typename... Types>
+		consteval static bool test(type_list<Types...>*) noexcept {
+			return (test(static_cast<Types*>(nullptr)) || ...);
+		}
+
+		consteval static bool test(Type*) noexcept {
+			return true;
+		}
+		consteval static bool test(...) noexcept {
+			return false;
+		}
+	};
+
+} // namespace detect
+
+// Use a tester to check the options. Takes a tester structure and a type_list of options to test against.
+// The tester must have static member 'value' that determines if the option passed to it
+// is what it is looking for, see 'is_group' for an example.
+// STL testers like 'std::is_execution_policy' can also be used
+template <template <typename O> typename Tester, typename TypelistOptions>
+using test_option_type = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions>())>;
+
+// Use a tester to check the options. Results in 'NotFoundType' if the tester
+// does not find a viable option.
+template <template <typename O> typename Tester, typename TypelistOptions, typename NotFoundType>
+using test_option_type_or = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions, NotFoundType>())>;
+
+// Use a tester to find the index of a type in the tuple. Results in -1 if not found
+template <template <typename O> typename Tester, typename TypelistOptions>
+static constexpr int test_option_index = detect::find_tester_index<Tester, TypelistOptions>();
+
+template <typename Option, typename ListOptions>
+constexpr bool has_option() {
+	return detect::type_detector<Option>::test(static_cast<ListOptions*>(nullptr));
+}
+
+} // namespace ecs::detail
+
+#endif // !ECS_DETAIL_OPTIONS_H
 #ifndef ECS_ENTITY_RANGE
 #define ECS_ENTITY_RANGE
 
@@ -1153,6 +1296,14 @@ public:
 		return static_cast<detail::entity_offset>(ent - first_);
 	}
 
+	// Returns the entity id at the specified offset
+	// Pre: 'offset' is in the range
+	[[nodiscard]] entity_id at(detail::entity_offset const offset) const {
+		entity_id const id = static_cast<entity_id>(first() + offset);
+		Expects(id <= last());
+		return id;
+	}
+
 	// Returns true if the two ranges touches each other
 	[[nodiscard]] constexpr bool overlaps(entity_range const& other) const {
 		return first_ <= other.last_ && other.first_ <= last_;
@@ -1225,65 +1376,6 @@ using entity_range_view = std::span<entity_range const>;
 } // namespace ecs
 
 #endif // !ECS_ENTITTY_RANGE
-#ifndef ECS_PARENT_H_
-#define ECS_PARENT_H_
-
-
-namespace ecs::detail {
-	template <typename Component, typename Pools>
-	auto get_component(entity_id const, Pools const&);
-
-	template <typename Pools> struct pool_entity_walker;
-	template <typename Pools> struct pool_range_walker;
-} // namespace ecs::detail
-
-namespace ecs {
-
-// Special component that allows parent/child relationships
-template <typename... ParentTypes>
-struct parent : entity_id {
-
-	explicit parent(entity_id id) : entity_id(id) {}
-
-	parent(parent const&) = default;
-	parent& operator=(parent const&) = default;
-
-	entity_id id() const {
-		return (entity_id) * this;
-	}
-
-	template <typename T>
-	T& get() {
-		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
-		return *std::get<T*>(parent_components);
-	}
-
-	template <typename T>
-	T const& get() const {
-		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
-		return *std::get<T*>(parent_components);
-	}
-
-	// used internally by detectors
-	struct _ecs_parent {};
-
-private:
-	template <typename Component, typename Pools>
-	friend auto detail::get_component(entity_id const, Pools const&);
-
-	template <typename Pools> friend struct detail::pool_entity_walker;
-	template <typename Pools> friend struct detail::pool_range_walker;
-
-	parent(entity_id id, std::tuple<ParentTypes*...> tup)
-		: entity_id(id)
-		, parent_components(tup) {
-	}
-
-	std::tuple<ParentTypes*...> parent_components;
-};
-} // namespace ecs
-
-#endif // !ECS_PARENT_H_
 #ifndef ECS_DETAIL_PARENT_H
 #define ECS_DETAIL_PARENT_H
 
@@ -1291,7 +1383,9 @@ private:
 namespace ecs::detail {
 
 // The parent type stored internally in component pools
-struct parent_id : entity_id {};
+struct parent_id : entity_id {
+	constexpr parent_id(detail::entity_type _id) noexcept : entity_id(_id) {}
+};
 
 } // namespace ecs::detail
 
@@ -1367,167 +1461,6 @@ concept unbound = (tagged<T> || global<T>); // component is not bound to a speci
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_FLAGS_H
-#ifndef ECS_OPTIONS_H
-#define ECS_OPTIONS_H
-
-namespace ecs::opts {
-template <int I>
-struct group {
-	static constexpr int group_id = I;
-};
-
-template <int Milliseconds, int Microseconds = 0>
-struct interval {
-	static_assert(Milliseconds >= 0, "invalid time values specified");
-	static_assert(Microseconds >= 0 && Microseconds < 1000, "invalid time values specified");
-
-	static constexpr double _ecs_duration = (1.0 * Milliseconds) + (Microseconds / 1000.0);
-	static constexpr int _ecs_duration_ms = Milliseconds;
-	static constexpr int _ecs_duration_us = Microseconds;
-};
-
-struct manual_update {};
-
-struct not_parallel {};
-// struct not_concurrent {};
-
-} // namespace ecs::opts
-
-#endif // !ECS_OPTIONS_H
-#ifndef ECS_DETAIL_OPTIONS_H
-#define ECS_DETAIL_OPTIONS_H
-
-
-namespace ecs::detail {
-
-//
-// Check if type is a group
-template <typename T>
-struct is_group {
-	static constexpr bool value = false;
-};
-template <typename T>
-requires requires {
-	T::group_id;
-}
-struct is_group<T> {
-	static constexpr bool value = true;
-};
-
-//
-// Check if type is an interval
-template <typename T>
-struct is_interval {
-	static constexpr bool value = false;
-};
-template <typename T>
-requires requires {
-	T::_ecs_duration;
-}
-struct is_interval<T> {
-	static constexpr bool value = true;
-};
-
-//
-// Check if type is a parent
-template <typename T>
-struct is_parent {
-	static constexpr bool value = false;
-};
-template <typename T>
-requires requires { typename std::remove_cvref_t<T>::_ecs_parent; }
-struct is_parent<T> {
-	static constexpr bool value = true;
-};
-
-
-
-// Contains detectors for the options
-namespace detect {
-	template <template <typename O> class Tester, class ListOptions>
-	constexpr int find_tester_index() {
-		int found = 0;
-		int index = 0;
-		for_each_type<ListOptions>([&]<typename OptionFromList>() {
-			found = !found && Tester<OptionFromList>::value;
-			index += !found;
-		});
-
-		if (index == type_list_size<ListOptions>)
-			return -1;
-		return index;
-	}
-
-	template <typename Option, class ListOptions>
-	constexpr int find_type_index() {
-		int found = 0;
-		int index = 0;
-		for_each_type<ListOptions>([&]<typename OptionFromList>() {
-			found = !found && std::is_same_v<Option, OptionFromList>;
-			index += !found;
-		});
-
-		if (index == type_list_size<ListOptions>)
-			return -1;
-		return index;
-	}
-
-	// A detector that applies Tester to each option.
-	template <template <typename O> class Tester, class ListOptions, class NotFoundType = void>
-	constexpr auto test_option() {
-		auto const lambda = []<typename T>() {
-			return static_cast<std::remove_cvref_t<T>*>(nullptr);
-		};
-		using Type = decltype(run_if<Tester, ListOptions>(lambda));
-
-		if constexpr (!std::is_same_v<Type, void>) {
-			return Type{};
-		} else {
-			return static_cast<NotFoundType*>(nullptr);
-		}
-	}
-
-	template <typename Type>
-	struct type_detector {
-		template<typename... Types>
-		consteval static bool test(type_list<Types...>*) noexcept {
-			return (test(static_cast<Types*>(nullptr)) || ...);
-		}
-
-		consteval static bool test(Type*) noexcept {
-			return true;
-		}
-		consteval static bool test(...) noexcept {
-			return false;
-		}
-	};
-
-} // namespace detect
-
-// Use a tester to check the options. Takes a tester structure and a type_list of options to test against.
-// The tester must have static member 'value' that determines if the option passed to it
-// is what it is looking for, see 'is_group' for an example.
-// STL testers like 'std::is_execution_policy' can also be used
-template <template <typename O> class Tester, class TypelistOptions>
-using test_option_type = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions>())>;
-
-// Use a tester to check the options. Results in 'NotFoundType' if the tester
-// does not find a viable option.
-template <template <typename O> class Tester, class TypelistOptions, class NotFoundType>
-using test_option_type_or = std::remove_pointer_t<decltype(detect::test_option<Tester, TypelistOptions, NotFoundType>())>;
-
-// Use a tester to find the index of a type in the tuple. Results in -1 if not found
-template <template <typename O> class Tester, class TypelistOptions>
-static constexpr int test_option_index = detect::find_tester_index<Tester, TypelistOptions>();
-
-template <typename Option, class ListOptions>
-constexpr bool has_option() {
-	return detect::type_detector<Option>::test(static_cast<ListOptions*>(nullptr));
-}
-
-} // namespace ecs::detail
-
-#endif // !ECS_DETAIL_OPTIONS_H
 #ifndef ECS_COMPONENT_POOL_BASE
 #define ECS_COMPONENT_POOL_BASE
 
@@ -1560,7 +1493,7 @@ namespace ecs::detail {
 
 constexpr static std::size_t parallelization_size_tipping_point = 4096;
 
-template <typename ForwardIt, class BinaryPredicate>
+template <typename ForwardIt, typename BinaryPredicate>
 constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
 		return last;
@@ -1575,7 +1508,7 @@ constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPre
 	return ++result;
 }
 
-template <typename Cont, class BinaryPredicate>
+template <typename Cont, typename BinaryPredicate>
 constexpr void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	auto const end = std_combine_erase(cont.begin(), cont.end(), static_cast<BinaryPredicate&&>(p));
 	cont.erase(end, cont.end());
@@ -1674,7 +1607,7 @@ public:
 	constexpr ~component_pool() noexcept override {
 		if constexpr (global<T>) {
 			std::destroy_at(head->data);
-			alloc.deallocate(head->data, head->range.count());
+			alloc.deallocate(head->data, head->range.ucount());
 			std::destroy_at(head);
 			alloc_chunk.deallocate(head, 1);
 		} else {
@@ -1771,18 +1704,18 @@ public:
 	}
 
 	// Returns the number of active entities in the pool
-	constexpr size_t num_entities() const noexcept {
-		size_t count = 0;
+	constexpr ptrdiff_t num_entities() const noexcept {
+		ptrdiff_t count = 0;
 
 		for (entity_range const r : ordered_active_ranges) {
-			count += r.ucount();
+			count += r.count();
 		}
 
 		return count;
 	}
 
 	// Returns the number of active components in the pool
-	constexpr size_t num_components() const noexcept {
+	constexpr ptrdiff_t num_components() const noexcept {
 		if constexpr (unbound<T>)
 			return 1;
 		else
@@ -1790,8 +1723,8 @@ public:
 	}
 
 	// Returns the number of chunks in use
-	constexpr size_t num_chunks() const noexcept {
-		return ordered_chunks.size();
+	constexpr ptrdiff_t num_chunks() const noexcept {
+		return std::ssize(ordered_chunks);
 	}
 
 	constexpr chunk const* get_head_chunk() const noexcept {
@@ -1912,7 +1845,7 @@ private:
 			} else {
 				if constexpr (!unbound<T>) {
 					std::destroy_n(c->data, c->active.ucount());
-					alloc.deallocate(c->data, c->range.count());
+					alloc.deallocate(c->data, c->range.ucount());
 				}
 			}
 		}
@@ -1975,15 +1908,13 @@ private:
 	// Verify the 'add*' functions precondition.
 	// An entity can not have more than one of the same component
 	constexpr bool has_duplicate_entities() const noexcept {
-		if (!ordered_active_ranges.empty()) {
-			for (size_t i = 0; i < ordered_active_ranges.size() - 1; ++i) {
-				if (ordered_active_ranges[i].overlaps(ordered_active_ranges[i + 1]))
-					return true;
-			}
+		for (size_t i = 1; i < ordered_active_ranges.size(); ++i) {
+			if (ordered_active_ranges[i - 1].overlaps(ordered_active_ranges[i]))
+				return true;
 		}
 
 		return false;
-	};
+	}
 
 	constexpr static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
 		return lhs == rhs;
@@ -2006,12 +1937,13 @@ private:
 		// Offset into the chunks data
 		auto const ent_offset = c->range.offset(range.first());
 
-		for (entity_offset i = 0; i < range.ucount(); ++i) {
+		entity_id ent = range.first();
+		for (size_t i = 0; i < range.ucount(); ++i, ++ent) {
 			// Construct from a value or a a span of values
 			if constexpr (std::is_same_v<T, Data>) {
 				std::construct_at(&c->data[ent_offset + i], comp_data);
 			} else if constexpr (std::is_invocable_v<Data, entity_id>) {
-				std::construct_at(&c->data[ent_offset + i], comp_data(range.first() + i));
+				std::construct_at(&c->data[ent_offset + i], comp_data(ent));
 			} else {
 				std::construct_at(&c->data[ent_offset + i], comp_data[i]);
 			}
@@ -2301,41 +2233,43 @@ private:
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_POOL_H
-#ifndef ECS_FREQLIMIT_H
-#define ECS_FREQLIMIT_H
-
+#ifndef ECS_DETAIL_COMPONENT_POOLS_H
+#define ECS_DETAIL_COMPONENT_POOLS_H
 
 namespace ecs::detail {
 
-template <int milliseconds, int microseconds>
-struct interval_limiter {
-	bool can_run() {
-		using namespace std::chrono_literals;
-		constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
+// Forward decls
+class component_pool_base;
+template <typename, typename> class component_pool;
 
-		auto const now = std::chrono::high_resolution_clock::now();
-		auto const diff = now - time;
-		if (diff >= interval_size) {
-			time = now;
-			return true;
-		} else {
-			return false;
-		}
+// 
+template <typename ComponentsList>
+struct component_pools : type_list_indices<ComponentsList> {
+	component_pool_base* base_pools[type_list_size<ComponentsList>];
+
+	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
+		Expects((pools != nullptr) && ...);
 	}
 
-private:
-	std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
-};
+	template <typename Component>
+	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
+	constexpr auto& get() const noexcept {
+		constexpr int index = index_of<Component, type_list_indices<ComponentsList>>();
+		return *static_cast<component_pool<Component>*>(base_pools[index]);
+	}
 
-struct no_interval_limiter {
-	constexpr bool can_run() {
-		return true;
+	constexpr bool has_component_count_changed() const {
+		return any_of_type<ComponentsList>([this]<typename T>() {
+			return this->get<T>().has_component_count_changed();
+		});
 	}
 };
 
-} // namespace ecs::detail
 
-#endif // !ECS_FREQLIMIT_H
+}
+
+
+#endif //!ECS_DETAIL_COMPONENT_POOLS_H
 #ifndef ECS_SYSTEM_DEFS_H_
 #define ECS_SYSTEM_DEFS_H_
 
@@ -2419,7 +2353,7 @@ template <typename Component, typename Pools>
 	if constexpr (std::is_pointer_v<T>) {
 		// Filter: return a nullptr
 		static_cast<void>(entity);
-		return nullptr;
+		return static_cast<T*>(nullptr);
 
 	} else if constexpr (tagged<T>) {
 		// Tag: return a pointer to some dummy storage
@@ -2431,16 +2365,18 @@ template <typename Component, typename Pools>
 		return &get_pool<T>(pools).get_shared_component();
 
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
+		return get_pool<parent_id>(pools).find_component_data(entity);
+
 		// Parent component: return the parent with the types filled out
-		using parent_type = std::remove_cvref_t<Component>;
-		parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
+		//parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
-		auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
-			[&]<typename... ParentTypes>() {
-				return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
-			});
+		// using parent_type = std::remove_cvref_t<Component>;
+		// auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+		//	[&]<typename... ParentTypes>() {
+		//		return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
+		//	});
 
-		return parent_type{pid, tup_parent_ptrs};
+		//return parent_type{pid, tup_parent_ptrs};
 
 	} else {
 		// Standard: return the component from the pool
@@ -2466,14 +2402,160 @@ decltype(auto) extract_arg(Tuple& tuple, [[maybe_unused]] ptrdiff_t offset) {
 	}
 }
 
+// Extracts a component argument from a pointer+offset
+template <typename Component>
+decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, [[maybe_unused]] auto pools = std::ptrdiff_t{0}) {
+	using T = std::remove_cvref_t<Component>;
+
+	if constexpr (std::is_pointer_v<T>) {
+		return static_cast<T>(nullptr);
+	} else if constexpr (detail::unbound<T>) {
+		T* ptr = cmp;
+		return *ptr;
+	} else if constexpr (detail::is_parent<T>::value) {
+		parent_id const pid = *(cmp + offset);
+
+		// TODO store this in seperate container in system_hierarchy? might not be
+		//      needed after O(1) pool lookup implementation
+		using parent_type = std::remove_cvref_t<Component>;
+		return apply_type<parent_type_list_t<parent_type>>([&]<typename... ParentTypes>() {
+			return parent_type{pid, get_entity_data<ParentTypes>(pid, pools)...};
+		});
+	} else {
+		T* ptr = cmp;
+		return *(ptr + offset);
+	}
+}
+
 // The type of a single component argument
 template <typename Component>
 using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Component>>::value,
-											  std::remove_cvref_t<Component>,	// parent components are stored as copies
+											  std::remove_cvref_t<reduce_parent_t<Component>>*,	// parent components are stored as copies
 											  std::remove_cvref_t<Component>*>; // rest are pointers
 } // namespace ecs::detail
 
 #endif // !ECS_SYSTEM_DEFS_H_
+#ifndef ECS_PARENT_H_
+#define ECS_PARENT_H_
+
+
+// forward decls
+namespace ecs::detail {
+	template <typename Pools> struct pool_entity_walker;
+	template <typename Pools> struct pool_range_walker;
+
+	template<int Size>
+	struct void_ptr_storage {
+		void* te_ptrs[Size];
+	};
+	struct empty_storage {
+	};
+}
+
+namespace ecs {
+// Special component that allows parent/child relationships
+template <typename... ParentTypes>
+struct parent : entity_id,
+				private std::conditional_t<(sizeof...(ParentTypes) > 0), detail::void_ptr_storage<sizeof...(ParentTypes)>, detail::empty_storage> {
+
+	explicit parent(entity_id id) : entity_id(id) {}
+
+	parent(parent const&) = default;
+	parent& operator=(parent const&) = default;
+
+	entity_id id() const {
+		return static_cast<entity_id>(*this);
+	}
+
+	template <typename T>
+	[[nodiscard]] T& get() const {
+		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
+		return *static_cast<T*>(this->te_ptrs[detail::index_of<T, indexer>()]);
+	}
+
+	// used internally by detectors
+	struct _ecs_parent {};
+
+private:
+	using indexer = detail::impl::type_list_index<0, ParentTypes...>;
+
+	template <typename Component>
+	friend decltype(auto) detail::extract_arg_lambda(auto& cmp, ptrdiff_t offset, auto pools);
+
+	template <typename Pools> friend struct detail::pool_entity_walker;
+	template <typename Pools> friend struct detail::pool_range_walker;
+
+	parent(entity_id id, ParentTypes*... pt)
+		requires(sizeof...(ParentTypes) > 0)
+		: entity_id(id) {
+		((this->te_ptrs[detail::index_of<ParentTypes, indexer>()] = static_cast<void*>(pt)), ...);
+	}
+};
+} // namespace ecs
+
+#endif // !ECS_PARENT_H_
+#ifndef ECS_OPTIONS_H
+#define ECS_OPTIONS_H
+
+namespace ecs::opts {
+template <int I>
+struct group {
+	static constexpr int group_id = I;
+};
+
+template <int Milliseconds, int Microseconds = 0>
+struct interval {
+	static_assert(Milliseconds >= 0, "invalid time values specified");
+	static_assert(Microseconds >= 0 && Microseconds < 1000, "invalid time values specified");
+
+	static constexpr double _ecs_duration = (1.0 * Milliseconds) + (Microseconds / 1000.0);
+	static constexpr int _ecs_duration_ms = Milliseconds;
+	static constexpr int _ecs_duration_us = Microseconds;
+};
+
+struct manual_update {};
+
+struct not_parallel {};
+// struct not_concurrent {};
+
+} // namespace ecs::opts
+
+#endif // !ECS_OPTIONS_H
+#ifndef ECS_FREQLIMIT_H
+#define ECS_FREQLIMIT_H
+
+
+namespace ecs::detail {
+
+template <int milliseconds, int microseconds>
+struct interval_limiter {
+	bool can_run() {
+		using namespace std::chrono_literals;
+		constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
+
+		auto const now = std::chrono::high_resolution_clock::now();
+		auto const diff = now - time;
+		if (diff >= interval_size) {
+			time = now;
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+private:
+	std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
+};
+
+struct no_interval_limiter {
+	constexpr bool can_run() {
+		return true;
+	}
+};
+
+} // namespace ecs::detail
+
+#endif // !ECS_FREQLIMIT_H
 #ifndef POOL_ENTITY_WALKER_H_
 #define POOL_ENTITY_WALKER_H_
 
@@ -2513,7 +2595,7 @@ template <typename Pools>
 struct pool_entity_walker {
 	void reset(Pools* _pools, entity_range_view view) {
 		pools = _pools;
-		ranges.assign(view.begin(), view.end());
+		ranges = view;
 		ranges_it = ranges.begin();
 		offset = 0;
 
@@ -2560,10 +2642,10 @@ struct pool_entity_walker {
 
 private:
 	// The ranges to iterate over
-	std::vector<entity_range> ranges;
+	entity_range_view ranges;
 
 	// Iterator over the current range
-	std::vector<entity_range>::iterator ranges_it;
+	entity_range_view::iterator ranges_it;
 
 	// Pointers to the start of each pools data
 	//tuple_pool_type_detect_t<Pools> pointers;
@@ -2683,7 +2765,7 @@ using get_type_t = std::conditional_t<std::invocable<T, entity_type>,
 
 // Returns true if all types passed are unique
 template <typename First, typename... T>
-constexpr bool is_unique_types() {
+consteval bool is_unique_types() {
 	if constexpr ((std::is_same_v<First, T> || ...))
 		return false;
 	else {
@@ -2696,17 +2778,17 @@ constexpr bool is_unique_types() {
 
 
 // Find the types a sorting predicate takes
-template <typename R, class T>
-constexpr std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
+template <typename R, typename T>
+consteval std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
-template <typename R, class C, class T>
-constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
-template <typename R, class C, class T>
-constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
+template <typename R, typename C, typename T>
+consteval std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
+template <typename R, typename C, typename T>
+consteval std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
 
 
 template <typename Pred>
-constexpr auto get_sorter_type() {
+consteval auto get_sorter_type() {
 	// Verify predicate
 	static_assert(
 		requires {
@@ -2727,23 +2809,25 @@ using sorter_predicate_type_t = decltype(get_sorter_type<Pred>());
 
 // Implement the requirements for ecs::parent components
 template <typename C>
-constexpr void verify_parent_component() {
+consteval void verify_parent_component() {
 	if constexpr (detail::is_parent<C>::value) {
-		using parent_subtypes = parent_type_list_t<std::remove_cvref_t<C>>;
-		constexpr size_t total_subtypes = type_list_size<parent_subtypes>;
+		using parent_subtypes = parent_type_list_t<C>;
+		size_t const total_subtypes = type_list_size<parent_subtypes>;
 
 		if constexpr (total_subtypes > 0) {
 			// Count all the filters in the parent type
-			constexpr size_t num_subtype_filters =
+			size_t const num_subtype_filters =
 				apply_type<parent_subtypes>([]<typename... Types>() { return (std::is_pointer_v<Types> + ...); });
 
 			// Count all the types minus filters in the parent type
-			constexpr size_t num_parent_subtypes = total_subtypes - num_subtype_filters;
+			size_t const num_parent_subtypes = total_subtypes - num_subtype_filters;
 
 			// If there is one-or-more sub-components,
-			// then the parent must be passed as a reference
+			// then the parent must be passed as a const reference or value
 			if constexpr (num_parent_subtypes > 0) {
-				static_assert(std::is_reference_v<C>, "parents with non-filter sub-components must be passed as references");
+				if constexpr (std::is_reference_v<C>) {
+					static_assert(std::is_const_v<std::remove_reference_t<C>>, "parent with non-filter sub-components must be passed as a value or const&");
+				}
 			}
 		}
 	}
@@ -2751,27 +2835,27 @@ constexpr void verify_parent_component() {
 
 // Implement the requirements for tagged components
 template <typename C>
-constexpr void verify_tagged_component() {
+consteval void verify_tagged_component() {
 	if constexpr (detail::tagged<C>)
 		static_assert(!std::is_reference_v<C> && (sizeof(C) == 1), "components flagged as 'tag' must not be references");
 }
 
 // Implement the requirements for global components
 template <typename C>
-constexpr void verify_global_component() {
+consteval void verify_global_component() {
 	if constexpr (detail::global<C>)
 		static_assert(!detail::tagged<C> && !detail::transient<C>, "components flagged as 'global' must not be 'tag's or 'transient'");
 }
 
 // Implement the requirements for immutable components
 template <typename C>
-constexpr void verify_immutable_component() {
+consteval void verify_immutable_component() {
 	if constexpr (detail::immutable<C>)
 		static_assert(std::is_const_v<std::remove_reference_t<C>>, "components flagged as 'immutable' must also be const");
 }
 
 template <typename R, typename FirstArg, typename... Args>
-constexpr void system_verifier() {
+consteval void system_verifier() {
 	static_assert(std::is_same_v<R, void>, "systems can not have returnvalues");
 
 	static_assert(is_unique_types<FirstArg, Args...>(), "component parameter types can only be specified once");
@@ -2781,36 +2865,34 @@ constexpr void system_verifier() {
 
 		// Make sure the first entity is not passed as a reference
 		static_assert(!std::is_reference_v<FirstArg>, "ecs::entity_id must not be passed as a reference");
+	} else {
+		verify_immutable_component<FirstArg>();
+		verify_global_component<FirstArg>();
+		verify_tagged_component<FirstArg>();
+		verify_parent_component<FirstArg>();
 	}
 
-	verify_immutable_component<FirstArg>();
 	(verify_immutable_component<Args>(), ...);
-
-	verify_global_component<FirstArg>();
 	(verify_global_component<Args>(), ...);
-
-	verify_tagged_component<FirstArg>();
 	(verify_tagged_component<Args>(), ...);
-
-	verify_parent_component<FirstArg>();
 	(verify_parent_component<Args>(), ...);
 }
 
 // A small bridge to allow the Lambda to activate the system verifier
 template <typename R, typename C, typename FirstArg, typename... Args>
-constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename C, typename FirstArg, typename... Args>
-constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
+consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename C, typename FirstArg, typename... Args>
-constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
+consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename C, typename FirstArg, typename... Args>
-constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
+consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 // A small bridge to allow the function to activate the system verifier
 template <typename R, typename FirstArg, typename... Args>
-constexpr void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+consteval void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename FirstArg, typename... Args>
-constexpr void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
+consteval void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 template <typename T>
 concept type_is_lambda = requires {
@@ -2823,7 +2905,7 @@ concept type_is_function = requires(T t) {
 };
 
 template <typename OptionsTypeList, typename SystemFunc, typename SortFunc>
-constexpr void make_system_parameter_verifier() {
+consteval void make_system_parameter_verifier() {
 	bool constexpr is_lambda = type_is_lambda<SystemFunc>;
 	bool constexpr is_func = type_is_function<SystemFunc>;
 
@@ -3062,8 +3144,8 @@ auto get_pool_iterators(TuplePools pools) {
 
 	return apply_type<ComponentList>([&]<typename... Components>() {
 		return std::array<iter, sizeof...(Components)>{
-			iter{get_pool<std::conditional_t<detail::is_parent<Components>::value, parent_id, Components>>(pools).get_entities().begin(),
-				 get_pool<std::conditional_t<detail::is_parent<Components>::value, parent_id, Components>>(pools).get_entities().end()}...};
+			iter{get_pool<Components>(pools).get_entities().begin(),
+				 get_pool<Components>(pools).get_entities().end()}...};
 	});
 }
 
@@ -3081,6 +3163,12 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 	auto iter_filters = get_pool_iterators<typename SplitPairList::first>(pools);
 	auto iter_components = get_pool_iterators<typename SplitPairList::second>(pools);
 
+	// Sort the filters
+	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
+		return *a.curr < *b.curr;
+	});
+
+	// helper lambda to test if an iterator has reached its end
 	auto const done = [](auto it) {
 		return it.curr == it.end;
 	};
@@ -3130,46 +3218,41 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 
 		// Filter the range, if needed
 		if constexpr (type_list_size<typename SplitPairList::first> > 0) {
-			// Sort the filters
-			std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
-				return *a.curr < *b.curr;
-			});
-
 			bool completely_filtered = false;
 			for (iter& it : iter_filters) {
-				// If this filter has reached its end, skip ahead to next filter
-				if (done(it))
-					continue;
-
-				if (it.curr->contains(curr_range)) {
-					// 'curr_range' is contained entirely in filter range,
-					// which means that it will not be sent to the callback
-					completely_filtered = true;
-					break;
-				} else if (curr_range < *it.curr) {
-					// The whole 'curr_range' is before the filter, so don't touch it
-				} else if (*it.curr < curr_range) {
-					// The filter precedes the range, so advance it
-					it.curr++;
-				} else {
-					// The two ranges overlap
-					auto const res = entity_range::remove(curr_range, *it.curr);
-
-					if (res.second) {
-						// 'curr_range' was split in two by the filter.
-						// Send the first range and update
-						// 'curr_range' to be the second range
-						callback(res.first);
-						curr_range = *res.second;
-
+				while(!done(it)) {
+					if (it.curr->contains(curr_range)) {
+						// 'curr_range' is contained entirely in filter range,
+						// which means that it will not be sent to the callback
+						completely_filtered = true;
+						break;
+					} else if (curr_range < *it.curr) {
+						// The whole 'curr_range' is before the filter, so don't touch it
+						break;
+					} else if (*it.curr < curr_range) {
+						// The filter precedes the range, so advance it and restart
 						it.curr++;
+						continue;
 					} else {
-						// The result is an endpiece, so update the current range.
-						// The next filter might remove more from 'curr_range'
-						curr_range = res.first;
+						// The two ranges overlap
+						auto const res = entity_range::remove(curr_range, *it.curr);
 
-						if (curr_range.first() >= it.curr->first()) {
-							++it.curr;
+						if (res.second) {
+							// 'curr_range' was split in two by the filter.
+							// Send the first range and update
+							// 'curr_range' to be the second range
+							callback(res.first);
+							curr_range = *res.second;
+
+							it.curr++;
+						} else {
+							// The result is an endpiece, so update the current range.
+							// The next filter might remove more from 'curr_range'
+							curr_range = res.first;
+
+							if (curr_range.first() >= it.curr->first()) {
+								++it.curr;
+							}
 						}
 					}
 				}
@@ -3261,40 +3344,11 @@ private:
 #define ECS_SYSTEM
 
 
-namespace ecs::detail {
-template <typename, typename>
-class component_pool;
-}
-
 
 namespace ecs::detail {
-
-// TODO: med et array af component_pool_base og en type_list af componenter, kan jeg
-//       snildt komme tilbage til en component_pool<T> uden brug af tuples
-template <typename ComponentsList>
-struct component_pools : type_list_indices<ComponentsList> {
-	component_pool_base* base_pools[type_list_size<ComponentsList>];
-
-	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
-		Expects((pools != nullptr) && ...);
-	}
-
-	template <typename Component>
-	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
-	constexpr auto& get() const noexcept {
-		constexpr int index = type_list_indices<ComponentsList>::index_of(static_cast<Component*>(nullptr));
-		return *static_cast<component_pool<Component>*>(base_pools[index]);
-	}
-
-	constexpr bool has_component_count_changed() const {
-		return any_of_type<ComponentsList>([this]<typename T>() {
-			return this->get<T>().has_component_count_changed();
-		});
-	}
-};
 
 // The implementation of a system specialized on its components
-template <typename Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
@@ -3452,9 +3506,8 @@ protected:
 	// The user supplied system
 	UpdateFn update_func;
 
-	// A tuple of the fully typed component pools used by this system
+	// Fully typed component pools used by this system
 	Pools const pools;
-	//component_pools<stripped_component_list> new_pools; // todo
 
 	interval_type interval_checker;
 };
@@ -3468,7 +3521,7 @@ protected:
 namespace ecs::detail {
 // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
 // will be passed to the user supplied lambda in a sorted manner
-template <typename Options, typename UpdateFn, typename SortFunc, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename SortFunc, typename TupPools, bool FirstIsEntity, typename ComponentsList>
 struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
 
@@ -3484,59 +3537,77 @@ public:
 
 private:
 	void do_run() override {
+		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+
 		// Sort the arguments if the component data has been modified
 		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
-			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::sort(e_p, arguments.begin(), arguments.end(), [this](auto const& l, auto const& r) {
-				sort_types* t_l = std::get<sort_types*>(l);
-				sort_types* t_r = std::get<sort_types*>(r);
-				return sort_func(*t_l, *t_r);
+			std::sort(e_p, sorted_args.begin(), sorted_args.end(), [this](sort_help const& l, sort_help const& r) {
+				return sort_func(*l.sort_val_ptr, *r.sort_val_ptr);
 			});
 
 			needs_sorting = false;
 		}
 
-		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-		std::for_each(e_p, arguments.begin(), arguments.end(), [this](auto packed_arg) {
-			apply_type<ComponentsList>([&]<typename... Types>(){
-				if constexpr (FirstIsEntity) {
-					this->update_func(std::get<0>(packed_arg), extract_arg<Types>(packed_arg, 0)...);
-				} else {
-					this->update_func(/*                    */ extract_arg<Types>(packed_arg, 0)...);
-				}
-			});
-		});
+		for (sort_help const& sh : sorted_args) {
+			lambda_arguments[sh.arg_index](this->update_func, sh.offset);
+		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
-		arguments.clear();
+		sorted_args.clear();
+		lambda_arguments.clear();
 
-		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range range) {
-			for (entity_id const& entity : range) {
-				apply_type<ComponentsList>([&]<typename... Comps>() {
-					arguments.emplace_back(entity, get_component<Comps>(entity, this->pools)...);
-				});
-			}
+		apply_type<ComponentsList>([&]<typename... Types>() {
+			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
+				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
+
+				for (entity_id const entity : range) {
+					entity_offset const offset = range.offset(entity);
+					sorted_args.push_back({index, offset, get_component<sort_types>(entity, this->pools)});
+				}
+
+				index += 1;
+			});
 		});
 
 		needs_sorting = true;
+	}
+
+	template <typename... Ts>
+	static auto make_argument(entity_range range, auto... args) {
+		return [=](auto update_func, entity_offset offset) {
+			entity_id const ent = range.first() + offset;
+			if constexpr (FirstIsEntity) {
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
+			} else {
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
+			}
+		};
 	}
 
 private:
 	// The user supplied sorting function
 	SortFunc sort_func;
 
-	// The vector of unrolled arguments, sorted using 'sort_func'
-	template <typename... Types>
-	using tuple_from_types = std::tuple<entity_id, component_argument<Types>...>;
-	using argument = transform_type_all<ComponentsList, tuple_from_types>;
-	std::vector<argument> arguments;
+	// The type used for sorting
+	using sort_types = sorter_predicate_type_t<SortFunc>;
 
 	// True if the data needs to be sorted
 	bool needs_sorting = false;
 
-	using sort_types = sorter_predicate_type_t<SortFunc>;
+	struct sort_help {
+		unsigned arg_index;
+		entity_offset offset;
+		sort_types* sort_val_ptr;
+	};
+	std::vector<sort_help> sorted_args;
+
+	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
+		}));
+	
+	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
 };
 } // namespace ecs::detail
 
@@ -3547,7 +3618,7 @@ private:
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <typename Options, class UpdateFn, class Pools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
 class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
 
@@ -3556,52 +3627,54 @@ class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntit
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools}, walker{in_pools} {
+	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools} {
 		this->process_changes(true);
 	}
 
 private:
 	void do_run() override {
-		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-
 		// Call the system for all the components that match the system signature
-		for (auto const& argument : arguments) {
-			entity_range const& range = std::get<entity_range>(argument);
-			std::for_each(e_p, range.begin(), range.end(), [this, &argument, first_id = range.first()](auto ent) {
-				auto const offset = ent - first_id;
-
-				apply_type<ComponentsList>([&]<typename... Types>(){
-					if constexpr (FirstIsEntity) {
-						this->update_func(ent, extract_arg<Types>(argument, offset)...);
-					} else {
-						this->update_func(/**/ extract_arg<Types>(argument, offset)...);
-					}
-				});
-			});
+		for (auto& argument : lambda_arguments) {
+			argument(this->update_func);
 		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
 		// Clear current arguments
-		arguments.clear();
+		lambda_arguments.clear();
 
-		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-			apply_type<ComponentsList>([&]<typename... Comps>() {
-				arguments.emplace_back(found_range, get_component<Comps>(found_range.first(), this->pools)...);
+		apply_type<ComponentsList>([&]<typename... Types>() {
+			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
+				lambda_arguments.emplace_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
 			});
 		});
 	}
 
+	template <typename... Ts>
+	static auto make_argument(entity_range range, auto... args) {
+		return [=](auto update_func) {
+			auto constexpr e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+			std::for_each(e_p, range.begin(), range.end(), [=, first_id = range.first()](entity_id ent) mutable {
+				auto const offset = ent - first_id;
+
+				if constexpr (FirstIsEntity) {
+					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
+				} else {
+					update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
+				}
+			});
+		};
+	}
+
 private:
-	template<typename... Types>
-	using tuple_from_types = std::tuple<entity_range, component_argument<Types>...>;
+	/// XXX
+	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
+		}));
+	
+	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
 
-	// Holds the arguments for a range of entities
-	using argument_type = transform_type_all<ComponentsList, tuple_from_types>;
-	std::vector<argument_type> arguments;
-
-	pool_range_walker<Pools> walker;
 };
 } // namespace ecs::detail
 
@@ -3611,27 +3684,29 @@ private:
 
 
 
-
 namespace ecs::detail {
-template <typename Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
 class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
 
-	// Determine the execution policy from the options (or lack thereof)
-	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
-												std::execution::parallel_policy>;
+	// Is parallel execution wanted
+	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
 
-	struct entity_info {
-		int parent_count = 0;
-		entity_type root_id;
+	struct location {
+		int index;
+		entity_offset offset;
+		auto operator<=>(location const&) const = default;
 	};
+	struct entity_info {
+		int parent_count;
+		entity_type root_id;
+		location l;
 
-	using info_map = std::unordered_map<entity_type, entity_info>;
-	using info_iterator = typename info_map::const_iterator;
-
-	template <typename... Types>
-	using tuple_from_types = std::tuple<entity_id, component_argument<Types>..., entity_info>;
-	using argument = transform_type_all<ComponentsList, tuple_from_types>;
+		auto operator<=>(entity_info const&) const = default;
+	};
+	struct hierarchy_span {
+		unsigned offset, count;
+	};
 
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
@@ -3642,22 +3717,24 @@ public:
 
 private:
 	void do_run() override {
-		auto const e_p = execution_policy{}; // cannot pass directly to 'for_each' in gcc
-		std::for_each(e_p, argument_spans.begin(), argument_spans.end(), [this](auto const local_span) {
-			for (argument& arg : local_span) {
-				apply_type<ComponentsList>([&]<typename... Types>(){
-					if constexpr (FirstIsEntity) {
-						this->update_func(std::get<entity_id>(arg), extract<Types>(arg)...);
-					} else {
-						this->update_func(/*                     */ extract<Types>(arg)...);
-					}
-					});
+		auto const this_pools = this->pools;
+
+		if constexpr (is_parallel) {
+			std::for_each(std::execution::par, info_spans.begin(), info_spans.end(), [&](hierarchy_span span) {
+				auto const ei_span = std::span<entity_info>{infos.data() + span.offset, span.count};
+				for (entity_info const& info : ei_span) {
+					arguments[info.l.index](this->update_func, info.l.offset, this_pools);
+				}
+			});
+		} else {
+			for (entity_info const& info : infos) {
+				arguments[info.l.index](this->update_func, info.l.offset, this_pools);
 			}
-		});
+		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
-	void do_build(/* entity_range_view ranges*/) override {
+	void do_build() override {
 		std::vector<entity_range> ranges;
 		std::vector<entity_range> ents_to_remove;
 
@@ -3669,29 +3746,26 @@ private:
 			parent_id const* pid_ptr = pool_parent_id->find_component_data(range.first());
 
 			// the ranges to remove
-			for (entity_id const ent : range) {
-				parent_id const pid = pid_ptr[range.offset(ent)];
+			for_each_type<parent_component_list>([this, pid_ptr, range, &ents_to_remove]<typename T>() {
+				// Get the pool of the parent sub-component
+				using X = std::remove_pointer_t<T>;
+				component_pool<X> const& sub_pool = this->pools.template get<X>();
 
-				// Does tests on the parent sub-components to see they satisfy the constraints
-				// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
-				// has an int.
-				for_each_type<parent_component_list>([&pid, this, ent, &ents_to_remove]<typename T>() {
-					// Get the pool of the parent sub-component
-					auto const& sub_pool = detail::get_pool<T>(this->pools);
+				for (size_t pid_index = 0; entity_id const ent : range) {
+					parent_id const pid = pid_ptr[pid_index/*range.offset(ent)*/];
+					pid_index += 1;
 
-					if constexpr (std::is_pointer_v<T>) {
-						// The type is a filter, so the parent is _not_ allowed to have this component
-						if (sub_pool.has_entity(pid)) {
-							merge_or_add(ents_to_remove, entity_range{ent, ent});
-						}
-					} else {
-						// The parent must have this component
-						if (!sub_pool.has_entity(pid)) {
-							merge_or_add(ents_to_remove, entity_range{ent, ent});
-						}
+					// Does tests on the parent sub-components to see they satisfy the constraints
+					// ie. a 'parent<int*, float>' will return false if the parent does not have a float or
+					// has an int.
+					if (std::is_pointer_v<T> == sub_pool.has_entity(pid)) {
+						// Above 'if' statement is the same as
+						//   if (!pointer && !has_entity)	// The type is a filter, so the parent is _not_ allowed to have this component
+						//   if (pointer && has_entity)		// The parent must have this component
+						merge_or_add(ents_to_remove, entity_range{ent, ent});
 					}
-				});
-			}
+				}
+			});
 		});
 
 		// Remove entities from the result
@@ -3699,120 +3773,119 @@ private:
 
 		// Clear the arguments
 		arguments.clear();
-		argument_spans.clear();
+		infos.clear();
+		info_spans.clear();
 
-		if (ranges.size() == 0) {
+		if (ranges.empty()) {
 			return;
 		}
 
-		// Count the number of arguments to be constructed
-		size_t count = 0;
-		for (auto const& range : ranges)
-			count += range.ucount();
-
-		arguments.resize(count, apply_type<ComponentsList>([]<typename... Types>() {
-			return argument{entity_id{0}, component_argument<Types>{0}..., entity_info{}};
-		}));
-
-		// TODO insert in set with top. ordering?
-
-		// map of entity and root info
-		std::unordered_map<entity_type, int> roots;
-		roots.reserve(count);
-
 		// Build the arguments for the ranges
-		std::atomic<int> index = 0;
-		auto conv = entity_offset_conv{ranges};
-		pool_entity_walker<TupPools> walker;
-		info_map info;
-		info.reserve(count);
+		apply_type<ComponentsList>([&]<typename... T>() {
+			for (int index = 0; entity_range const range : ranges) {
+				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
-		for (entity_range const& range : ranges) {
-			walker.reset(&this->pools, entity_range_view{{range}});
-			while (!walker.done()) {
-				entity_id const entity = walker.get_entity();
+				for (entity_id const id : range) {
+					infos.push_back({0, *(pool_parent_id->find_component_data(id)), {index, range.offset(id)}});
+				}
 
-				info_iterator const ent_info = fill_entity_info(info, entity, index);
+				index += 1;
+			}
+		});
 
-				// Add the argument for the entity
-				auto const ent_offset = static_cast<size_t>(conv.to_offset(entity));
+		// partition the roots
+		auto it = std::partition(infos.begin(), infos.end(), [&](entity_info const& info) {
+			return false == pool_parent_id->has_entity(info.root_id);
+		});
 
-				apply_type<ComponentsList>([&]<typename... Types>() {
-					arguments[ent_offset] = argument(entity, walker.template get<Types>()..., ent_info->second);
+		// Keep partitioning if there are more levels in the hierarchies
+		if (it != infos.begin()) {
+			// data needed by the partition lambda
+			auto prev_it = infos.begin();
+			int hierarchy_level = 1;
+
+			// The lambda used to partion non-root entities
+			const auto parter = [&](entity_info& info) {
+				// update the parent count while we are here anyway
+				info.parent_count = hierarchy_level;
+
+				// Look for the parent in the previous partition
+				auto const parent_it = std::find_if(prev_it, it, [&](entity_info const& parent_info) {
+					entity_id const parent_id = ranges[parent_info.l.index].at(parent_info.l.offset);
+					return parent_id == info.root_id;
 				});
 
-				// Update the root child count
-				auto const root_index = ent_info->second.root_id;
-				roots[root_index] += 1;
+				if (it != parent_it) {
+					// Propagate the root id downwards to its children
+					info.root_id = parent_it->root_id;
 
-				walker.next();
+					// A parent was found in the previous partition
+					return true;
+				}
+				return false;
+			};
+
+			// partition the levels below the roots
+			while (it != infos.end()) {
+				auto next_it = std::partition(it, infos.end(), parter);
+
+				// Nothing was partitioned, so leave
+				if (next_it == it)
+					break;
+
+				// Update the partition iterators
+				prev_it = it;
+				it = next_it;
+
+				hierarchy_level += 1;
 			}
 		}
 
 		// Do the topological sort of the arguments
-		std::sort(std::execution::par, arguments.begin(), arguments.end(), topological_sort_func);
+		std::sort(infos.begin(), infos.end());
 
-		// Create the argument spans
-		size_t offset = 0;
-		argument_spans.reserve(roots.size());
-		for (auto const& [id, child_count] : roots) {
-			argument_spans.emplace_back(arguments.data() + offset, child_count);
-			offset += child_count;
+		// The spans are only needed for parallel execution
+		if constexpr (is_parallel) {
+			// Create the spans
+			auto current_root = infos.front().root_id;
+			unsigned count = 0;
+			unsigned offset = 0;
+			size_t i = 0;
+
+			for (; i < infos.size(); i++) {
+				entity_info const& info = infos[i];
+				if (current_root != info.root_id) {
+					info_spans.push_back({offset, count});
+
+					current_root = info.root_id;
+					offset += count;
+					count = 0;
+				}
+
+				// TODO compress 'infos' into 'location's inplace
+
+				count += 1;
+			}
+			info_spans.push_back({offset, static_cast<unsigned>(infos.size() - offset)});
 		}
+	}
+
+	template <typename... Ts>
+	static auto make_argument(entity_range range, auto... args) noexcept {
+		return [=](auto update_func, entity_offset offset, auto& pools) mutable {
+			entity_id const ent = range.first() + offset;
+			if constexpr (FirstIsEntity) {
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
+			} else {
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, pools)...);
+			}
+		};
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
 		return apply_type<parent_component_list>([this]<typename... T>() {
 			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
 		});
-	}
-
-	// Extracts a component argument from a tuple
-	template <typename Component, typename Tuple>
-	static decltype(auto) extract(Tuple& tuple) {
-		using T = std::remove_cvref_t<Component>;
-
-		if constexpr (std::is_pointer_v<T>) {
-			return nullptr;
-		} else if constexpr (detail::is_parent<T>::value) {
-			return std::get<T>(tuple);
-		} else {
-			T* ptr = std::get<T*>(tuple);
-			return *(ptr);
-		}
-	}
-
-	static bool topological_sort_func(argument const& arg_l, argument const& arg_r) {
-		auto const& [depth_l, root_l] = std::get<entity_info>(arg_l);
-		auto const& [depth_r, root_r] = std::get<entity_info>(arg_r);
-
-		// order by roots
-		if (root_l != root_r)
-			return root_l < root_r;
-		else
-			// order by depth
-			return depth_l < depth_r;
-	}
-
-	info_iterator fill_entity_info(info_map& info, entity_id const entity, std::atomic<int>& index) const {
-		// Get the parent id
-		entity_id const* parent_id = pool_parent_id->find_component_data(entity);
-		if (parent_id == nullptr) {
-			// This entity does not have a 'parent_id' component,
-			// which means that this entity is a root
-			auto const [it, _] = info.emplace(std::make_pair(entity, entity_info{0, index++}));
-			return it;
-		}
-
-		// look up the parent info
-		info_iterator parent_it = info.find(*parent_id);
-		if (parent_it == info.end())
-			parent_it = fill_entity_info(info, *parent_id, index);
-
-		// insert the entity info
-		auto const& [count, root_index] = parent_it->second;
-		auto const [it, _p] = info.emplace(std::make_pair(entity, entity_info{1 + count, root_index}));
-		return it;
 	}
 
 private:
@@ -3822,14 +3895,24 @@ private:
 	using typename base::stripped_component_list;
 	using typename base::stripped_parent_type;
 
+	// The argument for parameter to pass to system func
+	using base_argument_ptr = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+		return make_argument<Types...>(entity_range{0, 0}, component_argument<Types>{0}...);
+	}));
+	using base_argument = std::remove_const_t<base_argument_ptr>;
+
 	// Ensure we have a parent type
 	static_assert(has_parent_types, "no parent component found");
 
-	// The vector of unrolled arguments
-	std::vector<argument> arguments;
+	// The vector of entity/parent info
+	std::vector<entity_info> infos;
 
-	// The spans over each tree in the argument vector
-	std::vector<std::span<argument>> argument_spans;
+	// The vector of unrolled arguments
+	std::vector<base_argument> arguments;
+
+	// The spans over each tree in the argument vector.
+	// Only used for parallel execution
+	std::vector<hierarchy_span> info_spans;
 
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const* pool_parent_id;
@@ -3846,7 +3929,7 @@ private:
 
 namespace ecs::detail {
 // The implementation of a system specialized on its components
-template <typename Options, class UpdateFn, class TupPools, bool FirstIsEntity, class ComponentsList>
+template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
 class system_global final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 public:
 	system_global(UpdateFn func, TupPools in_pools)
@@ -4056,13 +4139,6 @@ public:
 #define ECS_CONTEXT
 
 
-
-namespace ecs::detail {
-class component_pool_base;
-
-template <typename, typename>
-class component_pool;
-}
 
 
 namespace ecs::detail {
@@ -4296,7 +4372,7 @@ public:
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
 					  "can not add pointers to entities; wrap them in a struct");
 
-		auto const adder = [this, range]<class Type>(Type&& val) {
+		auto const adder = [this, range]<typename Type>(Type&& val) {
 			// Add it to the component pool
 			if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
 				auto& pool = ctx.get_component_pool<detail::parent_id>();
@@ -4325,7 +4401,7 @@ public:
 		using T = typename std::remove_cvref_t<decltype(vals)>::value_type;
 		static_assert(!detail::global<T>, "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<T>>, "can not add pointers to entities; wrap them in a struct");
-		static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported");
+		//static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported"); // should work
 		static_assert(std::copyable<T>, "Type must be copyable");
 
 		// Add it to the component pool
@@ -4411,7 +4487,7 @@ public:
 
 	// Returns the number of active components for a specific type of components
 	template <typename T>
-	size_t get_component_count() {
+	ptrdiff_t get_component_count() {
 		if (!ctx.has_component_pool<T>())
 			return 0;
 
@@ -4422,7 +4498,7 @@ public:
 
 	// Returns the number of entities that has the component.
 	template <typename T>
-	size_t get_entity_count() {
+	ptrdiff_t get_entity_count() {
 		if (!ctx.has_component_pool<T>())
 			return 0;
 
