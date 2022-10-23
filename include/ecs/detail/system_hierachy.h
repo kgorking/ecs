@@ -84,10 +84,10 @@ private:
 		// Build the arguments for the ranges
 		apply_type<ComponentsList>([&]<typename... T>() {
 			for (int index = 0; entity_range const range : ranges) {
-				arguments.emplace_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
+				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
 				for (entity_id const id : range) {
-					infos.emplace_back(entity_info{0, *(pool_parent_id->find_component_data(id)), index, range.offset(id)});
+					infos.push_back(entity_info{0, *(pool_parent_id->find_component_data(id)), index, range.offset(id)});
 				}
 
 				index += 1;
