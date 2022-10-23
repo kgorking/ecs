@@ -72,13 +72,13 @@ private:
 			parent_id const* pid_ptr = pool_parent_id->find_component_data(range.first());
 
 			// the ranges to remove
-			for_each_type<parent_component_list>([this, pid_ptr, range, &ents_to_remove]<typename T>() {
+			for_each_type<parent_component_list>([&]<typename T>() {
 				// Get the pool of the parent sub-component
 				using X = std::remove_pointer_t<T>;
 				component_pool<X> const& sub_pool = this->pools.template get<X>();
 
 				for (size_t pid_index = 0; entity_id const ent : range) {
-					parent_id const pid = pid_ptr[pid_index/*range.offset(ent)*/];
+					parent_id const pid = pid_ptr[pid_index];
 					pid_index += 1;
 
 					// Does tests on the parent sub-components to see they satisfy the constraints
@@ -174,11 +174,10 @@ private:
 		if constexpr (is_parallel) {
 			// Create the spans
 			auto current_root = infos.front().root_id;
-			unsigned count = 0;
+			unsigned count = 1;
 			unsigned offset = 0;
-			size_t i = 0;
-
-			for (; i < infos.size(); i++) {
+			
+			for (size_t i = 1; i < infos.size(); i++) {
 				entity_info const& info = infos[i];
 				if (current_root != info.root_id) {
 					info_spans.push_back({offset, count});
