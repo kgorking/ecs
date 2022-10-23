@@ -11,9 +11,9 @@
 #include "type_list.h"
 
 namespace ecs::detail {
-template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
-class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
+class system_hierarchy final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
+	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
 
 	// Is parallel execution wanted
 	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
@@ -35,8 +35,7 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstI
 	};
 
 public:
-	system_hierarchy(UpdateFn func, TupPools in_pools)
-		: base{func, in_pools}, parent_pools{make_parent_types_tuple()} {
+	system_hierarchy(UpdateFn func, Pools in_pools) : base{func, in_pools} {
 		pool_parent_id = &detail::get_pool<parent_id>(this->pools);
 		this->process_changes(true);
 	}
@@ -241,9 +240,6 @@ private:
 
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const* pool_parent_id;
-
-	// A tuple of the fully typed component pools used the parent component
-	parent_pool_tuple_t<stripped_parent_type> const parent_pools;
 };
 } // namespace ecs::detail
 
