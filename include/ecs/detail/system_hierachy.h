@@ -15,9 +15,24 @@ template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEn
 class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
 	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
 
-	// Determine the execution policy from the options (or lack thereof)
-	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
-												std::execution::parallel_policy>;
+	// Is parallel execution wanted
+	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
+
+	struct location {
+		int index;
+		entity_offset offset;
+		auto operator<=>(location const&) const = default;
+	};
+	struct entity_info {
+		int parent_count;
+		entity_type root_id;
+		location l;
+
+		auto operator<=>(entity_info const&) const = default;
+	};
+	struct hierarchy_span {
+		unsigned offset, count;
+	};
 
 public:
 	system_hierarchy(UpdateFn func, TupPools in_pools)
@@ -29,8 +44,18 @@ public:
 private:
 	void do_run() override {
 		auto const this_pools = this->pools;
-		for(entity_info const& info : infos) {
-			arguments[info.range_index](this->update_func, info.offset, this_pools);
+
+		if constexpr (is_parallel) {
+			std::for_each(std::execution::par, info_spans.begin(), info_spans.end(), [&](hierarchy_span span) {
+				auto const ei_span = std::span<entity_info>{infos.data() + span.offset, span.count};
+				for (entity_info const& info : ei_span) {
+					arguments[info.l.index](this->update_func, info.l.offset, this_pools);
+				}
+			});
+		} else {
+			for (entity_info const& info : infos) {
+				arguments[info.l.index](this->update_func, info.l.offset, this_pools);
+			}
 		}
 	}
 
@@ -75,7 +100,7 @@ private:
 		// Clear the arguments
 		arguments.clear();
 		infos.clear();
-		//argument_spans.clear();
+		info_spans.clear();
 
 		if (ranges.empty()) {
 			return;
@@ -95,49 +120,80 @@ private:
 		});
 
 		// partition the roots
-		auto begin = std::partition(infos.begin(), infos.end(), [&](entity_info const& info) {
+		auto it = std::partition(infos.begin(), infos.end(), [&](entity_info const& info) {
 			return false == pool_parent_id->has_entity(info.root_id);
 		});
 
-		// data needed by the partition lambda
-		auto prev_begin = infos.begin();
-		int hierarchy_level = 1;
+		// Keep partitioning if there are more levels in the hierarchies
+		if (it != infos.begin()) {
+			// data needed by the partition lambda
+			auto prev_it = infos.begin();
+			int hierarchy_level = 1;
 
-		// The lambda used to partion non-root entities
-		const auto parter = [&](entity_info& info) {
-			// update the parent count while we are here anyway
-			info.parent_count = hierarchy_level;
+			// The lambda used to partion non-root entities
+			const auto parter = [&](entity_info& info) {
+				// update the parent count while we are here anyway
+				info.parent_count = hierarchy_level;
 
-			auto const it = std::find_if(prev_begin, begin, [&](entity_info const& parent_info) {
-				entity_id const parent_id = ranges[parent_info.range_index].at(parent_info.offset);
-				return parent_id == info.root_id;
-			});
+				// Look for the parent in the previous partition
+				auto const parent_it = std::find_if(prev_it, it, [&](entity_info const& parent_info) {
+					entity_id const parent_id = ranges[parent_info.l.index].at(parent_info.l.offset);
+					return parent_id == info.root_id;
+				});
 
-			if (begin != it) {
-				// Propagate the root id downwards to its children
-				info.root_id = it->root_id;
+				if (it != parent_it) {
+					// Propagate the root id downwards to its children
+					info.root_id = parent_it->root_id;
 
-				// A parent was found in the previous partition
-				return true;
+					// A parent was found in the previous partition
+					return true;
+				}
+				return false;
+			};
+
+			// partition the levels below the roots
+			while (it != infos.end()) {
+				auto next_it = std::partition(it, infos.end(), parter);
+
+				// Nothing was partitioned, so leave
+				if (next_it == it)
+					break;
+
+				// Update the partition iterators
+				prev_it = it;
+				it = next_it;
+
+				hierarchy_level += 1;
 			}
-			return false;
-		};
-
-		// partition the levels below the roots
-		while (begin != infos.end()) {
-			auto new_begin = std::partition(begin, infos.end(), parter);
-
-			if (new_begin == begin)
-				break;
-
-			prev_begin = begin;
-			begin = new_begin;
-
-			hierarchy_level += 1;
 		}
 
 		// Do the topological sort of the arguments
-		//std::sort(infos.begin(), infos.end());
+		std::sort(infos.begin(), infos.end());
+
+		// The spans are only needed for parallel execution
+		if constexpr (is_parallel) {
+			// Create the spans
+			auto current_root = infos.front().root_id;
+			unsigned count = 0;
+			unsigned offset = 0;
+			size_t i = 0;
+
+			for (; i < infos.size(); i++) {
+				entity_info const& info = infos[i];
+				if (current_root != info.root_id) {
+					info_spans.emplace_back(offset, count);
+
+					current_root = info.root_id;
+					offset += count;
+					count = 0;
+				}
+
+				// TODO compress 'infos' into 'location's inplace
+
+				count += 1;
+			}
+			info_spans.emplace_back(offset, static_cast<unsigned>(infos.size() - offset));
+		}
 	}
 
 	template <typename... Ts>
@@ -166,31 +222,23 @@ private:
 	using typename base::stripped_parent_type;
 
 	// The argument for parameter to pass to system func
-	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+	using base_argument_ptr = decltype(apply_type<ComponentsList>([]<typename... Types>() {
 		return make_argument<Types...>(entity_range{0, 0}, component_argument<Types>{0}...);
 	}));
+	using base_argument = std::remove_const_t<base_argument_ptr>;
 
 	// Ensure we have a parent type
 	static_assert(has_parent_types, "no parent component found");
-
-	struct entity_info {
-		int parent_count;
-		entity_type root_id;
-
-		int range_index;
-		entity_offset offset;
-
-		auto operator<=>(entity_info const&) const = default;
-	};
 
 	// The vector of entity/parent info
 	std::vector<entity_info> infos;
 
 	// The vector of unrolled arguments
-	std::vector<std::remove_const_t<base_argument>> arguments;
+	std::vector<base_argument> arguments;
 
-	// The spans over each tree in the argument vector
-	//std::vector<std::span<argument>> argument_spans;
+	// The spans over each tree in the argument vector.
+	// Only used for parallel execution
+	std::vector<hierarchy_span> info_spans;
 
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const* pool_parent_id;
