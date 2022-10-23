@@ -207,7 +207,7 @@ namespace impl {
 		static auto helper(type_list<Left...>*, type_list<>*)
 		-> type_list<Left...>*;
 
-	#ifdef _MSC_VER
+	#if defined(_MSC_VER) && !defined(__clang__)
 		template <typename... Left, typename FirstRight, typename... Right>
 		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
 		-> decltype(merger::helper(
