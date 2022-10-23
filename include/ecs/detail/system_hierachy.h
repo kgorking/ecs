@@ -58,8 +58,8 @@ private:
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
-		std::vector<entity_range> ranges;
-		std::vector<entity_range> ents_to_remove;
+		ranges.clear();
+		ents_to_remove.clear();
 
 		// Find the entities
 		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [&](entity_range range) {
@@ -235,6 +235,9 @@ private:
 	// The spans over each tree in the argument vector.
 	// Only used for parallel execution
 	std::vector<hierarchy_span> info_spans;
+
+	std::vector<entity_range> ranges;
+	std::vector<entity_range> ents_to_remove;
 
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const* pool_parent_id;
