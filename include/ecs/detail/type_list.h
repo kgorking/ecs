@@ -55,12 +55,12 @@ namespace impl {
 	};
 
 	template<typename... Types>
-	auto type_list_indices(type_list<Types...>*) {
+	consteval auto type_list_indices(type_list<Types...>*) {
 		struct all_indexers : impl::type_list_index<0, Types...> {
 			using impl::type_list_index<0, Types...>::index_of;
 		};
 		return all_indexers{};
-	};
+	}
 
 	//
 	// type_list concept
@@ -207,16 +207,16 @@ namespace impl {
 		static auto helper(type_list<Left...>*, type_list<>*)
 		-> type_list<Left...>*;
 
-	#ifdef _MSC_VER
+	#if defined(_MSC_VER) && !defined(__clang__)
 		template <typename... Left, typename FirstRight, typename... Right>
 		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(helper(
+		-> decltype(merger::helper(
 			static_cast<type_list<Left...>*>(nullptr),
 			static_cast<type_list<Right...>*>(nullptr)));
 
 		template <typename... Left, typename FirstRight, typename... Right>
 		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(helper(
+		-> decltype(merger::helper(
 			static_cast<type_list<Left..., FirstRight>*>(nullptr),
 			static_cast<type_list<Right...>*>(nullptr)))
 		requires(!contains_type<FirstRight>(static_cast<type_list<Left...>*>(nullptr)));
@@ -251,6 +251,11 @@ constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
+// Small helper to get the index in 'type_list_indices'
+template <typename T, typename TLI>
+consteval int index_of() {
+	return TLI::index_of(static_cast<T*>(nullptr));
+}
 
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t

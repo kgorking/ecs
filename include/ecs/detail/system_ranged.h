@@ -15,7 +15,7 @@ class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntit
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools}, walker{in_pools} {
+	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools} {
 		this->process_changes(true);
 	}
 
@@ -47,17 +47,15 @@ private:
 				auto const offset = ent - first_id;
 
 				if constexpr (FirstIsEntity) {
-					update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 				} else {
-					update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+					update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
 				}
 			});
 		};
 	}
 
 private:
-	pool_range_walker<Pools> walker;
-
 	/// XXX
 	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);

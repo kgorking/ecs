@@ -13,17 +13,18 @@ $files = (
 	'detail/type_hash.h',
 	'entity_id.h',
 	'detail/entity_iterator.h',
+	'detail/options.h',
 	'entity_range.h',
-	'parent.h',
 	'detail/parent_id.h',
 	'flags.h',
 	'detail/flags.h',
-	'options.h',
-	'detail/options.h',
 	'detail/component_pool_base.h',
 	'detail/component_pool.h',
-	'detail/interval_limiter.h',
+	'detail/component_pools.h',
 	'detail/system_defs.h',
+	'parent.h',
+	'options.h',
+	'detail/interval_limiter.h',
 	'detail/pool_entity_walker.h',
 	'detail/pool_range_walker.h',
 	'detail/entity_offset.h',
@@ -42,6 +43,9 @@ $files = (
 
 # Write all system includes
 '// Auto-generated single-header include file
+#if 0 //defined(__has_cpp_attribute) && __has_cpp_attribute(__cpp_lib_modules)
+import std;
+#else
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -66,6 +70,7 @@ $files = (
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#endif
 
 ' > ecs_sh.h
 

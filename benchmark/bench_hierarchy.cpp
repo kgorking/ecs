@@ -83,12 +83,12 @@ void run_hierarchy(benchmark::State& state) {
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
 
-static void run_serial_hierarchy(benchmark::State& state) {
+static void run_hierarchy_serial(benchmark::State& state) {
 	run_hierarchy<false>(state);
 }
-ECS_BENCHMARK(run_serial_hierarchy);
+ECS_BENCHMARK(run_hierarchy_serial);
 
-static void run_parallel_hierarchy(benchmark::State& state) {
+static void run_hierarchy_parallel(benchmark::State& state) {
 	run_hierarchy<true>(state);
 }
-ECS_BENCHMARK(run_parallel_hierarchy);
+ECS_BENCHMARK(run_hierarchy_parallel);

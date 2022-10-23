@@ -46,11 +46,11 @@ private:
 
 		apply_type<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
-				lambda_arguments.emplace_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
+				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
 
 				for (entity_id const entity : range) {
 					entity_offset const offset = range.offset(entity);
-					sorted_args.emplace_back(index, offset, get_component<sort_types>(entity, this->pools));
+					sorted_args.push_back({index, offset, get_component<sort_types>(entity, this->pools)});
 				}
 
 				index += 1;
@@ -65,9 +65,9 @@ private:
 		return [=](auto update_func, entity_offset offset) {
 			entity_id const ent = range.first() + offset;
 			if constexpr (FirstIsEntity) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset)...);
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 			} else {
-				update_func(/**/ extract_arg_lambda<Ts>(args, offset)...);
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
 			}
 		};
 	}

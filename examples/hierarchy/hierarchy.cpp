@@ -1,80 +1,107 @@
-#include <ecs/ecs.h>
 #include <iostream>
 
-using std::cout;
+#ifndef __cpp_lib_format
+int main() {
+	std::cout << "This example requires <format>\n";
+}
+#else
+#include <ecs/ecs.h>
+#include <format>
 
-// Print children, filtered on their parent
-auto constexpr print_roots = [](ecs::entity_id id, double, ecs::parent<> *) { cout << id << ' '; };
-auto constexpr print_all_children = [](ecs::entity_id id, ecs::parent<> /*p*/) { cout << id << ' '; };
-auto constexpr print_short_children = [](ecs::entity_id id, ecs::parent<short> const &p) { cout << id << '(' << p.get<short>() << ") "; };
-auto constexpr print_long_children = [](ecs::entity_id id, ecs::parent<long> const &p) { cout << id << '(' << p.get<long>() << ") "; };
-auto constexpr print_float_children = [](ecs::entity_id id, ecs::parent<float> const &p) { cout << id << '(' << p.get<float>() << ") "; };
-auto constexpr print_double_children = [](ecs::entity_id id, ecs::parent<double> const &p) {
-	cout << id << '(' << p.get<double>() << ") ";
-};
+void print_trees(ecs::runtime& rt) {
+	const auto f = [&](int i) {
+		return *rt.get_component<int>(i);
+	};
+
+	constexpr auto tree_fmt_sz = R"(    {}        {}          {}
+  / | \    / | \      / | \
+ {}  {}  {}  {}  {}  {}    {}  {}  {}
+ |           |             |
+ {}           {}             {}
+
+)";
+	//clang-format off
+	std::cout << std::format(tree_fmt_sz, 
+		f(4), f(3), f(2),
+
+		f(5), f(6), f(7),   f(8), f(9), f(10),   f(11), f(12), f(13),
+
+		f(14), f(15), f(16));
+	//clang-format on
+}
+
 
 int main() {
-	ecs::runtime ecs;
-
-	// Print the hierarchies
-	cout << "     ______1_________              100-101    \n"
-			"    /      |         \\                  |     \n"
-			"   4       3          2            103-102    \n"
-			"  /|\\     /|\\       / | \\                      \n"
-			" 5 6 7   8 9 10   11  12 13                    \n"
-			" |         |             |                     \n"
-			" 14        15            16                    \n\n\n";
-
-	// A root
-	ecs.add_component({1}, double{1.23});
-
-	// The children
-	ecs.add_component(4, ecs::parent{1}, int{}, short{10});
-	ecs.add_component(3, ecs::parent{1}, int{}, long{20});
-	ecs.add_component(2, ecs::parent{1}, int{}, float{30});
-
-	// The grandchildren
-	ecs.add_component({5, 7}, ecs::parent{4}, int{});	// short children, parent 4 has a short
-	ecs.add_component({8, 10}, ecs::parent{3}, int{});	// long children, parent 3 has a long
-	ecs.add_component({11, 13}, ecs::parent{2}, int{}); // float children, parent 2 has a float
-
-	// The great-grandchildren
-	ecs.add_component(14, ecs::parent{5}, int{});
-	ecs.add_component(15, ecs::parent{9}, int{});
-	ecs.add_component(16, ecs::parent{13}, int{});
-
-	// second small tree
-	ecs.add_component({100}, double{0});
-	ecs.add_component({101}, double{1}, ecs::parent{100});
-	ecs.add_component({102}, double{2}, ecs::parent{101});
-	ecs.add_component({103}, double{3}, ecs::parent{102});
-
-	ecs.commit_changes();
-
-	// Run the systems
 	using namespace ecs::opts;
-	cout << "All roots        : ";
-	auto& sys_roots = ecs.make_system<not_parallel, manual_update>(print_roots);
-	sys_roots.run();
-	cout << '\n'; // 1
-	cout << "All children     : ";
-	auto& sys_all = ecs.make_system<not_parallel, manual_update>(print_all_children);
-	sys_all.run();
-	cout << '\n'; // 2-16 100-103
-	cout << "short children   : ";
-	auto &sys_short = ecs.make_system<not_parallel, manual_update>(print_short_children);
-	sys_short.run();
-	cout << '\n'; // 5-7
-	cout << "long children    : ";
-	auto &sys_long = ecs.make_system<not_parallel, manual_update>(print_long_children);
-	sys_long.run();
-	cout << '\n'; // 8-10
-	cout << "floating children: ";
-	auto &sys_float = ecs.make_system<not_parallel, manual_update>(print_float_children);
-	sys_float.run();
-	cout << '\n'; // 11-13
-	cout << "double children  : ";
-	auto &sys_double = ecs.make_system<not_parallel, manual_update>(print_double_children);
-	sys_double.run();
-	cout << '\n'; // 100-103
+	ecs::runtime rt;
+
+	/* Creates the following trees, with ids shown as their nodes
+
+		   4       3          2
+		  /|\     /|\       / | \
+		 5 6 7   8 9 10   11  12 13
+		 |         |             |
+		 14        15            16
+	*/
+
+	// The node values
+	rt.add_component({2, 16}, int{1});
+
+	// The parents of the children
+	constexpr std::array<ecs::detail::parent_id, 12> parents{4, 4, 4, 3, 3, 3, 2, 2, 2, 5, 9, 13};
+	rt.add_component_span({5, 16}, parents);
+
+
+	rt.commit_changes();
+
+	std::cout << "Trees before update:\n";
+	print_trees(rt);
+
+
+	std::cout << "Add parents value to children:\n";
+	auto& adder = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
+		i += p.get<int>();
+	});
+	adder.run();
+	print_trees(rt);
+
+
+	std::cout << "Reset tree with new values:\n";
+	auto& reset = rt.make_system<manual_update>([](int& i) {
+		i = 2;
+	});
+	reset.run();
+	print_trees(rt);
+
+
+	std::cout << "Subtract parents value from children:\n";
+	auto& subber = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
+		i -= p.get<int>();
+	});
+	subber.run();
+	print_trees(rt);
+
+
+	std::cout << "Add childrens value to parents:\n";
+	auto& inv_adder = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
+		p.get<int>() += i;
+	});
+	inv_adder.run();
+	print_trees(rt);
+
+
+	std::cout << "Print ids in traversal order:\n";
+	auto& print_ids = rt.make_system<manual_update, not_parallel>([](ecs::entity_id id, int) {
+		std::cout << id << ' ';
+	});
+	print_ids.run();
+	std::cout << '\n';
+
+	std::cout << "Print parent ids in traversal order:\n";
+	auto& print_parent_ids = rt.make_system<manual_update, not_parallel>([](int, ecs::parent<> p) {
+		std::cout << p.id() << ' ';
+	});
+	print_parent_ids.run();
+	std::cout << '\n';
 }
+#endif
