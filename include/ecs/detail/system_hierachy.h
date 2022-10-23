@@ -112,7 +112,7 @@ private:
 				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
 				for (entity_id const id : range) {
-					infos.push_back(entity_info{0, *(pool_parent_id->find_component_data(id)), index, range.offset(id)});
+					infos.push_back({0, *(pool_parent_id->find_component_data(id)), {index, range.offset(id)}});
 				}
 
 				index += 1;
@@ -181,7 +181,7 @@ private:
 			for (; i < infos.size(); i++) {
 				entity_info const& info = infos[i];
 				if (current_root != info.root_id) {
-					info_spans.emplace_back(offset, count);
+					info_spans.push_back({offset, count});
 
 					current_root = info.root_id;
 					offset += count;
@@ -192,7 +192,7 @@ private:
 
 				count += 1;
 			}
-			info_spans.emplace_back(offset, static_cast<unsigned>(infos.size() - offset));
+			info_spans.push_back({offset, static_cast<unsigned>(infos.size() - offset)});
 		}
 	}
 
