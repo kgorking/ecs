@@ -210,13 +210,13 @@ namespace impl {
 	#ifdef _MSC_VER
 		template <typename... Left, typename FirstRight, typename... Right>
 		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(helper(
+		-> decltype(merger::helper(
 			static_cast<type_list<Left...>*>(nullptr),
 			static_cast<type_list<Right...>*>(nullptr)));
 
 		template <typename... Left, typename FirstRight, typename... Right>
 		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(helper(
+		-> decltype(merger::helper(
 			static_cast<type_list<Left..., FirstRight>*>(nullptr),
 			static_cast<type_list<Right...>*>(nullptr)))
 		requires(!contains_type<FirstRight>(static_cast<type_list<Left...>*>(nullptr)));
