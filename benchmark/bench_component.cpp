@@ -24,6 +24,22 @@ void component_add_spans(benchmark::State& state) {
 }
 ECS_BENCHMARK(component_add_spans);
 
+void component_add_generator(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+
+	for ([[maybe_unused]] auto const _ : state) {
+		ecs::runtime ecs;
+
+		ecs.add_component_generator({0, nentities}, [i = 0](ecs::entity_id ) mutable {
+			return i++;
+		});
+		ecs.commit_changes();
+	}
+
+	state.SetItemsProcessed(state.iterations() * nentities);
+}
+ECS_BENCHMARK(component_add_generator);
+
 void component_add(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
