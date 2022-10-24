@@ -17,6 +17,10 @@
 
 namespace ecs::detail {
 
+#ifdef _MSC_VER
+	#define no_unique_address msvc::no_unique_address
+#endif
+
 template <typename ForwardIt, typename BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
@@ -69,11 +73,6 @@ private:
 	};
 	// static_assert(sizeof(chunk) == 32);
 
-	allocator_type alloc;
-	std::allocator<chunk> alloc_chunk;
-
-	chunk* head = nullptr;
-
 	//
 	struct entity_empty {
 		entity_range rng;
@@ -99,19 +98,25 @@ private:
 	using entity_span = std::conditional_t<unbound<T>, entity_empty, entity_span_member>;
 	using entity_gen = std::conditional_t<unbound<T>, entity_empty, entity_gen_member>;
 
-	// Keep track of which components to add/remove each cycle
-	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	// The head chunk
+	chunk* head = nullptr;
 
 	std::vector<entity_range> ordered_active_ranges;
 	std::vector<chunk*> ordered_chunks;
 
 	// Status flags
-	bool components_added = false;
-	bool components_removed = false;
-	bool components_modified = false;
+	bool components_added : 1 = false;
+	bool components_removed : 1 = false;
+	bool components_modified : 1 = false;
+
+	// Keep track of which components to add/remove each cycle
+	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+	[[no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
+	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+
+	[[no_unique_address]] allocator_type alloc;
+	[[no_unique_address]] std::allocator<chunk> alloc_chunk;
 
 public:
 	component_pool() noexcept {

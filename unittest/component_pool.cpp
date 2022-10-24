@@ -31,6 +31,13 @@ struct ctr_counter {
 
 // A bunch of tests to ensure that the component_pool behaves as expected
 TEST_CASE("Component pool specification", "[component]") {
+	auto x = sizeof(ecs::detail::component_pool<int>);
+	(void)x;
+	auto y = sizeof(tls::collect<std::vector<int>>);
+	(void)y;
+	auto z = alignof(void*);
+	(void)z;
+
 	SECTION("A new component pool is empty") {
 		ecs::detail::component_pool<int> pool;
 		REQUIRE(pool.num_entities() == 0);
