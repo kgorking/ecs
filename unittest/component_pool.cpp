@@ -1,14 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
-#include <memory_resource>
 #include <string>
-
-#if __cpp_lib_constexpr_vector && __cpp_constexpr_dynamic_alloc
-#define CONSTEXPR_UNITTEST(t) ((void)0) //static_assert((t))
-#else
-#define CONSTEXPR_UNITTEST(t) ((void)0)
-#endif
 
 struct ctr_counter {
 	inline static size_t def_ctr_count = 0;
@@ -40,211 +33,41 @@ struct ctr_counter {
 // A bunch of tests to ensure that the component_pool behaves as expected
 TEST_CASE("Component pool specification", "[component]") {
 	SECTION("A new component pool is empty") {
-		auto const test = [] {
-			ecs::detail::component_pool<int> pool;
-			return pool.num_entities() == 0 && pool.num_components() == 0 && pool.has_component_count_changed() == false;
-		};
-		CONSTEXPR_UNITTEST(test());
-		REQUIRE(test());
+		ecs::detail::component_pool<int> pool;
+		REQUIRE(pool.num_entities() == 0);
+		REQUIRE(pool.num_components() == 0);
+		REQUIRE(pool.has_component_count_changed() == false);
 	}
 
 	SECTION("An empty pool") {
 		SECTION("does not throw on bad component access") {
-			auto const test = [] {
-				ecs::detail::component_pool<int> pool;
-				return nullptr == pool.find_component_data(0);
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
+			ecs::detail::component_pool<int> pool;
+			REQUIRE(nullptr == pool.find_component_data(0));
 		}
 		SECTION("grows when data is added to it") {
-			auto const test = [] {
-				ecs::detail::component_pool<int> pool;
-				pool.add({0, 4}, 0);
-				pool.process_changes();
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 4}, 0);
+			pool.process_changes();
 
-				return (pool.num_entities() == 5) && (pool.num_components() == 5) && (pool.has_more_components());
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
+			REQUIRE(pool.num_entities() == 5);
+			REQUIRE(pool.num_components() == 5);
+			REQUIRE(pool.has_more_components());
 		}
 	}
 
 	SECTION("Adding components") {
 		SECTION("does not perform unneccesary copies of components") {
-			auto const test = [] {
-				ecs::detail::component_pool<ctr_counter> pool;
-				pool.add({0, 2}, ctr_counter{});
-				pool.process_changes();
-				pool.remove({0, 2});
-				pool.process_changes();
+			ecs::detail::component_pool<ctr_counter> pool;
+			pool.add({0, 2}, ctr_counter{});
+			pool.process_changes();
+			pool.remove({0, 2});
+			pool.process_changes();
 
-				return (ctr_counter::copy_count == 3) && (ctr_counter::ctr_count == ctr_counter::dtr_count);
-			};
-			// CONSTEXPR_UNITTEST(test()); // uses static member vars
-			REQUIRE(test());
+			static constexpr std::size_t expected_copy_count = 3;
+			REQUIRE(ctr_counter::copy_count == expected_copy_count);
+			REQUIRE(ctr_counter::ctr_count == ctr_counter::dtr_count);
 		}
 		SECTION("with a span is valid") {
-			auto const test = [] {
-				std::vector<int> ints(10);
-				std::iota(ints.begin(), ints.end(), 0);
-
-				ecs::detail::component_pool<int> pool;
-				pool.add_span({0, 9}, ints);
-				pool.process_changes();
-
-				for (int i = 0; i <= 9; i++) {
-					if (i != *pool.find_component_data(i))
-						return false;
-				}
-
-				return true;
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
-		}
-		SECTION("with a generator is valid") {
-			auto const test = [] {
-				ecs::detail::component_pool<int> pool;
-				pool.add_generator({0, 9}, [](auto i) {
-					return static_cast<int>(i);
-				});
-				pool.process_changes();
-
-				for (int i = 0; i <= 9; i++) {
-					if (i != *pool.find_component_data(i))
-						return false;
-				}
-
-				return true;
-			};
-			// CONSTEXPR_UNITTEST(test()); // uses std::function which is not constexpr :/
-			REQUIRE(test());
-		}
-		SECTION("with negative entity ids is fine") {
-			auto const test = [] {
-				ecs::detail::component_pool<int> pool;
-				pool.add({-999, -950}, 0);
-				pool.process_changes();
-
-				return (50 == pool.num_components()) && (50 == pool.num_entities());
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
-		}
-	}
-
-	SECTION("Removing components") {
-		SECTION("from the back does not invalidate other components") {
-			auto const test = [] {
-				std::vector<int> ints(11);
-				std::iota(ints.begin(), ints.end(), 0);
-
-				ecs::detail::component_pool<int> pool;
-				pool.add_span({0, 10}, ints);
-				pool.process_changes();
-
-				pool.remove({9, 10});
-				pool.process_changes();
-
-				if (pool.num_components() != 9)
-					return false;
-
-				for (int i = 0; i <= 8; i++) {
-					if (i != *pool.find_component_data(i))
-						return false;
-				}
-
-				return true;
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
-		}
-		SECTION("from the front does not invalidate other components") {
-			auto const test = [] {
-				std::vector<int> ints(11);
-				std::iota(ints.begin(), ints.end(), 0);
-
-				ecs::detail::component_pool<int> pool;
-				pool.add_span({0, 10}, ints);
-				pool.process_changes();
-
-				pool.remove({0, 1});
-				pool.process_changes();
-
-				if (pool.num_components() != 9)
-					return false;
-
-				for (int i = 2; i <= 10; i++) {
-					if (i != *pool.find_component_data(i))
-						return false;
-				}
-
-				return true;
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
-		}
-		SECTION("from the middle does not invalidate other components") {
-			auto const test = [] {
-				std::vector<int> ints(11);
-				std::iota(ints.begin(), ints.end(), 0);
-
-				ecs::detail::component_pool<int> pool;
-				pool.add_span({0, 10}, ints);
-				pool.process_changes();
-
-				pool.remove({4, 5});
-				pool.process_changes();
-
-				if (pool.num_components() != 9)
-					return false;
-
-				for (int i = 0; i <= 3; i++) {
-					if (i != *pool.find_component_data(i))
-						return false;
-				}
-				for (int i = 6; i <= 10; i++) {
-					if (i != *pool.find_component_data(i))
-						return false;
-				}
-
-				return true;
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
-		}
-
-		SECTION("piecewise does not invalidate other components") {
-			auto const test = [] {
-				std::vector<int> ints(11);
-				std::iota(ints.begin(), ints.end(), 0);
-
-				ecs::detail::component_pool<int> pool;
-				pool.add_span({0, 10}, ints);
-				pool.process_changes();
-
-				pool.remove({10, 10});
-				pool.remove({9, 9});
-				pool.process_changes();
-
-				if (pool.num_components() != 9)
-					return false;
-
-				for (int i = 0; i <= 8; i++) {
-					if (i != *pool.find_component_data(i))
-						return false;
-				}
-
-				return true;
-			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
-		}
-	}
-
-	SECTION("A non empty pool") {
-		auto const test = [] {
 			std::vector<int> ints(10);
 			std::iota(ints.begin(), ints.end(), 0);
 
@@ -252,126 +75,199 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.add_span({0, 9}, ints);
 			pool.process_changes();
 
-			// "has the correct entities"
-			if (10 != pool.num_entities())
-				return false;
-			if (!pool.has_entity({0, 9}))
-				return false;
+			REQUIRE(10 == pool.num_components());
 
-			// "has the correct components"
-			if (10 != pool.num_components())
-				return false;
 			for (int i = 0; i <= 9; i++) {
-				if (i != *pool.find_component_data({i}))
-					return false;
+				REQUIRE (i == *pool.find_component_data(i));
 			}
-
-			// "does not throw when accessing invalid entities"
-			if (nullptr != pool.find_component_data(10))
-				return false;
-
-			// "shrinks when entities are removed"
-			pool.remove(4);
+		}
+		SECTION("with a generator is valid") {
+			ecs::detail::component_pool<int> pool;
+			pool.add_generator({0, 9}, [](auto i) {
+				return static_cast<int>(i);
+			});
 			pool.process_changes();
 
-			if (9 != pool.num_entities())
-				return false;
-			if (9 != pool.num_components())
-				return false;
-			if (!pool.has_less_components())
-				return false;
+			REQUIRE(10 == pool.num_components());
 
-			// "becomes empty after clear"
-			pool.clear();
-			if (0 != pool.num_entities())
-				return false;
-			if (0 != pool.num_components())
-				return false;
-			if (pool.has_more_components())
-				return false;
-			if (!pool.has_less_components())
-				return false;
-
-			// "remains valid after internal growth"
-			int const* org_p = pool.find_component_data(0);
-
-			for (int i = 10; i < 32; i++) {
-				pool.add({i, i}, i);
-				pool.process_changes();
+			for (int i = 0; i <= 9; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
 			}
+		}
+		SECTION("with negative entity ids is fine") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({-999, -950}, 0);
+			pool.process_changes();
 
-			for (int i = 10; i < 32; i++) {
-				if (i != *pool.find_component_data(i))
-					return false;
+			REQUIRE(50 == pool.num_components());
+			REQUIRE(50 == pool.num_entities());
+		}
+	}
+
+	SECTION("Removing components") {
+		SECTION("from the back does not invalidate other components") {
+			std::vector<int> ints(11);
+			std::iota(ints.begin(), ints.end(), 0);
+
+			ecs::detail::component_pool<int> pool;
+			pool.add_span({0, 10}, ints);
+			pool.process_changes();
+
+			pool.remove({9, 10});
+			pool.process_changes();
+
+			REQUIRE(pool.num_components() == 9);
+			for (int i = 0; i <= 8; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
 			}
+		}
+		SECTION("from the front does not invalidate other components") {
+			std::vector<int> ints(11);
+			std::iota(ints.begin(), ints.end(), 0);
 
-			// memory address has changed
-			if (org_p != pool.find_component_data(0))
-				return false;
+			ecs::detail::component_pool<int> pool;
+			pool.add_span({0, 10}, ints);
+			pool.process_changes();
 
-			return true;
-		};
-		CONSTEXPR_UNITTEST(test());
-		REQUIRE(test());
+			pool.remove({0, 1});
+			pool.process_changes();
+
+			REQUIRE(pool.num_components() == 9);
+			for (int i = 2; i <= 10; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
+		}
+		SECTION("from the middle does not invalidate other components") {
+			std::vector<int> ints(11);
+			std::iota(ints.begin(), ints.end(), 0);
+
+			ecs::detail::component_pool<int> pool;
+			pool.add_span({0, 10}, ints);
+			pool.process_changes();
+
+			pool.remove({4, 5});
+			pool.process_changes();
+
+			REQUIRE(pool.num_components() == 9);
+			for (int i = 0; i <= 3; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
+			for (int i = 6; i <= 10; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
+		}
+
+		SECTION("piecewise does not invalidate other components") {
+			std::vector<int> ints(11);
+			std::iota(ints.begin(), ints.end(), 0);
+
+			ecs::detail::component_pool<int> pool;
+			pool.add_span({0, 10}, ints);
+			pool.process_changes();
+
+			pool.remove({10, 10});
+			pool.remove({9, 9});
+			pool.process_changes();
+
+			REQUIRE(pool.num_components() == 9);
+			for (int i = 0; i <= 8; i++) {
+				REQUIRE(i == *pool.find_component_data(i));
+			}
+		}
+	}
+
+	SECTION("A non empty pool") {
+		std::vector<int> ints(10);
+		std::iota(ints.begin(), ints.end(), 0);
+
+		ecs::detail::component_pool<int> pool;
+		pool.add_span({0, 9}, ints);
+		pool.process_changes();
+
+		// "has the correct entities"
+		REQUIRE(10 == pool.num_entities());
+		REQUIRE(pool.has_entity({0, 9}));
+
+		// "has the correct components"
+		REQUIRE(10 == pool.num_components());
+		for (int i = 0; i <= 9; i++) {
+			REQUIRE(i == *pool.find_component_data({i}));
+		}
+
+		// "does not throw when accessing invalid entities"
+		REQUIRE(nullptr == pool.find_component_data(10));
+
+		// "shrinks when entities are removed"
+		pool.remove({4});
+		pool.process_changes();
+
+		REQUIRE(9 == pool.num_entities());
+		REQUIRE(9 == pool.num_components());
+		REQUIRE(pool.has_less_components());
+
+		// "becomes empty after clear"
+		pool.clear();
+		REQUIRE(0 == pool.num_entities());
+		REQUIRE(0 == pool.num_components());
+		REQUIRE(!pool.has_more_components());
+		REQUIRE(pool.has_less_components());
+
+		// "remains valid after internal growth"
+		int const* org_p = pool.find_component_data(0);
+
+		for (int i = 10; i < 32; i++) {
+			pool.add({i, i}, i);
+			pool.process_changes();
+		}
+
+		for (int i = 10; i < 32; i++) {
+			REQUIRE(i == *pool.find_component_data(i));
+		}
+
+		// memory address has not changed
+		REQUIRE(org_p == pool.find_component_data(0));
 	}
 
 	SECTION("Transient components") {
 		SECTION("are automatically removed in process_changes()") {
-			auto const test = [] {
-				struct tr_test {
-					ecs_flags(ecs::flag::transient);
-				};
-				ecs::detail::component_pool<tr_test> pool;
-				pool.add({0, 9}, tr_test{});
-
-				pool.process_changes();
-				pool.process_changes();
-				if (0 != pool.num_components())
-					return false;
-
-				return true;
+			struct tr_test {
+				ecs_flags(ecs::flag::transient);
 			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
+			ecs::detail::component_pool<tr_test> pool;
+			pool.add({0, 9}, tr_test{});
+
+			pool.process_changes(); // added
+			pool.process_changes(); // automatically removed
+			REQUIRE(0 == pool.num_components());
 		}
 	}
 
 	SECTION("Tagged components") {
 		SECTION("maintains sorting of entities") { // test case is response to a found bug
-			auto const test = [] {
-				struct some_tag {
-					ecs_flags(ecs::flag::tag);
-				};
-				ecs::detail::component_pool<some_tag> pool;
-				pool.add({0, 0}, {});
-				pool.process_changes();
-				pool.add({-2, -2}, {});
-				pool.process_changes();
-
-				auto const ev = pool.get_entities();
-				return (ev.front().first() == -2);
+			struct some_tag {
+				ecs_flags(ecs::flag::tag);
 			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
+			ecs::detail::component_pool<some_tag> pool;
+			pool.add({0, 0}, {});
+			pool.process_changes();
+			pool.add({-2, -2}, {});
+			pool.process_changes();
+
+			auto const ev = pool.get_entities();
+			REQUIRE(ev.front().first() == -2);
 		}
 	}
 
 	SECTION("Global components") {
 		SECTION("are always available") {
-			auto const test = [] {
-				struct some_global {
-					ecs_flags(ecs::flag::global);
-					int v = 0;
-				};
-				ecs::detail::component_pool<some_global> pool;
-
-				// if the component is not available, this will crash/fail
-				pool.get_shared_component().v += 1;
-
-				return true;
+			struct some_global {
+				ecs_flags(ecs::flag::global);
+				int v = 0;
 			};
-			CONSTEXPR_UNITTEST(test());
-			REQUIRE(test());
+			ecs::detail::component_pool<some_global> pool;
+
+			// if the component is not available, this will crash/fail
+			pool.get_shared_component().v += 1;
 		}
 	}
 
