@@ -27,7 +27,7 @@ class context final {
 	// The values that make up the ecs core.
 	std::vector<std::unique_ptr<system_base>> systems;
 	std::vector<std::unique_ptr<component_pool_base>> component_pools;
-	std::map<type_hash, component_pool_base*> type_pool_lookup;
+	std::map<type_hash, component_pool_base*> type_pool_lookup; // TODO vector
 	tls::split<tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>> type_caches;
 	scheduler sched;
 

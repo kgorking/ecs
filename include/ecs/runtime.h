@@ -2,9 +2,7 @@
 #define ECS_RUNTIME
 
 #include <concepts>
-#include <execution>
 #include <type_traits>
-#include <utility>
 
 #include "detail/component_pool.h"
 #include "detail/context.h"
@@ -142,9 +140,6 @@ public:
 	// Returns the number of active components for a specific type of components
 	template <typename T>
 	ptrdiff_t get_component_count() {
-		if (!ctx.has_component_pool<T>())
-			return 0;
-
 		// Get the component pool
 		detail::component_pool<T> const& pool = ctx.get_component_pool<T>();
 		return pool.num_components();
@@ -153,9 +148,6 @@ public:
 	// Returns the number of entities that has the component.
 	template <typename T>
 	ptrdiff_t get_entity_count() {
-		if (!ctx.has_component_pool<T>())
-			return 0;
-
 		// Get the component pool
 		detail::component_pool<T> const& pool = ctx.get_component_pool<T>();
 		return pool.num_entities();
@@ -164,9 +156,6 @@ public:
 	// Return true if an entity contains the component
 	template <typename T>
 	bool has_component(entity_id const id) {
-		if (!ctx.has_component_pool<T>())
-			return false;
-
 		detail::component_pool<T> const& pool = ctx.get_component_pool<T>();
 		return pool.has_entity(id);
 	}
@@ -174,9 +163,6 @@ public:
 	// Returns true if all entities in a range has the component.
 	template <typename T>
 	bool has_component(entity_range const range) {
-		if (!ctx.has_component_pool<T>())
-			return false;
-
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
 		return pool.has_entity(range);
 	}

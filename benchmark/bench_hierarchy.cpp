@@ -6,8 +6,9 @@
 #include <random>
 
 // A wrapper for the standard benchmark that forces a hierarchy to built
-static void hierarch_lambda(ecs::entity_id id, int& i, ecs::parent<int> const& /*p*/) {
+static void hierarch_lambda(ecs::entity_id id, int& i, ecs::parent<int> const& p) {
 	benchmark_system(id, i);
+	i += p.get<int>();
 }
 
 static void build_hierarchies(ecs::runtime& ecs, ecs::detail::entity_type nentities) {
