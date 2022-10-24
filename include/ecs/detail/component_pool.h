@@ -17,8 +17,6 @@
 
 namespace ecs::detail {
 
-static std::size_t parallelization_size_tipping_point = 4096;
-
 template <typename ForwardIt, typename BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
