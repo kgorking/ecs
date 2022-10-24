@@ -45,7 +45,7 @@ public:
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
-		auto constexpr process_changes = [](auto const& inst) {
+		static constexpr auto process_changes = [](auto const& inst) {
 			inst->process_changes();
 		};
 
@@ -76,7 +76,7 @@ public:
 		// Prevent other threads from registering new component types
 		std::shared_lock component_pool_lock(component_pool_mutex);
 
-		constexpr auto hash = get_type_hash<T>();
+		static constexpr auto hash = get_type_hash<T>();
 		return type_pool_lookup.contains(hash);
 	}
 
@@ -105,7 +105,7 @@ public:
 
 		auto& cache = type_caches.local();
 
-		constexpr auto hash = get_type_hash<T>();
+		static constexpr auto hash = get_type_hash<T>();
 		auto pool = cache.get_or(hash, [this](type_hash _hash) {
 			// A new pool might be created, so take a unique lock
 			std::unique_lock component_pool_lock(component_pool_mutex);
@@ -189,7 +189,7 @@ private:
 			Ensures(ptr_system != nullptr);
 
 			// -vv-  msvc shenanigans
-			[[maybe_unused]] bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
+			[[maybe_unused]] static bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
 			if constexpr (!request_manual_update) {
 				sched.insert(ptr_system);
 			} else {
@@ -226,7 +226,7 @@ private:
 	component_pool_base* create_component_pool() {
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
-		constexpr auto hash = get_type_hash<T>();
+		static constexpr auto hash = get_type_hash<T>();
 		type_pool_lookup.emplace(hash, pool.get());
 		component_pools.push_back(std::move(pool));
 		return component_pools.back().get();

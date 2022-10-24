@@ -105,9 +105,9 @@ private:
 	std::vector<chunk*> ordered_chunks;
 
 	// Status flags
-	bool components_added : 1 = false;
-	bool components_removed : 1 = false;
-	bool components_modified : 1 = false;
+	bool components_added = false;
+	bool components_removed = false;
+	bool components_modified = false;
 
 	// Keep track of which components to add/remove each cycle
 	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
