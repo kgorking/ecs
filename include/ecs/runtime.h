@@ -2,9 +2,7 @@
 #define ECS_RUNTIME
 
 #include <concepts>
-#include <execution>
 #include <type_traits>
-#include <utility>
 
 #include "detail/component_pool.h"
 #include "detail/context.h"

@@ -1,7 +1,6 @@
 #ifndef ECS_DETAIL_COMPONENT_POOL_H
 #define ECS_DETAIL_COMPONENT_POOL_H
 
-#include <execution>
 #include <functional>
 #include <memory>
 #include <vector>
