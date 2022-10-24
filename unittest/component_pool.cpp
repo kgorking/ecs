@@ -1,7 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
-#include <string>
 
 struct ctr_counter {
 	inline static size_t def_ctr_count = 0;
