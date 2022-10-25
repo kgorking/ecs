@@ -1,6 +1,6 @@
 #include <ecs/ecs.h>
 #include <iostream>
-
+#include <set>
 // The component
 struct greeting {
 	char const* msg;

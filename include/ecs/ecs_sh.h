@@ -1809,7 +1809,7 @@ public:
 	}
 
 private:
-	constexpr chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
+	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
 									  bool owns_data = true, bool split_data = false) noexcept {
 		chunk* c = alloc_chunk.allocate(1);
 		std::construct_at(c, range, active, data, next, owns_data, split_data);
@@ -1824,9 +1824,9 @@ private:
 		return c;
 	}
 
-	constexpr chunk* create_new_chunk(std::forward_iterator auto iter) noexcept {
+	chunk_iter create_new_chunk(chunk_iter loc, std::forward_iterator auto const& iter) noexcept {
 		entity_range const r = iter->rng;
-		chunk* c = create_new_chunk(r, r);
+		chunk_iter c = create_new_chunk(loc, r, r);
 		if constexpr (!unbound<T>) {
 			c->data = alloc.allocate(r.ucount());
 			construct_range_in_chunk(c, r, iter->data);
@@ -1835,7 +1835,7 @@ private:
 		return c;
 	}
 
-	constexpr void free_chunk(chunk* c) noexcept {
+	void free_chunk(chunk* c) noexcept {
 		remove_range_to_chunk(c->active);
 
 		if (c->owns_data) {
@@ -1968,33 +1968,33 @@ private:
 			chunk* next = curr->next;
 
 			// Check to see if this chunk can be collapsed into 'prev'
-			if (nullptr != prev) {
+			if (chunks.begin() != curr) {
+				auto prev = std::next(curr, -1);
 				if (prev->active.adjacent(curr->active)) {
 					active_range = entity_range::merge(prev->active, curr->active);
 					remove_range_to_chunk(prev->active);
 					update_range_to_chunk_key(prev->active, active_range);
 					prev->active = active_range;
 
-					free_chunk(curr);
-					prev->next = next;
+					std::erase(chunks, curr);
 					curr = next;
-					if (next != nullptr)
-						next = next->next;
+					if (next != chunks.end())
+						next = std::next(next);
 				}
 			}
 
 			// Check to see if 'next' can be collapsed into this chunk
-			if (nullptr != next) {
+			if (chunks.end() != next) {
 				if (curr->active.adjacent(next->active)) {
 					active_range = entity_range::merge(curr->active, next->active);
 					remove_range_to_chunk(next->active);
 					update_range_to_chunk_key(curr->active, active_range);
 
 					curr->active = active_range;
-					curr->next = next->next;
+					next = std::next(next);
 
 					// split_data is true if the next chunk is also in the current range
-					curr->has_split_data = (curr->next != nullptr) && (curr->range == curr->next->range);
+					curr->has_split_data = (next != chunks.end()) && (curr->range == next->range);
 
 					free_chunk(next);
 				}

@@ -301,10 +301,10 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			// They should be properly ordered
 			auto chunk = pool.get_head_chunk();
-			REQUIRE(chunk->range < chunk->next->range);
+			REQUIRE(chunk->range < std::next(chunk)->range);
 
 			// They should be seperate
-			REQUIRE(chunk->data != chunk->next->data);
+			REQUIRE(chunk->data != std::next(chunk)->data);
 		}
 
 		SECTION("insertion order backward is correct") {
@@ -319,10 +319,10 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			// They should be properly ordered
 			auto chunk = pool.get_head_chunk();
-			REQUIRE(chunk->range < chunk->next->range);
+			REQUIRE(chunk->range < std::next(chunk)->range);
 
 			// They should be seperate
-			REQUIRE(chunk->data != chunk->next->data);
+			REQUIRE(chunk->data != std::next(chunk)->data);
 		}
 
 		SECTION("splitting a range preserves locations in memory") {
@@ -389,8 +389,8 @@ TEST_CASE("Component pool specification", "[component]") {
 			chunk = pool.get_head_chunk();
 			REQUIRE(chunk->active.equals({3, 3}));
 			REQUIRE(chunk->owns_data);
-			REQUIRE(nullptr != chunk->next);
-			REQUIRE(false == chunk->next->owns_data);
+			//REQUIRE(nullptr != chunk->next);
+			REQUIRE(false == std::next(chunk)->owns_data);
 
 			// Fill in rest
 			pool.add({1, 1}, 1);
@@ -402,7 +402,7 @@ TEST_CASE("Component pool specification", "[component]") {
 			chunk = pool.get_head_chunk();
 			REQUIRE(chunk->active.equals({1, 5}));
 			REQUIRE(chunk->owns_data);
-			REQUIRE(nullptr == chunk->next);
+			//REQUIRE(nullptr == chunk->next);
 
 			// Verify the component data
 			REQUIRE(1 == *pool.find_component_data(1));
@@ -424,10 +424,10 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			// They should be properly ordered
 			auto chunk = pool.get_head_chunk();
-			REQUIRE(chunk->range < chunk->next->range);
+			REQUIRE(chunk->range < std::next(chunk)->range);
 
 			// They should be seperate
-			REQUIRE(chunk->data != chunk->next->data);
+			REQUIRE(chunk->data != std::next(chunk)->data);
 		}
 	}
 }
