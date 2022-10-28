@@ -63,7 +63,7 @@ private:
 	template <typename... Ts>
 	static auto make_argument(entity_range range, auto... args) {
 		return [=](auto update_func, entity_offset offset) {
-			entity_id const ent = range.first() + offset;
+			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 			} else {

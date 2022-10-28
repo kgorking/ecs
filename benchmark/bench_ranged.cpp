@@ -18,7 +18,7 @@ void build_ranged_with_components(benchmark::State& state) {
 		ecs.make_system([](int) {});
 	}
 
-	state.SetItemsProcessed(state.iterations());
+	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(build_ranged_with_components);
 

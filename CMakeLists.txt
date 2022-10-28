@@ -17,7 +17,6 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif ()
 
 if (MSVC)
-    # warning level 4
     target_compile_options(ecs INTERFACE
         /std:c++latest
 
@@ -71,7 +70,7 @@ else()
         -Wextra
         -Wpedantic
         -Wshadow
-        #-Wsign-conversion
+        -Wsign-conversion
         #-ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
 	)
     target_link_options(ecs INTERFACE -pthread)
