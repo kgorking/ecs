@@ -369,8 +369,7 @@ private:
 		return c;
 	}
 
-	[[nodiscard]]
-	chunk_iter free_chunk(chunk_iter c) noexcept {
+	void free_chunk_data(chunk_iter c) noexcept {
 		// Check for potential ownership transfer
 		if (c->owns_data) {
 			auto next = std::next(c);
@@ -391,7 +390,11 @@ private:
 				}
 			}
 		}
+	}
 
+	[[nodiscard]]
+	chunk_iter free_chunk(chunk_iter c) noexcept {
+		free_chunk_data(c);
 		return remove_range_to_chunk(c);
 	}
 
@@ -399,7 +402,8 @@ private:
 		if constexpr (!global<T>) {
 			auto chunk_it = chunks.begin();
 			while (chunk_it != chunks.end()) {
-				chunk_it = free_chunk(chunk_it);
+				free_chunk_data(chunk_it);
+				std::advance(chunk_it, 1);
 			}
 			chunks.clear();
 			ordered_active_ranges.clear();
