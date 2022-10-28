@@ -47,8 +47,6 @@ class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
-	using allocator_type = Alloc;
-
 	struct chunk {
 		chunk() noexcept = default;
 		chunk(chunk const&) = delete;
@@ -72,12 +70,6 @@ private:
 		}
 
 		~chunk() {
-			/*if (owns_data && data != nullptr) {
-				T const* first = data + range.offset(active.first());
-				std::destroy_n(first, active.ucount());
-				allocator_type data_alloc;
-				data_alloc.deallocate(data, range.ucount());
-			}*/
 		}
 
 		// The full range this chunk covers.
@@ -88,9 +80,6 @@ private:
 
 		// The data for the full range of the chunk (range.count())
 		T* data;
-
-		// Points to the next chunk in the list.
-		//chunk* next;
 
 		// Signals if this chunk owns this data and should clean it up
 		bool owns_data;
@@ -128,15 +117,11 @@ private:
 	using entity_span = std::conditional_t<unbound<T>, entity_empty, entity_span_member>;
 	using entity_gen = std::conditional_t<unbound<T>, entity_empty, entity_gen_member>;
 
-	// TODO replace with a ranges view?
+	using chunk_iter = typename std::vector<chunk>::iterator;
+	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
+
 	std::vector<entity_range> ordered_active_ranges;
-
 	std::vector<chunk> chunks;
-	using chunk_iter = typename decltype(chunks)::iterator;
-	using chunk_const_iter = typename decltype(chunks)::const_iterator;
-
-	// The head chunk
-	//chunk* head = nullptr;
 
 	// Status flags
 	bool components_added :1 = false;
@@ -149,8 +134,7 @@ private:
 	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
 	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
 
-	[[no_unique_address]] allocator_type alloc;
-	//[[no_unique_address]] std::allocator<chunk> alloc_chunk;
+	[[no_unique_address]] Alloc alloc;
 
 public:
 	component_pool() noexcept {
