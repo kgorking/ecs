@@ -113,12 +113,13 @@ void make_systems(ecs::runtime &ecs) {
 }
 
 void particles(benchmark::State& state) {
+	auto const range = static_cast<std::size_t>(state.range(0));
 	auto const num_particles = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	std::vector<particle> particles(num_particles + 1);
-	std::vector<velocity> velocities(num_particles + 1);
-	std::vector<color> colors(num_particles + 1);
-	std::vector<life> lifes(num_particles + 1);
+	std::vector<particle> particles(range + 1);
+	std::vector<velocity> velocities(range + 1);
+	std::vector<color> colors(range + 1);
+	std::vector<life> lifes(range + 1);
 
 	std::ranges::generate(particles, particle_init);
 	std::ranges::generate(velocities, velocity_init);

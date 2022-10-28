@@ -8,9 +8,10 @@ using test_component_type = size_t;
 auto constexpr test_component = test_component_type{9};
 
 void component_add_spans(benchmark::State& state) {
+	auto const range = static_cast<std::size_t>(state.range(0));
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	std::vector<test_component_type> ints(nentities + 1);
+	std::vector<test_component_type> ints(range + 1);
 	std::iota(ints.begin(), ints.end(), 9);
 
 	for ([[maybe_unused]] auto const _ : state) {
@@ -202,11 +203,12 @@ void component_remove_half_middle(benchmark::State& state) {
 ECS_BENCHMARK(component_remove_half_middle);
 
 void component_randomized_add(benchmark::State& state) {
+	auto const range = static_cast<std::size_t>(state.range(0));
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	std::vector<ecs::entity_id> ids;
-	ids.reserve(nentities);
-	std::generate_n(std::back_inserter(ids), nentities, [i = ecs::entity_id{0}]() mutable { return i++; });
+	ids.reserve(range);
+	std::generate_n(std::back_inserter(ids), range, [i = ecs::entity_id{0}]() mutable { return i++; });
 	std::random_device rd;
 	std::mt19937 g(rd());
 	std::shuffle(ids.begin(), ids.end(), g);
@@ -225,11 +227,12 @@ void component_randomized_add(benchmark::State& state) {
 ECS_BENCHMARK(component_randomized_add);
 
 void component_randomized_remove(benchmark::State& state) {
+	auto const range = static_cast<std::size_t>(state.range(0));
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	std::vector<ecs::entity_id> ids;
-	ids.reserve(nentities);
-	std::generate_n(std::back_inserter(ids), nentities, [i = ecs::entity_id{0}]() mutable { return i++; });
+	ids.reserve(range);
+	std::generate_n(std::back_inserter(ids), range, [i = ecs::entity_id{0}]() mutable { return i++; });
 	std::random_device rd;
 	std::mt19937 g(rd());
 	std::shuffle(ids.begin(), ids.end(), g);

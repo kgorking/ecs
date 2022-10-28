@@ -99,7 +99,7 @@ public:
 	// Returns the entity id at the specified offset
 	// Pre: 'offset' is in the range
 	[[nodiscard]] entity_id at(detail::entity_offset const offset) const {
-		entity_id const id = static_cast<entity_id>(first() + offset);
+		entity_id const id = static_cast<detail::entity_type>(static_cast<detail::entity_offset>(first()) + offset);
 		Expects(id <= last());
 		return id;
 	}

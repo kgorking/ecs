@@ -30,7 +30,7 @@ void run_raw(benchmark::State &state) {
 // Simulates the hierarchial setup from system_hiearchy
 template <bool parallel>
 void run_hierarchy_raw(benchmark::State &state) {
-	auto const num_items = state.range(0);
+	auto const num_items = static_cast<std::size_t>(state.range(0));
 	auto const num_entities = static_cast<ecs::detail::entity_type>(num_items);
 	auto const num_colors = static_cast<size_t>(num_items) + 1;
 
@@ -68,7 +68,7 @@ void run_hierarchy_raw(benchmark::State &state) {
 		argument_spans.push_back(cluster);
 		count += span_size;
 	}
-	argument_spans.push_back(span_all_args.subspan(count, num_entities - count));
+	argument_spans.push_back(span_all_args.subspan(count, num_items - count));
 
 	// Determine the execution policy to use
 	auto constexpr e_p = std::conditional_t<parallel, std::execution::parallel_policy, std::execution::sequenced_policy>{};
@@ -83,7 +83,7 @@ void run_hierarchy_raw(benchmark::State &state) {
 		});
 	}
 
-	state.SetItemsProcessed(state.iterations() * num_items);
+	state.SetItemsProcessed(state.iterations() * num_entities);
 }
 
 void run_serial_raw(benchmark::State &state) {

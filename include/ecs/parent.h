@@ -9,7 +9,7 @@ namespace ecs::detail {
 	template <typename Pools> struct pool_entity_walker;
 	template <typename Pools> struct pool_range_walker;
 
-	template<int Size>
+	template<std::size_t Size>
 	struct void_ptr_storage {
 		void* te_ptrs[Size];
 	};

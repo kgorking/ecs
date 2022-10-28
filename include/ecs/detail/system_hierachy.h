@@ -17,12 +17,12 @@ class system_hierarchy final : public system<Options, UpdateFn, Pools, FirstIsEn
 	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
 
 	struct location {
-		int index;
+		std::uint32_t index;
 		entity_offset offset;
 		auto operator<=>(location const&) const = default;
 	};
 	struct entity_info {
-		int parent_count;
+		std::uint32_t parent_count;
 		entity_type root_id;
 		location l;
 
@@ -105,7 +105,7 @@ private:
 
 		// Build the arguments for the ranges
 		apply_type<ComponentsList>([&]<typename... T>() {
-			for (int index = 0; entity_range const range : ranges) {
+			for (unsigned index = 0; entity_range const range : ranges) {
 				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
 				for (entity_id const id : range) {
@@ -125,7 +125,7 @@ private:
 		if (it != infos.begin()) {
 			// data needed by the partition lambda
 			auto prev_it = infos.begin();
-			int hierarchy_level = 1;
+			unsigned hierarchy_level = 1;
 
 			// The lambda used to partion non-root entities
 			const auto parter = [&](entity_info& info) {
@@ -195,7 +195,7 @@ private:
 	template <typename... Ts>
 	static auto make_argument(entity_range range, auto... args) noexcept {
 		return [=](auto update_func, entity_offset offset, auto& pools) mutable {
-			entity_id const ent = range.first() + offset;
+			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
 			} else {
