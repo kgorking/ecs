@@ -34,7 +34,7 @@ private:
 
 		apply_type<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				lambda_arguments.emplace_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
+				lambda_arguments.push_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
 			});
 		});
 	}
