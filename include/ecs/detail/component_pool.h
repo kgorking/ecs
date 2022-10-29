@@ -224,14 +224,25 @@ public:
 		if (chunks.empty())
 			return nullptr;
 
-		auto const range_it = find_in_ordered_active_ranges({id, id});
-		if (range_it != ordered_active_ranges.end() && range_it->contains(id)) {
-			auto const chunk_it = chunks.begin() + ranges_dist(range_it);
-			auto const offset = chunk_it->range.offset(id);
-			return &chunk_it->data[offset];
+		thread_local std::ptrdiff_t chunk_index = 0;
+		/*[[unlikely]]*/ if (chunk_index >= std::ssize(chunks)) {
+			chunk_index = 0;
 		}
 
-		return nullptr;
+		// Try the cache chunk index first
+		if (!chunks[chunk_index].active.contains(id)) {
+			auto const range_it = find_in_ordered_active_ranges({id, id});
+			if (range_it != ordered_active_ranges.end() && range_it->contains(id)) {
+				// cache the index
+				chunk_index = ranges_dist(range_it);
+			} else {
+				return nullptr;
+			}
+		}
+
+		// Do the lookup
+		auto const offset = chunks[chunk_index].range.offset(id);
+		return &chunks[chunk_index].data[offset];
 	}
 
 	// Merge all the components queued for addition to the main storage,

@@ -7,40 +7,44 @@
 void build_ranged(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	for ([[maybe_unused]] auto const _ : state) {
-		ecs::runtime ecs;
+	ecs::runtime ecs;
+	ecs.make_system([](int) {});
 
-		state.BeginIgnoreTiming();
+	for ([[maybe_unused]] auto const _ : state) {
 		ecs.add_component({0, nentities}, int{});
 		ecs.commit_changes();
-		state.EndIgnoreTiming();
 
-		ecs.make_system([](int) {});
+		state.BeginIgnoreTiming();
+		ecs.remove_component<int>({0, nentities});
+		ecs.commit_changes();
+		state.EndIgnoreTiming();
 	}
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(build_ranged);
 
-void build_ranged_many_ranges(benchmark::State& state) {
+void build_many_ranged(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	for ([[maybe_unused]] auto const _ : state) {
-		ecs::runtime ecs;
+	ecs::runtime ecs;
+	ecs.make_system([](int) {});
 
-		state.BeginIgnoreTiming();
-		for(int i=1; i<=nentities / 8; i += 8) {
+	for ([[maybe_unused]] auto const _ : state) {
+		for(int i=0; i<nentities / 8; i += 8) {
 			ecs.add_component({i, i + 7}, int{});
 			ecs.commit_changes();
 		}
-		state.EndIgnoreTiming();
 
-		ecs.make_system([](int) {});
+		state.BeginIgnoreTiming();
+		ecs.remove_component<int>({0, nentities});
+		ecs.commit_changes();
+		state.EndIgnoreTiming();
 	}
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
-ECS_BENCHMARK(build_ranged_many_ranges);
+ECS_BENCHMARK(build_many_ranged);
 
 void run_serial_ranged(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));

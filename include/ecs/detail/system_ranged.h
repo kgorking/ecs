@@ -40,11 +40,11 @@ private:
 	}
 
 	template <typename... Ts>
-	static auto make_argument(entity_range range, auto... args) {
-		return [=](auto update_func) {
+	static auto make_argument(entity_range const range, auto... args) {
+		return [=](auto update_func) noexcept {
 			auto constexpr e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::for_each(e_p, range.begin(), range.end(), [=, first_id = range.first()](entity_id ent) mutable {
-				auto const offset = ent - first_id;
+			std::for_each(e_p, range.begin(), range.end(), [=](entity_id const ent) mutable noexcept {
+				auto const offset = ent - range.first();
 
 				if constexpr (FirstIsEntity) {
 					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
