@@ -162,7 +162,6 @@ TEST_CASE("Component pool specification", "[component]") {
 				REQUIRE(i == *pool.find_component_data(i));
 			}
 		}
-
 		SECTION("piecewise does not invalidate other components") {
 			std::vector<int> ints(11);
 			std::iota(ints.begin(), ints.end(), 0);
@@ -179,6 +178,18 @@ TEST_CASE("Component pool specification", "[component]") {
 			for (int i = 0; i <= 8; i++) {
 				REQUIRE(i == *pool.find_component_data(i));
 			}
+		}
+		SECTION("that span multiple chunks") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 5}, int{});
+			pool.process_changes();
+			pool.add({6, 10}, int{});
+			pool.process_changes();
+
+			pool.remove({0, 10});
+			pool.process_changes();
+
+			REQUIRE(pool.num_components() == 0);
 		}
 	}
 

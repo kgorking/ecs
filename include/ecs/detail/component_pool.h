@@ -686,14 +686,10 @@ private:
 			} else if (*it_rem < it_chunk->active) {
 				++it_rem;
 			} else {
-				if (it_chunk->active == *it_rem) {
-					// remove an entire range
-					// todo: move to a free-store?
-					//chunk_iter next = std::next(it_chunk);
-
+				//if (it_chunk->active == *it_rem) {
+				if (it_rem->contains(it_chunk->active)) {
 					// Delete the chunk and potentially its data
 					it_chunk = free_chunk(it_chunk);
-					//std::advance(it_chunk, 1);
 				} else {
 					// remove partial range
 					auto const [left_range, maybe_split_range] = entity_range::remove(it_chunk->active, *it_rem);
