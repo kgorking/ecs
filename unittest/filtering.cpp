@@ -20,7 +20,7 @@ TEST_CASE("Filtering", "[component][system]") {
 	});
 	ecs.make_system([](ecs::entity_id id, int&, float*) {
 		CHECK(id >= 0);
-		CHECK(id <= 3);
+		CHECK(id <= 2);
 	});
 	ecs.make_system([](ecs::entity_id id, int*, float&) {
 		CHECK(id >= 7);
