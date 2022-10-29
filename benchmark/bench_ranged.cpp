@@ -4,7 +4,7 @@
 
 #include "global.h"
 
-void build_ranged_with_components(benchmark::State& state) {
+void build_ranged(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
@@ -20,7 +20,27 @@ void build_ranged_with_components(benchmark::State& state) {
 
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
-ECS_BENCHMARK(build_ranged_with_components);
+ECS_BENCHMARK(build_ranged);
+
+void build_ranged_many_ranges(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+
+	for ([[maybe_unused]] auto const _ : state) {
+		ecs::runtime ecs;
+
+		state.BeginIgnoreTiming();
+		for(int i=1; i<=nentities / 8; i += 8) {
+			ecs.add_component({i, i + 7}, int{});
+			ecs.commit_changes();
+		}
+		state.EndIgnoreTiming();
+
+		ecs.make_system([](int) {});
+	}
+
+	state.SetItemsProcessed(state.iterations() * nentities);
+}
+ECS_BENCHMARK(build_ranged_many_ranges);
 
 void run_serial_ranged(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));

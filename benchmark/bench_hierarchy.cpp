@@ -24,7 +24,7 @@ static void build_hierarchies(ecs::runtime& ecs, ecs::detail::entity_type nentit
 	ecs.commit_changes();
 }
 
-static void build_hierarchy_with_components(benchmark::State& state) {
+static void build_hierarchy(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
@@ -38,10 +38,10 @@ static void build_hierarchy_with_components(benchmark::State& state) {
 
 	state.SetItemsProcessed(nentities * state.iterations());
 }
-ECS_BENCHMARK(build_hierarchy_with_components);
-//BENCHMARK(build_hierarchy_with_components)->Arg(1024 * 1024);
+ECS_BENCHMARK(build_hierarchy);
+//BENCHMARK(build_hierarchy)->Arg(1024 * 1024);
 
-static void build_hierarchy_with_sub_components(benchmark::State& state) {
+static void build_hierarchy_sub(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
@@ -55,7 +55,7 @@ static void build_hierarchy_with_sub_components(benchmark::State& state) {
 
 	state.SetItemsProcessed(nentities * state.iterations());
 }
-ECS_BENCHMARK(build_hierarchy_with_sub_components);
+ECS_BENCHMARK(build_hierarchy_sub);
 
 template <bool parallel>
 void run_hierarchy(benchmark::State& state) {
