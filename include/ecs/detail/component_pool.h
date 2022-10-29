@@ -69,9 +69,6 @@ private:
 			: range(range_), active(active_), data(data_), owns_data(owns_data_), has_split_data(has_split_data_) {
 		}
 
-		~chunk() {
-		}
-
 		// The full range this chunk covers.
 		entity_range range;
 
@@ -87,11 +84,10 @@ private:
 		// Signals if this chunk has been split
 		bool has_split_data;
 
-		bool operator<(chunk const& other) const {
-			return active < other.active;
-		}
+		// Use this for something. Up to 62 bits of dead space
+		char _wasted_cacheline_space[6];
 	};
-	// static_assert(sizeof(chunk) <= 32);
+	static_assert(sizeof(chunk) == 32);
 
 	//
 	struct entity_empty {
@@ -224,19 +220,30 @@ public:
 		if (chunks.empty())
 			return nullptr;
 
-		thread_local std::ptrdiff_t chunk_index = 0;
-		/*[[unlikely]]*/ if (chunk_index >= std::ssize(chunks)) {
+		thread_local std::ptrdiff_t tls_cached_chunk_index = 0;
+		auto chunk_index = tls_cached_chunk_index;
+		if (chunk_index >= std::ssize(chunks)) [[unlikely]] {
+			// Happens when component pools are reset
 			chunk_index = 0;
 		}
 
-		// Try the cache chunk index first
+		// Try the cached chunk index first. This will load 2 chunks into a cache line
 		if (!chunks[chunk_index].active.contains(id)) {
-			auto const range_it = find_in_ordered_active_ranges({id, id});
-			if (range_it != ordered_active_ranges.end() && range_it->contains(id)) {
-				// cache the index
-				chunk_index = ranges_dist(range_it);
+			// Wasn't found at cached location, so try looking in next chunk.
+			// This should result in linear walks being very cheap.
+			if ((1+chunk_index) != std::ssize(chunks) && chunks[1+chunk_index].active.contains(id)) {
+				chunk_index += 1;
+				tls_cached_chunk_index = chunk_index;
 			} else {
-				return nullptr;
+				// The id wasn't found in the cached chunks, so do a binary lookup
+				auto const range_it = find_in_ordered_active_ranges({id, id});
+				if (range_it != ordered_active_ranges.cend() && range_it->contains(id)) {
+					// cache the index
+					chunk_index = ranges_dist(range_it);
+					tls_cached_chunk_index = chunk_index;
+				} else {
+					return nullptr;
+				}
 			}
 		}
 
@@ -572,11 +579,8 @@ private:
 
 	// Try to combine two ranges. Without data
 	static bool combiner_unbound(entity_data& a, entity_data const& b) requires(unbound<T>) {
-		auto& [a_rng] = a;
-		auto const& [b_rng] = b;
-
-		if (a_rng.adjacent(b_rng)) {
-			a_rng = entity_range::merge(a_rng, b_rng);
+		if (a.rng.adjacent(b.rng)) {
+			a.rng = entity_range::merge(a.rng, b.rng);
 			return true;
 		} else {
 			return false;
@@ -608,6 +612,9 @@ private:
 				}
 
 				if (curr->range.overlaps(r)) {
+					// Can not add components more than once to same entity
+					Expects(!curr->active.overlaps(r));
+
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, r);
 					if constexpr (!unbound<T>) {
@@ -630,6 +637,9 @@ private:
 	// Add new queued entities and components to the main storage.
 	void process_add_components() noexcept {
 		auto const adder = [this]<typename C>(std::vector<C>& vec) {
+			if (vec.empty())
+				return;
+
 			// Sort the input(s)
 			auto const comparator = [](entity_empty const& l, entity_empty const& r) {
 				return l.rng < r.rng;
@@ -645,6 +655,9 @@ private:
 			}
 
 			this->process_add_components(vec);
+
+			// Update the state
+			set_data_added();
 		};
 
 		deferred_adds.for_each(adder);
@@ -657,23 +670,25 @@ private:
 		deferred_gen.reset();
 
 		// Check it
-		Expects(false == has_duplicate_entities());
-
-		// Update the state
-		set_data_added();
+		//Expects(false == has_duplicate_entities());
 	}
 
 	// Removes the entities and components
 	void process_remove_components() noexcept {
 		deferred_removes.for_each([this](std::vector<entity_range>& vec) {
+			if (vec.empty())
+				return;
+
 			// Sort the ranges to remove
 			std::sort(vec.begin(), vec.end());
+
+			// Remove the ranges
 			this->process_remove_components(vec);
+
+			// Update the state
+			set_data_removed();
 		});
 		deferred_removes.reset();
-
-		// Update the state
-		set_data_removed();
 	}
 
 	void process_remove_components(std::vector<entity_range>& removes) noexcept {

@@ -9,24 +9,21 @@
 static void build_sorted(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	std::vector<unsigned> ints(static_cast<std::size_t>(nentities));
+	std::vector<int> ints(static_cast<std::size_t>(1 + nentities));
 	std::iota(ints.begin(), ints.end(), 0);
 
 	std::random_device rd;
 	std::mt19937 gen{rd()};
 	std::shuffle(ints.begin(), ints.end(), gen);
 
-	ecs::runtime ecs;
-	ecs.make_system([](int const&) {}, std::less<int>());
+	ecs::runtime rt;
+	rt.add_component_span({0, nentities}, ints);
+	rt.commit_changes();
 
+	ecs::detail::system_base& sys = rt.make_system<ecs::opts::manual_update>([](int const&) {}, std::less<int>());
 	for ([[maybe_unused]] auto const _ : state) {
-		ecs.add_component_span({0, nentities}, ints);
-		ecs.commit_changes();
-
-		state.BeginIgnoreTiming();
-		ecs.remove_component<int>({0, nentities});
-		ecs.commit_changes();
-		state.EndIgnoreTiming();
+		// triggers a rebuild
+		sys.set_enable(true);
 	}
 
 	state.SetItemsProcessed(nentities * state.iterations());
@@ -36,7 +33,7 @@ ECS_BENCHMARK(build_sorted);
 static void build_sorted_many_ranges(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	std::vector<unsigned> ints(static_cast<std::size_t>(nentities));
+	std::vector<int> ints(static_cast<std::size_t>(nentities));
 	std::iota(ints.begin(), ints.end(), 0);
 
 	std::random_device rd;
@@ -45,20 +42,17 @@ static void build_sorted_many_ranges(benchmark::State& state) {
 
 	std::span const span{ints};
 
-	ecs::runtime ecs;
-	ecs.make_system([](int const&) {}, std::less<int>());
+	ecs::runtime rt;
+	// ranges span 8 components
+	for(int i=0; i<nentities; i += 8) {
+		rt.add_component_span({i, i+7}, span.subspan(i, 8));
+		rt.commit_changes();
+	}
 
+	ecs::detail::system_base& sys = rt.make_system<ecs::opts::manual_update>([](int const&) {}, std::less<int>());
 	for ([[maybe_unused]] auto const _ : state) {
-		// ranges span 8 components
-		for(int i=0; i<nentities / 8; i += 8) {
-			ecs.add_component_span({i, i+7}, span.subspan(i, 8));
-			ecs.commit_changes();
-		}
-
-		state.BeginIgnoreTiming();
-		ecs.remove_component<int>({0, nentities});
-		ecs.commit_changes();
-		state.EndIgnoreTiming();
+		// triggers a rebuild
+		sys.set_enable(true);
 	}
 
 	state.SetItemsProcessed(nentities * state.iterations());
