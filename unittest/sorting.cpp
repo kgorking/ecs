@@ -6,14 +6,16 @@
 TEST_CASE("Sorting") {
 	ecs::runtime ecs;
 
+	static constexpr std::size_t num_components = 10000;
+
+	std::vector<unsigned> ints(num_components);
+	std::iota(ints.begin(), ints.end(), 0);
+
 	std::random_device rd;
 	std::mt19937 gen{rd()};
-
-	std::vector<unsigned> ints(10);
-	std::iota(ints.begin(), ints.end(), 0);
 	std::shuffle(ints.begin(), ints.end(), gen);
 
-	ecs.add_component({0, 9}, ints);
+	ecs.add_component({1, num_components}, ints);
 	ecs.commit_changes();
 
 	unsigned test = std::numeric_limits<unsigned>::min();
