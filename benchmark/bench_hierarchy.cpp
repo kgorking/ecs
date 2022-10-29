@@ -24,38 +24,35 @@ static void build_hierarchies(ecs::runtime& ecs, ecs::detail::entity_type nentit
 	ecs.commit_changes();
 }
 
-static void build_hierarchy_with_components(benchmark::State& state) {
+static void build_hierarchy(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	for ([[maybe_unused]] auto const _ : state) {
-		state.BeginIgnoreTiming();
-		ecs::runtime ecs;
-		build_hierarchies(ecs, nentities);
-		state.EndIgnoreTiming();
+	ecs::runtime ecs;
+	build_hierarchies(ecs, nentities);
+	auto& sys = ecs.make_system<ecs::opts::manual_update>([](int, ecs::parent<>) {});
 
-		ecs.make_system([](int, ecs::parent<>) {});
+	for ([[maybe_unused]] auto const _ : state) {
+		sys.set_enable(true);
 	}
 
 	state.SetItemsProcessed(nentities * state.iterations());
 }
-ECS_BENCHMARK(build_hierarchy_with_components);
-//BENCHMARK(build_hierarchy_with_components)->Arg(1024 * 1024);
+ECS_BENCHMARK(build_hierarchy);
 
-static void build_hierarchy_with_sub_components(benchmark::State& state) {
+static void build_hierarchy_sub(benchmark::State& state) {
 	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
 
-	for ([[maybe_unused]] auto const _ : state) {
-		state.BeginIgnoreTiming();
-		ecs::runtime ecs;
-		build_hierarchies(ecs, nentities);
-		state.EndIgnoreTiming();
+	ecs::runtime ecs;
+	build_hierarchies(ecs, nentities);
+	auto& sys = ecs.make_system<ecs::opts::manual_update>([](int, ecs::parent<int> const) {});
 
-		ecs.make_system([](int, ecs::parent<int> const&) {});
+	for ([[maybe_unused]] auto const _ : state) {
+		sys.set_enable(true);
 	}
 
 	state.SetItemsProcessed(nentities * state.iterations());
 }
-ECS_BENCHMARK(build_hierarchy_with_sub_components);
+ECS_BENCHMARK(build_hierarchy_sub);
 
 template <bool parallel>
 void run_hierarchy(benchmark::State& state) {
