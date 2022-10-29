@@ -93,18 +93,32 @@ TEST_CASE("The runtime interface") {
 			}
 		}
 
-		SECTION("of components with initializer works") {
+		SECTION("of span of components works") {
 			ecs::runtime ecs;
-			auto const init = [](auto ent) -> range_add { return {ent * 2}; };
 
-			ecs.add_component({10, 15}, init);
-			ecs::entity_range const ents{16, 20};
-			ecs.add_component(ents, init);
+			std::vector<int> vec(10, 42);
+			ecs.add_component_span({0, 9}, vec);
 
 			ecs.commit_changes();
+			REQUIRE(10 == ecs.get_component_count<int>());
 
-			int i = 10;
-			for (auto const& ra : ecs.get_components<range_add>({10, 20})) {
+			for (ecs::entity_id ent = 0; ent <= 9; ++ent) {
+				int i = *ecs.get_component<int>(ent);
+				CHECK(i == 42);
+			}
+		}
+
+		SECTION("of components with generator works") {
+			ecs::runtime ecs;
+			auto const init = [](ecs::entity_id ent) -> range_add { return {ent * 2}; };
+
+			ecs.add_component_generator({0, 5}, init);
+
+			ecs.commit_changes();
+			REQUIRE(6 == ecs.get_component_count<range_add>());
+
+			int i = 0;
+			for (auto const& ra : ecs.get_components<range_add>({0, 5})) {
 				CHECK(ra.i == i * 2);
 				i++;
 			}
