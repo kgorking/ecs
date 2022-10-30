@@ -10,6 +10,7 @@
 #include "../entity_id.h"
 #include "../entity_range.h"
 #include "parent_id.h"
+#include "tagged_pointer.h"
 
 #include "component_pool_base.h"
 #include "flags.h"
@@ -51,7 +52,7 @@ private:
 		chunk() noexcept = default;
 		chunk(chunk const&) = delete;
 		chunk(chunk&& other) noexcept
-			: range{other.range}, active{other.active}, data{other.data}, owns_data{other.owns_data}, has_split_data{other.has_split_data} {
+			: range{other.range}, active{other.active}, data{other.data} {
 			other.data = nullptr;
 		}
 		chunk& operator=(chunk const&) = delete;
@@ -60,13 +61,15 @@ private:
 			active = other.active;
 			data = other.data;
 			other.data = nullptr;
-			owns_data = other.owns_data;
-			has_split_data = other.has_split_data;
+			set_owns_data(other.get_owns_data());
+			set_has_split_data(other.get_has_split_data());
 			return *this;
 		}
 		chunk(entity_range range_, entity_range active_, T* data_ = nullptr, bool owns_data_ = false,
 						bool has_split_data_ = false) noexcept
-			: range(range_), active(active_), data(data_), owns_data(owns_data_), has_split_data(has_split_data_) {
+			: range(range_), active(active_), data(data_) {
+			set_owns_data(owns_data_);
+			set_has_split_data(has_split_data_);
 		}
 
 		// The full range this chunk covers.
@@ -76,18 +79,34 @@ private:
 		entity_range active;
 
 		// The data for the full range of the chunk (range.count())
-		T* data;
+		// Tagged:
+		//   bit1 = owns data
+		//   bit2 = has split data
+		tagged_pointer<T> data;
 
 		// Signals if this chunk owns this data and should clean it up
-		bool owns_data;
+		void set_owns_data(bool owns) noexcept {
+			if (owns)
+				data.set_bit1();
+			else
+				data.clear_bit1();
+		}
+		bool get_owns_data() const noexcept {
+			return data.test_bit1();
+		}
 
 		// Signals if this chunk has been split
-		bool has_split_data;
-
-		// Use this for something. Up to 62 bits of dead space
-		char _wasted_cacheline_space[6];
+		void set_has_split_data(bool split) noexcept {
+			if (split)
+				data.set_bit2();
+			else
+				data.clear_bit2();
+		}
+		bool get_has_split_data() const noexcept {
+			return data.test_bit2();
+		}
 	};
-	static_assert(sizeof(chunk) == 32);
+	static_assert(sizeof(chunk) == 24);
 
 	//
 	struct entity_empty {
@@ -146,7 +165,7 @@ public:
 	component_pool& operator=(component_pool&&) = delete;
 	~component_pool() noexcept override {
 		if (global<T>) {
-			delete [] chunks.front().data;
+			delete [] chunks.front().data.pointer();
 		} else {
 			free_all_chunks();
 		}
@@ -220,9 +239,9 @@ public:
 		if (chunks.empty())
 			return nullptr;
 
-		thread_local std::ptrdiff_t tls_cached_chunk_index = 0;
+		thread_local std::size_t tls_cached_chunk_index = 0;
 		auto chunk_index = tls_cached_chunk_index;
-		if (chunk_index >= std::ssize(chunks)) [[unlikely]] {
+		if (chunk_index >= std::size(chunks)) [[unlikely]] {
 			// Happens when component pools are reset
 			chunk_index = 0;
 		}
@@ -231,7 +250,7 @@ public:
 		if (!chunks[chunk_index].active.contains(id)) {
 			// Wasn't found at cached location, so try looking in next chunk.
 			// This should result in linear walks being very cheap.
-			if ((1+chunk_index) != std::ssize(chunks) && chunks[1+chunk_index].active.contains(id)) {
+			if ((1+chunk_index) != std::size(chunks) && chunks[1+chunk_index].active.contains(id)) {
 				chunk_index += 1;
 				tls_cached_chunk_index = chunk_index;
 			} else {
@@ -239,7 +258,7 @@ public:
 				auto const range_it = find_in_ordered_active_ranges({id, id});
 				if (range_it != ordered_active_ranges.cend() && range_it->contains(id)) {
 					// cache the index
-					chunk_index = ranges_dist(range_it);
+					chunk_index = static_cast<std::size_t>(ranges_dist(range_it));
 					tls_cached_chunk_index = chunk_index;
 				} else {
 					return nullptr;
@@ -389,22 +408,22 @@ private:
 
 	void free_chunk_data(chunk_iter c) noexcept {
 		// Check for potential ownership transfer
-		if (c->owns_data) {
+		if (c->get_owns_data()) {
 			auto next = std::next(c);
-			if (c->has_split_data && chunks.end() != next) {
+			if (c->get_has_split_data() && chunks.end() != next) {
 				Expects(c->range == next->range);
 				// transfer ownership
-				next->owns_data = true;
+				next->set_owns_data(true);
 			} else {
 				if constexpr (!unbound<T>) {
 					// Destroy active range
-					std::destroy_n(c->data, c->active.ucount());
+					std::destroy_n(c->data.pointer(), c->active.ucount());
 
 					// Free entire range
-					alloc.deallocate(c->data, c->range.ucount());
+					alloc.deallocate(c->data.pointer(), c->range.ucount());
 
 					// Debug
-					c->data = nullptr;
+					c->data.clear();
 				}
 			}
 		}
@@ -514,7 +533,7 @@ private:
 		auto next = std::next(curr);
 
 		// If split chunks are encountered, skip forward to the chunk closest to r
-		if (curr->has_split_data) {
+		if (curr->get_has_split_data()) {
 			while (chunks.end() != next && next->range.contains(r) && next->active < r) {
 				std::advance(curr, 1);
 				next = std::next(curr);
@@ -551,17 +570,17 @@ private:
 					curr->active = active_range;
 
 					// split_data is true if the next chunk is also in the current range
-					curr->has_split_data = (next != chunks.end()) && (curr->range == next->range);
+					curr->set_has_split_data((next != chunks.end()) && (curr->range == next->range));
 				}
 			}
 		} else {
 			// There is a gap between the two ranges, so split the chunk
 			if (r < curr->active) {
-				bool const curr_owns_data = curr->owns_data;
-				curr->owns_data = false;
+				bool const curr_owns_data = curr->get_owns_data();
+				curr->set_owns_data(false);
 				curr = create_new_chunk(curr, curr->range, r, curr->data, curr_owns_data, true);
 			} else {
-				curr->has_split_data = true;
+				curr->set_has_split_data(true);
 				curr = create_new_chunk(std::next(curr), curr->range, r, curr->data, false, false);
 			}
 		}
@@ -721,7 +740,7 @@ private:
 
 					if (maybe_split_range.has_value()) {
 						// If two ranges were returned, split this chunk
-						it_chunk->has_split_data = true;
+						it_chunk->set_has_split_data(true);
 						it_chunk = create_new_chunk(std::next(it_chunk), it_chunk->range, maybe_split_range.value(), it_chunk->data, false);
 					} else {
 						std::advance(it_chunk, 1);
