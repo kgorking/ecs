@@ -254,3 +254,53 @@ void component_randomized_remove(benchmark::State& state) {
 	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(component_randomized_remove);
+
+void find_component_data(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+
+	ecs::detail::component_pool<int> pool;
+
+	for (ecs::entity_id i = 0; i < nentities; i += 8) {
+		pool.add({i, i + 7}, int{});
+		pool.process_changes();
+	}
+
+	for ([[maybe_unused]] auto const _ : state) {
+		for (ecs::entity_id i = 0; i < nentities; ++i) {
+			auto* val = pool.find_component_data(i);
+			benchmark::DoNotOptimize(val);
+		}
+	}
+
+	state.SetItemsProcessed(state.iterations() * nentities);
+}
+ECS_BENCHMARK(find_component_data);
+
+
+void find_component_data_random(benchmark::State& state) {
+	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+
+	ecs::detail::component_pool<int> pool;
+
+	for (ecs::entity_id i = 0; i < nentities; i += 8) {
+		pool.add({i, i + 7}, int{});
+		pool.process_changes();
+	}
+
+	std::random_device rd;
+	std::uniform_int_distribution<int> dist(0, nentities);
+
+	for ([[maybe_unused]] auto const _ : state) {
+		for (ecs::entity_id i = 0; i < nentities; ++i) {
+			state.BeginIgnoreTiming();
+			auto const id = dist(rd);
+			state.EndIgnoreTiming();
+
+			auto* val = pool.find_component_data(id);
+			benchmark::DoNotOptimize(val);
+		}
+	}
+
+	state.SetItemsProcessed(state.iterations() * nentities);
+}
+ECS_BENCHMARK(find_component_data_random);
