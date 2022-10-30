@@ -470,8 +470,6 @@ private:
 
 	// Updates a key in the range-to-chunk map
 	void update_range_to_chunk_key(chunk_iter it, entity_range const update) noexcept {
-		// auto it = find_in_ordered_active_ranges(old);
-		//*it = update;
 		auto const dist = std::distance(chunks.begin(), it);
 		*(ordered_active_ranges.begin() + dist) = update;
 	}
