@@ -63,25 +63,22 @@ std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools
 	return ranges;
 }
 
-template <typename ComponentList, typename TuplePools>
-auto get_pool_iterators(TuplePools pools) {
-	using iter = iter_pair<entity_range_view::iterator>;
-
-	return apply_type<ComponentList>([&]<typename... Components>() {
-		return std::array<iter, sizeof...(Components)>{
-			iter{get_pool<Components>(pools).get_entities().begin(),
-				 get_pool<Components>(pools).get_entities().end()}...};
-	});
+template <typename ComponentList, typename Pools>
+auto get_pool_iterators([[maybe_unused]] Pools pools) {
+	if constexpr (type_list_size<ComponentList> > 0) {
+		return apply_type<ComponentList>([&]<typename... Components>() {
+			return std::to_array({get_pool<Components>(pools).get_entities()...});
+		});
+	} else {
+		return std::array<stride_view<0,char const>, 0>{};
+	}
 }
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <typename ComponentList, typename TuplePools, typename F>
-void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
+template <typename ComponentList, typename Pools, typename F>
+void find_entity_pool_intersections_cb(Pools pools, F callback) {
 	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
-
-	// The type of iterators used
-	using iter = iter_pair<entity_range_view::iterator>;
 
 	// Split the type_list into filters and non-filters (regular components)
 	using SplitPairList = split_types_if<ComponentList, std::is_pointer>;
@@ -90,50 +87,50 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 
 	// Sort the filters
 	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
-		return *a.curr < *b.curr;
+		return *a.current() < *b.current();
 	});
 
 	// helper lambda to test if an iterator has reached its end
 	auto const done = [](auto it) {
-		return it.curr == it.end;
+		return it.done();
 	};
 
 	while (!std::any_of(iter_components.begin(), iter_components.end(), done)) {
 		// Get the starting range to test other ranges against
-		entity_range curr_range = *iter_components[0].curr;
+		entity_range curr_range = *iter_components[0].current();
 
 		// Find all intersections
 		if constexpr (type_list_size<typename SplitPairList::second> == 1) {
-			iter_components[0].curr += 1;
+			iter_components[0].next();
 		} else {
 			bool intersection_found = false;
 			for (size_t i = 1; i < iter_components.size(); ++i) {
 				auto& it_a = iter_components[i - 1];
 				auto& it_b = iter_components[i];
 
-				if (curr_range.overlaps(*it_b.curr)) {
-					curr_range = entity_range::intersect(curr_range, *it_b.curr);
+				if (curr_range.overlaps(*it_b.current())) {
+					curr_range = entity_range::intersect(curr_range, *it_b.current());
 					intersection_found = true;
 				}
 
-				if (it_a.curr->last() < it_b.curr->last()) {
+				if (it_a.current()->last() < it_b.current()->last()) {
 					// range a is inside range b, move to
 					// the next range in a
-					++it_a.curr;
-					if (done(it_a))
+					it_a.next();
+					if (it_a.done())
 						break;
 
-				} else if (it_b.curr->last() < it_a.curr->last()) {
+				} else if (it_b.current()->last() < it_a.current()->last()) {
 					// range b is inside range a,
 					// move to the next range in b
-					++it_b.curr;
+					it_b.next();
 				} else {
 					// ranges are equal, move to next ones
-					++it_a.curr;
-					if (done(it_a))
+					it_a.next();
+					if (it_a.done())
 						break;
 
-					++it_b.curr;
+					it_b.next();
 				}
 			}
 
@@ -144,23 +141,23 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 		// Filter the range, if needed
 		if constexpr (type_list_size<typename SplitPairList::first> > 0) {
 			bool completely_filtered = false;
-			for (iter& it : iter_filters) {
+			for (auto& it : iter_filters) {
 				while(!done(it)) {
-					if (it.curr->contains(curr_range)) {
+					if (it.current()->contains(curr_range)) {
 						// 'curr_range' is contained entirely in filter range,
 						// which means that it will not be sent to the callback
 						completely_filtered = true;
 						break;
-					} else if (curr_range < *it.curr) {
+					} else if (curr_range < *it.current()) {
 						// The whole 'curr_range' is before the filter, so don't touch it
 						break;
-					} else if (*it.curr < curr_range) {
+					} else if (*it.current() < curr_range) {
 						// The filter precedes the range, so advance it and restart
-						it.curr++;
+						it.next();
 						continue;
 					} else {
 						// The two ranges overlap
-						auto const res = entity_range::remove(curr_range, *it.curr);
+						auto const res = entity_range::remove(curr_range, *it.current());
 
 						if (res.second) {
 							// 'curr_range' was split in two by the filter.
@@ -169,14 +166,14 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 							callback(res.first);
 							curr_range = *res.second;
 
-							it.curr++;
+							it.next();
 						} else {
 							// The result is an endpiece, so update the current range.
 							// The next filter might remove more from 'curr_range'
 							curr_range = res.first;
 
-							if (curr_range.first() >= it.curr->first()) {
-								++it.curr;
+							if (curr_range.first() >= it.current()->first()) {
+								it.next();
 							}
 						}
 					}
