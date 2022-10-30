@@ -11,6 +11,7 @@
 #include "../entity_range.h"
 #include "parent_id.h"
 #include "tagged_pointer.h"
+#include "stride_view.h"
 
 #include "component_pool_base.h"
 #include "flags.h"
@@ -135,13 +136,12 @@ private:
 	using chunk_iter = typename std::vector<chunk>::iterator;
 	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
 
-	std::vector<entity_range> ordered_active_ranges;
 	std::vector<chunk> chunks;
 
 	// Status flags
-	bool components_added :1 = false;
-	bool components_removed :1 = false;
-	bool components_modified :1 = false;
+	bool components_added : 1 = false;
+	bool components_removed : 1 = false;
+	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
 	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
@@ -156,7 +156,6 @@ public:
 		if constexpr (global<T>) {
 			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, false, false);
 			chunks.front().data = new T[1];
-			ordered_active_ranges.push_back(entity_range::all());
 		}
 	}
 	component_pool(component_pool const&) = delete;
@@ -256,7 +255,7 @@ public:
 			} else {
 				// The id wasn't found in the cached chunks, so do a binary lookup
 				auto const range_it = find_in_ordered_active_ranges({id, id});
-				if (range_it != ordered_active_ranges.cend() && range_it->contains(id)) {
+				if (range_it != chunks.cend() && range_it->active.contains(id)) {
 					// cache the index
 					chunk_index = static_cast<std::size_t>(ranges_dist(range_it));
 					tls_cached_chunk_index = chunk_index;
@@ -284,8 +283,8 @@ public:
 	ptrdiff_t num_entities() const noexcept {
 		ptrdiff_t count = 0;
 
-		for (entity_range const r : ordered_active_ranges) {
-			count += r.count();
+		for (chunk const& c : chunks) {
+			count += c.active.count();
 		}
 
 		return count;
@@ -335,15 +334,11 @@ public:
 	}
 
 	// Returns the pools entities
-	entity_range_view get_entities() const noexcept {
-		if constexpr (detail::global<T>) {
-			// globals are accessible to all entities
-			// static constinit entity_range global_range = entity_range::all();
-			// return entity_range_view{&global_range, 1};
-			return ordered_active_ranges;
-		} else {
-			return ordered_active_ranges;
-		}
+	auto get_entities() const noexcept {
+		if (!chunks.empty())
+			return stride_view<sizeof(chunk), entity_range const>(&chunks[0].active, chunks.size());
+		else
+			return stride_view<sizeof(chunk), entity_range const>();
 	}
 
 	// Returns true if an entity has a component in this pool
@@ -355,10 +350,10 @@ public:
 	bool has_entity(entity_range const& range) const noexcept {
 		auto const it = find_in_ordered_active_ranges(range);
 
-		if (it == ordered_active_ranges.end())
+		if (it == chunks.end())
 			return false;
 
-		return it->contains(range);
+		return it->active.contains(range);
 	}
 
 	// Clear all entities from the pool
@@ -372,7 +367,6 @@ public:
 		deferred_spans.reset();
 		deferred_gen.reset();
 		deferred_removes.reset();
-		ordered_active_ranges.clear();
 		chunks.clear();
 		clear_flags();
 
@@ -388,10 +382,6 @@ public:
 private:
 	chunk_iter create_new_chunk(chunk_iter it_loc, entity_range const range, entity_range const active, T* data = nullptr,
 								bool owns_data = true, bool split_data = false) noexcept {
-		auto const dist = std::distance(chunks.begin(), it_loc);
-		auto const range_it = ordered_active_ranges.begin() + dist;
-		ordered_active_ranges.insert(range_it, active);
-
 		return chunks.emplace(it_loc, range, active, data, owns_data, split_data);
 	}
 
@@ -443,35 +433,22 @@ private:
 				std::advance(chunk_it, 1);
 			}
 			chunks.clear();
-			ordered_active_ranges.clear();
 			set_data_removed();
 		}
 	}
 
-	auto find_in_ordered_active_ranges(entity_range const rng) noexcept {
-		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
-	}
 	auto find_in_ordered_active_ranges(entity_range const rng) const noexcept {
-		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
+		return std::ranges::lower_bound(chunks, rng, std::less{}, &chunk::active);
 	}
 
-	ptrdiff_t ranges_dist(std::vector<entity_range>::const_iterator it) const noexcept {
-		return std::distance(ordered_active_ranges.begin(), it);
+	ptrdiff_t ranges_dist(std::vector<chunk>::const_iterator it) const noexcept {
+		return std::distance(chunks.begin(), it);
 	}
 
 	// Removes a range and chunk from the map
 	[[nodiscard]]
 	chunk_iter remove_range_to_chunk(chunk_iter it) noexcept {
-		auto const dist = std::distance(chunks.begin(), it);
-
-		ordered_active_ranges.erase(ordered_active_ranges.begin() + dist);
 		return chunks.erase(it);
-	}
-
-	// Updates a key in the range-to-chunk map
-	void update_range_to_chunk_key(chunk_iter it, entity_range const update) noexcept {
-		auto const dist = std::distance(chunks.begin(), it);
-		*(ordered_active_ranges.begin() + dist) = update;
 	}
 
 	// Flag that components has been added
@@ -482,17 +459,6 @@ private:
 	// Flag that components has been removed
 	void set_data_removed() noexcept {
 		components_removed = true;
-	}
-
-	// Verify the 'add*' functions precondition.
-	// An entity can not have more than one of the same component
-	bool has_duplicate_entities() const noexcept {
-		for (size_t i = 1; i < ordered_active_ranges.size(); ++i) {
-			if (ordered_active_ranges[i - 1].overlaps(ordered_active_ranges[i]))
-				return true;
-		}
-
-		return false;
 	}
 
 	static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
@@ -541,7 +507,6 @@ private:
 		if (curr->active.adjacent(r)) {
 			// The two ranges are next to each other, so add the data to existing chunk
 			entity_range active_range = entity_range::merge(curr->active, r);
-			update_range_to_chunk_key(curr, active_range);
 			curr->active = active_range;
 
 			// Check to see if this chunk can be collapsed into 'prev'
@@ -549,7 +514,6 @@ private:
 				auto prev = std::next(curr, -1);
 				if (prev->active.adjacent(curr->active)) {
 					active_range = entity_range::merge(prev->active, curr->active);
-					update_range_to_chunk_key(prev, active_range);
 					prev = remove_range_to_chunk(prev);
 					prev->active = active_range;
 
@@ -562,7 +526,6 @@ private:
 			if (chunks.end() != next) {
 				if (curr->active.adjacent(next->active)) {
 					active_range = entity_range::merge(curr->active, next->active);
-					update_range_to_chunk_key(curr, active_range);
 					next = free_chunk(next);
 
 					curr->active = active_range;
@@ -647,7 +610,7 @@ private:
 				}
 			}
 
-			++iter;
+			std::advance(iter, 1);
 		}
 	}
 
@@ -685,9 +648,6 @@ private:
 
 		deferred_gen.for_each(adder);
 		deferred_gen.reset();
-
-		// Check it
-		//Expects(false == has_duplicate_entities());
 	}
 
 	// Removes the entities and components
@@ -727,7 +687,6 @@ private:
 					auto const [left_range, maybe_split_range] = entity_range::remove(it_chunk->active, *it_rem);
 
 					// Update the active range
-					update_range_to_chunk_key(it_chunk, left_range);
 					it_chunk->active = left_range;
 
 					// Destroy the removed components
