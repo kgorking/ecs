@@ -21,8 +21,8 @@ public:
 		Expects(first_ != nullptr);
 	}
 
-	T* const current() const noexcept {
-		return reinterpret_cast<T* const>(curr);
+	T const* current() const noexcept {
+		return reinterpret_cast<T const*>(curr);
 	}
 
 	bool done() const noexcept {

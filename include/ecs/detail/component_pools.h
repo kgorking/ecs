@@ -16,7 +16,7 @@ struct component_pools : type_list_indices<ComponentsList> {
 
 	template <typename Component>
 	constexpr auto& get() const noexcept {
-		static constexpr int index = component_pools::index_of(static_cast<Component*>(nullptr));
+		constexpr int index = component_pools::index_of(static_cast<Component*>(nullptr));
 		return *static_cast<component_pool<Component>*>(base_pools[index]);
 	}
 
