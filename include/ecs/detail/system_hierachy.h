@@ -104,7 +104,7 @@ private:
 		}
 
 		// Build the arguments for the ranges
-		apply_type<ComponentsList>([&]<typename... T>() {
+		for_all_types<ComponentsList>([&]<typename... T>() {
 			for (unsigned index = 0; entity_range const range : ranges) {
 				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
@@ -205,7 +205,7 @@ private:
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
-		return apply_type<parent_component_list>([this]<typename... T>() {
+		return for_all_types<parent_component_list>([this]<typename... T>() {
 			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
 		});
 	}
@@ -218,7 +218,7 @@ private:
 	using typename base::stripped_parent_type;
 
 	// The argument for parameter to pass to system func
-	using base_argument_ptr = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+	using base_argument_ptr = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
 		return make_argument<Types...>(entity_range{0, 0}, component_argument<Types>{0}...);
 	}));
 	using base_argument = std::remove_const_t<base_argument_ptr>;

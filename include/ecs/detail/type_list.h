@@ -100,7 +100,7 @@ namespace impl {
 	}
 
 	template <typename... Types, typename F>
-	constexpr decltype(auto) apply_type(F&& f, type_list<Types...>*) {
+	constexpr decltype(auto) for_all_types(F&& f, type_list<Types...>*) {
 		return f.template operator()<Types...>();
 	}
 
@@ -129,7 +129,7 @@ namespace impl {
 	}
 
 	template <typename... Types, typename F>
-	constexpr std::size_t count_if(F&& f, type_list<Types...>*) {
+	constexpr std::size_t count_type_if(F&& f, type_list<Types...>*) {
 		return (static_cast<std::size_t>(f.template operator()<Types>()) + ...);
 	}
 
@@ -202,6 +202,10 @@ namespace impl {
 		return (std::is_same_v<T, Types> || ...);
 	}
 
+	template <typename... Types1, typename... Types2>
+	constexpr auto concat_type_lists(type_list<Types1...>*, type_list<Types2...>*)
+	-> type_list<Types1..., Types2...>*;
+
 	struct merger {
 		template <typename... Left>
 		static auto helper(type_list<Left...>*, type_list<>*)
@@ -251,7 +255,7 @@ constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
-// Small helper to get the index in 'type_list_indices'
+// Small helper to get the index of a type in a type_list
 template <typename T, typename TL>
 consteval int index_of() {
 	using TLI = type_list_indices<TL>;
@@ -271,9 +275,9 @@ using transform_type = typename impl::transform_type<TL, Transformer>::type;
 template <impl::TypeList TL, template <typename... O> typename Transformer>
 using transform_type_all = typename impl::transform_type_all<TL, Transformer>::type;
 
+// Splits a type_list into two list depending on the predicate
 template <impl::TypeList TL, template <typename O> typename Predicate>
 using split_types_if = typename impl::split_types_if<TL, Predicate>::list_pair;
-
 
 // Applies the functor F to each type in the type list.
 // Takes lambdas of the form '[]<typename T>() {}'
@@ -300,8 +304,8 @@ constexpr void for_specific_type_or(F&& f, NF&& nf) {
 // Applies the functor F to all types in the type list.
 // Takes lambdas of the form '[]<typename ...T>() {}'
 template <impl::TypeList TL, typename F>
-constexpr decltype(auto) apply_type(F&& f) {
-	return impl::apply_type(f, static_cast<TL*>(nullptr));
+constexpr decltype(auto) for_all_types(F&& f) {
+	return impl::for_all_types(f, static_cast<TL*>(nullptr));
 }
 
 // Applies the bool-returning functor F to each type in the type list.
@@ -328,8 +332,8 @@ constexpr auto run_if(F&& f) {
 
 // Returns the count of all types that satisfy the predicate. F takes a type template parameter and returns a boolean.
 template <impl::TypeList TL, typename F>
-constexpr std::size_t count_if(F&& f) {
-	return impl::count_if(f, static_cast<TL*>(nullptr));
+constexpr std::size_t count_type_if(F&& f) {
+	return impl::count_type_if(f, static_cast<TL*>(nullptr));
 }
 
 // Returns true if all types in the list are unique
@@ -347,15 +351,7 @@ constexpr bool contains_type() {
 // concatenates two type_list
 template <impl::TypeList TL1, impl::TypeList TL2>
 using concat_type_lists = std::remove_pointer_t<decltype(
-	[] {
-		auto constexpr meh = 
-			[]<typename... Types1, typename... Types2>(type_list<Types1...>*, type_list<Types2...>*)
-			-> type_list<Types1..., Types2...>* {
-				return nullptr;
-			};
-
-		return meh(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr));
-	}())>;
+	impl::concat_type_lists(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 // merge two type_list, duplicate types are ignored
 template <typename TL1, typename TL2>

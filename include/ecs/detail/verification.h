@@ -73,7 +73,7 @@ consteval void verify_parent_component() {
 		if constexpr (total_subtypes > 0) {
 			// Count all the filters in the parent type
 			size_t const num_subtype_filters =
-				apply_type<parent_subtypes>([]<typename... Types>() { return (std::is_pointer_v<Types> + ...); });
+				for_all_types<parent_subtypes>([]<typename... Types>() { return (std::is_pointer_v<Types> + ...); });
 
 			// Count all the types minus filters in the parent type
 			size_t const num_parent_subtypes = total_subtypes - num_subtype_filters;

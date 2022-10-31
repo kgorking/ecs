@@ -44,7 +44,7 @@ private:
 		sorted_args.clear();
 		lambda_arguments.clear();
 
-		apply_type<ComponentsList>([&]<typename... Types>() {
+		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
 				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
 
@@ -89,7 +89,7 @@ private:
 	};
 	std::vector<sort_help> sorted_args;
 
-	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
 		}));
 	
