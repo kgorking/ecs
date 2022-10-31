@@ -10,16 +10,13 @@ template <typename, typename> class component_pool;
 // 
 template <typename ComponentsList>
 struct component_pools : type_list_indices<ComponentsList> {
-	component_pool_base* base_pools[type_list_size<ComponentsList>];
-
 	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
 		Expects((pools != nullptr) && ...);
 	}
 
 	template <typename Component>
-	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
 	constexpr auto& get() const noexcept {
-		constexpr int index = index_of<Component, type_list_indices<ComponentsList>>();
+		static constexpr int index = component_pools::index_of(static_cast<Component*>(nullptr));
 		return *static_cast<component_pool<Component>*>(base_pools[index]);
 	}
 
@@ -28,10 +25,11 @@ struct component_pools : type_list_indices<ComponentsList> {
 			return this->get<T>().has_component_count_changed();
 		});
 	}
+
+private:
+	component_pool_base* base_pools[type_list_size<ComponentsList>];
 };
 
-
 }
-
 
 #endif //!ECS_DETAIL_COMPONENT_POOLS_H
