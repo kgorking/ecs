@@ -252,8 +252,9 @@ template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
 // Small helper to get the index in 'type_list_indices'
-template <typename T, typename TLI>
+template <typename T, typename TL>
 consteval int index_of() {
+	using TLI = type_list_indices<TL>;
 	return TLI::index_of(static_cast<T*>(nullptr));
 }
 
