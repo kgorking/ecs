@@ -91,7 +91,7 @@ Entities are the scaffolding on which you build your objects, and there are two 
 * [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
 * [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
 
-There is no such thing as creating or detroying entities in this library; all entities implicitly exists, and this library only tracks which of those entities have components attached to them.
+There is no such thing as creating or destroying entities in this library; all entities implicitly exists, and this library only tracks which of those entities have components attached to them.
 
 The management of entity id's is left to user.
 
@@ -199,7 +199,7 @@ There are a few requirements and restrictions put on the lambdas:
 
 
 ## Parallel-by-default systems
-Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up loosing performance instead. A good profiler can often help with this determination.
+Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up losing performance instead. A good profiler can often help with this determination.
 
 The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code if your system accesses data outside the purview of rt.
 
@@ -289,7 +289,7 @@ rt.make_system([](entity_id id, parent<> const& p) {
 The angular brackets are needed because `ecs::parent` is a templated component which allows you to specify which, if any, of the parents components you would like access to.
 
 ### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Toxc5MTbj)
-A parents sub-components can be accessed by specifying them in a systems parent parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to accesss. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
+A parents sub-components can be accessed by specifying them in a systems parent parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to access. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
 
 If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must always be taken as a value or a constant reference in systems, or an error will be reported.
 
@@ -330,7 +330,7 @@ rt.make_system([](int, ecs::parent<> *p) { });  // runs on entities with an int 
 ```
 
 ### Traversal and layout
-Hiearchies in this library are [topological sorted](https://en.wikipedia.org/wiki/Topological_sorting) and can be processed in parallel. An entity's parent is always processed before the entity itself.
+Hierarchies in this library are [topological sorted](https://en.wikipedia.org/wiki/Topological_sorting) and can be processed in parallel. An entity's parent is always processed before the entity itself.
 
 
 # System options
