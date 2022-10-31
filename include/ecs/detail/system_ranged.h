@@ -22,47 +22,57 @@ public:
 private:
 	void do_run() override {
 		// Call the system for all the components that match the system signature
-		for (auto& argument : lambda_arguments) {
-			argument(this->update_func);
+		for (auto& [range, argument] : range_arguments) {
+			argument(range, this->update_func);
 		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
 		// Clear current arguments
-		lambda_arguments.clear();
+		range_arguments.clear();
 
 		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				lambda_arguments.push_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
+				range_arguments.emplace_back(found_range,
+											 make_argument<Types...>(get_component<Types>(found_range.first(), this->pools)...));
 			});
 		});
 	}
 
 	template <typename... Ts>
-	static auto make_argument(entity_range const range, auto... args) {
-		return [=](auto update_func) noexcept {
-			auto constexpr e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::for_each(e_p, range.begin(), range.end(), [=](entity_id const ent) mutable noexcept {
-				auto const offset = ent - range.first();
-
-				if constexpr (FirstIsEntity) {
+	static auto make_argument(auto... args) {
+		if constexpr (FirstIsEntity) {
+			return [=](entity_range const range, auto update_func) {
+				entity_offset offset = 0;
+				for (entity_id const ent : range) {
 					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-				} else {
-					update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
+					offset += 1;
 				}
-			});
-		};
+			};
+		} else {
+			return [=](entity_range const range, auto update_func) {
+				for (entity_offset offset = 0; offset < range.count(); ++offset) {
+					update_func(extract_arg_lambda<Ts>(args, offset, 0)...);
+				}
+			};
+		}
 	}
 
 private:
-	/// XXX
-	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
-			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
-		}));
-	
-	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
+	// Get the type of lambda containing the arguments
+	using argument = std::remove_const_t<decltype(
+		for_all_types<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(component_argument<Types>{}...);
+		}
+	))>;
 
+	struct range_argument {
+		entity_range range;
+		argument arg;
+	};
+	
+	std::vector<range_argument> range_arguments;
 };
 } // namespace ecs::detail
 

@@ -34,19 +34,27 @@ private:
 			needs_sorting = false;
 		}
 
-		for (sort_help const& sh : sorted_args) {
-			lambda_arguments[sh.arg_index](this->update_func, sh.offset);
+		if constexpr (FirstIsEntity) {
+			for (sort_help const& sh : sorted_args) {
+				auto& [range, argument] = arguments[sh.arg_index];
+				entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + sh.offset);
+				argument(ent, this->update_func, sh.offset);
+			}
+		} else {
+			for (sort_help const& sh : sorted_args) {
+				arguments[sh.arg_index].arg(this->update_func, sh.offset);
+			}
 		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
 		sorted_args.clear();
-		lambda_arguments.clear();
+		arguments.clear();
 
 		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
-				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
+				arguments.emplace_back(range, make_argument<Types...>(get_component<Types>(range.first(), this->pools)...));
 
 				for (entity_id const entity : range) {
 					entity_offset const offset = range.offset(entity);
@@ -61,15 +69,16 @@ private:
 	}
 
 	template <typename... Ts>
-	static auto make_argument(entity_range range, auto... args) {
-		return [=](auto update_func, entity_offset offset) {
-			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
-			if constexpr (FirstIsEntity) {
+	static auto make_argument(auto... args) {
+		if constexpr (FirstIsEntity) {
+			return [=](entity_id const ent, auto update_func, entity_offset offset) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-			} else {
-				update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
-			}
-		};
+			};
+		} else {
+			return [=](auto update_func, entity_offset offset) {
+				update_func(extract_arg_lambda<Ts>(args, offset, 0)...);
+			};
+		}
 	}
 
 private:
@@ -89,11 +98,18 @@ private:
 	};
 	std::vector<sort_help> sorted_args;
 
-	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
-			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
-		}));
-	
-	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
+	using argument = std::remove_const_t<decltype(
+		for_all_types<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(component_argument<Types>{}...);
+		}
+	))>;
+
+	struct range_argument {
+		entity_range range;
+		argument arg;
+	};
+
+	std::vector<range_argument> arguments;
 };
 } // namespace ecs::detail
 
