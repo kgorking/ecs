@@ -641,7 +641,7 @@ namespace impl {
 	}
 
 	template <typename... Types, typename F>
-	constexpr decltype(auto) apply_type(F&& f, type_list<Types...>*) {
+	constexpr decltype(auto) for_all_types(F&& f, type_list<Types...>*) {
 		return f.template operator()<Types...>();
 	}
 
@@ -670,7 +670,7 @@ namespace impl {
 	}
 
 	template <typename... Types, typename F>
-	constexpr std::size_t count_if(F&& f, type_list<Types...>*) {
+	constexpr std::size_t count_type_if(F&& f, type_list<Types...>*) {
 		return (static_cast<std::size_t>(f.template operator()<Types>()) + ...);
 	}
 
@@ -840,8 +840,8 @@ constexpr void for_specific_type_or(F&& f, NF&& nf) {
 // Applies the functor F to all types in the type list.
 // Takes lambdas of the form '[]<typename ...T>() {}'
 template <impl::TypeList TL, typename F>
-constexpr decltype(auto) apply_type(F&& f) {
-	return impl::apply_type(f, static_cast<TL*>(nullptr));
+constexpr decltype(auto) for_all_types(F&& f) {
+	return impl::for_all_types(f, static_cast<TL*>(nullptr));
 }
 
 // Applies the bool-returning functor F to each type in the type list.
@@ -868,8 +868,8 @@ constexpr auto run_if(F&& f) {
 
 // Returns the count of all types that satisfy the predicate. F takes a type template parameter and returns a boolean.
 template <impl::TypeList TL, typename F>
-constexpr std::size_t count_if(F&& f) {
-	return impl::count_if(f, static_cast<TL*>(nullptr));
+constexpr std::size_t count_type_if(F&& f) {
+	return impl::count_type_if(f, static_cast<TL*>(nullptr));
 }
 
 // Returns true if all types in the list are unique
@@ -963,7 +963,7 @@ consteval type_hash get_type_hash() {
 
 template <typename TypesList>
 consteval auto get_type_hashes_array() {
-	return apply_type<TypesList>([]<typename... Types>() {
+	return for_all_types<TypesList>([]<typename... Types>() {
 		return std::array<detail::type_hash, sizeof...(Types)>{get_type_hash<Types>()...};
 	});
 }
@@ -2371,7 +2371,7 @@ template <typename Component, typename Pools>
 		//parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
 		// using parent_type = std::remove_cvref_t<Component>;
-		// auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+		// auto const tup_parent_ptrs = for_all_types<parent_type_list_t<parent_type>>(
 		//	[&]<typename... ParentTypes>() {
 		//		return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
 		//	});
@@ -2418,7 +2418,7 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 		// TODO store this in seperate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
 		using parent_type = std::remove_cvref_t<Component>;
-		return apply_type<parent_type_list_t<parent_type>>([&]<typename... ParentTypes>() {
+		return for_all_types<parent_type_list_t<parent_type>>([&]<typename... ParentTypes>() {
 			return parent_type{pid, get_entity_data<ParentTypes>(pid, pools)...};
 		});
 	} else {
@@ -2817,7 +2817,7 @@ consteval void verify_parent_component() {
 		if constexpr (total_subtypes > 0) {
 			// Count all the filters in the parent type
 			size_t const num_subtype_filters =
-				apply_type<parent_subtypes>([]<typename... Types>() { return (std::is_pointer_v<Types> + ...); });
+				for_all_types<parent_subtypes>([]<typename... Types>() { return (std::is_pointer_v<Types> + ...); });
 
 			// Count all the types minus filters in the parent type
 			size_t const num_parent_subtypes = total_subtypes - num_subtype_filters;
@@ -3142,7 +3142,7 @@ template <typename ComponentList, typename TuplePools>
 auto get_pool_iterators(TuplePools pools) {
 	using iter = iter_pair<entity_range_view::iterator>;
 
-	return apply_type<ComponentList>([&]<typename... Components>() {
+	return for_all_types<ComponentList>([&]<typename... Components>() {
 		return std::array<iter, sizeof...(Components)>{
 			iter{get_pool<Components>(pools).get_entities().begin(),
 				 get_pool<Components>(pools).get_entities().end()}...};
@@ -3497,7 +3497,7 @@ protected:
 
 
 	// Number of filters
-	static constexpr size_t num_filters = count_if<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
+	static constexpr size_t num_filters = count_type_if<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
 	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
 
 	// Hashes of stripped types used by this system ('int' instead of 'int const&')
@@ -3558,7 +3558,7 @@ private:
 		sorted_args.clear();
 		lambda_arguments.clear();
 
-		apply_type<ComponentsList>([&]<typename... Types>() {
+		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
 				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
 
@@ -3603,7 +3603,7 @@ private:
 	};
 	std::vector<sort_help> sorted_args;
 
-	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
 		}));
 	
@@ -3644,7 +3644,7 @@ private:
 		// Clear current arguments
 		lambda_arguments.clear();
 
-		apply_type<ComponentsList>([&]<typename... Types>() {
+		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
 				lambda_arguments.emplace_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
 			});
@@ -3669,7 +3669,7 @@ private:
 
 private:
 	/// XXX
-	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
 		}));
 	
@@ -3781,7 +3781,7 @@ private:
 		}
 
 		// Build the arguments for the ranges
-		apply_type<ComponentsList>([&]<typename... T>() {
+		for_all_types<ComponentsList>([&]<typename... T>() {
 			for (int index = 0; entity_range const range : ranges) {
 				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
@@ -3883,7 +3883,7 @@ private:
 	}
 
 	decltype(auto) make_parent_types_tuple() const {
-		return apply_type<parent_component_list>([this]<typename... T>() {
+		return for_all_types<parent_component_list>([this]<typename... T>() {
 			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
 		});
 	}
@@ -3896,7 +3896,7 @@ private:
 	using typename base::stripped_parent_type;
 
 	// The argument for parameter to pass to system func
-	using base_argument_ptr = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+	using base_argument_ptr = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
 		return make_argument<Types...>(entity_range{0, 0}, component_argument<Types>{0}...);
 	}));
 	using base_argument = std::remove_const_t<base_argument_ptr>;
@@ -3939,7 +3939,7 @@ public:
 
 private:
 	void do_run() override {
-		apply_type<ComponentsList>([&]<typename... Types>(){
+		for_all_types<ComponentsList>([&]<typename... Types>(){
 			this->update_func(get_pool<Types>(this->pools).get_shared_component()...);
 		});
 	}
@@ -4269,7 +4269,7 @@ private:
 	auto make_pools() {
 		using stripped_list = transform_type<ComponentList, stripper>;
 
-		return apply_type<stripped_list>([this]<typename... Types>() {
+		return for_all_types<stripped_list>([this]<typename... Types>() {
 			return detail::component_pools<stripped_list>{
 				&this->get_component_pool<Types>()...};
 		});
@@ -4289,7 +4289,7 @@ private:
 		// Do some checks on the systems
 		static bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
 		static bool constexpr has_parent = !std::is_same_v<void, parent_type>;
-		static bool constexpr is_global_sys = apply_type<component_list>([]<typename... Types>() {
+		static bool constexpr is_global_sys = for_all_types<component_list>([]<typename... Types>() {
 				return (detail::global<Types> && ...);
 			});
 

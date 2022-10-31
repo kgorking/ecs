@@ -45,7 +45,7 @@ consteval type_hash get_type_hash() {
 
 template <typename TypesList>
 consteval auto get_type_hashes_array() {
-	return apply_type<TypesList>([]<typename... Types>() {
+	return for_all_types<TypesList>([]<typename... Types>() {
 		return std::array<detail::type_hash, sizeof...(Types)>{get_type_hash<Types>()...};
 	});
 }

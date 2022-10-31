@@ -102,7 +102,7 @@ template <typename Component, typename Pools>
 		//parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
 
 		// using parent_type = std::remove_cvref_t<Component>;
-		// auto const tup_parent_ptrs = apply_type<parent_type_list_t<parent_type>>(
+		// auto const tup_parent_ptrs = for_all_types<parent_type_list_t<parent_type>>(
 		//	[&]<typename... ParentTypes>() {
 		//		return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
 		//	});
@@ -149,7 +149,7 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 		// TODO store this in seperate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
 		using parent_type = std::remove_cvref_t<Component>;
-		return apply_type<parent_type_list_t<parent_type>>([&]<typename... ParentTypes>() {
+		return for_all_types<parent_type_list_t<parent_type>>([&]<typename... ParentTypes>() {
 			return parent_type{pid, get_entity_data<ParentTypes>(pid, pools)...};
 		});
 	} else {

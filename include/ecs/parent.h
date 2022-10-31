@@ -35,14 +35,14 @@ struct parent : entity_id,
 	template <typename T>
 	[[nodiscard]] T& get() const {
 		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
-		return *static_cast<T*>(this->te_ptrs[detail::index_of<T, indexer>()]);
+		return *static_cast<T*>(this->te_ptrs[detail::index_of<T, parent_type_list>()]);
 	}
 
 	// used internally by detectors
 	struct _ecs_parent {};
 
 private:
-	using indexer = detail::impl::type_list_index<0, ParentTypes...>;
+	using parent_type_list = detail::type_list<ParentTypes...>;
 
 	template <typename Component>
 	friend decltype(auto) detail::extract_arg_lambda(auto& cmp, ptrdiff_t offset, auto pools);
@@ -53,7 +53,7 @@ private:
 	parent(entity_id id, ParentTypes*... pt)
 		requires(sizeof...(ParentTypes) > 0)
 		: entity_id(id) {
-		((this->te_ptrs[detail::index_of<ParentTypes, indexer>()] = static_cast<void*>(pt)), ...);
+		((this->te_ptrs[detail::index_of<ParentTypes, parent_type_list>()] = static_cast<void*>(pt)), ...);
 	}
 };
 } // namespace ecs

@@ -149,7 +149,7 @@ private:
 	auto make_pools() {
 		using stripped_list = transform_type<ComponentList, stripper>;
 
-		return apply_type<stripped_list>([this]<typename... Types>() {
+		return for_all_types<stripped_list>([this]<typename... Types>() {
 			return detail::component_pools<stripped_list>{
 				&this->get_component_pool<Types>()...};
 		});
@@ -169,7 +169,7 @@ private:
 		// Do some checks on the systems
 		static bool constexpr has_sort_func = !std::is_same_v<SortFn, std::nullptr_t>;
 		static bool constexpr has_parent = !std::is_same_v<void, parent_type>;
-		static bool constexpr is_global_sys = apply_type<component_list>([]<typename... Types>() {
+		static bool constexpr is_global_sys = for_all_types<component_list>([]<typename... Types>() {
 				return (detail::global<Types> && ...);
 			});
 

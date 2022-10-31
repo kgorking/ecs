@@ -32,7 +32,7 @@ private:
 		// Clear current arguments
 		lambda_arguments.clear();
 
-		apply_type<ComponentsList>([&]<typename... Types>() {
+		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
 				lambda_arguments.push_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
 			});
@@ -57,7 +57,7 @@ private:
 
 private:
 	/// XXX
-	using base_argument = decltype(apply_type<ComponentsList>([]<typename... Types>() {
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
 		}));
 	

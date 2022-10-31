@@ -15,7 +15,7 @@ public:
 
 private:
 	void do_run() override {
-		apply_type<ComponentsList>([&]<typename... Types>(){
+		for_all_types<ComponentsList>([&]<typename... Types>(){
 			this->update_func(get_pool<Types>(this->pools).get_shared_component()...);
 		});
 	}

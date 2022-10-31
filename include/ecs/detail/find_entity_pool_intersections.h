@@ -66,7 +66,7 @@ std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools
 template <typename ComponentList, typename Pools>
 auto get_pool_iterators([[maybe_unused]] Pools pools) {
 	if constexpr (type_list_size<ComponentList> > 0) {
-		return apply_type<ComponentList>([&]<typename... Components>() {
+		return for_all_types<ComponentList>([&]<typename... Components>() {
 			return std::to_array({get_pool<Components>(pools).get_entities()...});
 		});
 	} else {
