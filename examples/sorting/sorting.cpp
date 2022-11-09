@@ -18,17 +18,17 @@ bool sort_even_odd(int const& l, int const& r) {
 }
 
 int main() {
-	ecs::runtime ecs;
+	ecs::runtime rt;
 
 	using namespace ecs::opts;
 
-	auto& sys_no_sort = ecs.make_system<not_parallel, manual_update>(printer);
-	auto& sys_sort_asc = ecs.make_system<not_parallel, manual_update>(printer, std::less<int>{});
-	auto& sys_sort_des = ecs.make_system<not_parallel, manual_update>(printer, std::greater<int>{});
-	auto& sys_sort_eo = ecs.make_system<not_parallel, manual_update>(printer, sort_even_odd);
+	auto& sys_no_sort = rt.make_system<not_parallel, manual_update>(printer);
+	auto& sys_sort_asc = rt.make_system<not_parallel, manual_update>(printer, std::less<int>{});
+	auto& sys_sort_des = rt.make_system<not_parallel, manual_update>(printer, std::greater<int>{});
+	auto& sys_sort_eo = rt.make_system<not_parallel, manual_update>(printer, sort_even_odd);
 
-	ecs.add_component_generator({0, 9}, generator);
-	ecs.commit_changes();
+	rt.add_component_generator({0, 9}, generator);
+	rt.commit_changes();
 
 	std::cout << "Unsorted:   ";
 	sys_no_sort.run();

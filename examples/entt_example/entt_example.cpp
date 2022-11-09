@@ -15,12 +15,12 @@ struct velocity {
 };
 
 int main() {
-	ecs::runtime ecs;
+	ecs::runtime rt;
 
-	ecs.make_system([](ecs::entity_id /*id*/, position& /*pos*/, velocity const& /*vel*/) { /* ... */ });
-	ecs.make_system([](velocity& /*vel*/) { /* ... */ });
+	rt.make_system([](ecs::entity_id /*id*/, position& /*pos*/, velocity const& /*vel*/) { /* ... */ });
+	rt.make_system([](velocity& /*vel*/) { /* ... */ });
 
-	ecs.add_component({0, 9}, position{}, velocity{});
+	rt.add_component({0, 9}, position{}, velocity{});
 
-	ecs.update();
+	rt.update();
 }

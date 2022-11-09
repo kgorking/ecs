@@ -18,14 +18,14 @@ struct type {};
 
 int main() {
 	using namespace ecs::opts;
-	ecs::runtime ecs;
+	ecs::runtime rt;
 
 	std::cout << std::boolalpha;
 	std::cout << "creating systems:\n";
 
 	//
 	// Assumes that type 0 is writte to, and type 1 is only read from.
-	auto &sys1 = ecs.make_system<manual_update>([](type<0> &, type<1> const &) {
+	auto &sys1 = rt.make_system<manual_update>([](type<0> &, type<1> const &) {
 		std::cout << "1 ";
 		std::this_thread::sleep_for(20ms); // simulate work
 	});
@@ -34,7 +34,7 @@ int main() {
 	//
 	// Writes to type 1. This system must not execute until after sys1 is done,
 	// in order to avoid race conditions.
-	auto &sys2 = ecs.make_system<manual_update>([](type<1> &) {
+	auto &sys2 = rt.make_system<manual_update>([](type<1> &) {
 		std::cout << "2 ";
 		std::this_thread::sleep_for(20ms);
 	});
@@ -44,7 +44,7 @@ int main() {
 	//
 	// Writes to type 2. This has no dependencies on type 0 or 1, so it can be run
 	// concurrently with sys1 and sys2.
-	auto &sys3 = ecs.make_system<manual_update>([](type<2> &) {
+	auto &sys3 = rt.make_system<manual_update>([](type<2> &) {
 		std::cout << "3 ";
 		std::this_thread::sleep_for(20ms);
 	});
@@ -54,7 +54,7 @@ int main() {
 
 	//
 	// Reads from type 0. Must not execute until sys1 is done.
-	auto &sys4 = ecs.make_system<manual_update>([](type<0> const &) {
+	auto &sys4 = rt.make_system<manual_update>([](type<0> const &) {
 		std::cout << "4 ";
 		std::this_thread::sleep_for(20ms);
 	});
@@ -66,7 +66,7 @@ int main() {
 	//
 	// Writes to type 2 and reads from type 0. Must not execute until after
 	// sys3 and sys1 us done.
-	auto &sys5 = ecs.make_system<manual_update>([](type<2> &, type<0> const &) {
+	auto &sys5 = rt.make_system<manual_update>([](type<2> &, type<0> const &) {
 		std::cout << "5 ";
 		std::this_thread::sleep_for(20ms);
 	});
@@ -78,7 +78,7 @@ int main() {
 
 	//
 	// Reads from type 2. Must not execute until sys5 is done.
-	auto &sys6 = ecs.make_system<manual_update>([](type<2> const &) {
+	auto &sys6 = rt.make_system<manual_update>([](type<2> const &) {
 		std::cout << "6 ";
 		std::this_thread::sleep_for(20ms);
 	});
@@ -92,7 +92,7 @@ int main() {
 	//
 	// Add the components to an entitiy and run the systems.
 	std::cout << "\nrunning systems on 5 entities:\n";
-	ecs.add_component({0, 4}, type<0>{}, type<1>{}, type<2>{});
-	ecs.update();
+	rt.add_component({0, 4}, type<0>{}, type<1>{}, type<2>{});
+	rt.update();
 	std::cout << '\n';
 }

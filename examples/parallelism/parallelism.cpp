@@ -12,16 +12,16 @@ int main() {
 	using namespace ecs::opts;
 
 	// Make the systems
-	ecs::runtime ecs;
-	auto &serial_sys = ecs.make_system<not_parallel, manual_update>(sys_sleep);
-	auto &parallel_sys = ecs.make_system<manual_update>(sys_sleep);
+	ecs::runtime rt;
+	auto &serial_sys = rt.make_system<not_parallel, manual_update>(sys_sleep);
+	auto &parallel_sys = rt.make_system<manual_update>(sys_sleep);
 
 	// Create a range of entities that would
 	// take 5 seconds to process serially
-	ecs.add_component({0, 20 - 1}, short{0});
+	rt.add_component({0, 20 - 1}, short{0});
 
 	// Commit the components (does not run the systems)
-	ecs.commit_changes();
+	rt.commit_changes();
 
 	// Time the serial system
 	std::cout << "Running serial system: ";
