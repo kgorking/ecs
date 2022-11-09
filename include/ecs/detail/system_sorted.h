@@ -37,7 +37,7 @@ private:
 		if constexpr (FirstIsEntity) {
 			for (sort_help const& sh : sorted_args) {
 				auto& [range, argument] = arguments[sh.arg_index];
-				entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + sh.offset);
+				entity_id const ent = range.at(sh.offset);
 				argument(ent, this->update_func, sh.offset);
 			}
 		} else {
