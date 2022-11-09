@@ -18,10 +18,10 @@ struct infection {
 };
 
 int main() {
-	ecs::runtime ecs;
+	ecs::runtime rt;
 
 	// Handle damage logic
-	ecs.make_system<ecs::opts::interval<1000 / infection::dmg_tick>>([](ecs::entity_id self, health &h, infection const &) {
+	rt.make_system<ecs::opts::interval<1000 / infection::dmg_tick>>([](ecs::entity_id self, health &h, infection const &) {
 		// Subtract the damage from the health component
 		h.hp -= infection::dmg;
 
@@ -29,17 +29,17 @@ int main() {
 	});
 
 	// Handle spread logic
-	ecs.make_system<ecs::opts::interval<1000 / infection::spread_tick>>([&ecs](ecs::entity_id self, infection const &p) {
+	rt.make_system<ecs::opts::interval<1000 / infection::spread_tick>>([&rt](ecs::entity_id self, infection const &p) {
 		// Do a spread tick. Use hardcoded entities for simplicitys sake
 		auto const ents_in_range = {
 			ecs::entity_id{1}, ecs::entity_id{2}}; /* should find all entities (with health component) in spread_range using game logic */
 		for (auto const ent : ents_in_range) {
-			if (!ecs.has_component<infection>(ent)) {
-				if (ecs.get_component<health>(ent)->hp > 0) {
+			if (!rt.has_component<infection>(ent)) {
+				if (rt.get_component<health>(ent)->hp > 0) {
 					// Add a copy of the infection component if the entity doesn't already have it.
 					// This means that newly infected entities are only affected for
 					// the remaing duration of this infection component
-					ecs.add_component(ent, infection{p}); // entity 1 and 2 survives
+					rt.add_component(ent, infection{p}); // entity 1 and 2 survives
 					// ecs::add_component(ent, infection{});   // start a fresh infection instead. Entity 1 dies as well
 
 					std::cout << "entity " << self << " infected entity " << ent << '\n';
@@ -49,7 +49,7 @@ int main() {
 	});
 
 	// Handle spell logic
-	ecs.make_system<ecs::opts::interval<1000 / 10>>([&ecs](ecs::entity_id self, infection &p, health const &h) {
+	rt.make_system<ecs::opts::interval<1000 / 10>>([&rt](ecs::entity_id self, infection &p, health const &h) {
 		p.duration -= 100;
 		bool remove_spell = false;
 
@@ -66,23 +66,23 @@ int main() {
 		}
 
 		if (remove_spell)
-			ecs.remove_component(self, p);
+			rt.remove_component(self, p);
 	});
 
 	// Add health components to entities 0, 1, 2
-	ecs.add_component(0, health{80});
-	ecs.add_component(1, health{100});
-	ecs.add_component(2, health{120});
+	rt.add_component(0, health{80});
+	rt.add_component(1, health{100});
+	rt.add_component(2, health{120});
 
 	// Infect the first entity
-	ecs.add_component(0, infection{});
+	rt.add_component(0, infection{});
 
 	// Simulate a game loop. Keep going until the plague is gone x_x
 	do {
 		// Commits changes to components and runs the system
-		ecs.update();
+		rt.update();
 
 		std::this_thread::sleep_for(10ms);
 
-	} while (ecs.get_component_count<infection>() > 0);
+	} while (rt.get_component_count<infection>() > 0);
 }
