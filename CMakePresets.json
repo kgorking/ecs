@@ -1,9 +1,9 @@
 ﻿{
-  "version": 2,
+  "version": 4,
   "configurePresets": [
     {
       "name": "gcc-11-debug",
-      "displayName": "GCC 11 Debug",
+      "displayName": "WSL: GCC 11 Debug",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -23,7 +23,7 @@
     },
     {
       "name": "gcc-11-release",
-      "displayName": "GCC 11 Release",
+      "displayName": "WSL: GCC 11 Release",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -42,43 +42,41 @@
       }
     },
     {
-      "name": "clang-12-debug",
+      "name": "clang-14-debug",
       "hidden": true,
-      "displayName": "Clang 12 Debug",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "WSL: Clang 14 Debug",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-        "CMAKE_C_COMPILER": "clang-12",
-        "CMAKE_CXX_COMPILER": "clang-12"
+        "CMAKE_C_COMPILER": "clang-14",
+        "CMAKE_CXX_COMPILER": "clang-14"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
           "hostOS": [ "Linux" ],
-          "intelliSenseMode": "windows-clang-x64"
+          "intelliSenseMode": "linux-gcc-x64"
         },
         "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": { "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}" }
       }
     },
     {
-      "name": "clang-12-release",
+      "name": "clang-14-release",
       "hidden": true,
-      "displayName": "Clang 12 Release",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "WSL: Clang 14 Release",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-        "CMAKE_C_COMPILER": "clang-12",
-        "CMAKE_CXX_COMPILER": "clang-12"
+        "CMAKE_C_COMPILER": "clang-14",
+        "CMAKE_CXX_COMPILER": "clang-14"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
           "hostOS": [ "Linux" ],
-          "intelliSenseMode": "windows-clang-x64"
+          "intelliSenseMode": "linux-gcc-x64"
         },
         "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": { "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}" }
       }
