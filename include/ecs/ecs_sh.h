@@ -116,14 +116,14 @@ class split {
 	struct thread_data {
 		// The destructor triggers when a thread dies and the thread_local
 		// instance is destroyed
-		constexpr ~thread_data() noexcept {
+		~thread_data() noexcept {
 			if (owner != nullptr) {
 				owner->remove_thread(this);
 			}
 		}
 
 		// Return a reference to an instances local data
-		[[nodiscard]] constexpr T& get(split* instance) noexcept {
+		[[nodiscard]] T& get(split* instance) noexcept {
 			// If the owner is null, (re-)initialize the instance.
 			// Data may still be present if the thread_local instance is still active
 			if (owner == nullptr) {
@@ -134,7 +134,7 @@ class split {
 			return data;
 		}
 
-		constexpr void remove(split* instance) noexcept {
+		void remove(split* instance) noexcept {
 			if (owner == instance) {
 				data = {};
 				owner = nullptr;
@@ -142,20 +142,20 @@ class split {
 			}
 		}
 
-		[[nodiscard]] constexpr T* get_data() noexcept {
+		[[nodiscard]] T* get_data() noexcept {
 			return &data;
 		}
-		[[nodiscard]] constexpr T const* get_data() const noexcept {
+		[[nodiscard]] T const* get_data() const noexcept {
 			return &data;
 		}
 
-		constexpr void set_next(thread_data* ia) noexcept {
+		void set_next(thread_data* ia) noexcept {
 			next = ia;
 		}
-		[[nodiscard]] constexpr thread_data* get_next() noexcept {
+		[[nodiscard]] thread_data* get_next() noexcept {
 			return next;
 		}
-		[[nodiscard]] constexpr thread_data const* get_next() const noexcept {
+		[[nodiscard]] thread_data const* get_next() const noexcept {
 			return next;
 		}
 
@@ -167,125 +167,73 @@ class split {
 
 private:
 	// the head of the threads that access this split instance
-	thread_data *head{};
+	inline static thread_data* head{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
-	std::shared_mutex* mtx_storage{};
-
-	// Data that is only used in constexpr evaluations
-	thread_data consteval_data{};
+	inline static std::shared_mutex mtx;
 
 protected:
-	[[nodiscard]] std::shared_mutex& get_runtime_mutex() noexcept {
-		return *mtx_storage;
-	}
-
 	// Adds a thread_data
-	constexpr void init_thread(thread_data* t) noexcept {
-		auto const init_thread_imp = [&]() noexcept {
-			t->set_next(head);
-			head = t;
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			init_thread_imp();
-		} else {
-			init_thread_imp();
-		}
+	void init_thread(thread_data* t) noexcept {
+		std::scoped_lock sl(mtx);
+		t->set_next(head);
+		head = t;
 	}
 
 	// Remove the thread_data
-	constexpr void remove_thread(thread_data* t) noexcept {
-		auto const remove_thread_impl = [&]() noexcept {
-			// Remove the thread from the linked list
-			if (head == t) {
-				head = t->get_next();
-			} else {
-				auto curr = head;
-				while (curr->get_next() != nullptr) {
-					if (curr->get_next() == t) {
-						curr->set_next(t->get_next());
-						return;
-					} else {
-						curr = curr->get_next();
-					}
+	void remove_thread(thread_data* t) noexcept {
+		std::scoped_lock sl(mtx);
+		// Remove the thread from the linked list
+		if (head == t) {
+			head = t->get_next();
+		} else {
+			auto curr = head;
+			while (curr->get_next() != nullptr) {
+				if (curr->get_next() == t) {
+					curr->set_next(t->get_next());
+					return;
+				} else {
+					curr = curr->get_next();
 				}
 			}
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			remove_thread_impl();
-		} else {
-			remove_thread_impl();
 		}
 	}
 
 public:
-	constexpr split() noexcept {
-		if (!std::is_constant_evaluated())
-			mtx_storage = new std::shared_mutex;
-	}
-	constexpr split(split const&) = delete;
-	constexpr split(split&&) noexcept = default;
-	constexpr split& operator=(split const&) = delete;
-	constexpr split& operator=(split&&) noexcept = default;
-	constexpr ~split() noexcept {
+	split() noexcept = default;
+	split(split const&) = delete;
+	split(split&&) noexcept = default;
+	split& operator=(split const&) = delete;
+	split& operator=(split&&) noexcept = default;
+	~split() noexcept {
 		reset();
-
-		if (!std::is_constant_evaluated())
-			delete mtx_storage;
 	}
 
 	// Get the thread-local instance of T
-	constexpr T& local() noexcept {
-		if (!std::is_constant_evaluated()) {
-			auto const local_impl = [&]() -> T& {
-				thread_local thread_data var{};
-				return var.get(this);
-			};
-			return local_impl();
-		} else {
-			return consteval_data.get(this);
-		}
+	T& local() noexcept {
+		thread_local thread_data var{};
+		return var.get(this);
 	}
 
 	// Performa an action on all each instance of the data
 	template<class Fn>
-	constexpr void for_each(Fn&& fn) {
-		auto const for_each_impl = [&]() noexcept {
-			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
-				fn(*thread->get_data());
-			}
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			for_each_impl();
-		} else {
-			for_each_impl();
+	void for_each(Fn&& fn) {
+		std::scoped_lock sl(mtx);
+		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+			fn(*thread->get_data());
 		}
 	}
 
 	// Resets all data and threads
-	constexpr void reset() noexcept {
-		auto const impl = [&] {
-			for (thread_data* instance = head; instance != nullptr;) {
-				auto next = instance->get_next();
-				instance->remove(this);
-				instance = next;
-			}
-
-			head = nullptr;
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			impl();
-		} else {
-			impl();
+	void reset() noexcept {
+		std::scoped_lock sl(mtx);
+		for (thread_data* instance = head; instance != nullptr;) {
+			auto next = instance->get_next();
+			instance->remove(this);
+			instance = next;
 		}
+
+		head = nullptr;
 	}
 };
 } // namespace tls
@@ -310,14 +258,14 @@ class collect {
 	// Its lifetime is marked as thread_local, which means that it can live longer than
 	// the splitter<> instance that spawned it.
 	struct thread_data {
-		constexpr ~thread_data() noexcept {
+		~thread_data() noexcept {
 			if (owner != nullptr) {
 				owner->remove_thread(this);
 			}
 		}
 
 		// Return a reference to an instances local data
-		[[nodiscard]] constexpr T& get(collect* instance) noexcept {
+		[[nodiscard]] T& get(collect* instance) noexcept {
 			// If the owner is null, (re-)initialize the thread.
 			// Data may still be present if the thread_local instance is still active
 			if (owner == nullptr) {
@@ -328,7 +276,7 @@ class collect {
 			return data;
 		}
 
-		constexpr void remove(collect* instance) noexcept {
+		void remove(collect* instance) noexcept {
 			if (owner == instance) {
 				data = {};
 				owner = nullptr;
@@ -336,20 +284,20 @@ class collect {
 			}
 		}
 
-		[[nodiscard]] constexpr T* get_data() noexcept {
+		[[nodiscard]] T* get_data() noexcept {
 			return &data;
 		}
-		[[nodiscard]] constexpr T const* get_data() const noexcept {
+		[[nodiscard]] T const* get_data() const noexcept {
 			return &data;
 		}
 
-		constexpr void set_next(thread_data* ia) noexcept {
+		void set_next(thread_data* ia) noexcept {
 			next = ia;
 		}
-		[[nodiscard]] constexpr thread_data* get_next() noexcept {
+		[[nodiscard]] thread_data* get_next() noexcept {
 			return next;
 		}
-		[[nodiscard]] constexpr thread_data const* get_next() const noexcept {
+		[[nodiscard]] thread_data const* get_next() const noexcept {
 			return next;
 		}
 
@@ -360,180 +308,139 @@ class collect {
 	};
 
 private:
-	// the head of the threads that access this splitter instance
-	thread_data* head{};
+	// the head of the threads that access this collect instance
+	inline static thread_data* head{};
 
 	// All the data collected from threads
-	std::vector<T> data{};
+	inline static std::vector<T> data{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
-	std::shared_mutex* mtx_ptr{};
-
-	// Data that is only used in constexpr evaluations
-	thread_data consteval_data;
-
-	[[nodiscard]] std::shared_mutex& get_runtime_mutex() noexcept {
-		return *mtx_ptr;
-	}
+	inline static std::shared_mutex mtx;
 
 	// Adds a new thread
-	constexpr void init_thread(thread_data* t) noexcept {
-		auto const init_thread_imp = [&]() noexcept {
-			t->set_next(head);
-			head = t;
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			init_thread_imp();
-		} else {
-			init_thread_imp();
-		}
+	void init_thread(thread_data* t) noexcept {
+		std::scoped_lock sl(mtx);
+		t->set_next(head);
+		head = t;
 	}
 
 	// Removes the thread
-	constexpr void remove_thread(thread_data* t) noexcept {
-		auto const remove_thread_impl = [&]() noexcept {
-			// Take the thread data
-			T* local_data = t->get_data();
-			data.push_back(std::move(*local_data));
+	void remove_thread(thread_data* t) noexcept {
+		std::scoped_lock sl(mtx);
 
-			// Reset the thread data
-			*local_data = T{};
+		// Take the thread data
+		T* local_data = t->get_data();
+		data.push_back(static_cast<T&&>(*local_data));
 
-			// Remove the thread from the linked list
-			if (head == t) {
-				head = t->get_next();
-			} else {
-				auto curr = head;
-				while (curr->get_next() != nullptr) {
-					if (curr->get_next() == t) {
-						curr->set_next(t->get_next());
-						return;
-					} else {
-						curr = curr->get_next();
-					}
+		// Reset the thread data
+		*local_data = T{};
+
+		// Remove the thread from the linked list
+		if (head == t) {
+			head = t->get_next();
+		} else {
+			auto curr = head;
+			while (curr->get_next() != nullptr) {
+				if (curr->get_next() == t) {
+					curr->set_next(t->get_next());
+					return;
+				} else {
+					curr = curr->get_next();
 				}
 			}
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			remove_thread_impl();
-		} else {
-			remove_thread_impl();
 		}
 	}
 
 public:
-	constexpr collect() noexcept {
-		if (!std::is_constant_evaluated())
-			mtx_ptr = new std::shared_mutex{};
-	}
-	constexpr collect(collect const&) = delete;
-	constexpr collect(collect&&) noexcept = default;
-	constexpr collect& operator=(collect const&) = delete;
-	constexpr collect& operator=(collect&&) noexcept = default;
-	constexpr ~collect() noexcept {
+	collect() noexcept = default;
+	collect(collect const&) = delete;
+	collect(collect&&) noexcept = default;
+	collect& operator=(collect const&) = delete;
+	collect& operator=(collect&&) noexcept = default;
+	~collect() noexcept {
 		reset();
-
-		if (!std::is_constant_evaluated())
-			delete mtx_ptr;
 	}
 
 	// Get the thread-local thread of T
-	[[nodiscard]] constexpr T& local() noexcept {
-		if (!std::is_constant_evaluated()) {
-			auto const local_impl = [&]() -> T& {
-				thread_local thread_data var{};
-				return var.get(this);
-			};
-			return local_impl();
-		} else {
-			return consteval_data.get(this);
-		}
+	[[nodiscard]] T& local() noexcept {
+		thread_local thread_data var{};
+		return var.get(this);
 	}
 
 	// Gathers all the threads data and returns it. This clears all stored data.
-	[[nodiscard]] constexpr std::vector<T> gather() noexcept {
-		auto const gather_impl = [&]() noexcept {
-			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
-				data.push_back(std::move(*thread->get_data()));
-				*thread->get_data() = T{};
-			}
-
-			return std::move(data);
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			return gather_impl();
-		} else {
-			return gather_impl();
+	[[nodiscard]] std::vector<T> gather() noexcept {
+		std::scoped_lock sl(mtx);
+		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+			data.push_back(std::move(*thread->get_data()));
+			*thread->get_data() = T{};
 		}
+
+		return static_cast<std::vector<T>&&>(data);
 	}
 
 	// Gathers all the threads data and sends it to the output iterator. This clears all stored data.
-	constexpr void gather_flattened(auto dest_iterator) noexcept {
-		auto const gather_flattened_impl = [&]() noexcept {
-			for (T& t : data) {
-				std::move(t.begin(), t.end(), dest_iterator);
-			}
-			data.clear();
+	void gather_flattened(auto dest_iterator) noexcept {
+		std::scoped_lock sl(mtx);
+		using U = typename T::value_type;
 
-			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
-				T* ptr_t = thread->get_data();
-				std::move(ptr_t->begin(), ptr_t->end(), dest_iterator);
-				*ptr_t = T{};
+		for (T& per_thread_data : data) {
+			//std::move(t.begin(), t.end(), dest_iterator);
+			for (U& elem : per_thread_data) {
+				*dest_iterator = static_cast<U&&>(elem);
+				++dest_iterator;
 			}
-		};
+		}
+		data.clear();
 
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			gather_flattened_impl();
-		} else {
-			gather_flattened_impl();
+		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+			T* ptr_per_thread_data = thread->get_data();
+			//std::move(ptr_per_thread_data->begin(), ptr_per_thread_data->end(), dest_iterator);
+			for (U& elem : *ptr_per_thread_data) {
+				*dest_iterator = static_cast<U&&>(elem);
+				++dest_iterator;
+			}
+			//*ptr_per_thread_data = T{};
+			ptr_per_thread_data->clear();
 		}
 	}
 
 	// Perform an action on all threads data
 	template <class Fn>
-	constexpr void for_each(Fn&& fn) noexcept {
-		auto const for_each_impl = [&]() noexcept {
+	void for_each(Fn&& fn) noexcept {
+		std::scoped_lock sl(mtx);
+		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+			fn(*thread->get_data());
+		}
+
+		for (auto& d : data)
+			fn(d);
+	}
+
+	// Perform an non-modifying action on all threads data
+	template <class Fn>
+	void for_each(Fn&& fn) const noexcept {
+		{
+			std::scoped_lock sl(mtx);
 			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
 				fn(*thread->get_data());
 			}
-
-			std::for_each(data.begin(), data.end(), std::forward<Fn>(fn));
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			for_each_impl();
-		} else {
-			for_each_impl();
 		}
+
+		for (auto const& d : data)
+			fn(d);
 	}
 
 	// Resets all data and threads
-	constexpr void reset() noexcept {
-		auto const reset_impl = [&]() noexcept {
-			for (thread_data* thread = head; thread != nullptr;) {
-				auto next = thread->get_next();
-				thread->remove(this);
-				thread = next;
-			}
-
-			head = nullptr;
-			data.clear();
-		};
-
-		if (!std::is_constant_evaluated()) {
-			std::scoped_lock sl(get_runtime_mutex());
-			reset_impl();
-		} else {
-			reset_impl();
+	void reset() noexcept {
+		std::scoped_lock sl(mtx);
+		for (thread_data* thread = head; thread != nullptr;) {
+			auto next = thread->get_next();
+			thread->remove(this);
+			thread = next;
 		}
+
+		head = nullptr;
+		data.clear();
 	}
 };
 } // namespace tls
@@ -743,6 +650,10 @@ namespace impl {
 		return (std::is_same_v<T, Types> || ...);
 	}
 
+	template <typename... Types1, typename... Types2>
+	constexpr auto concat_type_lists(type_list<Types1...>*, type_list<Types2...>*)
+	-> type_list<Types1..., Types2...>*;
+
 	struct merger {
 		template <typename... Left>
 		static auto helper(type_list<Left...>*, type_list<>*)
@@ -792,9 +703,10 @@ constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
-// Small helper to get the index in 'type_list_indices'
-template <typename T, typename TLI>
+// Small helper to get the index of a type in a type_list
+template <typename T, typename TL>
 consteval int index_of() {
+	using TLI = type_list_indices<TL>;
 	return TLI::index_of(static_cast<T*>(nullptr));
 }
 
@@ -811,9 +723,9 @@ using transform_type = typename impl::transform_type<TL, Transformer>::type;
 template <impl::TypeList TL, template <typename... O> typename Transformer>
 using transform_type_all = typename impl::transform_type_all<TL, Transformer>::type;
 
+// Splits a type_list into two list depending on the predicate
 template <impl::TypeList TL, template <typename O> typename Predicate>
 using split_types_if = typename impl::split_types_if<TL, Predicate>::list_pair;
-
 
 // Applies the functor F to each type in the type list.
 // Takes lambdas of the form '[]<typename T>() {}'
@@ -887,15 +799,7 @@ constexpr bool contains_type() {
 // concatenates two type_list
 template <impl::TypeList TL1, impl::TypeList TL2>
 using concat_type_lists = std::remove_pointer_t<decltype(
-	[] {
-		auto constexpr meh = 
-			[]<typename... Types1, typename... Types2>(type_list<Types1...>*, type_list<Types2...>*)
-			-> type_list<Types1..., Types2...>* {
-				return nullptr;
-			};
-
-		return meh(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr));
-	}())>;
+	impl::concat_type_lists(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 // merge two type_list, duplicate types are ignored
 template <typename TL1, typename TL2>
@@ -971,6 +875,118 @@ consteval auto get_type_hashes_array() {
 } // namespace ecs::detail
 
 #endif // !ECS_TYPE_HASH
+#ifndef ECS_DETAIL_TAGGED_POINTER_H
+#define ECS_DETAIL_TAGGED_POINTER_H
+
+
+namespace ecs::detail {
+
+// 1-bit tagged pointer
+// Note: tags are considered seperate from the pointer, and is
+// therfore not reset when a new pointer is set
+template <typename T>
+struct tagged_pointer {
+	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
+		Expects((ptr & TagMask) == 0);
+	}
+
+	tagged_pointer() noexcept = default;
+	tagged_pointer(tagged_pointer const&) noexcept = default;
+	tagged_pointer(tagged_pointer&&) noexcept = default;
+	tagged_pointer& operator=(tagged_pointer const&) noexcept = default;
+	tagged_pointer& operator=(tagged_pointer&&) noexcept = default;
+
+	tagged_pointer& operator=(T* in) noexcept {
+		auto const set = ptr & TagMask;
+		ptr = set | reinterpret_cast<uintptr_t>(in);
+		return *this;
+	}
+
+	void clear() noexcept {
+		ptr = 0;
+	}
+	void clear_bits() noexcept {
+		ptr = ptr & PointerMask;
+	}
+	int get_tag() const noexcept {
+		return ptr & TagMask;
+	}
+	void set_tag(int tag) noexcept {
+		Expects(tag >= 0 && tag <= static_cast<int>(TagMask));
+		ptr = (ptr & PointerMask) | static_cast<uintptr_t>(tag);
+	}
+
+	bool test_bit1() const noexcept
+		requires(sizeof(void*) >= 2) {
+		return ptr & static_cast<uintptr_t>(0b001);
+	}
+	bool test_bit2() const noexcept
+		requires(sizeof(void*) >= 4) {
+		return ptr & static_cast<uintptr_t>(0b010);
+	}
+	bool test_bit3() const noexcept
+		requires(sizeof(void*) >= 8) {
+		return ptr & static_cast<uintptr_t>(0b100);
+	}
+
+	void set_bit1() noexcept
+		requires(sizeof(void*) >= 2) {
+		ptr |= static_cast<uintptr_t>(0b001);
+	}
+	void set_bit2() noexcept
+		requires(sizeof(void*) >= 4) {
+		ptr |= static_cast<uintptr_t>(0b010);
+	}
+	void set_bit3() noexcept
+		requires(sizeof(void*) >= 8) {
+		ptr |= static_cast<uintptr_t>(0b100);
+	}
+
+	void clear_bit1() noexcept
+		requires(sizeof(void*) >= 2) {
+		ptr = ptr & ~static_cast<uintptr_t>(0b001);
+	}
+	void clear_bit2() noexcept
+		requires(sizeof(void*) >= 4) {
+		ptr = ptr & ~static_cast<uintptr_t>(0b010);
+	}
+	void clear_bit3() noexcept
+		requires(sizeof(void*) >= 8) {
+		ptr = ptr & ~static_cast<uintptr_t>(0b100);
+	}
+
+	T* pointer() noexcept {
+		return reinterpret_cast<T*>(ptr & PointerMask);
+	}
+	T const* pointer() const noexcept {
+		return reinterpret_cast<T*>(ptr & PointerMask);
+	}
+
+	T* operator->() noexcept {
+		return pointer();
+	}
+	T const* operator->() const noexcept {
+		return pointer();
+	}
+
+	operator T*() noexcept {
+		return pointer();
+	}
+	operator T const *() const noexcept {
+		return pointer();
+	}
+
+private:
+	//constexpr static uintptr_t TagMask = 0b111;
+	constexpr static uintptr_t TagMask = sizeof(void*) - 1;
+	constexpr static uintptr_t PointerMask = ~TagMask;
+
+	uintptr_t ptr;
+};
+
+} // namespace ecs::detail
+
+#endif // ECS_DETAIL_TAGGED_POINTER_H
 #ifndef ECS_ENTITY_ID
 #define ECS_ENTITY_ID
 
@@ -1299,7 +1315,7 @@ public:
 	// Returns the entity id at the specified offset
 	// Pre: 'offset' is in the range
 	[[nodiscard]] entity_id at(detail::entity_offset const offset) const {
-		entity_id const id = static_cast<entity_id>(first() + offset);
+		entity_id const id = static_cast<detail::entity_type>(static_cast<detail::entity_offset>(first()) + offset);
 		Expects(id <= last());
 		return id;
 	}
@@ -1491,10 +1507,12 @@ public:
 
 namespace ecs::detail {
 
-constexpr static std::size_t parallelization_size_tipping_point = 4096;
+#ifdef _MSC_VER
+	#define no_unique_address msvc::no_unique_address
+#endif
 
 template <typename ForwardIt, typename BinaryPredicate>
-constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
+ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
 		return last;
 
@@ -1509,7 +1527,7 @@ constexpr ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPre
 }
 
 template <typename Cont, typename BinaryPredicate>
-constexpr void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
+void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	auto const end = std_combine_erase(cont.begin(), cont.end(), static_cast<BinaryPredicate&&>(p));
 	cont.erase(end, cont.end());
 }
@@ -1519,12 +1537,29 @@ class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
-	using allocator_type = Alloc;
-
 	struct chunk {
-		constexpr chunk(entity_range range_, entity_range active_, T* data_ = nullptr, chunk* next_ = nullptr, bool owns_data_ = false,
+		chunk() noexcept = default;
+		chunk(chunk const&) = delete;
+		chunk(chunk&& other) noexcept
+			: range{other.range}, active{other.active}, data{other.data} {
+			other.data = nullptr;
+		}
+		chunk& operator=(chunk const&) = delete;
+		chunk& operator=(chunk&& other) noexcept {
+			range = other.range;
+			active = other.active;
+			data = other.data;
+			other.data = nullptr;
+			set_owns_data(other.get_owns_data());
+			set_has_split_data(other.get_has_split_data());
+			return *this;
+		}
+		chunk(entity_range range_, entity_range active_, T* data_ = nullptr, bool owns_data_ = false,
 						bool has_split_data_ = false) noexcept
-			: range(range_), active(active_), data(data_), next(next_), owns_data(owns_data_), has_split_data(has_split_data_) {}
+			: range(range_), active(active_), data(data_) {
+			set_owns_data(owns_data_);
+			set_has_split_data(has_split_data_);
+		}
 
 		// The full range this chunk covers.
 		entity_range range;
@@ -1533,41 +1568,52 @@ private:
 		entity_range active;
 
 		// The data for the full range of the chunk (range.count())
-		// The tag signals if this chunk owns this data and should clean it up
-		T* data;
+		// Tagged:
+		//   bit1 = owns data
+		//   bit2 = has split data
+		tagged_pointer<T> data;
 
-		// Points to the next chunk in the list.
-		// The tag signals if this chunk has been split
-		chunk* next;
+		// Signals if this chunk owns this data and should clean it up
+		void set_owns_data(bool owns) noexcept {
+			if (owns)
+				data.set_bit1();
+			else
+				data.clear_bit1();
+		}
+		bool get_owns_data() const noexcept {
+			return data.test_bit1();
+		}
 
-		bool owns_data;
-		bool has_split_data;
+		// Signals if this chunk has been split
+		void set_has_split_data(bool split) noexcept {
+			if (split)
+				data.set_bit2();
+			else
+				data.clear_bit2();
+		}
+		bool get_has_split_data() const noexcept {
+			return data.test_bit2();
+		}
 	};
-	// static_assert(sizeof(chunk) == 32);
-
-	allocator_type alloc;
-	std::allocator<chunk> alloc_chunk;
-
-	chunk* head = nullptr;
+	static_assert(sizeof(chunk) == 24);
 
 	//
 	struct entity_empty {
 		entity_range rng;
-		constexpr entity_empty(entity_range r) noexcept : rng{r} {}
+		entity_empty(entity_range r) noexcept : rng{r} {}
 	};
-
 	struct entity_data_member : entity_empty {
 		T data;
-		constexpr entity_data_member(entity_range r, T const& t) noexcept : entity_empty{r}, data(t) {}
-		constexpr entity_data_member(entity_range r, T&& t) noexcept : entity_empty{r}, data(std::forward<T>(t)) {}
+		entity_data_member(entity_range r, T const& t) noexcept : entity_empty{r}, data(t) {}
+		entity_data_member(entity_range r, T&& t) noexcept : entity_empty{r}, data(std::forward<T>(t)) {}
 	};
 	struct entity_span_member : entity_empty {
 		std::span<const T> data;
-		constexpr entity_span_member(entity_range r, std::span<const T> t) noexcept : entity_empty{r}, data(t) {}
+		entity_span_member(entity_range r, std::span<const T> t) noexcept : entity_empty{r}, data(t) {}
 	};
 	struct entity_gen_member : entity_empty {
 		std::function<T(entity_id)> data;
-		constexpr entity_gen_member(entity_range r, std::function<T(entity_id)>&& t) noexcept
+		entity_gen_member(entity_range r, std::function<T(entity_id)>&& t) noexcept
 			: entity_empty{r}, data(std::forward<std::function<T(entity_id)>>(t)) {}
 	};
 
@@ -1575,41 +1621,38 @@ private:
 	using entity_span = std::conditional_t<unbound<T>, entity_empty, entity_span_member>;
 	using entity_gen = std::conditional_t<unbound<T>, entity_empty, entity_gen_member>;
 
-	// Keep track of which components to add/remove each cycle
-	tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	using chunk_iter = typename std::vector<chunk>::iterator;
+	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
 
-	std::vector<entity_range> ordered_active_ranges;
-	std::vector<chunk*> ordered_chunks;
+	std::vector<chunk> chunks;
 
 	// Status flags
-	bool components_added = false;
-	bool components_removed = false;
-	bool components_modified = false;
+	bool components_added : 1 = false;
+	bool components_removed : 1 = false;
+	bool components_modified : 1 = false;
+
+	// Keep track of which components to add/remove each cycle
+	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+	[[no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
+	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+
+	[[no_unique_address]] Alloc alloc;
 
 public:
-	constexpr component_pool() noexcept {
+	component_pool() noexcept {
 		if constexpr (global<T>) {
-			head = alloc_chunk.allocate(1);
-			std::construct_at(head, entity_range{0, 0}, entity_range{0, 0}, nullptr, nullptr, true, false);
-			head->data = alloc.allocate(1);
-			std::construct_at(head->data);
-			ordered_active_ranges.push_back(entity_range::all());
-			ordered_chunks.push_back(head);
+			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, false, false);
+			chunks.front().data = new T[1];
 		}
 	}
-	constexpr component_pool(component_pool const&) = delete;
-	constexpr component_pool(component_pool&&) = delete;
-	constexpr component_pool& operator=(component_pool const&) = delete;
-	constexpr component_pool& operator=(component_pool&&) = delete;
-	constexpr ~component_pool() noexcept override {
-		if constexpr (global<T>) {
-			std::destroy_at(head->data);
-			alloc.deallocate(head->data, head->range.ucount());
-			std::destroy_at(head);
-			alloc_chunk.deallocate(head, 1);
+	component_pool(component_pool const&) = delete;
+	component_pool(component_pool&&) = delete;
+	component_pool& operator=(component_pool const&) = delete;
+	component_pool& operator=(component_pool&&) = delete;
+	~component_pool() noexcept override {
+		if (global<T>) {
+			delete [] chunks.front().data.pointer();
 		} else {
 			free_all_chunks();
 		}
@@ -1618,7 +1661,7 @@ public:
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	constexpr void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
+	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
 		Expects(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
@@ -1637,7 +1680,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	constexpr void add(entity_range const range, T&& component) noexcept {
+	void add(entity_range const range, T&& component) noexcept {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
@@ -1648,7 +1691,7 @@ public:
 	// Add a component to a range of entity.
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
-	constexpr void add(entity_range const range, T const& component) noexcept {
+	void add(entity_range const range, T const& component) noexcept {
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
@@ -1657,46 +1700,67 @@ public:
 	}
 
 	// Return the shared component
-	constexpr T& get_shared_component() noexcept requires global<T> {
-		return head->data[0];
+	T& get_shared_component() noexcept requires global<T> {
+		return chunks.front().data[0];
 	}
 
 	// Remove an entity from the component pool.
-	constexpr void remove(entity_id const id) noexcept {
+	void remove(entity_id const id) noexcept {
 		remove({id, id});
 	}
 
 	// Remove an entity from the component pool.
-	constexpr void remove(entity_range const range) noexcept {
+	void remove(entity_range const range) noexcept {
 		deferred_removes.local().push_back(range);
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	constexpr T* find_component_data(entity_id const id) noexcept requires(!global<T>) {
+	T* find_component_data(entity_id const id) noexcept requires(!global<T>) {
 		return const_cast<T*>(std::as_const(*this).find_component_data(id));
 	}
 
 	// Returns an entities component.
 	// Returns nullptr if the entity is not found in this pool
-	constexpr T const* find_component_data(entity_id const id) const noexcept requires(!global<T>) {
-		if (head == nullptr)
+	T const* find_component_data(entity_id const id) const noexcept requires(!global<T>) {
+		if (chunks.empty())
 			return nullptr;
 
-		auto const range_it = find_in_ordered_active_ranges({id, id});
-		if (range_it != ordered_active_ranges.end() && range_it->contains(id)) {
-			auto const chunk_it = ordered_chunks.begin() + ranges_dist(range_it);
-			chunk* c = (*chunk_it);
-			auto const offset = c->range.offset(id);
-			return &c->data[offset];
+		thread_local std::size_t tls_cached_chunk_index = 0;
+		auto chunk_index = tls_cached_chunk_index;
+		if (chunk_index >= std::size(chunks)) [[unlikely]] {
+			// Happens when component pools are reset
+			chunk_index = 0;
 		}
 
-		return nullptr;
+		// Try the cached chunk index first. This will load 2 chunks into a cache line
+		if (!chunks[chunk_index].active.contains(id)) {
+			// Wasn't found at cached location, so try looking in next chunk.
+			// This should result in linear walks being very cheap.
+			if ((1+chunk_index) != std::size(chunks) && chunks[1+chunk_index].active.contains(id)) {
+				chunk_index += 1;
+				tls_cached_chunk_index = chunk_index;
+			} else {
+				// The id wasn't found in the cached chunks, so do a binary lookup
+				auto const range_it = find_in_ordered_active_ranges({id, id});
+				if (range_it != chunks.cend() && range_it->active.contains(id)) {
+					// cache the index
+					chunk_index = static_cast<std::size_t>(ranges_dist(range_it));
+					tls_cached_chunk_index = chunk_index;
+				} else {
+					return nullptr;
+				}
+			}
+		}
+
+		// Do the lookup
+		auto const offset = chunks[chunk_index].range.offset(id);
+		return &chunks[chunk_index].data[offset];
 	}
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	constexpr void process_changes() noexcept override {
+	void process_changes() noexcept override {
 		if constexpr (!global<T>) {
 			process_remove_components();
 			process_add_components();
@@ -1704,18 +1768,18 @@ public:
 	}
 
 	// Returns the number of active entities in the pool
-	constexpr ptrdiff_t num_entities() const noexcept {
+	ptrdiff_t num_entities() const noexcept {
 		ptrdiff_t count = 0;
 
-		for (entity_range const r : ordered_active_ranges) {
-			count += r.count();
+		for (chunk const& c : chunks) {
+			count += c.active.count();
 		}
 
 		return count;
 	}
 
 	// Returns the number of active components in the pool
-	constexpr ptrdiff_t num_components() const noexcept {
+	ptrdiff_t num_components() const noexcept {
 		if constexpr (unbound<T>)
 			return 1;
 		else
@@ -1723,71 +1787,67 @@ public:
 	}
 
 	// Returns the number of chunks in use
-	constexpr ptrdiff_t num_chunks() const noexcept {
-		return std::ssize(ordered_chunks);
+	ptrdiff_t num_chunks() const noexcept {
+		return std::ssize(chunks);
 	}
 
-	constexpr chunk const* get_head_chunk() const noexcept {
-		return head;
+	chunk_const_iter get_head_chunk() const noexcept {
+		return chunks.begin();
 	}
 
 	// Clears the pools state flags
-	constexpr void clear_flags() noexcept override {
+	void clear_flags() noexcept override {
 		components_added = false;
 		components_removed = false;
 		components_modified = false;
 	}
 
 	// Returns true if components has been added since last clear_flags() call
-	constexpr bool has_more_components() const noexcept {
+	bool has_more_components() const noexcept {
 		return components_added;
 	}
 
 	// Returns true if components has been removed since last clear_flags() call
-	constexpr bool has_less_components() const noexcept {
+	bool has_less_components() const noexcept {
 		return components_removed;
 	}
 
 	// Returns true if components has been added/removed since last clear_flags() call
-	constexpr bool has_component_count_changed() const noexcept {
+	bool has_component_count_changed() const noexcept {
 		return components_added || components_removed;
 	}
 
-	constexpr bool has_components_been_modified() const noexcept {
+	bool has_components_been_modified() const noexcept {
 		return has_component_count_changed() || components_modified;
 	}
 
 	// Returns the pools entities
-	constexpr entity_range_view get_entities() const noexcept {
-		if constexpr (detail::global<T>) {
-			// globals are accessible to all entities
-			// static constinit entity_range global_range = entity_range::all();
-			// return entity_range_view{&global_range, 1};
-			return ordered_active_ranges;
-		} else {
-			return ordered_active_ranges;
-		}
+	auto get_entities() const noexcept {
+		if (!chunks.empty())
+			return stride_view<sizeof(chunk), entity_range const>(&chunks[0].active, chunks.size());
+		else
+			return stride_view<sizeof(chunk), entity_range const>();
 	}
 
 	// Returns true if an entity has a component in this pool
-	constexpr bool has_entity(entity_id const id) const noexcept {
+	bool has_entity(entity_id const id) const noexcept {
 		return has_entity({id, id});
 	}
 
 	// Returns true if an entity range has components in this pool
-	constexpr bool has_entity(entity_range const& range) const noexcept {
+	bool has_entity(entity_range const& range) const noexcept {
 		auto const it = find_in_ordered_active_ranges(range);
 
-		if (it == ordered_active_ranges.end())
+		if (it == chunks.end())
 			return false;
 
-		return it->contains(range);
+		return it->active.contains(range);
 	}
 
 	// Clear all entities from the pool
-	constexpr void clear() noexcept override {
+	void clear() noexcept override {
 		// Remember if components was removed from the pool
-		bool const is_removed = (nullptr != head);
+		bool const is_removed = (!chunks.empty());
 
 		// Clear all data
 		free_all_chunks();
@@ -1795,8 +1855,7 @@ public:
 		deferred_spans.reset();
 		deferred_gen.reset();
 		deferred_removes.reset();
-		ordered_active_ranges.clear();
-		ordered_chunks.clear();
+		chunks.clear();
 		clear_flags();
 
 		// Save the removal state
@@ -1804,24 +1863,14 @@ public:
 	}
 
 	// Flag that components has been modified
-	constexpr void notify_components_modified() noexcept {
+	void notify_components_modified() noexcept {
 		components_modified = true;
 	}
 
 private:
-	chunk* create_new_chunk(entity_range const range, entity_range const active, T* data = nullptr, chunk* next = nullptr,
-									  bool owns_data = true, bool split_data = false) noexcept {
-		chunk* c = alloc_chunk.allocate(1);
-		std::construct_at(c, range, active, data, next, owns_data, split_data);
-
-		auto const range_it = find_in_ordered_active_ranges(active);
-		auto const dist = ranges_dist(range_it);
-		ordered_active_ranges.insert(range_it, active);
-
-		auto const chunk_it = ordered_chunks.begin() + dist;
-		ordered_chunks.insert(chunk_it, c);
-
-		return c;
+	chunk_iter create_new_chunk(chunk_iter it_loc, entity_range const range, entity_range const active, T* data = nullptr,
+								bool owns_data = true, bool split_data = false) noexcept {
+		return chunks.emplace(it_loc, range, active, data, owns_data, split_data);
 	}
 
 	chunk_iter create_new_chunk(chunk_iter loc, std::forward_iterator auto const& iter) noexcept {
@@ -1835,95 +1884,79 @@ private:
 		return c;
 	}
 
-	void free_chunk(chunk* c) noexcept {
-		remove_range_to_chunk(c->active);
-
-		if (c->owns_data) {
-			if (c->has_split_data && nullptr != c->next) {
+	void free_chunk_data(chunk_iter c) noexcept {
+		// Check for potential ownership transfer
+		if (c->get_owns_data()) {
+			auto next = std::next(c);
+			if (c->get_has_split_data() && chunks.end() != next) {
+				Expects(c->range == next->range);
 				// transfer ownership
-				c->next->owns_data = true;
+				next->set_owns_data(true);
 			} else {
 				if constexpr (!unbound<T>) {
-					std::destroy_n(c->data, c->active.ucount());
-					alloc.deallocate(c->data, c->range.ucount());
+					// Destroy active range
+					std::destroy_n(c->data.pointer(), c->active.ucount());
+
+					// Free entire range
+					alloc.deallocate(c->data.pointer(), c->range.ucount());
+
+					// Debug
+					c->data.clear();
 				}
 			}
 		}
-
-		std::destroy_at(c);
-		alloc_chunk.deallocate(c, 1);
 	}
 
-	constexpr void free_all_chunks() noexcept {
-		ordered_active_ranges.clear();
-		ordered_chunks.clear();
-		chunk* curr = head;
-		while (curr != nullptr) {
-			chunk* next = curr->next;
-			free_chunk(curr);
-			curr = next;
+	[[nodiscard]]
+	chunk_iter free_chunk(chunk_iter c) noexcept {
+		free_chunk_data(c);
+		return remove_range_to_chunk(c);
+	}
+
+	void free_all_chunks() noexcept {
+		if constexpr (!global<T>) {
+			auto chunk_it = chunks.begin();
+			while (chunk_it != chunks.end()) {
+				free_chunk_data(chunk_it);
+				std::advance(chunk_it, 1);
+			}
+			chunks.clear();
+			set_data_removed();
 		}
-		head = nullptr;
-		set_data_removed();
 	}
 
-	constexpr auto find_in_ordered_active_ranges(entity_range const rng) noexcept {
-		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
-	}
-	constexpr auto find_in_ordered_active_ranges(entity_range const rng) const noexcept {
-		return std::ranges::lower_bound(ordered_active_ranges, rng, std::less{});
+	auto find_in_ordered_active_ranges(entity_range const rng) const noexcept {
+		return std::ranges::lower_bound(chunks, rng, std::less{}, &chunk::active);
 	}
 
-	constexpr ptrdiff_t ranges_dist(std::vector<entity_range>::const_iterator it) const noexcept {
-		return std::distance(ordered_active_ranges.begin(), it);
+	ptrdiff_t ranges_dist(std::vector<chunk>::const_iterator it) const noexcept {
+		return std::distance(chunks.begin(), it);
 	}
 
 	// Removes a range and chunk from the map
-	constexpr void remove_range_to_chunk(entity_range const rng) noexcept {
-		auto const it = find_in_ordered_active_ranges(rng);
-		if (it != ordered_active_ranges.end() && *it == rng) {
-			auto const dist = ranges_dist(it);
-
-			ordered_active_ranges.erase(it);
-			ordered_chunks.erase(ordered_chunks.begin() + dist);
-		}
-	}
-
-	// Updates a key in the range-to-chunk map
-	constexpr void update_range_to_chunk_key(entity_range const old, entity_range const update) noexcept {
-		auto it = find_in_ordered_active_ranges(old);
-		*it = update;
+	[[nodiscard]]
+	chunk_iter remove_range_to_chunk(chunk_iter it) noexcept {
+		return chunks.erase(it);
 	}
 
 	// Flag that components has been added
-	constexpr void set_data_added() noexcept {
+	void set_data_added() noexcept {
 		components_added = true;
 	}
 
 	// Flag that components has been removed
-	constexpr void set_data_removed() noexcept {
+	void set_data_removed() noexcept {
 		components_removed = true;
 	}
 
-	// Verify the 'add*' functions precondition.
-	// An entity can not have more than one of the same component
-	constexpr bool has_duplicate_entities() const noexcept {
-		for (size_t i = 1; i < ordered_active_ranges.size(); ++i) {
-			if (ordered_active_ranges[i - 1].overlaps(ordered_active_ranges[i]))
-				return true;
-		}
-
-		return false;
-	}
-
-	constexpr static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
+	static bool is_equal(T const& lhs, T const& rhs) noexcept requires std::equality_comparable<T> {
 		return lhs == rhs;
 	}
-	constexpr static bool is_equal(T const& /*lhs*/, T const& /*rhs*/) noexcept requires tagged<T> {
+	static bool is_equal(T const& /*lhs*/, T const& /*rhs*/) noexcept requires tagged<T> {
 		// Tags are empty, so always return true
 		return true;
 	}
-	constexpr static bool is_equal(T const&, T const&) noexcept {
+	static bool is_equal(T const&, T const&) noexcept {
 		// Type can not be compared, so always return false.
 		// memcmp is a no-go because it also compares padding in types,
 		// and it is not constexpr
@@ -1931,9 +1964,7 @@ private:
 	}
 
 	template <typename Data>
-	constexpr void construct_range_in_chunk(chunk* c, entity_range range, Data const& comp_data) noexcept requires(!unbound<T>) {
-		Expects(c != nullptr);
-
+	void construct_range_in_chunk(chunk_iter c, entity_range range, Data const& comp_data) noexcept requires(!unbound<T>) {
 		// Offset into the chunks data
 		auto const ent_offset = c->range.offset(range.first());
 
@@ -1950,36 +1981,32 @@ private:
 		}
 	}
 
-	constexpr void fill_data_in_existing_chunk(chunk*& curr, chunk*& prev, entity_range r) noexcept {
+	void fill_data_in_existing_chunk(chunk_iter& curr, entity_range r) noexcept {
+		auto next = std::next(curr);
+
 		// If split chunks are encountered, skip forward to the chunk closest to r
-		if (curr->has_split_data) {
-			while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
-				prev = curr;
-				curr = curr->next;
+		if (curr->get_has_split_data()) {
+			while (chunks.end() != next && next->range.contains(r) && next->active < r) {
+				std::advance(curr, 1);
+				next = std::next(curr);
 			}
 		}
 
 		if (curr->active.adjacent(r)) {
 			// The two ranges are next to each other, so add the data to existing chunk
 			entity_range active_range = entity_range::merge(curr->active, r);
-			update_range_to_chunk_key(curr->active, active_range);
 			curr->active = active_range;
-
-			chunk* next = curr->next;
 
 			// Check to see if this chunk can be collapsed into 'prev'
 			if (chunks.begin() != curr) {
 				auto prev = std::next(curr, -1);
 				if (prev->active.adjacent(curr->active)) {
 					active_range = entity_range::merge(prev->active, curr->active);
-					remove_range_to_chunk(prev->active);
-					update_range_to_chunk_key(prev->active, active_range);
+					prev = remove_range_to_chunk(prev);
 					prev->active = active_range;
 
-					std::erase(chunks, curr);
-					curr = next;
-					if (next != chunks.end())
-						next = std::next(next);
+					curr = free_chunk(curr);
+					next = std::next(curr);
 				}
 			}
 
@@ -1987,42 +2014,29 @@ private:
 			if (chunks.end() != next) {
 				if (curr->active.adjacent(next->active)) {
 					active_range = entity_range::merge(curr->active, next->active);
-					remove_range_to_chunk(next->active);
-					update_range_to_chunk_key(curr->active, active_range);
+					next = free_chunk(next);
 
 					curr->active = active_range;
-					next = std::next(next);
 
 					// split_data is true if the next chunk is also in the current range
-					curr->has_split_data = (next != chunks.end()) && (curr->range == next->range);
-
-					free_chunk(next);
+					curr->set_has_split_data((next != chunks.end()) && (curr->range == next->range));
 				}
 			}
 		} else {
 			// There is a gap between the two ranges, so split the chunk
 			if (r < curr->active) {
-				bool const is_head_chunk = (head == curr);
-				bool const curr_owns_data = curr->owns_data;
-				curr->owns_data = false;
-				curr = create_new_chunk(curr->range, r, curr->data, curr, curr_owns_data, true);
-
-				// Update head pointer
-				if (is_head_chunk)
-					head = curr;
-
-				// Make the previous chunk point to curr
-				if (prev != nullptr)
-					prev->next = curr;
+				bool const curr_owns_data = curr->get_owns_data();
+				curr->set_owns_data(false);
+				curr = create_new_chunk(curr, curr->range, r, curr->data, curr_owns_data, true);
 			} else {
-				curr->has_split_data = true;
-				curr->next = create_new_chunk(curr->range, r, curr->data, curr->next, false, false);
+				curr->set_has_split_data(true);
+				curr = create_new_chunk(std::next(curr), curr->range, r, curr->data, false, false);
 			}
 		}
 	}
 
 	// Try to combine two ranges. With data
-	constexpr static bool combiner_bound(entity_data& a, entity_data const& b) requires(!unbound<T>) {
+	static bool combiner_bound(entity_data& a, entity_data const& b) requires(!unbound<T>) {
 		if (a.rng.adjacent(b.rng) && is_equal(a.data, b.data)) {
 			a.rng = entity_range::merge(a.rng, b.rng);
 			return true;
@@ -2032,12 +2046,9 @@ private:
 	}
 
 	// Try to combine two ranges. Without data
-	constexpr static bool combiner_unbound(entity_data& a, entity_data const& b) requires(unbound<T>) {
-		auto& [a_rng] = a;
-		auto const& [b_rng] = b;
-
-		if (a_rng.adjacent(b_rng)) {
-			a_rng = entity_range::merge(a_rng, b_rng);
+	static bool combiner_unbound(entity_data& a, entity_data const& b) requires(unbound<T>) {
+		if (a.rng.adjacent(b.rng)) {
+			a.rng = entity_range::merge(a.rng, b.rng);
 			return true;
 		} else {
 			return false;
@@ -2045,81 +2056,58 @@ private:
 	}
 
 	template <typename U>
-	constexpr void process_add_components(std::vector<U> const& vec) noexcept {
+	void process_add_components(std::vector<U> const& vec) noexcept {
 		if (vec.empty()) {
 			return;
 		}
 
 		// Do the insertions
-		chunk* prev = nullptr;
-		chunk* curr = head;
+		auto iter = vec.begin();
+		auto curr = chunks.begin();
 
-		auto it_adds = vec.begin();
-
-		// Create head chunk if needed
-		if (head == nullptr) {
-			if (it_adds != vec.end()) {
-				head = create_new_chunk(it_adds);
-				++it_adds;
-			}
-
-			curr = head;
-		}
-
-		using iterator = typename std::vector<U>::const_iterator;
-		auto const merge_data = [&](iterator const& iter) {
-			if (curr == nullptr) {
-				auto new_chunk = create_new_chunk(iter);
-				new_chunk->next = curr;
-				curr = new_chunk;
-				prev->next = curr;
+		// Fill in values
+		while (iter != vec.end()) {
+			if (chunks.empty()) {
+				curr = create_new_chunk(curr, iter);
 			} else {
 				entity_range const r = iter->rng;
 
-				// Move current chunk pointer forward
-				while (nullptr != curr->next && curr->next->range.contains(r) && curr->next->active < r) {
-					prev = curr;
-					curr = curr->next;
+				// Move current chunk iterator forward
+				auto next = std::next(curr);
+				while (chunks.end() != next && next->range < r) {
+					curr = next;
+					std::advance(next, 1);
 				}
 
 				if (curr->range.overlaps(r)) {
+					// Can not add components more than once to same entity
+					Expects(!curr->active.overlaps(r));
+
 					// Incoming range overlaps the current one, so add it into 'curr'
-					fill_data_in_existing_chunk(curr, prev, r);
+					fill_data_in_existing_chunk(curr, r);
 					if constexpr (!unbound<T>) {
 						construct_range_in_chunk(curr, r, iter->data);
 					}
 				} else if (curr->range < r) {
 					// Incoming range is larger than the current one, so add it after 'curr'
-					auto new_chunk = create_new_chunk(iter);
-					new_chunk->next = curr->next;
-					curr->next = new_chunk;
-
-					prev = curr;
-					curr = curr->next;
-
+					curr = create_new_chunk(std::next(curr), iter);
+					// std::advance(curr, 1);
 				} else if (r < curr->range) {
 					// Incoming range is less than the current one, so add it before 'curr' (after 'prev')
-					auto new_chunk = create_new_chunk(iter);
-					new_chunk->next = curr;
-					if (head == curr)
-						head = new_chunk;
-					curr = new_chunk;
-					if (prev != nullptr)
-						prev->next = curr;
+					curr = create_new_chunk(curr, iter);
 				}
 			}
-		};
 
-		// Fill in values
-		while (it_adds != vec.end()) {
-			merge_data(it_adds);
-			++it_adds;
+			std::advance(iter, 1);
 		}
 	}
 
 	// Add new queued entities and components to the main storage.
-	constexpr void process_add_components() noexcept {
+	void process_add_components() noexcept {
 		auto const adder = [this]<typename C>(std::vector<C>& vec) {
+			if (vec.empty())
+				return;
+
 			// Sort the input(s)
 			auto const comparator = [](entity_empty const& l, entity_empty const& r) {
 				return l.rng < r.rng;
@@ -2135,6 +2123,9 @@ private:
 			}
 
 			this->process_add_components(vec);
+
+			// Update the state
+			set_data_added();
 		};
 
 		deferred_adds.for_each(adder);
@@ -2145,63 +2136,45 @@ private:
 
 		deferred_gen.for_each(adder);
 		deferred_gen.reset();
-
-		// Check it
-		Expects(false == has_duplicate_entities());
-
-		// Update the state
-		set_data_added();
 	}
 
 	// Removes the entities and components
-	constexpr void process_remove_components() noexcept {
+	void process_remove_components() noexcept {
 		deferred_removes.for_each([this](std::vector<entity_range>& vec) {
+			if (vec.empty())
+				return;
+
 			// Sort the ranges to remove
 			std::sort(vec.begin(), vec.end());
+
+			// Remove the ranges
 			this->process_remove_components(vec);
+
+			// Update the state
+			set_data_removed();
 		});
 		deferred_removes.reset();
-
-		// Update the state
-		set_data_removed();
 	}
 
-	constexpr void process_remove_components(std::vector<entity_range>& removes) noexcept {
-		chunk* prev = nullptr;
-		chunk* it_chunk = head;
+	void process_remove_components(std::vector<entity_range>& removes) noexcept {
+		chunk_iter it_chunk = chunks.begin();
 		auto it_rem = removes.begin();
 
-		while (it_chunk != nullptr && it_rem != removes.end()) {
+		while (it_chunk != chunks.end() && it_rem != removes.end()) {
 			if (it_chunk->active < *it_rem) {
-				prev = it_chunk;
-				it_chunk = it_chunk->next;
+				std::advance(it_chunk, 1);
 			} else if (*it_rem < it_chunk->active) {
 				++it_rem;
 			} else {
-				if (it_chunk->active == *it_rem) {
-					// remove an entire range
-					// todo: move to a free-store?
-					chunk* next = it_chunk->next;
-
-					// Update head pointer
-					if (it_chunk == head) {
-						head = next;
-					}
-
+				//if (it_chunk->active == *it_rem) {
+				if (it_rem->contains(it_chunk->active)) {
 					// Delete the chunk and potentially its data
-					free_chunk(it_chunk);
-
-					// Update the previous chunks next pointer
-					if (nullptr != prev)
-						prev->next = next;
-
-					it_chunk = next;
+					it_chunk = free_chunk(it_chunk);
 				} else {
 					// remove partial range
 					auto const [left_range, maybe_split_range] = entity_range::remove(it_chunk->active, *it_rem);
 
 					// Update the active range
-					update_range_to_chunk_key(it_chunk->active, left_range);
 					it_chunk->active = left_range;
 
 					// Destroy the removed components
@@ -2212,20 +2185,18 @@ private:
 
 					if (maybe_split_range.has_value()) {
 						// If two ranges were returned, split this chunk
-						it_chunk->has_split_data = true;
-						it_chunk->next =
-							create_new_chunk(it_chunk->range, maybe_split_range.value(), it_chunk->data, it_chunk->next, false);
+						it_chunk->set_has_split_data(true);
+						it_chunk = create_new_chunk(std::next(it_chunk), it_chunk->range, maybe_split_range.value(), it_chunk->data, false);
+					} else {
+						std::advance(it_chunk, 1);
 					}
-
-					prev = it_chunk;
-					it_chunk = it_chunk->next;
 				}
 			}
 		}
 	}
 
 	// Removes transient components
-	constexpr void process_remove_components() noexcept requires transient<T> {
+	void process_remove_components() noexcept requires transient<T> {
 		// All transient components are removed each cycle
 		free_all_chunks();
 	}
@@ -2245,16 +2216,13 @@ template <typename, typename> class component_pool;
 // 
 template <typename ComponentsList>
 struct component_pools : type_list_indices<ComponentsList> {
-	component_pool_base* base_pools[type_list_size<ComponentsList>];
-
 	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
 		Expects((pools != nullptr) && ...);
 	}
 
 	template <typename Component>
-	requires (!std::is_reference_v<Component> && !std::is_pointer_v<Component>)
 	constexpr auto& get() const noexcept {
-		constexpr int index = index_of<Component, type_list_indices<ComponentsList>>();
+		constexpr int index = component_pools::index_of(static_cast<Component*>(nullptr));
 		return *static_cast<component_pool<Component>*>(base_pools[index]);
 	}
 
@@ -2263,11 +2231,12 @@ struct component_pools : type_list_indices<ComponentsList> {
 			return this->get<T>().has_component_count_changed();
 		});
 	}
+
+private:
+	component_pool_base* base_pools[type_list_size<ComponentsList>];
 };
 
-
 }
-
 
 #endif //!ECS_DETAIL_COMPONENT_POOLS_H
 #ifndef ECS_SYSTEM_DEFS_H_
@@ -2444,7 +2413,7 @@ namespace ecs::detail {
 	template <typename Pools> struct pool_entity_walker;
 	template <typename Pools> struct pool_range_walker;
 
-	template<int Size>
+	template<std::size_t Size>
 	struct void_ptr_storage {
 		void* te_ptrs[Size];
 	};
@@ -2470,14 +2439,14 @@ struct parent : entity_id,
 	template <typename T>
 	[[nodiscard]] T& get() const {
 		static_assert((std::is_same_v<T, ParentTypes> || ...), "T is not specified in the parent component");
-		return *static_cast<T*>(this->te_ptrs[detail::index_of<T, indexer>()]);
+		return *static_cast<T*>(this->te_ptrs[detail::index_of<T, parent_type_list>()]);
 	}
 
 	// used internally by detectors
 	struct _ecs_parent {};
 
 private:
-	using indexer = detail::impl::type_list_index<0, ParentTypes...>;
+	using parent_type_list = detail::type_list<ParentTypes...>;
 
 	template <typename Component>
 	friend decltype(auto) detail::extract_arg_lambda(auto& cmp, ptrdiff_t offset, auto pools);
@@ -2488,7 +2457,7 @@ private:
 	parent(entity_id id, ParentTypes*... pt)
 		requires(sizeof...(ParentTypes) > 0)
 		: entity_id(id) {
-		((this->te_ptrs[detail::index_of<ParentTypes, indexer>()] = static_cast<void*>(pt)), ...);
+		((this->te_ptrs[detail::index_of<ParentTypes, parent_type_list>()] = static_cast<void*>(pt)), ...);
 	}
 };
 } // namespace ecs
@@ -3077,6 +3046,45 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_ENTITY_RANGE
+#ifndef ECS_DETAIL_STRIDE_VIEW_H
+#define ECS_DETAIL_STRIDE_VIEW_H
+
+
+namespace ecs::detail {
+
+// 
+template <std::size_t Stride, typename T>
+class stride_view {
+	char const* first{nullptr};
+	char const* curr{nullptr};
+	char const* last{nullptr};
+
+public:
+	stride_view() noexcept = default;
+	stride_view(T const* first_, std::size_t count_) noexcept
+		: first{reinterpret_cast<char const*>(first_)}
+		, curr {reinterpret_cast<char const*>(first_)}
+		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
+		Expects(first_ != nullptr);
+	}
+
+	T const* current() const noexcept {
+		return reinterpret_cast<T const*>(curr);
+	}
+
+	bool done() const noexcept {
+		return (first==nullptr) || (curr >= last);
+	}
+
+	void next() noexcept {
+		if (!done())
+			curr += Stride;
+	}
+};
+
+}
+
+#endif //!ECS_DETAIL_STRIDE_VIEW_H
 #ifndef ECS_FIND_ENTITY_POOL_INTERSECTIONS_H
 #define ECS_FIND_ENTITY_POOL_INTERSECTIONS_H
 
@@ -3138,25 +3146,22 @@ std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools
 	return ranges;
 }
 
-template <typename ComponentList, typename TuplePools>
-auto get_pool_iterators(TuplePools pools) {
-	using iter = iter_pair<entity_range_view::iterator>;
-
-	return for_all_types<ComponentList>([&]<typename... Components>() {
-		return std::array<iter, sizeof...(Components)>{
-			iter{get_pool<Components>(pools).get_entities().begin(),
-				 get_pool<Components>(pools).get_entities().end()}...};
-	});
+template <typename ComponentList, typename Pools>
+auto get_pool_iterators([[maybe_unused]] Pools pools) {
+	if constexpr (type_list_size<ComponentList> > 0) {
+		return for_all_types<ComponentList>([&]<typename... Components>() {
+			return std::to_array({get_pool<Components>(pools).get_entities()...});
+		});
+	} else {
+		return std::array<stride_view<0,char const>, 0>{};
+	}
 }
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <typename ComponentList, typename TuplePools, typename F>
-void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
+template <typename ComponentList, typename Pools, typename F>
+void find_entity_pool_intersections_cb(Pools pools, F callback) {
 	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
-
-	// The type of iterators used
-	using iter = iter_pair<entity_range_view::iterator>;
 
 	// Split the type_list into filters and non-filters (regular components)
 	using SplitPairList = split_types_if<ComponentList, std::is_pointer>;
@@ -3165,50 +3170,50 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 
 	// Sort the filters
 	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
-		return *a.curr < *b.curr;
+		return *a.current() < *b.current();
 	});
 
 	// helper lambda to test if an iterator has reached its end
 	auto const done = [](auto it) {
-		return it.curr == it.end;
+		return it.done();
 	};
 
 	while (!std::any_of(iter_components.begin(), iter_components.end(), done)) {
 		// Get the starting range to test other ranges against
-		entity_range curr_range = *iter_components[0].curr;
+		entity_range curr_range = *iter_components[0].current();
 
 		// Find all intersections
 		if constexpr (type_list_size<typename SplitPairList::second> == 1) {
-			iter_components[0].curr += 1;
+			iter_components[0].next();
 		} else {
 			bool intersection_found = false;
 			for (size_t i = 1; i < iter_components.size(); ++i) {
 				auto& it_a = iter_components[i - 1];
 				auto& it_b = iter_components[i];
 
-				if (curr_range.overlaps(*it_b.curr)) {
-					curr_range = entity_range::intersect(curr_range, *it_b.curr);
+				if (curr_range.overlaps(*it_b.current())) {
+					curr_range = entity_range::intersect(curr_range, *it_b.current());
 					intersection_found = true;
 				}
 
-				if (it_a.curr->last() < it_b.curr->last()) {
+				if (it_a.current()->last() < it_b.current()->last()) {
 					// range a is inside range b, move to
 					// the next range in a
-					++it_a.curr;
-					if (done(it_a))
+					it_a.next();
+					if (it_a.done())
 						break;
 
-				} else if (it_b.curr->last() < it_a.curr->last()) {
+				} else if (it_b.current()->last() < it_a.current()->last()) {
 					// range b is inside range a,
 					// move to the next range in b
-					++it_b.curr;
+					it_b.next();
 				} else {
 					// ranges are equal, move to next ones
-					++it_a.curr;
-					if (done(it_a))
+					it_a.next();
+					if (it_a.done())
 						break;
 
-					++it_b.curr;
+					it_b.next();
 				}
 			}
 
@@ -3219,23 +3224,23 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 		// Filter the range, if needed
 		if constexpr (type_list_size<typename SplitPairList::first> > 0) {
 			bool completely_filtered = false;
-			for (iter& it : iter_filters) {
+			for (auto& it : iter_filters) {
 				while(!done(it)) {
-					if (it.curr->contains(curr_range)) {
+					if (it.current()->contains(curr_range)) {
 						// 'curr_range' is contained entirely in filter range,
 						// which means that it will not be sent to the callback
 						completely_filtered = true;
 						break;
-					} else if (curr_range < *it.curr) {
+					} else if (curr_range < *it.current()) {
 						// The whole 'curr_range' is before the filter, so don't touch it
 						break;
-					} else if (*it.curr < curr_range) {
+					} else if (*it.current() < curr_range) {
 						// The filter precedes the range, so advance it and restart
-						it.curr++;
+						it.next();
 						continue;
 					} else {
 						// The two ranges overlap
-						auto const res = entity_range::remove(curr_range, *it.curr);
+						auto const res = entity_range::remove(curr_range, *it.current());
 
 						if (res.second) {
 							// 'curr_range' was split in two by the filter.
@@ -3244,14 +3249,14 @@ void find_entity_pool_intersections_cb(TuplePools pools, F callback) {
 							callback(res.first);
 							curr_range = *res.second;
 
-							it.curr++;
+							it.next();
 						} else {
 							// The result is an endpiece, so update the current range.
 							// The next filter might remove more from 'curr_range'
 							curr_range = res.first;
 
-							if (curr_range.first() >= it.curr->first()) {
-								++it.curr;
+							if (curr_range.first() >= it.current()->first()) {
+								it.next();
 							}
 						}
 					}
@@ -3577,7 +3582,7 @@ private:
 	template <typename... Ts>
 	static auto make_argument(entity_range range, auto... args) {
 		return [=](auto update_func, entity_offset offset) {
-			entity_id const ent = range.first() + offset;
+			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 			} else {
@@ -3646,17 +3651,17 @@ private:
 
 		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				lambda_arguments.emplace_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
+				lambda_arguments.push_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
 			});
 		});
 	}
 
 	template <typename... Ts>
-	static auto make_argument(entity_range range, auto... args) {
-		return [=](auto update_func) {
+	static auto make_argument(entity_range const range, auto... args) {
+		return [=](auto update_func) noexcept {
 			auto constexpr e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::for_each(e_p, range.begin(), range.end(), [=, first_id = range.first()](entity_id ent) mutable {
-				auto const offset = ent - first_id;
+			std::for_each(e_p, range.begin(), range.end(), [=](entity_id const ent) mutable noexcept {
+				auto const offset = ent - range.first();
 
 				if constexpr (FirstIsEntity) {
 					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
@@ -3683,22 +3688,21 @@ private:
 #define ECS_SYSTEM_HIERARCHY_H_
 
 
-
 namespace ecs::detail {
-template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
-class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
+class system_hierarchy final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
+	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
 
 	// Is parallel execution wanted
 	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
 
 	struct location {
-		int index;
+		std::uint32_t index;
 		entity_offset offset;
 		auto operator<=>(location const&) const = default;
 	};
 	struct entity_info {
-		int parent_count;
+		std::uint32_t parent_count;
 		entity_type root_id;
 		location l;
 
@@ -3709,8 +3713,7 @@ class system_hierarchy final : public system<Options, UpdateFn, TupPools, FirstI
 	};
 
 public:
-	system_hierarchy(UpdateFn func, TupPools in_pools)
-		: base{func, in_pools}, parent_pools{make_parent_types_tuple()} {
+	system_hierarchy(UpdateFn func, Pools in_pools) : base{func, in_pools} {
 		pool_parent_id = &detail::get_pool<parent_id>(this->pools);
 		this->process_changes(true);
 	}
@@ -3735,8 +3738,8 @@ private:
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
-		std::vector<entity_range> ranges;
-		std::vector<entity_range> ents_to_remove;
+		ranges.clear();
+		ents_to_remove.clear();
 
 		// Find the entities
 		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [&](entity_range range) {
@@ -3746,13 +3749,13 @@ private:
 			parent_id const* pid_ptr = pool_parent_id->find_component_data(range.first());
 
 			// the ranges to remove
-			for_each_type<parent_component_list>([this, pid_ptr, range, &ents_to_remove]<typename T>() {
+			for_each_type<parent_component_list>([&]<typename T>() {
 				// Get the pool of the parent sub-component
 				using X = std::remove_pointer_t<T>;
 				component_pool<X> const& sub_pool = this->pools.template get<X>();
 
 				for (size_t pid_index = 0; entity_id const ent : range) {
-					parent_id const pid = pid_ptr[pid_index/*range.offset(ent)*/];
+					parent_id const pid = pid_ptr[pid_index];
 					pid_index += 1;
 
 					// Does tests on the parent sub-components to see they satisfy the constraints
@@ -3782,7 +3785,7 @@ private:
 
 		// Build the arguments for the ranges
 		for_all_types<ComponentsList>([&]<typename... T>() {
-			for (int index = 0; entity_range const range : ranges) {
+			for (unsigned index = 0; entity_range const range : ranges) {
 				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
 
 				for (entity_id const id : range) {
@@ -3802,7 +3805,7 @@ private:
 		if (it != infos.begin()) {
 			// data needed by the partition lambda
 			auto prev_it = infos.begin();
-			int hierarchy_level = 1;
+			unsigned hierarchy_level = 1;
 
 			// The lambda used to partion non-root entities
 			const auto parter = [&](entity_info& info) {
@@ -3848,11 +3851,10 @@ private:
 		if constexpr (is_parallel) {
 			// Create the spans
 			auto current_root = infos.front().root_id;
-			unsigned count = 0;
+			unsigned count = 1;
 			unsigned offset = 0;
-			size_t i = 0;
-
-			for (; i < infos.size(); i++) {
+			
+			for (size_t i = 1; i < infos.size(); i++) {
 				entity_info const& info = infos[i];
 				if (current_root != info.root_id) {
 					info_spans.push_back({offset, count});
@@ -3873,7 +3875,7 @@ private:
 	template <typename... Ts>
 	static auto make_argument(entity_range range, auto... args) noexcept {
 		return [=](auto update_func, entity_offset offset, auto& pools) mutable {
-			entity_id const ent = range.first() + offset;
+			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
 			} else {
@@ -3914,11 +3916,11 @@ private:
 	// Only used for parallel execution
 	std::vector<hierarchy_span> info_spans;
 
+	std::vector<entity_range> ranges;
+	std::vector<entity_range> ents_to_remove;
+
 	// The pool that holds 'parent_id's
 	component_pool<parent_id> const* pool_parent_id;
-
-	// A tuple of the fully typed component pools used the parent component
-	parent_pool_tuple_t<stripped_parent_type> const parent_pools;
 };
 } // namespace ecs::detail
 
@@ -4147,7 +4149,7 @@ class context final {
 	// The values that make up the ecs core.
 	std::vector<std::unique_ptr<system_base>> systems;
 	std::vector<std::unique_ptr<component_pool_base>> component_pools;
-	std::map<type_hash, component_pool_base*> type_pool_lookup;
+	std::map<type_hash, component_pool_base*> type_pool_lookup; // TODO vector
 	tls::split<tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>> type_caches;
 	scheduler sched;
 
@@ -4165,7 +4167,7 @@ public:
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
-		auto constexpr process_changes = [](auto const& inst) {
+		static constexpr auto process_changes = [](auto const& inst) {
 			inst->process_changes();
 		};
 
@@ -4196,7 +4198,7 @@ public:
 		// Prevent other threads from registering new component types
 		std::shared_lock component_pool_lock(component_pool_mutex);
 
-		constexpr auto hash = get_type_hash<T>();
+		static constexpr auto hash = get_type_hash<T>();
 		return type_pool_lookup.contains(hash);
 	}
 
@@ -4225,7 +4227,7 @@ public:
 
 		auto& cache = type_caches.local();
 
-		constexpr auto hash = get_type_hash<T>();
+		static constexpr auto hash = get_type_hash<T>();
 		auto pool = cache.get_or(hash, [this](type_hash _hash) {
 			// A new pool might be created, so take a unique lock
 			std::unique_lock component_pool_lock(component_pool_mutex);
@@ -4309,7 +4311,7 @@ private:
 			Ensures(ptr_system != nullptr);
 
 			// -vv-  msvc shenanigans
-			[[maybe_unused]] bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
+			[[maybe_unused]] static bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
 			if constexpr (!request_manual_update) {
 				sched.insert(ptr_system);
 			} else {
@@ -4346,7 +4348,7 @@ private:
 	component_pool_base* create_component_pool() {
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
-		constexpr auto hash = get_type_hash<T>();
+		static constexpr auto hash = get_type_hash<T>();
 		type_pool_lookup.emplace(hash, pool.get());
 		component_pools.push_back(std::move(pool));
 		return component_pools.back().get();
@@ -4488,9 +4490,6 @@ public:
 	// Returns the number of active components for a specific type of components
 	template <typename T>
 	ptrdiff_t get_component_count() {
-		if (!ctx.has_component_pool<T>())
-			return 0;
-
 		// Get the component pool
 		detail::component_pool<T> const& pool = ctx.get_component_pool<T>();
 		return pool.num_components();
@@ -4499,9 +4498,6 @@ public:
 	// Returns the number of entities that has the component.
 	template <typename T>
 	ptrdiff_t get_entity_count() {
-		if (!ctx.has_component_pool<T>())
-			return 0;
-
 		// Get the component pool
 		detail::component_pool<T> const& pool = ctx.get_component_pool<T>();
 		return pool.num_entities();
@@ -4510,9 +4506,6 @@ public:
 	// Return true if an entity contains the component
 	template <typename T>
 	bool has_component(entity_id const id) {
-		if (!ctx.has_component_pool<T>())
-			return false;
-
 		detail::component_pool<T> const& pool = ctx.get_component_pool<T>();
 		return pool.has_entity(id);
 	}
@@ -4520,9 +4513,6 @@ public:
 	// Returns true if all entities in a range has the component.
 	template <typename T>
 	bool has_component(entity_range const range) {
-		if (!ctx.has_component_pool<T>())
-			return false;
-
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
 		return pool.has_entity(range);
 	}
