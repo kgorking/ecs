@@ -436,7 +436,7 @@ rt.commit_changes(); // adds the 100 damage components
 rt.commit_changes(); // removes the 100 damage components
 ```
 
-### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ETjKzbE7o)
+### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/4Y9zsMPe1)
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
