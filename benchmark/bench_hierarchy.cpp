@@ -1,9 +1,8 @@
 // Benchmarks for hierarchy construction and execution
 
+#include <ecs/ecs.h>
 #include "gbench/include/benchmark/benchmark.h"
 #include "global.h"
-#include <ecs/ecs.h>
-#include <random>
 
 // A wrapper for the standard benchmark that forces a hierarchy to built
 static void hierarch_lambda(ecs::entity_id id, int& i, ecs::parent<int> const& p) {
