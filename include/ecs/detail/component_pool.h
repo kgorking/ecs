@@ -19,10 +19,6 @@
 
 namespace ecs::detail {
 
-#ifdef _MSC_VER
-	#define no_unique_address msvc::no_unique_address
-#endif
-
 template <typename ForwardIt, typename BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
 	if (first == last)
@@ -144,12 +140,19 @@ private:
 	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
+#ifdef _MSC_VER
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	[[msvc::no_unique_address]] Alloc alloc;
+#else
 	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	[[no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
 	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-
 	[[no_unique_address]] Alloc alloc;
+#endif
 
 public:
 	component_pool() noexcept {
