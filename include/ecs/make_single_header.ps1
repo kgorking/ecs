@@ -20,6 +20,8 @@ $files = (
 	'flags.h',
 	'detail/stride_view.h',
 	'detail/flags.h',
+	'detail/tagged_pointer.h',
+	'detail/stride_view.h',
 	'detail/component_pool_base.h',
 	'detail/component_pool.h',
 	'detail/component_pools.h',
@@ -45,7 +47,7 @@ $files = (
 
 # Write all system includes
 '// Auto-generated single-header include file
-#if 0 //defined(__has_cpp_attribute) && __has_cpp_attribute(__cpp_lib_modules)
+#if defined(ECS_USE_MODULES)
 import std;
 #else
 #include <algorithm>

@@ -1,5 +1,5 @@
 ﻿// Auto-generated single-header include file
-#if 0 //defined(__has_cpp_attribute) && __has_cpp_attribute(__cpp_lib_modules)
+#if defined(ECS_USE_MODULES)
 import std;
 #else
 #include <algorithm>
@@ -882,8 +882,8 @@ consteval auto get_type_hashes_array() {
 namespace ecs::detail {
 
 // 1-bit tagged pointer
-// Note: tags are considered seperate from the pointer, and is
-// therfore not reset when a new pointer is set
+// Note: tags are considered separate from the pointer, and is
+// therefore not reset when a new pointer is set
 template <typename T>
 struct tagged_pointer {
 	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
@@ -1516,6 +1516,157 @@ concept unbound = (tagged<T> || global<T>); // component is not bound to a speci
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_FLAGS_H
+#ifndef ECS_DETAIL_TAGGED_POINTER_H
+#define ECS_DETAIL_TAGGED_POINTER_H
+
+
+namespace ecs::detail {
+
+// 1-bit tagged pointer
+// Note: tags are considered separate from the pointer, and is
+// therefore not reset when a new pointer is set
+template <typename T>
+struct tagged_pointer {
+	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
+		Expects((ptr & TagMask) == 0);
+	}
+
+	tagged_pointer() noexcept = default;
+	tagged_pointer(tagged_pointer const&) noexcept = default;
+	tagged_pointer(tagged_pointer&&) noexcept = default;
+	tagged_pointer& operator=(tagged_pointer const&) noexcept = default;
+	tagged_pointer& operator=(tagged_pointer&&) noexcept = default;
+
+	tagged_pointer& operator=(T* in) noexcept {
+		auto const set = ptr & TagMask;
+		ptr = set | reinterpret_cast<uintptr_t>(in);
+		return *this;
+	}
+
+	void clear() noexcept {
+		ptr = 0;
+	}
+	void clear_bits() noexcept {
+		ptr = ptr & PointerMask;
+	}
+	int get_tag() const noexcept {
+		return ptr & TagMask;
+	}
+	void set_tag(int tag) noexcept {
+		Expects(tag >= 0 && tag <= static_cast<int>(TagMask));
+		ptr = (ptr & PointerMask) | static_cast<uintptr_t>(tag);
+	}
+
+	bool test_bit1() const noexcept
+		requires(sizeof(void*) >= 2) {
+		return ptr & static_cast<uintptr_t>(0b001);
+	}
+	bool test_bit2() const noexcept
+		requires(sizeof(void*) >= 4) {
+		return ptr & static_cast<uintptr_t>(0b010);
+	}
+	bool test_bit3() const noexcept
+		requires(sizeof(void*) >= 8) {
+		return ptr & static_cast<uintptr_t>(0b100);
+	}
+
+	void set_bit1() noexcept
+		requires(sizeof(void*) >= 2) {
+		ptr |= static_cast<uintptr_t>(0b001);
+	}
+	void set_bit2() noexcept
+		requires(sizeof(void*) >= 4) {
+		ptr |= static_cast<uintptr_t>(0b010);
+	}
+	void set_bit3() noexcept
+		requires(sizeof(void*) >= 8) {
+		ptr |= static_cast<uintptr_t>(0b100);
+	}
+
+	void clear_bit1() noexcept
+		requires(sizeof(void*) >= 2) {
+		ptr = ptr & ~static_cast<uintptr_t>(0b001);
+	}
+	void clear_bit2() noexcept
+		requires(sizeof(void*) >= 4) {
+		ptr = ptr & ~static_cast<uintptr_t>(0b010);
+	}
+	void clear_bit3() noexcept
+		requires(sizeof(void*) >= 8) {
+		ptr = ptr & ~static_cast<uintptr_t>(0b100);
+	}
+
+	T* pointer() noexcept {
+		return reinterpret_cast<T*>(ptr & PointerMask);
+	}
+	T const* pointer() const noexcept {
+		return reinterpret_cast<T*>(ptr & PointerMask);
+	}
+
+	T* operator->() noexcept {
+		return pointer();
+	}
+	T const* operator->() const noexcept {
+		return pointer();
+	}
+
+	operator T*() noexcept {
+		return pointer();
+	}
+	operator T const *() const noexcept {
+		return pointer();
+	}
+
+private:
+	//constexpr static uintptr_t TagMask = 0b111;
+	constexpr static uintptr_t TagMask = sizeof(void*) - 1;
+	constexpr static uintptr_t PointerMask = ~TagMask;
+
+	uintptr_t ptr;
+};
+
+} // namespace ecs::detail
+
+#endif // ECS_DETAIL_TAGGED_POINTER_H
+#ifndef ECS_DETAIL_STRIDE_VIEW_H
+#define ECS_DETAIL_STRIDE_VIEW_H
+
+
+namespace ecs::detail {
+
+// 
+template <std::size_t Stride, typename T>
+class stride_view {
+	char const* first{nullptr};
+	char const* curr{nullptr};
+	char const* last{nullptr};
+
+public:
+	stride_view() noexcept = default;
+	stride_view(T const* first_, std::size_t count_) noexcept
+		: first{reinterpret_cast<char const*>(first_)}
+		, curr {reinterpret_cast<char const*>(first_)}
+		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
+		Expects(first_ != nullptr);
+	}
+
+	T const* current() const noexcept {
+		return reinterpret_cast<T const*>(curr);
+	}
+
+	bool done() const noexcept {
+		return (first==nullptr) || (curr >= last);
+	}
+
+	void next() noexcept {
+		if (!done())
+			curr += Stride;
+	}
+};
+
+}
+
+#endif //!ECS_DETAIL_STRIDE_VIEW_H
 #ifndef ECS_COMPONENT_POOL_BASE
 #define ECS_COMPONENT_POOL_BASE
 
@@ -1545,10 +1696,6 @@ public:
 
 
 namespace ecs::detail {
-
-#ifdef _MSC_VER
-	#define no_unique_address msvc::no_unique_address
-#endif
 
 template <typename ForwardIt, typename BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
@@ -1671,12 +1818,19 @@ private:
 	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
+#ifdef _MSC_VER
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
+	[[msvc::no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	[[msvc::no_unique_address]] Alloc alloc;
+#else
 	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
 	[[no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
 	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-
 	[[no_unique_address]] Alloc alloc;
+#endif
 
 public:
 	component_pool() noexcept {
@@ -4453,6 +4607,19 @@ public:
 	template <typename T>
 	void remove_component(entity_id const id, T const& = T{}) {
 		remove_component<T>({id, id});
+	}
+
+	template <typename TRemove, typename TAdd>
+	void replace_component(entity_id const id, TRemove const& rem, TAdd&& val) {
+		replace_component({id, id}, rem, std::forward<TAdd>(val));
+	}
+
+	// Replace a component with another in a range of entities.
+	// Shorthand helper for a remove/add call
+	template <typename TRemove, typename TAdd>
+	void replace_component(entity_range const range, TRemove const&, TAdd&& val) {
+		remove_component<TRemove>(range);
+		add_component(range, std::forward<TAdd>(val));
 	}
 
 	// Returns a global component.

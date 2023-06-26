@@ -267,3 +267,4 @@ __pycache__/
 /benchmark/starbench_input.tar.gz
 /benchmark/starbench.tar.gz
 /benchmark/starbench
+/docs/cpumemory.pdf
