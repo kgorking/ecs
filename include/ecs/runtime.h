@@ -105,6 +105,19 @@ public:
 		remove_component<T>({id, id});
 	}
 
+	template <typename TRemove, typename TAdd>
+	void replace_component(entity_id const id, TRemove const& rem, TAdd&& val) {
+		replace_component({id, id}, rem, std::forward<TAdd>(val));
+	}
+
+	// Replace a component with another in a range of entities.
+	// Shorthand helper for a remove/add call
+	template <typename TRemove, typename TAdd>
+	void replace_component(entity_range const range, TRemove const&, TAdd&& val) {
+		remove_component<TRemove>(range);
+		add_component(range, std::forward<TAdd>(val));
+	}
+
 	// Returns a global component.
 	template <detail::global T>
 	T& get_global_component() {
