@@ -8,8 +8,8 @@
 namespace ecs::detail {
 
 // 1-bit tagged pointer
-// Note: tags are considered seperate from the pointer, and is
-// therfore not reset when a new pointer is set
+// Note: tags are considered separate from the pointer, and is
+// therefore not reset when a new pointer is set
 template <typename T>
 struct tagged_pointer {
 	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
