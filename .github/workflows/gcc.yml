@@ -17,10 +17,10 @@ jobs:
         submodules: true # recursive
 
     - name: Test for Ninja
-      continue-on-error: true
       run: /usr/bin/ninja --version
 
     - name: Install Ninja
+      continue-on-error: true
       if: ${{ failure() }}
       shell: bash
       run: |
