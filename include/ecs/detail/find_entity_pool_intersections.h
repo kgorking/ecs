@@ -80,10 +80,15 @@ template <typename ComponentList, typename Pools, typename F>
 void find_entity_pool_intersections_cb(Pools pools, F callback) {
 	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
 
-	// Split the type_list into filters and non-filters (regular components)
+	// Split the type_list into filters and non-filters (regular components).
 	using SplitPairList = split_types_if<ComponentList, std::is_pointer>;
 	auto iter_filters = get_pool_iterators<typename SplitPairList::first>(pools);
-	auto iter_components = get_pool_iterators<typename SplitPairList::second>(pools);
+
+	// Split components into local/global.
+	// Global components are available for all entities,
+	// so don't bother wasting cycles on testing them.
+	using SplitLocalGlobal = split_types_if<typename SplitPairList::second, detail::is_local>;
+	auto iter_components = get_pool_iterators<typename SplitLocalGlobal::first>(pools);
 
 	// Sort the filters
 	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
@@ -100,7 +105,7 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 		entity_range curr_range = *iter_components[0].current();
 
 		// Find all intersections
-		if constexpr (type_list_size<typename SplitPairList::second> == 1) {
+		if constexpr (type_list_size<typename SplitLocalGlobal::first> == 1) {
 			iter_components[0].next();
 		} else {
 			bool intersection_found = false;
@@ -169,9 +174,10 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 							it.next();
 						} else {
 							// The result is an endpiece, so update the current range.
-							// The next filter might remove more from 'curr_range'
 							curr_range = res.first;
 
+							// The next filter might remove more from 'curr_range', so don't just
+							// skip past it without checking
 							if (curr_range.first() >= it.current()->first()) {
 								it.next();
 							}
