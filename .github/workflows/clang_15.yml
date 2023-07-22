@@ -3,10 +3,25 @@ name: clang-15
 on: [push]
 
 jobs:
+  sometest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Checkout submodules
+      run: git submodule update --init --recursive --remote
+      
+    - name: Install packages
+      shell: bash
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt-get install ninja-build clang-${{ matrix.version }} clang++-${{ matrix.version }} llvm-${{ matrix.version }}-dev libstdc++6 libstdc++-13-dev
+
   build:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         version: [13, 14, 15]
 
