@@ -1,9 +1,9 @@
-#ifndef ECS_CONTEXT
-#define ECS_CONTEXT
+#ifndef ECS_CONTEXT_H
+#define ECS_CONTEXT_H
 
 #include <map>
 #include <memory>
-#include <mutex>
+//#include <mutex>
 #include <shared_mutex>
 #include <vector>
 #include <execution>
@@ -21,20 +21,27 @@
 #include "type_hash.h"
 #include "type_list.h"
 
+
 namespace ecs::detail {
 // The central class of the ecs implementation. Maintains the state of the system.
 class context final {
 	// The values that make up the ecs core.
 	std::vector<std::unique_ptr<system_base>> systems;
 	std::vector<std::unique_ptr<component_pool_base>> component_pools;
-	std::map<type_hash, component_pool_base*> type_pool_lookup; // TODO vector
-	tls::split<tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>> type_caches;
+	std::vector<type_hash> pool_type_hash;
 	scheduler sched;
 
-	mutable std::shared_mutex system_mutex;
-	mutable std::shared_mutex component_pool_mutex;
+	std::shared_mutex system_mutex;
+	std::shared_mutex component_pool_mutex;
+
+	using cache_type = tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>;
+	tls::split<cache_type> type_caches;
 
 public:
+	~context() {
+		reset();
+	}
+
 	// Commits the changes to the entities.
 	void commit_changes() {
 		// Prevent other threads from
@@ -77,7 +84,7 @@ public:
 		std::shared_lock component_pool_lock(component_pool_mutex);
 
 		static constexpr auto hash = get_type_hash<T>();
-		return type_pool_lookup.contains(hash);
+		return std::ranges::find(pool_type_hash, hash) != pool_type_hash.end();
 	}
 
 	// Resets the runtime state. Removes all systems, empties component pools
@@ -88,9 +95,9 @@ public:
 
 		systems.clear();
 		sched.clear();
-		type_pool_lookup.clear();
+		pool_type_hash.clear();
 		component_pools.clear();
-		type_caches.reset();
+		type_caches.clear();
 	}
 
 	// Returns a reference to a components pool.
@@ -111,12 +118,12 @@ public:
 			std::unique_lock component_pool_lock(component_pool_mutex);
 
 			// Look in the pool for the type
-			auto const it = type_pool_lookup.find(_hash);
-			if (it == type_pool_lookup.end()) {
+			auto const it = std::ranges::find(pool_type_hash, _hash);
+			if (it == pool_type_hash.end()) {
 				// The pool wasn't found so create it.
 				return create_component_pool<T>();
 			} else {
-				return it->second;
+				return component_pools[std::distance(pool_type_hash.begin(), it)].get();
 			}
 		});
 
@@ -227,11 +234,11 @@ private:
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
 		static constexpr auto hash = get_type_hash<T>();
-		type_pool_lookup.emplace(hash, pool.get());
+		pool_type_hash.push_back(hash);
 		component_pools.push_back(std::move(pool));
 		return component_pools.back().get();
 	}
 };
 } // namespace ecs::detail
 
-#endif // !ECS_CONTEXT
+#endif // !ECS_CONTEXT_H
