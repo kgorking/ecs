@@ -1,27 +1,25 @@
-name: msvc 2022
+name: MSVC
 
-# on: [push] # ICE
+on: [push]
 
 jobs:
   build:
-    #name: "Windows - MSVC"
     runs-on: windows-2022
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      with:
+        submodules: true # recursive
 
-    - name: Download Ninja
-      shell: cmake -P {0}
-      run: |
-        set(ninja_version "1.11.1")
-        
-        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-win.zip")
-        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
+#    - name: Download Ninja
+#      shell: cmake -P {0}
+#      run: |
+#        set(ninja_version "1.11.1")
+#        
+#        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-win.zip")
+#        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
+#        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
 
-    - name: Checkout submodules
-      run: git submodule update --init --recursive --remote
-      
     - name: Configure
       shell: cmake -P {0}
       run: |

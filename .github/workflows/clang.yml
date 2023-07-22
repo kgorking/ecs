@@ -16,11 +16,14 @@ jobs:
       with:
         submodules: true # recursive
 
-    - name: Install packages
-      shell: bash
+    - name: Install Ninja
+      run: /usr/bin/ninja --version || sudo apt-get install ninja-build
+
+    - name: Install compiler
+      if: ${{ matrix.version >= 15 }}
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get install ninja-build clang-${{ matrix.version }} clang++-${{ matrix.version }} llvm-${{ matrix.version }}-dev libstdc++6 libstdc++-13-dev
+        sudo apt-get install clang-${{ matrix.version }} clang++-${{ matrix.version }} llvm-${{ matrix.version }}-dev libstdc++6 libstdc++-13-dev
 
     - name: Configure
       shell: cmake -P {0}

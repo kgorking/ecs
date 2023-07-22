@@ -21,7 +21,6 @@ jobs:
 
     - name: Install compiler
       if: ${{ matrix.version >= 13 }}
-      shell: bash
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt-get install gcc-${{ matrix.version }} g++-${{ matrix.version }}
