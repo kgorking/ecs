@@ -44,7 +44,7 @@ TEST_CASE("tagged_pointer spec") {
 	SECTION("removing tags does not alter the pointer") {
 		int64_t const i = 44;
 		int64_t const* i_ptr = &i;
-		tagged_pointer tp(i_ptr);
+		tagged_pointer<int64_t const> tp(i_ptr);
 
 		tp.set_bit3();
 		REQUIRE(tp.test_bit3());

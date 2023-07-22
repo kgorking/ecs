@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <utility>
 
 #include "tls/collect.h"
 
@@ -444,7 +445,7 @@ private:
 		return std::ranges::lower_bound(chunks, rng, std::less{}, &chunk::active);
 	}
 
-	ptrdiff_t ranges_dist(std::vector<chunk>::const_iterator it) const noexcept {
+	ptrdiff_t ranges_dist(typename std::vector<chunk>::const_iterator it) const noexcept {
 		return std::distance(chunks.begin(), it);
 	}
 
