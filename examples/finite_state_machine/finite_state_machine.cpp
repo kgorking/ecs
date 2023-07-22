@@ -27,16 +27,16 @@ struct ev_disconnect_t {
 };
 
 // Add the systems that handle state/event interactions
-void add_systems(ecs::runtime &rt) {
+void add_systems(ecs::runtime& rt) {
 
 	// state_idle + ev_connect_t -> state_connecting (1)
-	rt.make_system([&](ecs::entity_id fsm, state_idle const &idle, ev_connect_t const & /*ev*/) {
+	rt.make_system([&](ecs::entity_id fsm, state_idle const& idle, ev_connect_t const& /*ev*/) {
 		std::cout << "ev_connect_t: state_idle -> state_connecting\n";
 		rt.replace_component(fsm, idle, state_connecting{});
 	});
 
 	// state_connecting + ev_timeout_t [-> state_idle] (2)
-	rt.make_system([&](ecs::entity_id fsm, state_connecting &connecting, ev_timeout_t const & /*ev*/) {
+	rt.make_system([&](ecs::entity_id fsm, state_connecting& connecting, ev_timeout_t const& /*ev*/) {
 		std::cout << "ev_timeout_t: ";
 		if (++connecting.n >= state_connecting::max_n) {
 			std::cout << "state_connecting -> state_idle\n";
@@ -47,19 +47,20 @@ void add_systems(ecs::runtime &rt) {
 	});
 
 	// state_connecting + ev_connected_t -> state_connected (3)
-	rt.make_system([&](ecs::entity_id fsm, state_connecting const &connecting, ev_connected_t const & /*ev*/) {
+	rt.make_system([&](ecs::entity_id fsm, state_connecting const& connecting, ev_connected_t const& /*ev*/) {
 		std::cout << "ev_connected_t: state_connecting -> state_connected\n";
 		rt.replace_component(fsm, connecting, state_connected{});
 	});
 
 	// state_connected + ev_disconnect_t -> state_idle (4)
-	rt.make_system([&](ecs::entity_id fsm, state_connected const &connected, ev_disconnect_t const & /*ev*/) {
+	rt.make_system([&](ecs::entity_id fsm, state_connected const& connected, ev_disconnect_t const& /*ev*/) {
 		std::cout << "ev_disconnect_t: state_connected -> state_idle\n";
 		rt.replace_component(fsm, connected, state_idle{});
 	});
 }
 
 int main() {
+	//ecs::runtime rt;
 	ecs::runtime rt;
 
 	// Add the systems to handle the events
@@ -96,7 +97,8 @@ int main() {
 
 	// Add a new event and system
 	struct ev_hello {
-		const char *msg = "hello!";
+		ecs_flags(ecs::flag::transient);
+		const char* msg = "hello!";
 	};
 	rt.make_system([](state_idle const &, ev_hello const &ev) { std::cout << "ev_hello: state_idle says '" << ev.msg << "'\n"; });
 
