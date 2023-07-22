@@ -60,7 +60,6 @@ void add_systems(ecs::runtime& rt) {
 }
 
 int main() {
-	//ecs::runtime rt;
 	ecs::runtime rt;
 
 	// Add the systems to handle the events
