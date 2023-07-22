@@ -1,9 +1,9 @@
-name: clang-15
+name: Clang
 
 on: [push]
 
 jobs:
-  build:
+  clang:
     runs-on: ubuntu-latest
 
     strategy:
@@ -12,11 +12,10 @@ jobs:
         version: [13, 14, 15]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+      with:
+        submodules: true # recursive
 
-    - name: Checkout submodules
-      run: git submodule update --init --recursive --remote
-      
     - name: Install packages
       shell: bash
       run: |
