@@ -1,41 +1,32 @@
-name: GCC 13
+name: GCC
 
-# on: [push] # OK! 
+on: [push]
 
 jobs:
-  build:
+  gcc:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [11, 12, 13]
+
     steps:
-    - name: Update to GCC 13
+    - uses: actions/checkout@v3
+      with:
+        submodules: true # recursive
+
+    - name: Install packages
       shell: bash
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install gcc-13 g++-13
-      
-    - uses: actions/checkout@v2
-
-    - name: Checkout submodules
-      run: git submodule update --init --recursive --remote
-      
-    - name: Download Ninja
-      shell: cmake -P {0}
-      run: |
-        set(ninja_version "1.11.1")
-        
-        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-linux.zip")
-        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
-
-        execute_process(COMMAND chmod +x ninja)
+        sudo apt-get install ninja-build gcc-${{ matrix.version }} g++-${{ matrix.version }} libstdc++6 libstdc++-13-dev
 
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/gcc-13")
-        set(ENV{CXX} "/usr/bin/g++-13")
-
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
+        set(ENV{CC} "/usr/bin/gcc-${{ matrix.version }}")
+        set(ENV{CXX} "/usr/bin/gcc++-${{ matrix.version }}")
 
         execute_process(
           COMMAND cmake
@@ -43,7 +34,7 @@ jobs:
             -B build
             -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
-            -D CMAKE_MAKE_PROGRAM=${ninja_program}
+            -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
@@ -61,7 +52,7 @@ jobs:
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Bad exit status")
+          message(FATAL_ERROR "CMake build failed")
         endif()
 
 
