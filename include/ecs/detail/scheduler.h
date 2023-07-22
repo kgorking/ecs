@@ -99,8 +99,8 @@ class scheduler final {
 		std::vector<std::size_t> entry_nodes{};
 		int id;
 
-		constexpr systems_group() {}
-		constexpr systems_group(int group_id) : id(group_id) {}
+		systems_group() {}
+		systems_group(int group_id) : id(group_id) {}
 
 		// Runs the entry nodes in parallel
 		void run() {
@@ -133,7 +133,7 @@ protected:
 	}
 
 public:
-	constexpr scheduler() {}
+	scheduler() {}
 
 	void insert(detail::system_base* sys) {
 		// Find the group
