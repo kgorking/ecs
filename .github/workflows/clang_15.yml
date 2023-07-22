@@ -6,6 +6,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        version: [13, 14, 15]
+
     steps:
     - uses: actions/checkout@v2
 
@@ -16,13 +20,13 @@ jobs:
       shell: bash
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get install ninja-build clang-15 clang++-15 llvm-15-dev libstdc++6 libstdc++-13-dev
+        sudo apt-get install ninja-build clang-${{ matrix.version }} clang++-${{ matrix.version }} llvm-${{ matrix.version }}-dev libstdc++6 libstdc++-13-dev
 
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/clang-15")
-        set(ENV{CXX} "/usr/bin/clang++-15")
+        set(ENV{CC} "/usr/bin/clang-${{ matrix.version }}")
+        set(ENV{CXX} "/usr/bin/clang++-${{ matrix.version }}")
 
         execute_process(
           COMMAND cmake
