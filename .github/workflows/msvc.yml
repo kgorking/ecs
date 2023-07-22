@@ -1,6 +1,6 @@
 name: msvc 2022
 
-on: [push]
+# on: [push] # ICE
 
 jobs:
   build:
@@ -9,7 +9,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    #- uses: seanmiddleditch/gha-setup-ninja@master
 
     - name: Download Ninja
       shell: cmake -P {0}
@@ -19,8 +18,6 @@ jobs:
         set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-win.zip")
         file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
         execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
-
-        #execute_process(COMMAND chmod +x ninja)
 
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
