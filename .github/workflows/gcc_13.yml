@@ -1,12 +1,18 @@
-name: GCC 12
+name: GCC 13
 
-# on: [push] # OK!
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Update to GCC 13
+      shell: bash
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt install gcc-13 g++-13
+      
     - uses: actions/checkout@v2
 
     - name: Checkout submodules
@@ -26,8 +32,8 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/gcc-12")
-        set(ENV{CXX} "/usr/bin/g++-12")
+        set(ENV{CC} "/usr/bin/gcc-13")
+        set(ENV{CXX} "/usr/bin/g++-13")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
