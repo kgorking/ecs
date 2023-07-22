@@ -20,13 +20,13 @@ jobs:
       shell: bash
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get install ninja-build gcc-${{ matrix.version }} g++-${{ matrix.version }} libstdc++6 libstdc++-13-dev
+        sudo apt-get install ninja-build gcc-${{ matrix.version }} g++-${{ matrix.version }} #libstdc++6 libstdc++-13-dev
 
     - name: Configure
       shell: cmake -P {0}
       run: |
         set(ENV{CC} "/usr/bin/gcc-${{ matrix.version }}")
-        set(ENV{CXX} "/usr/bin/gcc++-${{ matrix.version }}")
+        set(ENV{CXX} "/usr/bin/g++-${{ matrix.version }}")
 
         execute_process(
           COMMAND cmake
