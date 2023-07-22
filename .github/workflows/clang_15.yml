@@ -12,24 +12,11 @@ jobs:
     - name: Checkout submodules
       run: git submodule update --init --recursive --remote
       
-    - name: Download Ninja
-      shell: cmake -P {0}
-      run: |
-        set(ninja_version "1.11.1")
-        
-        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-linux.zip")
-        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
-
-        execute_process(COMMAND chmod +x ninja)
-
-    - name: Install Clang 15
+    - name: Install packages
       shell: bash
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get update
-        sudo apt-get install clang-15 clang++-15 llvm-15-dev libstdc++6 libstdc++-13-dev
-
+        sudo apt-get install ninja-build clang-15 clang++-15 llvm-15-dev libstdc++6 libstdc++-13-dev
 
     - name: Configure
       shell: cmake -P {0}
