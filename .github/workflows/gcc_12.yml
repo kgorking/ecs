@@ -1,0 +1,81 @@
+name: GCC 12
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Update to gcc 12
+      shell: bash
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+        sudo apt install gcc-12 g++-12
+
+        set(ENV{CC} "/usr/bin/gcc-12")
+        set(ENV{CXX} "/usr/bin/g++-12")
+      
+    - uses: actions/checkout@v2
+
+    - name: Checkout submodules
+      run: git submodule update --init --recursive --remote
+      
+    - name: Download Ninja
+      shell: cmake -P {0}
+      run: |
+        set(ninja_version "1.11.1")
+        
+        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-linux.zip")
+        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
+
+        execute_process(COMMAND chmod +x ninja)
+
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
+
+    - name: Configure
+      shell: cmake -P {0}
+      run: |
+        execute_process(
+          COMMAND cmake
+            -S .
+            -B build
+            -D CMAKE_BUILD_TYPE=Debug
+            -G Ninja
+            -D CMAKE_MAKE_PROGRAM=${ninja_program}
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
+        endif()
+
+
+    - name: Build
+      shell: cmake -P {0}
+      run: |
+        set(ENV{NINJA_STATUS} "[%f/%t %e sec] ")
+
+        execute_process(
+          COMMAND cmake --build build
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
+        endif()
+
+
+    - name: Run tests
+      shell: cmake -P {0}
+      run: |
+        include(ProcessorCount)
+        ProcessorCount(N)
+
+        execute_process(
+          COMMAND ctest --output-on-failure -j ${N}
+          WORKING_DIRECTORY build
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Running tests failed!")
+        endif()
