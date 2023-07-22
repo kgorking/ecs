@@ -7,11 +7,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Ninja version
-      shell: bash
-      run: |
-        /usr/bin/ninja --version
-
     - uses: actions/checkout@v2
 
     - name: Checkout submodules
