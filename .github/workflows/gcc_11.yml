@@ -12,6 +12,7 @@ jobs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt install gcc-11 g++-11
         /usr/bin/g++-11 --version
+        /usr/bin/ninja --version
       shell: bash
       
     - uses: actions/checkout@v1

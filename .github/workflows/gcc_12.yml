@@ -7,15 +7,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Update to gcc 12
+    - name: Ninja version
       shell: bash
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt install gcc-12 g++-12
+        /usr/bin/ninja --version
 
-        set(ENV{CC} "/usr/bin/gcc-12")
-        set(ENV{CXX} "/usr/bin/g++-12")
-      
     - uses: actions/checkout@v2
 
     - name: Checkout submodules
@@ -37,6 +33,9 @@ jobs:
     - name: Configure
       shell: cmake -P {0}
       run: |
+        set(ENV{CC} "/usr/bin/gcc-12")
+        set(ENV{CXX} "/usr/bin/g++-12")
+
         execute_process(
           COMMAND cmake
             -S .

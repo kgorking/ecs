@@ -1,6 +1,6 @@
 name: clang-14
 
-on: [push]
+# on: [push] # OK!
 
 jobs:
   build:
