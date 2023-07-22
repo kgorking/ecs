@@ -16,22 +16,15 @@ jobs:
       with:
         submodules: true # recursive
 
-    - name: Test for Ninja
-      run: /usr/bin/ninja --version
-
     - name: Install Ninja
-      continue-on-error: true
-      if: ${{ failure() }}
-      shell: bash
-      run: |
-        sudo apt-get install ninja-build
+      run: /usr/bin/ninja --version || sudo apt-get install ninja-build
 
     - name: Install compiler
       if: ${{ matrix.version >= 13 }}
       shell: bash
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get install gcc-${{ matrix.version }} g++-${{ matrix.version }} #libstdc++6 libstdc++-13-dev
+        sudo apt-get install gcc-${{ matrix.version }} g++-${{ matrix.version }}
 
     - name: Configure
       shell: cmake -P {0}
