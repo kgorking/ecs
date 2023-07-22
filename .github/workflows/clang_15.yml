@@ -24,15 +24,13 @@ jobs:
         set(ENV{CC} "/usr/bin/clang-15")
         set(ENV{CXX} "/usr/bin/clang++-15")
 
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
-
         execute_process(
           COMMAND cmake
             -S .
             -B build
             -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
-            -D CMAKE_MAKE_PROGRAM=${ninja_program}
+            -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
