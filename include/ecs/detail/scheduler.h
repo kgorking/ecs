@@ -100,7 +100,7 @@ class scheduler final {
 		int id;
 
 		constexpr systems_group() {}
-		constexpr systems_group(int id) : id(id) {}
+		constexpr systems_group(int group_id) : id(group_id) {}
 
 		// Runs the entry nodes in parallel
 		void run() {
