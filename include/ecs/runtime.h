@@ -11,6 +11,7 @@
 #include "detail/verification.h"
 #include "entity_id.h"
 #include "options.h"
+#include "flags.h"
 
 namespace ecs {
 class runtime {
@@ -136,7 +137,7 @@ public:
 	}
 
 	// Returns the components from an entity range, or an empty span if the entities are not found
-	// or does not containg the component.
+	// or does not contain the component.
 	// NOTE: Pointers to components are only guaranteed to be valid
 	//       until the next call to ecs::commit_changes or ecs::update,
 	//       after which the component might be reallocated.
@@ -244,6 +245,7 @@ public:
 private:
 	detail::context ctx;
 };
+
 } // namespace ecs
 
 #endif // !ECS_RUNTIME
