@@ -47,6 +47,27 @@ TEST_CASE("type_list") {
 		static_assert(2 == index_of<float, TL>());
 		static_assert(1 == index_of<int, TL>());
 		static_assert(0 == index_of<char, TL>());
+
+		// same type multiple times
+		using TLii = type_list<int, int>;
+		static_assert(0 == index_of<int, TLii>());
+	}
+
+	SECTION("type_at") {
+		// standard typelist
+		static_assert(std::is_same_v<type_at<3, TL>, void*>);
+		static_assert(std::is_same_v<type_at<2, TL>, float>);
+		static_assert(std::is_same_v<type_at<1, TL>, int>);
+		static_assert(std::is_same_v<type_at<0, TL>, char>);
+
+		// same type multiple times
+		using TLii = type_list<int, int>;
+		static_assert(std::is_same_v<type_at<0, TLii>, int>);
+		static_assert(std::is_same_v<type_at<1, TLii>, int>);
+
+		// out-of-bounds is prohibited
+		//static_assert(std::is_same_v<type_at<4, TL>, void*>);
+		//static_assert(std::is_same_v<type_at<-1, TL>, float>);
 	}
 
 	SECTION("transform_type") {

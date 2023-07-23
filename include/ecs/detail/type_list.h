@@ -18,6 +18,16 @@ struct type_pair {
 };
 
 namespace impl {
+	// type wrapper
+	template <typename T>
+	struct wrap_t {
+		using type = T;
+	};
+
+	// size wrapper
+	template<int I>
+	struct wrap_size {};
+
 	//
 	// detect type_list
 	template <typename... Types>
@@ -27,6 +37,11 @@ namespace impl {
 	consteval bool detect_type_list(...) {
 		return false;
 	}
+
+	//
+	// type_list concept
+	template <typename TL>
+	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
 
 
 	//
@@ -41,31 +56,26 @@ namespace impl {
 	// type_list indices
 	template<int Index, typename...>
 	struct type_list_index {
-		using type_not_found_in_list = decltype([]{});
-		consteval static int index_of(type_not_found_in_list*);
+		consteval static int index_of(struct type_not_found_in_list*);
+		static struct index_out_of_range_in_list* type_at(...);
 	};
 
 	template<int Index, typename T, typename... Rest>
 	struct type_list_index<Index, T, Rest...> : type_list_index<1+Index, Rest...> {
 		using type_list_index<1+Index, Rest...>::index_of;
+		using type_list_index<1+Index, Rest...>::type_at;
 
 		consteval static int index_of(T*) {
 			return Index;
 		}
+
+		static T* type_at(wrap_size<Index>* = nullptr);
 	};
 
 	template<typename... Types>
 	consteval auto type_list_indices(type_list<Types...>*) {
-		struct all_indexers : impl::type_list_index<0, Types...> {
-			using impl::type_list_index<0, Types...>::index_of;
-		};
-		return all_indexers{};
+		return impl::type_list_index<0, Types...>{};
 	}
-
-	//
-	// type_list concept
-	template <typename TL>
-	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
 
 
 	//
@@ -184,6 +194,31 @@ namespace impl {
 		using list_pair = 
 			std::remove_pointer_t<decltype(helper<type_list<>, type_list<>>(static_cast<TL*>(nullptr)))>;
 	};
+	
+	template <typename TL, template <typename O> typename Predicate>
+	struct filter_types_if {
+		template <typename Result, typename Front, typename... Rest >
+		constexpr static auto helper(type_list<Front, Rest...>*) {
+			if constexpr (Predicate<Front>::value) {
+				using NewResult = typename add_type<Result, Front>::type;
+
+				if constexpr (sizeof...(Rest) > 0) {
+					return helper<NewResult>(static_cast<type_list<Rest...>*>(nullptr));
+				} else {
+					return static_cast<NewResult*>(nullptr);
+				}
+			} else {
+				if constexpr (sizeof...(Rest) > 0) {
+					return helper<Result>(static_cast<type_list<Rest...>*>(nullptr));
+				} else {
+					return static_cast<Result*>(nullptr);
+				}
+			}
+		}
+
+		using result = 
+			std::remove_pointer_t<decltype(helper<type_list<>>(static_cast<TL*>(nullptr)))>;
+	};
 
 	template<typename First, typename... Types>
 	constexpr bool is_unique_types(type_list<First, Types...>*) {
@@ -211,19 +246,19 @@ namespace impl {
 		static auto helper(type_list<Left...>*, type_list<>*)
 		-> type_list<Left...>*;
 
-	#if defined(_MSC_VER) && !defined(__clang__)
+	#if false //defined(_MSC_VER) && !defined(__clang__)
 		template <typename... Left, typename FirstRight, typename... Right>
-		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(merger::helper(
-			static_cast<type_list<Left...>*>(nullptr),
-			static_cast<type_list<Right...>*>(nullptr)));
+		static auto helper(type_list<Left...>* left, type_list<FirstRight, Right...>*)
+			-> decltype(ecs::detail::impl::merger::helper(
+				left,
+				static_cast<type_list<Right...>*>(nullptr)));
 
-		template <typename... Left, typename FirstRight, typename... Right>
-		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(merger::helper(
-			static_cast<type_list<Left..., FirstRight>*>(nullptr),
-			static_cast<type_list<Right...>*>(nullptr)))
-		requires(!contains_type<FirstRight>(static_cast<type_list<Left...>*>(nullptr)));
+		//template <typename... Left, typename FirstRight, typename... Right>
+		//requires(!contains_type<FirstRight>(static_cast<type_list<Left...>*>(nullptr)))
+		//static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
+		//-> decltype(merger::helper(
+		//	static_cast<type_list<Left..., FirstRight>*>(nullptr),
+		//	static_cast<type_list<Right...>*>(nullptr)));
 	#else
 		template <typename... Types1, typename First2, typename... Types2>
 		constexpr static auto* helper(type_list<Types1...>*, type_list<First2, Types2...>*) {
@@ -262,6 +297,11 @@ consteval int index_of() {
 	return TLI::index_of(static_cast<T*>(nullptr));
 }
 
+// Small helper to get the type at an index in a type_list
+template <int I, typename TL>
+requires (I >= 0 && I < type_list_size<TL>)
+using type_at = std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>;
+
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
 template <impl::TypeList TL, template <typename O> typename Transformer>
@@ -278,6 +318,10 @@ using transform_type_all = typename impl::transform_type_all<TL, Transformer>::t
 // Splits a type_list into two list depending on the predicate
 template <impl::TypeList TL, template <typename O> typename Predicate>
 using split_types_if = typename impl::split_types_if<TL, Predicate>::list_pair;
+
+// Filter a type_list depending on the predicate
+template <impl::TypeList TL, template <typename O> typename Predicate>
+using filter_types_if = typename impl::filter_types_if<TL, Predicate>::result;
 
 // Applies the functor F to each type in the type list.
 // Takes lambdas of the form '[]<typename T>() {}'
