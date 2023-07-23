@@ -85,11 +85,11 @@ namespace impl {
 
 	// create a nullptr initialised type_list
 	template <typename... Ts>
-	consteval type_list<Ts...>* null_list() {
+	constexpr type_list<Ts...>* null_list() {
 		return nullptr;
 	}
 	template <TypeList TL>
-	consteval TL* null_list() {
+	constexpr TL* null_tlist() {
 		return nullptr;
 	}
 
@@ -269,13 +269,13 @@ namespace impl {
 	-> type_list<Types1..., Types2...>*;
 
 	struct merger {
-		// terminal node; the right list is empty, return the left list
-		template <typename LeftList>
-		static auto helper(LeftList*, type_list<>*) -> LeftList*;
-
 #if defined(_MSC_VER) && !defined(__clang__)
 		// This optimization is only possible in msvc due to it not checking templates
 		// before they are instantiated.
+
+		// terminal node; the right list is empty, return the left list
+		template <typename LeftList>
+		constexpr static auto helper(LeftList*, type_list<>*) -> LeftList*;
 
 		// if the first type from the right list is not in the left list, add it and continue
 		template <typename LeftList, typename FirstRight, typename... Right>
@@ -288,21 +288,22 @@ namespace impl {
 		static auto helper(LeftList* left, RightList* right)
 			-> decltype(merger::helper(left, skip_first_type(right)));
 #else
-		template <typename... Types1, typename First2, typename... Types2>
-		constexpr static auto* helper(type_list<Types1...>*, type_list<First2, Types2...>*) {
-			using NewTL2 = type_list<Types2...>;
+		// clang/gcc needs the function bodies, for some goddamn reason.
 
-			if constexpr (contains_type<First2>(static_cast<type_list<Types1...>*>(nullptr))) {
-				if constexpr(sizeof...(Types2) == 0)
-					return static_cast<type_list<Types1...>*>(nullptr);
-				else
-					return helper(static_cast<type_list<Types1...>*>(nullptr), static_cast<NewTL2*>(nullptr));
-			} else {
-				if constexpr(sizeof...(Types2) == 0)
-					return static_cast<type_list<Types1..., First2>*>(nullptr);
-				else
-					return helper(static_cast<type_list<Types1..., First2>*>(nullptr), static_cast<NewTL2*>(nullptr));
-			}
+		template <typename LeftList>
+		constexpr static auto helper(LeftList* left, type_list<>*) {
+			return left;
+		}
+
+		template <typename... Types1, typename First2, typename... Types2>
+			requires(contains_type<First2>(null_list<Types1...>()))
+		constexpr static auto helper(type_list<Types1...>* left, type_list<First2, Types2...>*) {
+			return helper(left, null_list<Types2...>());
+		}
+
+		template <typename... Types1, typename First2, typename... Types2>
+		constexpr static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*) {
+			return helper(null_list<Types1..., First2>(), null_list<Types2...>());
 		}
 #endif
 	};
