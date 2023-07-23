@@ -121,7 +121,7 @@ TEST_CASE("type_list") {
 		});
 
 		REQUIRE(pointers == 1);
-		REQUIRE(non_pointers == 3);
+		REQUIRE(non_pointers == 5);
 	}
 
 	SECTION("for_specific_type") {
@@ -143,8 +143,8 @@ TEST_CASE("type_list") {
 			sizes = (sizeof(Ts) + ...);
 		});
 
-		REQUIRE(num_types == std::size_t{4});
-		REQUIRE(sizes == (sizeof(char) + sizeof(int) + sizeof(float) + sizeof(void*)));
+		REQUIRE(num_types == std::size_t{6});
+		REQUIRE(sizes == (sizeof(char) + sizeof(int) + sizeof(float) + sizeof(void*) + sizeof(abstract_test) + sizeof(short[10])));
 	}
 
 	SECTION("all_of_type") {
