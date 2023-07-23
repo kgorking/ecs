@@ -20,7 +20,7 @@ public:
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename First, typename... T>
 	constexpr void add_component(entity_range const range, First&& first_val, T&&... vals) {
-		static_assert(detail::is_unique_types<First, T...>(), "the same component was specified more than once");
+		static_assert(detail::is_unique_type_args<First, T...>(), "the same component was specified more than once");
 		static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
 					  "can not add pointers to entities; wrap them in a struct");
@@ -204,7 +204,9 @@ public:
 		using opts = detail::type_list<Options...>;
 
 		// verify the input
-		detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
+		constexpr static bool dummy_for_clang_13 =
+			detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
+		(void)dummy_for_clang_13;
 
 		if constexpr (ecs::detail::type_is_function<SystemFunc>) {
 			// Build from regular function
