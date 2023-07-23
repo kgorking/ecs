@@ -70,6 +70,12 @@ TEST_CASE("type_list") {
 		//static_assert(std::is_same_v<type_at<-1, TL>, float>);
 	}
 
+	SECTION("first_type") {
+		static_assert(std::is_same_v<char, first_type<TL>>);
+		static_assert(std::is_same_v<int, first_type<tl1>>);
+		static_assert(std::is_same_v<double, first_type<tl2>>);
+	}
+
 	SECTION("transform_type") {
 		using PTR_TL = transform_type<TL, std::add_pointer_t>;
 		static_assert(std::is_same_v<PTR_TL, type_list<char*, int*, float*, void**>>);

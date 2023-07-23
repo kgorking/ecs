@@ -53,7 +53,7 @@ namespace impl {
 
 
 	//
-	// type_list indices
+	// type_list indices and type lookup
 	template<int Index, typename...>
 	struct type_list_index {
 		consteval static int index_of(struct type_not_found_in_list*);
@@ -143,6 +143,14 @@ namespace impl {
 		return (static_cast<std::size_t>(f.template operator()<Types>()) + ...);
 	}
 
+	
+	template <typename TL>
+	struct first_type {
+		template <typename First, typename... Types>
+		constexpr static wrap_t<First>* helper(type_list<First, Types...>*);
+
+		using type = typename std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>::type;
+	};
 	
 	template <typename TL, template <typename O> typename Transformer>
 	struct transform_type {
@@ -301,6 +309,12 @@ consteval int index_of() {
 template <int I, typename TL>
 requires (I >= 0 && I < type_list_size<TL>)
 using type_at = std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>;
+
+// Return the first type in a type_list
+template <impl::TypeList TL>
+	requires(type_list_size<TL> > 0)
+using first_type = typename impl::first_type<TL>::type;
+
 
 // Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
