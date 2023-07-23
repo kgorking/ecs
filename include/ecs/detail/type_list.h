@@ -39,24 +39,19 @@ namespace impl {
 	}
 
 	//
-	// create a nullptr initialised type_list
-	template<typename... Ts>
-	consteval type_list<Ts...>* null_list() {
-		return nullptr;
-	}
-
-	//
-	// type_list concept
-	template <typename TL>
-	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
-
-
-	//
 	// type_list_size.
 	template <typename> struct type_list_size;
 	template <typename... Types> struct type_list_size<type_list<Types...>> {
 		static constexpr size_t value = sizeof...(Types);
 	};
+
+	//
+	// type_list concepts
+	template <typename TL>
+	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
+
+	template <typename TL>
+	concept NonEmptyTypeList = TypeList<TL> && (0 < type_list_size<TL>::value);
 
 
 	//
@@ -87,6 +82,17 @@ namespace impl {
 
 	//
 	// helper functions
+
+	// create a nullptr initialised type_list
+	template <typename... Ts>
+	consteval type_list<Ts...>* null_list() {
+		return nullptr;
+	}
+	template <TypeList TL>
+	consteval TL* null_list() {
+		return nullptr;
+	}
+
 	template <typename... Types, typename F>
 	constexpr void for_each_type(F&& f, type_list<Types...>*) {
 		(f.template operator()<Types>(), ...);
@@ -263,13 +269,13 @@ namespace impl {
 	-> type_list<Types1..., Types2...>*;
 
 	struct merger {
-#if defined(_MSC_VER) && !defined(__clang__)
-		// This optimization is only possible in msvc due to it not checking templates
-		// before they are instantiated.
-
 		// terminal node; the right list is empty, return the left list
 		template <typename LeftList>
 		static auto helper(LeftList*, type_list<>*) -> LeftList*;
+
+#if defined(_MSC_VER) && !defined(__clang__)
+		// This optimization is only possible in msvc due to it not checking templates
+		// before they are instantiated.
 
 		// if the first type from the right list is not in the left list, add it and continue
 		template <typename LeftList, typename FirstRight, typename... Right>
@@ -313,30 +319,28 @@ template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
 // Small helper to get the index of a type in a type_list
-template <typename T, typename TL>
+template <typename T, impl::NonEmptyTypeList TL>
 consteval int index_of() {
 	using TLI = type_list_indices<TL>;
 	return TLI::index_of(static_cast<T*>(nullptr));
 }
 
 // Small helper to get the type at an index in a type_list
-template <int I, typename TL>
-requires (I >= 0 && I < type_list_size<TL>)
+template <int I, impl::NonEmptyTypeList TL>
+	requires (I >= 0 && I < type_list_size<TL>)
 using type_at = std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>;
 
 // Return the first type in a type_list
-template <impl::TypeList TL>
-	requires(type_list_size<TL> > 0)
+template <impl::NonEmptyTypeList TL>
 using first_type = typename impl::first_type<TL>::type;
 
 // Skip the first type in a type_list
-template <impl::TypeList TL>
-	requires(type_list_size<TL> > 0)
+template <impl::NonEmptyTypeList TL>
 using skip_first_type = std::remove_pointer_t<decltype(impl::skip_first_type(static_cast<TL*>(nullptr)))>;
 
 
 // Add a type to a type_list
-template <typename TL, typename T>
+template <impl::TypeList TL, typename T>
 using add_type = std::remove_pointer_t<decltype(impl::add_type<T>(static_cast<TL*>(nullptr)))>;//typename impl::add_type<TL, T>::type;
 
 	// Transforms the types in a type_list
@@ -435,7 +439,7 @@ using concat_type_lists = std::remove_pointer_t<decltype(
 	impl::concat_type_lists(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 // merge two type_list, duplicate types are ignored
-template <typename TL1, typename TL2>
+template <impl::TypeList TL1, impl::TypeList TL2>
 using merge_type_lists = std::remove_pointer_t<decltype(
 	impl::merger::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
