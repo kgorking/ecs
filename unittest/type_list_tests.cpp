@@ -7,6 +7,10 @@
 
 using namespace ecs::detail;
 
+struct abstract_test {
+	virtual void f() = 0;
+};
+
 using tl1 = type_list<int, float>;
 using tl2 = type_list<double, short, int>;
 using tl1_concat_tl2 = type_list<int, float, double, short, int>;
@@ -26,7 +30,7 @@ template <typename... Ts>
 using total_size = std::integral_constant<std::size_t, (sizeof(Ts) + ...)>;
 
 TEST_CASE("type_list") {
-	using TL = type_list<char, int, float, void*>;
+	using TL = type_list<char, int, float, void*, abstract_test, short[10]>;
 
 	SECTION("type_list_size") {
 		static_assert(0 == type_list_size<type_list<>>);
@@ -43,6 +47,8 @@ TEST_CASE("type_list") {
 	}
 
 	SECTION("index_of") {
+		static_assert(5 == index_of<short[10], TL>());
+		static_assert(4 == index_of<abstract_test, TL>());
 		static_assert(3 == index_of<void*, TL>());
 		static_assert(2 == index_of<float, TL>());
 		static_assert(1 == index_of<int, TL>());
@@ -55,6 +61,8 @@ TEST_CASE("type_list") {
 
 	SECTION("type_at") {
 		// standard typelist
+		static_assert(std::is_same_v<type_at<5, TL>, short[10]>);
+		static_assert(std::is_same_v<type_at<4, TL>, abstract_test>);
 		static_assert(std::is_same_v<type_at<3, TL>, void*>);
 		static_assert(std::is_same_v<type_at<2, TL>, float>);
 		static_assert(std::is_same_v<type_at<1, TL>, int>);
@@ -76,14 +84,20 @@ TEST_CASE("type_list") {
 		static_assert(std::is_same_v<double, first_type<tl2>>);
 	}
 
+	SECTION("skip_first_type") {
+		static_assert(std::is_same_v<skip_first_type<TL>, type_list<int, float, void*, abstract_test, short[10]>>);
+		static_assert(std::is_same_v<skip_first_type<tl1>, type_list<float>>);
+		static_assert(std::is_same_v<skip_first_type<tl2>, type_list<short, int>>);
+	}
+
 	SECTION("transform_type") {
 		using PTR_TL = transform_type<TL, std::add_pointer_t>;
-		static_assert(std::is_same_v<PTR_TL, type_list<char*, int*, float*, void**>>);
+		static_assert(std::is_same_v<PTR_TL, type_list<char*, int*, float*, void**, abstract_test*, std::add_pointer_t<short[10]>>>);
 	}
 
 	SECTION("transform_type_all") {
 		using Size = transform_type_all<TL, total_size>;
-		static_assert(Size::value == (sizeof(char) + sizeof(int) + sizeof(float) + sizeof(void*)));
+		static_assert(Size::value == (sizeof(char) + sizeof(int) + sizeof(float) + sizeof(void*) + sizeof(abstract_test) + sizeof(short[10])));
 	}
 
 	SECTION("split_types_if") {
@@ -93,7 +107,7 @@ TEST_CASE("type_list") {
 		using NotIntegrals = Pair::second;
 
 		static_assert(std::is_same_v<Integrals, type_list<char, int>>);
-		static_assert(std::is_same_v<NotIntegrals, type_list<float, void*>>);
+		static_assert(std::is_same_v<NotIntegrals, type_list<float, void*, abstract_test, short[10]>>);
 	}
 
 	SECTION("for_each_type") {
