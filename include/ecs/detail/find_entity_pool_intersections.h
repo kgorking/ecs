@@ -76,19 +76,21 @@ auto get_pool_iterators([[maybe_unused]] Pools pools) {
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <typename ComponentList, typename Pools, typename F>
+template <typename InputList, typename Pools, typename F>
 void find_entity_pool_intersections_cb(Pools pools, F callback) {
-	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
+	static_assert(0 < type_list_size<InputList>, "Empty component list supplied");
 
 	// Split the type_list into filters and non-filters (regular components).
-	using SplitPairList = split_types_if<ComponentList, std::is_pointer>;
-	auto iter_filters = get_pool_iterators<typename SplitPairList::first>(pools);
+	using FilterComponentPairList = split_types_if<InputList, std::is_pointer>;
+	using FilterList = typename FilterComponentPairList::first;
+	using ComponentList = typename FilterComponentPairList::second;
+	auto iter_filters = get_pool_iterators<FilterList>(pools);
 
-	// Split components into local/global.
+	// Filter local components.
 	// Global components are available for all entities,
 	// so don't bother wasting cycles on testing them.
-	using SplitLocalGlobal = split_types_if<typename SplitPairList::second, detail::is_local>;
-	auto iter_components = get_pool_iterators<typename SplitLocalGlobal::first>(pools);
+	using LocalComponentList = filter_types_if<ComponentList, detail::is_local>;
+	auto iter_components = get_pool_iterators<LocalComponentList>(pools);
 
 	// Sort the filters
 	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
@@ -105,7 +107,7 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 		entity_range curr_range = *iter_components[0].current();
 
 		// Find all intersections
-		if constexpr (type_list_size<typename SplitLocalGlobal::first> == 1) {
+		if constexpr (type_list_size<LocalComponentList> == 1) {
 			iter_components[0].next();
 		} else {
 			bool intersection_found = false;
@@ -144,7 +146,7 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 		}
 
 		// Filter the range, if needed
-		if constexpr (type_list_size<typename SplitPairList::first> > 0) {
+		if constexpr (type_list_size<FilterList> > 0) {
 			bool completely_filtered = false;
 			for (auto& it : iter_filters) {
 				while(!done(it)) {
