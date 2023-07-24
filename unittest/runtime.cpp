@@ -30,6 +30,15 @@ struct runtime_ctr_counter {
 };
 
 TEST_CASE("The runtime interface") {
+	SECTION("handles illegal recursive calls") {
+		ecs::runtime rt;
+		rt.add_component({0}, int{});
+		rt.make_system([&](int) {
+			rt.run_systems();
+		});
+		rt.update();
+	}
+
 	SECTION("Does perfect forwarding correctly") {
 		{
 			ecs::runtime ecs;

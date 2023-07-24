@@ -31,8 +31,11 @@ class context final {
 	std::vector<type_hash> pool_type_hash;
 	scheduler sched;
 
-	std::shared_mutex system_mutex;
-	std::shared_mutex component_pool_mutex;
+	mutable std::shared_mutex system_mutex;
+	mutable std::shared_mutex component_pool_mutex;
+
+	bool commit_in_progress = false;
+	bool run_in_progress = false;
 
 	using cache_type = tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>;
 	tls::split<cache_type> type_caches;
@@ -44,6 +47,9 @@ public:
 
 	// Commits the changes to the entities.
 	void commit_changes() {
+		Expects(!commit_in_progress);
+		Expects(!run_in_progress);
+
 		// Prevent other threads from
 		//  adding components
 		//  registering new component types
@@ -51,6 +57,8 @@ public:
 		std::shared_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
+
+		commit_in_progress = true;
 
 		static constexpr auto process_changes = [](auto const& inst) {
 			inst->process_changes();
@@ -66,15 +74,23 @@ public:
 		for (auto const& pool : component_pools) {
 			pool->clear_flags();
 		}
+
+		commit_in_progress = false;
 	}
 
 	// Calls the 'update' function on all the systems in the order they were added.
 	void run_systems() {
+		Expects(!commit_in_progress);
+		Expects(!run_in_progress);
+
 		// Prevent other threads from adding new systems during the run
 		std::shared_lock system_lock(system_mutex);
+		run_in_progress = true;
 
 		// Run all the systems
 		sched.run();
+
+		run_in_progress = false;
 	}
 
 	// Returns true if a pool for the type exists
@@ -89,6 +105,8 @@ public:
 
 	// Resets the runtime state. Removes all systems, empties component pools
 	void reset() {
+		Expects(!run_in_progress && !commit_in_progress);
+
 		std::unique_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
@@ -109,6 +127,9 @@ public:
 		// and prevent the compiler from generating duplicated code.
 		static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>,
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
+
+		// Don't call this when systems are running
+		Expects(!run_in_progress);
 
 		auto& cache = type_caches.local();
 
@@ -161,6 +182,8 @@ private:
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
+		Expects(!run_in_progress && !commit_in_progress);
+
 		// Is the first component an entity_id?
 		static constexpr bool first_is_entity = is_entity<FirstComponent>;
 
@@ -177,9 +200,7 @@ private:
 				return (detail::global<Types> && ...);
 			});
 
-		// Global systems cannot have a sort function
 		static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
-
 		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
 		// Helper-lambda to insert system
