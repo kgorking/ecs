@@ -177,7 +177,7 @@ namespace impl {
 	};
 	
 	template <typename First, typename... Types>
-	consteval type_list<Types...>* skip_first_type(type_list<First, Types...>*) ECS_NULLBODY
+	constexpr type_list<Types...>* skip_first_type(type_list<First, Types...>*) ECS_NULLBODY
 	
 	template <typename TL, template <typename O> typename Transformer>
 	struct transform_type {
@@ -302,17 +302,17 @@ namespace impl {
 		// clang/gcc needs the function bodies.
 
 		template <typename LeftList>
-		consteval static LeftList* helper(LeftList*, type_list<>*)
+		constexpr static LeftList* helper(LeftList*, type_list<>*)
 		{ return nullptr; }
 
 		template <typename LeftList, typename FirstRight, typename... Right>
 			requires(!list_contains_type<FirstRight, LeftList>())
-		consteval static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
+		constexpr static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
 		//-> decltype(merger::helper(add_type<FirstRight>(left), null_list<Right...>())); // Doesn't work
 		{	return    merger::helper(add_type<FirstRight>(left), null_list<Right...>()); }
 
 		template <typename LeftList, typename RightList>
-		consteval static auto helper(LeftList* left, RightList* right)
+		constexpr static auto helper(LeftList* left, RightList* right)
 		//-> decltype(merger::helper((LeftList*)left, skip_first_type(right))); // Doesn't work
 		{	return    merger::helper(left, skip_first_type(right)); }
 #endif
@@ -322,6 +322,8 @@ namespace impl {
 
 template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
+
+// TODO change type alias to *_t
 
 // Classes can inherit from type_list_indices with a provided type_list
 // to have 'index_of(wrap_t<T>*)' functions injected into it, for O(1) lookups
