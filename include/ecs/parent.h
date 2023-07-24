@@ -1,7 +1,7 @@
 #ifndef ECS_PARENT_H_
 #define ECS_PARENT_H_
 
-#include "detail/system_defs.h"
+#include "detail/component_pools.h"
 #include "entity_id.h"
 
 // forward decls
