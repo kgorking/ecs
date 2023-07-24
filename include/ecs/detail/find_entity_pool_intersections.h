@@ -3,71 +3,19 @@
 
 #include "entity_range.h"
 #include "system_defs.h"
+#include "component_pools.h"
 #include <array>
 #include <vector>
 
 namespace ecs::detail {
 
-template <typename Component, typename TuplePools>
-void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) {
-	using T = std::remove_cvref_t<Component>;
-	using iter1 = typename std::vector<entity_range>::iterator;
-	using iter2 = typename entity_range_view::iterator;
-
-	// Skip globals and parents
-	if constexpr (detail::global<T>) {
-		// do nothing
-	} else if constexpr (detail::is_parent<T>::value) {
-		auto const ents = get_pool<parent_id>(pools).get_entities();
-		ranges = intersect_ranges_iter(iter_pair<iter1>{ranges.begin(), ranges.end()}, iter_pair<iter2>{ents.begin(), ents.end()});
-	} else if constexpr (std::is_pointer_v<T>) {
-		// do nothing
-	} else {
-		// ranges = intersect_ranges(ranges, get_pool<T>(pools).get_entities());
-		auto const ents = get_pool<T>(pools).get_entities();
-		ranges = intersect_ranges_iter(iter_pair<iter1>{ranges.begin(), ranges.end()}, iter_pair<iter2>{ents.begin(), ents.end()});
-	}
-}
-
-template <typename Component, typename TuplePools>
-void pool_difference(std::vector<entity_range>& ranges, TuplePools const& pools) {
-	using T = std::remove_cvref_t<Component>;
-
-	if constexpr (std::is_pointer_v<T>) {
-		using NoPtr = std::remove_pointer_t<T>;
-
-		if constexpr (detail::is_parent<NoPtr>::value) {
-			ranges = difference_ranges(ranges, get_pool<parent_id>(pools).get_entities());
-		} else {
-			ranges = difference_ranges(ranges, get_pool<NoPtr>(pools).get_entities());
-		}
-	}
-}
-
-// Find the intersection of the sets of entities in the specified pools
-template <typename FirstComponent, typename... Components, typename TuplePools>
-std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools) {
-	std::vector<entity_range> ranges{entity_range::all()};
-
-	if constexpr (std::is_same_v<entity_id, FirstComponent>) {
-		(pool_intersect<Components, TuplePools>(ranges, pools), ...);
-		(pool_difference<Components, TuplePools>(ranges, pools), ...);
-	} else {
-		pool_intersect<FirstComponent, TuplePools>(ranges, pools);
-		(pool_intersect<Components, TuplePools>(ranges, pools), ...);
-
-		pool_difference<FirstComponent, TuplePools>(ranges, pools);
-		(pool_difference<Components, TuplePools>(ranges, pools), ...);
-	}
-
-	return ranges;
-}
-
+// Given a list of components, return an array containing the corresponding component pools
 template <typename ComponentList, typename Pools>
 auto get_pool_iterators([[maybe_unused]] Pools pools) {
 	if constexpr (type_list_size<ComponentList> > 0) {
 		return for_all_types<ComponentList>([&]<typename... Components>() {
-			return std::to_array({get_pool<Components>(pools).get_entities()...});
+			//return std::to_array({get_pool<Components>(pools).get_entities()...});
+			return std::to_array({pools.template get<Components>().get_entities()...});
 		});
 	} else {
 		return std::array<stride_view<0,char const>, 0>{};
@@ -76,8 +24,8 @@ auto get_pool_iterators([[maybe_unused]] Pools pools) {
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <typename InputList, typename Pools, typename F>
-void find_entity_pool_intersections_cb(Pools pools, F callback) {
+template <typename InputList, /*typename Pools,*/ typename F>
+void find_entity_pool_intersections_cb(component_pools<InputList> const& pools, F callback) {
 	static_assert(0 < type_list_size<InputList>, "Empty component list supplied");
 
 	// Split the type_list into filters and non-filters (regular components).
