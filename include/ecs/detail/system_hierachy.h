@@ -63,7 +63,7 @@ private:
 		ents_to_remove.clear();
 
 		// Find the entities
-		find_entity_pool_intersections_cb<CombinedList>(this->pools, [&](entity_range range) {
+		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [&](entity_range const range) {
 			ranges.push_back(range);
 
 			// Get the parent ids in the range
@@ -203,12 +203,6 @@ private:
 				update_func(/**/ extract_arg_lambda<Ts>(args, offset, pools)...);
 			}
 		};
-	}
-
-	decltype(auto) make_parent_types_tuple() const {
-		return for_all_types<parent_component_list>([this]<typename... T>() {
-			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
-		});
 	}
 
 private:
