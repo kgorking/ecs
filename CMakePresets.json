@@ -248,8 +248,9 @@
       }
     },
     {
-      "name": "windows-debug",
-      "displayName": "Windows x64 Debug",
+      "name": "windows-2022-debug",
+      "toolset": "14.3",
+      "displayName": "MSVC 2022 Debug",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -258,7 +259,7 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_BUILD_TYPE": "Debug"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -266,14 +267,17 @@
             "Windows"
           ],
           "enableMicrosoftCodeAnalysis": true,
-          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
-          "disableExternalAnalysis": true
+          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset"
         }
       }
     },
     {
-      "name": "windows-release",
-      "displayName": "Windows x64 Release",
+      "name": "windows-2019-debug",
+      "toolset": {
+        "strategy": "external",
+        "value": "v142,host=x64"
+      },
+      "displayName": "MSVC 2019 Debug",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -282,7 +286,7 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_BUILD_TYPE": "Debug"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -290,14 +294,13 @@
             "Windows"
           ],
           "enableMicrosoftCodeAnalysis": true,
-          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
-          "disableExternalAnalysis": true
+          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset"
         }
       }
     },
     {
-      "name": "windows-profile",
-      "displayName": "Windows x64 Profile",
+      "name": "windows-2022-release",
+      "displayName": "MSVC 2022 Release",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -306,7 +309,7 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_BUILD_TYPE": "Release"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -314,8 +317,30 @@
             "Windows"
           ],
           "enableMicrosoftCodeAnalysis": true,
-          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
-          "disableExternalAnalysis": true
+          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset"
+        }
+      }
+    },
+    {
+      "name": "windows-2022-profile",
+      "displayName": "MSVC 2022 Profile",
+      "description": "Target Windows with the Visual Studio development environment.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [
+            "Windows"
+          ],
+          "enableMicrosoftCodeAnalysis": true,
+          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset"
         }
       }
     }
