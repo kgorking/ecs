@@ -1,6 +1,6 @@
 name: GCC 11/12/13
 
-on: [push]
+on: [workflow_dispatch]
 
 jobs:
   gcc:
