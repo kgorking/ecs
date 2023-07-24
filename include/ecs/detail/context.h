@@ -157,7 +157,7 @@ private:
 		using stripped_list = transform_type<ComponentList, stripper>;
 
 		return for_all_types<stripped_list>([this]<typename... Types>() {
-			return detail::component_pools<stripped_list>{
+			return detail::component_pools<ComponentList>{
 				&this->get_component_pool<Types>()...};
 		});
 	}
@@ -206,24 +206,21 @@ private:
 
 		// Create the system instance
 		if constexpr (has_parent) {
-			auto const pools = make_pools<detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>>();
-			using typed_system = system_hierarchy<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using combined_list = detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>;
+			using typed_system = system_hierarchy<Options, UpdateFn, first_is_entity, component_list, combined_list>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<combined_list>());
 			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_global<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using typed_system = system_global<Options, UpdateFn, first_is_entity, component_list>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else if constexpr (has_sort_func) {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+			using typed_system = system_sorted<Options, UpdateFn, SortFn, first_is_entity, component_list>;
+			auto sys = std::make_unique<typed_system>(update_func, sort_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using typed_system = system_ranged<Options, UpdateFn, first_is_entity, component_list>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
 		}
 	}

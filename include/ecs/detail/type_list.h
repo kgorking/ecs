@@ -73,11 +73,11 @@ namespace impl {
 		using type_list_index<1+Index, Rest...>::index_of;
 		using type_list_index<1+Index, Rest...>::type_at;
 
-		consteval static int index_of(T*) noexcept {
+		consteval static int index_of(wrap_t<T>*) noexcept {
 			return Index;
 		}
 
-		static T* type_at(wrap_size<Index>* = nullptr) noexcept;
+		static wrap_t<T>* type_at(wrap_size<Index>* = nullptr) noexcept;
 	};
 
 	template<typename... Types>
@@ -319,7 +319,7 @@ template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
 // Classes can inherit from type_list_indices with a provided type_list
-// to have 'index_of(T*)' functions injected into it, for O(1) lookups
+// to have 'index_of(wrap_t<T>*)' functions injected into it, for O(1) lookups
 // of the indices of the types in the type_list
 template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
@@ -328,13 +328,13 @@ using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(null
 template <typename T, impl::NonEmptyTypeList TL>
 consteval int index_of() {
 	using TLI = type_list_indices<TL>;
-	return TLI::index_of(static_cast<T*>(nullptr));
+	return TLI::index_of(static_cast<impl::wrap_t<T>*>(nullptr));
 }
 
 // Small helper to get the type at an index in a type_list
 template <int I, impl::NonEmptyTypeList TL>
 	requires (I >= 0 && I < type_list_size<TL>)
-using type_at = std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>;
+using type_at = typename std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>::type;
 
 // Return the first type in a type_list
 template <impl::NonEmptyTypeList TL>

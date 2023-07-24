@@ -9,9 +9,9 @@
 #include "type_list.h"
 
 namespace ecs::detail {
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
-class system_hierarchy final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename CombinedList>
+class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, CombinedList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, CombinedList>;
 
 	// Is parallel execution wanted
 	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
@@ -33,14 +33,15 @@ class system_hierarchy final : public system<Options, UpdateFn, Pools, FirstIsEn
 	};
 
 public:
-	system_hierarchy(UpdateFn func, Pools in_pools) : base{func, in_pools} {
+	system_hierarchy(UpdateFn func, component_pools<CombinedList>&& in_pools)
+		: base{func, std::forward<component_pools<CombinedList>>(in_pools)} {
 		pool_parent_id = &detail::get_pool<parent_id>(this->pools);
 		this->process_changes(true);
 	}
 
 private:
 	void do_run() override {
-		auto const this_pools = this->pools;
+		auto const& this_pools = this->pools;
 
 		if constexpr (is_parallel) {
 			std::for_each(std::execution::par, info_spans.begin(), info_spans.end(), [&](hierarchy_span span) {
@@ -51,7 +52,7 @@ private:
 			});
 		} else {
 			for (entity_info const& info : infos) {
-				arguments[info.l.index](this->update_func, info.l.offset, this_pools);
+				arguments[info.l.index](this->update_func, info.l.offset, this->pools);
 			}
 		}
 	}
@@ -62,7 +63,7 @@ private:
 		ents_to_remove.clear();
 
 		// Find the entities
-		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [&](entity_range range) {
+		find_entity_pool_intersections_cb<CombinedList>(this->pools, [&](entity_range range) {
 			ranges.push_back(range);
 
 			// Get the parent ids in the range
@@ -173,7 +174,7 @@ private:
 			auto current_root = infos.front().root_id;
 			unsigned count = 1;
 			unsigned offset = 0;
-			
+
 			for (size_t i = 1; i < infos.size(); i++) {
 				entity_info const& info = infos[i];
 				if (current_root != info.root_id) {
@@ -194,7 +195,7 @@ private:
 
 	template <typename... Ts>
 	static auto make_argument(entity_range range, auto... args) noexcept {
-		return [=](auto update_func, entity_offset offset, auto& pools) mutable {
+		return [=](auto update_func, entity_offset offset, component_pools<CombinedList> const& pools) mutable {
 			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);

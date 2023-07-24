@@ -38,14 +38,6 @@ TEST_CASE("type_list") {
 		static_assert(3 == type_list_size<type_list<char, int, float>>);
 	}
 
-	SECTION("type_list_indices") {
-		using TLI = type_list_indices<TL>;
-		static_assert(3 == TLI::index_of(static_cast<void**>(nullptr)));
-		static_assert(2 == TLI::index_of(static_cast<float*>(nullptr)));
-		static_assert(1 == TLI::index_of(static_cast<int*>(nullptr)));
-		static_assert(0 == TLI::index_of(static_cast<char*>(nullptr)));
-	}
-
 	SECTION("index_of") {
 		static_assert(5 == index_of<short[10], TL>());
 		static_assert(4 == index_of<abstract_test, TL>());

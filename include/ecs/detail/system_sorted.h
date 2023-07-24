@@ -7,17 +7,17 @@
 namespace ecs::detail {
 // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
 // will be passed to the user supplied lambda in a sorted manner
-template <typename Options, typename UpdateFn, typename SortFunc, typename TupPools, bool FirstIsEntity, typename ComponentsList>
-struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, typename SortFunc, bool FirstIsEntity, typename ComponentsList>
+struct system_sorted final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
 public:
-	system_sorted(UpdateFn func, SortFunc sort, TupPools in_pools)
-		: base(func, in_pools), sort_func{sort} {
+	system_sorted(UpdateFn func, SortFunc sort, component_pools<ComponentsList>&& in_pools)
+		: base{func, std::forward<component_pools<ComponentsList>>(in_pools)}, sort_func{sort} {
 		this->process_changes(true);
 	}
 

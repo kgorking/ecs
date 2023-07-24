@@ -13,8 +13,9 @@ constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_
 // If given a parent, convert to detail::parent_id, otherwise do nothing
 template <typename T>
 using reduce_parent_t =
-	std::conditional_t<std::is_pointer_v<T>, std::conditional_t<is_parent<std::remove_pointer_t<T>>::value, parent_id*, T>,
-					   std::conditional_t<is_parent<T>::value, parent_id, T>>;
+	std::conditional_t<std::is_pointer_v<T>,
+		std::conditional_t<is_parent<std::remove_pointer_t<T>>::value, parent_id*, T>,
+		std::conditional_t<is_parent<T>::value, parent_id, T>>;
 
 // Alias for stored pools
 template <typename T>
@@ -93,7 +94,8 @@ template <typename Component, typename Pools>
 
 	} else if constexpr (global<T>) {
 		// Global: return the shared component
-		return &get_pool<T>(pools).get_shared_component();
+		//return &get_pool<T>(pools).get_shared_component();
+		return &pools.template get<Component>().get_shared_component();
 
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
 		return get_pool<parent_id>(pools).find_component_data(entity);
@@ -111,7 +113,8 @@ template <typename Component, typename Pools>
 
 	} else {
 		// Standard: return the component from the pool
-		return get_pool<T>(pools).find_component_data(entity);
+		//return get_pool<T>(pools).find_component_data(entity);
+		return pools.template get<Component>().find_component_data(entity);
 	}
 }
 

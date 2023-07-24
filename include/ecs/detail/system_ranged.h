@@ -6,16 +6,17 @@
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
-class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList>
+class system_ranged final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools} {
+	system_ranged(UpdateFn func, component_pools<ComponentsList>&& in_pools)
+		: base{func, std::forward<component_pools<ComponentsList>>(in_pools)} {
 		this->process_changes(true);
 	}
 

@@ -17,13 +17,14 @@
 namespace ecs::detail {
 
 // The implementation of a system specialized on its components
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
 
 public:
-	system(UpdateFn func, Pools in_pools) : update_func{func}, pools{in_pools} {
+	system(UpdateFn func, component_pools<ComponentsList>&& in_pools)
+		: update_func{func}, pools{std::forward<component_pools<ComponentsList>>(in_pools)} {
 	}
 
 	void run() override {
@@ -176,7 +177,7 @@ protected:
 	UpdateFn update_func;
 
 	// Fully typed component pools used by this system
-	Pools const pools;
+	component_pools<ComponentsList> const pools;
 
 	interval_type interval_checker;
 };
