@@ -10,11 +10,11 @@
 namespace ecs::detail {
 
 // Given a list of components, return an array containing the corresponding component pools
-template <typename ComponentList, typename Pools>
-auto get_pool_iterators([[maybe_unused]] Pools pools) {
-	if constexpr (type_list_size<ComponentList> > 0) {
-		return for_all_types<ComponentList>([&]<typename... Components>() {
-			//return std::to_array({get_pool<Components>(pools).get_entities()...});
+template <typename ComponentsList>
+	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
+static constexpr auto get_pool_iterators([[maybe_unused]] auto const& pools) {
+	if constexpr (type_list_size < ComponentsList >> 0) {
+		return for_all_types<ComponentsList>([&]<typename... Components>() {
 			return std::to_array({pools.template get<Components>().get_entities()...});
 		});
 	} else {
@@ -30,14 +30,14 @@ void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, 
 
 	// Split the type_list into filters and non-filters (regular components).
 	using FilterComponentPairList = split_types_if<InputList, std::is_pointer>;
-	using FilterList = typename FilterComponentPairList::first;
+	using FilterList = transform_type<typename FilterComponentPairList::first, naked_component_t>;
 	using ComponentList = typename FilterComponentPairList::second;
 	auto iter_filters = get_pool_iterators<FilterList>(pools);
 
 	// Filter local components.
 	// Global components are available for all entities,
 	// so don't bother wasting cycles on testing them.
-	using LocalComponentList = filter_types_if<ComponentList, detail::is_local>;
+	using LocalComponentList = transform_type<filter_types_if<ComponentList, detail::is_local>, naked_component_t>;
 	auto iter_components = get_pool_iterators<LocalComponentList>(pools);
 
 	// Sort the filters
