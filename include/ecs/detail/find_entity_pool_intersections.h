@@ -24,8 +24,8 @@ auto get_pool_iterators([[maybe_unused]] Pools pools) {
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <typename InputList, /*typename Pools,*/ typename F>
-void find_entity_pool_intersections_cb(component_pools<InputList> const& pools, F callback) {
+template <typename InputList, typename PoolsList, typename F>
+void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, F&& callback) {
 	static_assert(0 < type_list_size<InputList>, "Empty component list supplied");
 
 	// Split the type_list into filters and non-filters (regular components).
