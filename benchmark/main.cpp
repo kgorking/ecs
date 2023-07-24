@@ -4,8 +4,9 @@
 #include "global.h"
 #include <ecs/entity_id.h>
 #include <complex>
+#include <ecs/detail/verification.h>
 
-void benchmark_system(ecs::entity_id ent, int &color) {
+void benchmark_system(ecs::entity_id ent, int &color) noexcept {
 	constexpr int dimension = 16384;
 	constexpr int max_iterations = 500;
 	constexpr double fr_w = 1.5;

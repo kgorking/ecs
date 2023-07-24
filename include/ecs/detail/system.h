@@ -17,13 +17,14 @@
 namespace ecs::detail {
 
 // The implementation of a system specialized on its components
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
 
 public:
-	system(UpdateFn func, Pools in_pools) : update_func{func}, pools{in_pools} {
+	system(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: update_func{func}, pools{std::forward<component_pools<PoolsList>>(in_pools)} {
 	}
 
 	void run() override {
@@ -51,7 +52,7 @@ public:
 				(this->notify_pool_modifed<ParentTypes>(), ...);
 			});
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
-			get_pool<T>(pools).notify_components_modified();
+			pools.template get<std::remove_reference_t<T>>().notify_components_modified();
 		}
 	}
 
@@ -166,8 +167,8 @@ protected:
 
 
 	// Number of filters
-	static constexpr size_t num_filters = count_type_if<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
-	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
+	static constexpr size_t num_filters = count_type_if<ComponentsList, std::is_pointer>();
+	static_assert(num_components-num_filters > 0, "systems must have at least one non-filter component");
 
 	// Hashes of stripped types used by this system ('int' instead of 'int const&')
 	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
@@ -176,7 +177,7 @@ protected:
 	UpdateFn update_func;
 
 	// Fully typed component pools used by this system
-	Pools const pools;
+	component_pools<PoolsList> const pools;
 
 	interval_type interval_checker;
 };

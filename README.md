@@ -1,13 +1,13 @@
 
 # ECS: An entity/component/system library.
-This is a small project I created to better familiarize myself with the features of c++ 17/20, and to test out
+This is a small project I created to better familiarize myself with the features of c++ 17/20 and to test out
 some stuff I had been reading about [data oriented design](http://www.dataorienteddesign.com/dodbook/).
 An ecs library seemed like a good fit for both objectives.
 
 More detail on what ecs is can be found [here](http://gameprogrammingpatterns.com/component.html) and
 [here](https://github.com/EngineArchitectureClub/TalkSlides/blob/master/2012/05-Components-SeanMiddleditch/ComponentDesign.pdf).
 
-Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-explorer logo next to them have a compiler-explorer example that you can play around with. Ctrl/CMD+Click the icon to open it in a new window.
+Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-explorer logo next to them have an example that you can play around with. Ctrl/CMD+Click the icon to open it in a new window.
 
 # An example[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/6eoxx5PTs)
 The following example shows the basics of the library.
@@ -49,12 +49,12 @@ The latter command will fetch the submodules required to build this library.
 
 
 # Building 
-#### Tested compilers
-The CI build status for msvc, clang, and gcc is currently:
-* [![msvc 2022](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
-* [![gcc 11](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
-* [![clang-13 libstdc++-10](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml)
-  * Clang builds are currently disabled due it being to far behind gccc and msvc in terms of c++20 features.
+## Tested compilers
+The CI build status for msvc, clang, and gcc is currently
+
+[![MSVC](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
+[![Clang](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
+[![GCC](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
 
 # Table of Contents
 - [Entities](#entities)
@@ -86,7 +86,7 @@ The CI build status for msvc, clang, and gcc is currently:
     - [Global systems](#Global-systems)
 
 # Entities
-Entities are the scaffolding on which you build your objects, and there are two classes in the library for managing entities.
+Entities are the scaffolding on which you build your objects. There are two classes in the library for managing entities:
 
 * [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
 * [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.

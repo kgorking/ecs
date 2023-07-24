@@ -31,6 +31,29 @@ concept persistent = !transient<T>;
 template <typename T>
 concept unbound = (tagged<T> || global<T>); // component is not bound to a specific entity (ie static)
 
+
+//
+template <typename T>
+struct is_tagged : std::bool_constant<tagged<T>> {};
+
+template <typename T>
+struct is_transient : std::bool_constant<transient<T>> {};
+
+template <typename T>
+struct is_immutable : std::bool_constant<immutable<T>> {};
+
+template <typename T>
+struct is_global : std::bool_constant<global<T>> {};
+
+template <typename T>
+struct is_local : std::bool_constant<!global<T>> {};
+
+template <typename T>
+struct is_persistent : std::bool_constant<!transient<T>> {};
+
+template <typename T>
+struct is_unbound : std::bool_constant<tagged<T> || global<T>> {};
+
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_FLAGS_H

@@ -2,6 +2,7 @@
 #define ECS_PARENT_H_
 
 #include "detail/system_defs.h"
+#include "detail/component_pools.h"
 #include "entity_id.h"
 
 // forward decls
@@ -20,8 +21,9 @@ namespace ecs::detail {
 namespace ecs {
 // Special component that allows parent/child relationships
 template <typename... ParentTypes>
-struct parent : entity_id,
-				private std::conditional_t<(sizeof...(ParentTypes) > 0), detail::void_ptr_storage<sizeof...(ParentTypes)>, detail::empty_storage> {
+struct parent : entity_id, private std::conditional_t<(sizeof...(ParentTypes) > 0), detail::void_ptr_storage<sizeof...(ParentTypes)>, detail::empty_storage> {
+	static_assert((!detail::global<ParentTypes> && ...), "global components are not allowed in parents");
+	static_assert((!detail::is_parent<ParentTypes>::value && ...), "parents in parents is not supported");
 
 	explicit parent(entity_id id) : entity_id(id) {}
 

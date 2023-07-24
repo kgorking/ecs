@@ -1,5 +1,5 @@
-#ifndef ECS_ENTITY_ID
-#define ECS_ENTITY_ID
+#ifndef ECS_ENTITY_ID_H
+#define ECS_ENTITY_ID_H
 
 namespace ecs {
 namespace detail {
@@ -26,4 +26,4 @@ private:
 };
 } // namespace ecs
 
-#endif // !ECS_ENTITY_ID
+#endif // !ECS_ENTITY_ID_H

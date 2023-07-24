@@ -3,71 +3,19 @@
 
 #include "entity_range.h"
 #include "system_defs.h"
+#include "component_pools.h"
 #include <array>
 #include <vector>
 
 namespace ecs::detail {
 
-template <typename Component, typename TuplePools>
-void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) {
-	using T = std::remove_cvref_t<Component>;
-	using iter1 = typename std::vector<entity_range>::iterator;
-	using iter2 = typename entity_range_view::iterator;
-
-	// Skip globals and parents
-	if constexpr (detail::global<T>) {
-		// do nothing
-	} else if constexpr (detail::is_parent<T>::value) {
-		auto const ents = get_pool<parent_id>(pools).get_entities();
-		ranges = intersect_ranges_iter(iter_pair<iter1>{ranges.begin(), ranges.end()}, iter_pair<iter2>{ents.begin(), ents.end()});
-	} else if constexpr (std::is_pointer_v<T>) {
-		// do nothing
-	} else {
-		// ranges = intersect_ranges(ranges, get_pool<T>(pools).get_entities());
-		auto const ents = get_pool<T>(pools).get_entities();
-		ranges = intersect_ranges_iter(iter_pair<iter1>{ranges.begin(), ranges.end()}, iter_pair<iter2>{ents.begin(), ents.end()});
-	}
-}
-
-template <typename Component, typename TuplePools>
-void pool_difference(std::vector<entity_range>& ranges, TuplePools const& pools) {
-	using T = std::remove_cvref_t<Component>;
-
-	if constexpr (std::is_pointer_v<T>) {
-		using NoPtr = std::remove_pointer_t<T>;
-
-		if constexpr (detail::is_parent<NoPtr>::value) {
-			ranges = difference_ranges(ranges, get_pool<parent_id>(pools).get_entities());
-		} else {
-			ranges = difference_ranges(ranges, get_pool<NoPtr>(pools).get_entities());
-		}
-	}
-}
-
-// Find the intersection of the sets of entities in the specified pools
-template <typename FirstComponent, typename... Components, typename TuplePools>
-std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools) {
-	std::vector<entity_range> ranges{entity_range::all()};
-
-	if constexpr (std::is_same_v<entity_id, FirstComponent>) {
-		(pool_intersect<Components, TuplePools>(ranges, pools), ...);
-		(pool_difference<Components, TuplePools>(ranges, pools), ...);
-	} else {
-		pool_intersect<FirstComponent, TuplePools>(ranges, pools);
-		(pool_intersect<Components, TuplePools>(ranges, pools), ...);
-
-		pool_difference<FirstComponent, TuplePools>(ranges, pools);
-		(pool_difference<Components, TuplePools>(ranges, pools), ...);
-	}
-
-	return ranges;
-}
-
-template <typename ComponentList, typename Pools>
-auto get_pool_iterators([[maybe_unused]] Pools pools) {
-	if constexpr (type_list_size<ComponentList> > 0) {
-		return for_all_types<ComponentList>([&]<typename... Components>() {
-			return std::to_array({get_pool<Components>(pools).get_entities()...});
+// Given a list of components, return an array containing the corresponding component pools
+template <typename ComponentsList>
+	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
+static constexpr auto get_pool_iterators([[maybe_unused]] auto const& pools) {
+	if constexpr (type_list_size < ComponentsList >> 0) {
+		return for_all_types<ComponentsList>([&]<typename... Components>() {
+			return std::to_array({pools.template get<Components>().get_entities()...});
 		});
 	} else {
 		return std::array<stride_view<0,char const>, 0>{};
@@ -76,14 +24,21 @@ auto get_pool_iterators([[maybe_unused]] Pools pools) {
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <typename ComponentList, typename Pools, typename F>
-void find_entity_pool_intersections_cb(Pools pools, F callback) {
-	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
+template <typename InputList, typename PoolsList, typename F>
+void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, F&& callback) {
+	static_assert(0 < type_list_size<InputList>, "Empty component list supplied");
 
-	// Split the type_list into filters and non-filters (regular components)
-	using SplitPairList = split_types_if<ComponentList, std::is_pointer>;
-	auto iter_filters = get_pool_iterators<typename SplitPairList::first>(pools);
-	auto iter_components = get_pool_iterators<typename SplitPairList::second>(pools);
+	// Split the type_list into filters and non-filters (regular components).
+	using FilterComponentPairList = split_types_if<InputList, std::is_pointer>;
+	using FilterList = transform_type<typename FilterComponentPairList::first, naked_component_t>;
+	using ComponentList = typename FilterComponentPairList::second;
+	auto iter_filters = get_pool_iterators<FilterList>(pools);
+
+	// Filter local components.
+	// Global components are available for all entities,
+	// so don't bother wasting cycles on testing them.
+	using LocalComponentList = transform_type<filter_types_if<ComponentList, detail::is_local>, naked_component_t>;
+	auto iter_components = get_pool_iterators<LocalComponentList>(pools);
 
 	// Sort the filters
 	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
@@ -100,7 +55,7 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 		entity_range curr_range = *iter_components[0].current();
 
 		// Find all intersections
-		if constexpr (type_list_size<typename SplitPairList::second> == 1) {
+		if constexpr (type_list_size<LocalComponentList> == 1) {
 			iter_components[0].next();
 		} else {
 			bool intersection_found = false;
@@ -139,7 +94,7 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 		}
 
 		// Filter the range, if needed
-		if constexpr (type_list_size<typename SplitPairList::first> > 0) {
+		if constexpr (type_list_size<FilterList> > 0) {
 			bool completely_filtered = false;
 			for (auto& it : iter_filters) {
 				while(!done(it)) {
@@ -169,9 +124,10 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 							it.next();
 						} else {
 							// The result is an endpiece, so update the current range.
-							// The next filter might remove more from 'curr_range'
 							curr_range = res.first;
 
+							// The next filter might remove more from 'curr_range', so don't just
+							// skip past it without checking
 							if (curr_range.first() >= it.current()->first()) {
 								it.next();
 							}

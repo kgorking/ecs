@@ -6,16 +6,17 @@
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
-class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+class system_ranged final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools} {
+	system_ranged(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
 		this->process_changes(true);
 	}
 
@@ -32,9 +33,9 @@ private:
 		// Clear current arguments
 		lambda_arguments.clear();
 
-		for_all_types<ComponentsList>([&]<typename... Types>() {
+		for_all_types<ComponentsList>([&]<typename... Type>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				lambda_arguments.push_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
+				lambda_arguments.push_back(make_argument<Type...>(found_range, get_component<Type>(found_range.first(), this->pools)...));
 			});
 		});
 	}

@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <utility>
 
 #include "tls/collect.h"
 
@@ -16,6 +17,12 @@
 #include "component_pool_base.h"
 #include "flags.h"
 #include "options.h"
+
+#ifdef _MSC_VER
+#define MSVC msvc::
+#else
+#define MSVC
+#endif
 
 namespace ecs::detail {
 
@@ -140,34 +147,28 @@ private:
 	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
-#ifdef _MSC_VER
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-	[[msvc::no_unique_address]] Alloc alloc;
-#else
-	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	[[no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-	[[no_unique_address]] Alloc alloc;
-#endif
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	[[MSVC no_unique_address]] Alloc alloc;
 
 public:
 	component_pool() noexcept {
 		if constexpr (global<T>) {
-			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, false, false);
+			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, true, false);
 			chunks.front().data = new T[1];
 		}
 	}
+
 	component_pool(component_pool const&) = delete;
 	component_pool(component_pool&&) = delete;
 	component_pool& operator=(component_pool const&) = delete;
 	component_pool& operator=(component_pool&&) = delete;
 	~component_pool() noexcept override {
-		if (global<T>) {
+		if constexpr (global<T>) {
 			delete [] chunks.front().data.pointer();
+			chunks.clear();
 		} else {
 			free_all_chunks();
 		}
@@ -366,10 +367,10 @@ public:
 
 		// Clear all data
 		free_all_chunks();
-		deferred_adds.reset();
-		deferred_spans.reset();
-		deferred_gen.reset();
-		deferred_removes.reset();
+		deferred_adds.clear();
+		deferred_spans.clear();
+		deferred_gen.clear();
+		deferred_removes.clear();
 		chunks.clear();
 		clear_flags();
 
@@ -444,7 +445,7 @@ private:
 		return std::ranges::lower_bound(chunks, rng, std::less{}, &chunk::active);
 	}
 
-	ptrdiff_t ranges_dist(std::vector<chunk>::const_iterator it) const noexcept {
+	ptrdiff_t ranges_dist(typename std::vector<chunk>::const_iterator it) const noexcept {
 		return std::distance(chunks.begin(), it);
 	}
 
@@ -638,19 +639,20 @@ private:
 			}
 
 			this->process_add_components(vec);
+			vec.clear();
 
 			// Update the state
 			set_data_added();
 		};
 
 		deferred_adds.for_each(adder);
-		deferred_adds.reset();
+		deferred_adds.clear();
 
 		deferred_spans.for_each(adder);
-		deferred_spans.reset();
+		deferred_spans.clear();
 
 		deferred_gen.for_each(adder);
-		deferred_gen.reset();
+		deferred_gen.clear();
 	}
 
 	// Removes the entities and components
@@ -668,7 +670,7 @@ private:
 			// Update the state
 			set_data_removed();
 		});
-		deferred_removes.reset();
+		deferred_removes.clear();
 	}
 
 	void process_remove_components(std::vector<entity_range>& removes) noexcept {
