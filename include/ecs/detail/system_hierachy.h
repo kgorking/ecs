@@ -35,7 +35,7 @@ class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, C
 public:
 	system_hierarchy(UpdateFn func, component_pools<CombinedList>&& in_pools)
 		: base{func, std::forward<component_pools<CombinedList>>(in_pools)} {
-		pool_parent_id = &detail::get_pool<parent_id>(this->pools);
+		pool_parent_id = &this->pools.template get<parent_id>();
 		this->process_changes(true);
 	}
 

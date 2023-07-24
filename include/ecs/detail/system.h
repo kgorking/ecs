@@ -52,7 +52,7 @@ public:
 				(this->notify_pool_modifed<ParentTypes>(), ...);
 			});
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
-			get_pool<T>(pools).notify_components_modified();
+			pools.template get<T>().notify_components_modified();
 		}
 	}
 

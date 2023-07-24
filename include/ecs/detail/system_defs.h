@@ -56,13 +56,6 @@ struct parent_pool_detect<Parent<ParentComponents...>> {
 template <typename T>
 using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
 
-// Get a component pool from a component pool tuple.
-// Removes cvref and pointer from Component
-template <typename Component, typename Pools>
-auto& get_pool(Pools const& pools) {
-	using T = std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<Component>>>;
-	return pools.template get<T>();
-}
 
 // Get a pointer to an entities component data from a component pool tuple.
 // If the component type is a pointer, return nullptr
@@ -72,7 +65,7 @@ Component* get_entity_data([[maybe_unused]] entity_id id, [[maybe_unused]] Pools
 	if constexpr (std::is_pointer_v<Component>) {
 		return nullptr;
 	} else {
-		component_pool<Component>& pool = get_pool<Component>(pools);
+		component_pool<Component>& pool = pools.template get<Component>();
 		return pool.find_component_data(id);
 	}
 }
@@ -98,7 +91,8 @@ template <typename Component, typename Pools>
 		return &pools.template get<Component>().get_shared_component();
 
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
-		return get_pool<parent_id>(pools).find_component_data(entity);
+		//return get_pool<parent_id>(pools).find_component_data(entity);
+		return pools.template get<parent_id>().find_component_data(entity);
 
 		// Parent component: return the parent with the types filled out
 		//parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
