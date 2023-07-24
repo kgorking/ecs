@@ -43,7 +43,6 @@ struct parent_type_list<void> {
 
 template <template <typename...> typename Parent, typename... ParentComponents> // partial specialization
 struct parent_type_list<Parent<ParentComponents...>> {
-	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
 	using type = type_list<ParentComponents...>;
 };
 template <typename T>
