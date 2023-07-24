@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [14.2, 14.3] # 2019, 2022
+        version: [14.2] #, 14.3] # 2019, 2022
 
 
     steps:

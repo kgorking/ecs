@@ -274,8 +274,8 @@
     {
       "name": "windows-2019-debug",
       "toolset": {
-        "strategy": "external",
-        "value": "v142,host=x64"
+        "value": "v142",
+        "strategy": "external"
       },
       "displayName": "MSVC 2019 Debug",
       "description": "Target Windows with the Visual Studio development environment.",

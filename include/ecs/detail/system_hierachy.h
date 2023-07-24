@@ -75,7 +75,8 @@ private:
 				using X = std::remove_pointer_t<T>;
 				component_pool<X> const& sub_pool = this->pools.template get<X>();
 
-				for (size_t pid_index = 0; entity_id const ent : range) {
+				size_t pid_index = 0;
+				for (entity_id const ent : range) {
 					parent_id const pid = pid_ptr[pid_index];
 					pid_index += 1;
 
