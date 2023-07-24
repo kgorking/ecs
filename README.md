@@ -54,7 +54,6 @@ The CI build status for msvc, clang, and gcc is currently:
 * [![MSVC](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=runtime_global_component)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
 * [![GCC](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=runtime_global_component)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
 * [![Clang](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg?branch=runtime_global_component)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
-  * Clang builds are currently disabled due it being to far behind gccc and msvc in terms of c++20 features.
 
 # Table of Contents
 - [Entities](#entities)
