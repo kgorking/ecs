@@ -1,4 +1,5 @@
-name: MSVC 2019 (v14.2) / 2022 (v14.3)
+name: MSVC 2022 (v14.3)
+#name: MSVC 2019 (v14.2) / 2022 (v14.3)
 
 on: [push]
 

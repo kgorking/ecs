@@ -3,7 +3,7 @@
   "configurePresets": [
     {
       "name": "gcc-11-debug",
-      "displayName": "WSL: GCC 11 Debug",
+      "displayName": "Debug, GCC 11 (WSL)",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -26,7 +26,7 @@
     },
     {
       "name": "gcc-11-release",
-      "displayName": "WSL: GCC 11 Release",
+      "displayName": "Release, GCC 11 (WSL)",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -49,7 +49,7 @@
     },
     {
       "name": "gcc-12-debug",
-      "displayName": "WSL: GCC 12 Debug",
+      "displayName": "Debug, GCC 12 (WSL)",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -72,7 +72,7 @@
     },
     {
       "name": "gcc-12-release",
-      "displayName": "WSL: GCC 12 Release",
+      "displayName": "Release, GCC 12 (WSL)",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -95,7 +95,7 @@
     },
     {
       "name": "gcc-13-debug",
-      "displayName": "WSL: GCC 13 Debug",
+      "displayName": "Debug, GCC 13 (WSL)",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -118,7 +118,7 @@
     },
     {
       "name": "gcc-13-release",
-      "displayName": "WSL: GCC 13 Release",
+      "displayName": "Release, GCC 13 (WSL)",
       "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -141,7 +141,7 @@
     },
     {
       "name": "clang-13-debug",
-      "displayName": "WSL: Clang 13 Debug",
+      "displayName": "Debug, Clang 13 (WSL)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -161,7 +161,7 @@
     },
     {
       "name": "clang-14-debug",
-      "displayName": "WSL: Clang 14 Debug",
+      "displayName": "Debug, Clang 14 (WSL)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -183,7 +183,7 @@
     },
     {
       "name": "clang-14-release",
-      "displayName": "WSL: Clang 14 Release",
+      "displayName": "Release, Clang 14 (WSL)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -205,7 +205,7 @@
     },
     {
       "name": "clang-15-debug",
-      "displayName": "WSL: Clang 15 Debug",
+      "displayName": "Debug, Clang 15 (WSL)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -227,7 +227,7 @@
     },
     {
       "name": "clang-15-release",
-      "displayName": "WSL: Clang 15 Release",
+      "displayName": "Release, Clang 15 (WSL)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -250,7 +250,7 @@
     {
       "name": "windows-2022-debug",
       "toolset": "14.3",
-      "displayName": "MSVC 2022 Debug",
+      "displayName": "Debug, MSVC 2022",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -273,7 +273,7 @@
     },
     {
       "name": "windows-2019-debug",
-      "displayName": "MSVC 2019 Debug",
+      "displayName": "Debug, MSVC 2019",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Visual Studio 17 2022",
       "toolset": "v142",
@@ -297,7 +297,7 @@
     },
     {
       "name": "windows-2022-release",
-      "displayName": "MSVC 2022 Release",
+      "displayName": "Release, MSVC 2022",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -320,7 +320,7 @@
     },
     {
       "name": "windows-2022-profile",
-      "displayName": "MSVC 2022 Profile",
+      "displayName": "Profile, MSVC 2022",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",

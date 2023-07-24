@@ -1,6 +1,6 @@
 name: Clang 13/14/15
 
-on: [workflow_dispatch]
+on: [push]
 
 jobs:
   clang:
