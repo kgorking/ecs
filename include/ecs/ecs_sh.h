@@ -105,41 +105,30 @@ namespace tls {
 // accesses it. Data is not preserved when threads die.
 // This class locks when a thread is created/destroyed.
 // The thread_local T's can be accessed through split::for_each.
-// Note: Two split<T> instances in the same thread will point to the same data.
-//       Differentiate between them by passing different types to 'UnusedDifferentiaterType'.
-//       As the name implies, it's not used internally, so just put whatever.
+// Use `tls::unique_split` or pass different types to 'UnusedDifferentiatorType'
+// to create different types.
 template <typename T, typename UnusedDifferentiaterType = void>
 class split {
 	// This struct manages the instances that access the thread-local data.
 	// Its lifetime is marked as thread_local, which means that it can live longer than
 	// the split<> instance that spawned it.
 	struct thread_data {
-		// The destructor triggers when a thread dies and the thread_local
-		// instance is destroyed
-		~thread_data() noexcept {
-			if (owner != nullptr) {
-				owner->remove_thread(this);
-			}
+		thread_data() {
+			split::init_thread(this);
+		}
+
+		~thread_data() {
+			split::remove_thread(this);
 		}
 
 		// Return a reference to an instances local data
-		[[nodiscard]] T& get(split* instance) noexcept {
-			// If the owner is null, (re-)initialize the instance.
-			// Data may still be present if the thread_local instance is still active
-			if (owner == nullptr) {
-				data = {};
-				owner = instance;
-				instance->init_thread(this);
-			}
+		[[nodiscard]] T& get() noexcept {
 			return data;
 		}
 
-		void remove(split* instance) noexcept {
-			if (owner == instance) {
-				data = {};
-				owner = nullptr;
-				next = nullptr;
-			}
+		void remove() noexcept {
+			data = {};
+			next = nullptr;
 		}
 
 		[[nodiscard]] T* get_data() noexcept {
@@ -161,12 +150,11 @@ class split {
 
 	private:
 		T data{};
-		split<T, UnusedDifferentiaterType> *owner{};
-		thread_data *next = nullptr;
+		thread_data* next = nullptr;
 	};
 
 private:
-	// the head of the threads that access this split instance
+	// the head of the threads
 	inline static thread_data* head{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
@@ -174,15 +162,15 @@ private:
 
 protected:
 	// Adds a thread_data
-	void init_thread(thread_data* t) noexcept {
-		std::scoped_lock sl(mtx);
+	static void init_thread(thread_data* t) {
+		std::unique_lock sl(mtx);
 		t->set_next(head);
 		head = t;
 	}
 
 	// Remove the thread_data
-	void remove_thread(thread_data* t) noexcept {
-		std::scoped_lock sl(mtx);
+	static void remove_thread(thread_data* t) {
+		std::unique_lock sl(mtx);
 		// Remove the thread from the linked list
 		if (head == t) {
 			head = t->get_next();
@@ -200,42 +188,40 @@ protected:
 	}
 
 public:
-	split() noexcept = default;
-	split(split const&) = delete;
-	split(split&&) noexcept = default;
-	split& operator=(split const&) = delete;
-	split& operator=(split&&) noexcept = default;
-	~split() noexcept {
-		reset();
-	}
-
 	// Get the thread-local instance of T
 	T& local() noexcept {
 		thread_local thread_data var{};
-		return var.get(this);
+		return var.get();
 	}
 
 	// Performa an action on all each instance of the data
-	template<class Fn>
-	void for_each(Fn&& fn) {
-		std::scoped_lock sl(mtx);
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
-			fn(*thread->get_data());
+	template <class Fn>
+	static void for_each(Fn&& fn) {
+		if constexpr (std::invocable<Fn, T const&>) {
+			std::shared_lock sl(mtx);
+			for (thread_data const* thread = head; thread != nullptr; thread = thread->get_next()) {
+				fn(*thread->get_data());
+			}
+		} else {
+			std::unique_lock sl(mtx);
+			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+				fn(*thread->get_data());
+			}
 		}
 	}
 
-	// Resets all data and threads
-	void reset() noexcept {
-		std::scoped_lock sl(mtx);
-		for (thread_data* instance = head; instance != nullptr;) {
-			auto next = instance->get_next();
-			instance->remove(this);
-			instance = next;
+	// Clears all data
+	static void clear() {
+		std::unique_lock sl(mtx);
+		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+			*(thread->get_data()) = {};
 		}
-
-		head = nullptr;
 	}
 };
+
+template <typename T, auto U = [] {}>
+using unique_split = split<T, decltype(U)>;
+
 } // namespace tls
 
 #endif // !TLS_SPLIT_H
@@ -244,44 +230,34 @@ public:
 
 
 namespace tls {
-// Works like tls::split, except data is preserved when threads die.
-// You can collect the thread_local T's with collect::gather,
+// Provides a thread-local instance of the type T for each thread that
+// accesses it. Data is preserved when threads die.
+// You can collect the thread_local T's with collect::gather*,
 // which also resets the data on the threads by moving it.
-// Note: Two runtime collect<T> instances in the same thread will point to the same data.
-//       If they are evaluated in a constant context each instance has their own data.
-//       Differentiate between runtime versions by passing different types to 'UnusedDifferentiaterType',
-// 	     so fx collect<int, struct A> is different from collect<int, struct B>.
-//       As the name implies, 'UnusedDifferentiaterType' is not used internally, so just put whatever.
-template <typename T, typename UnusedDifferentiaterType = void>
-class collect {
+// Use `tls::unique_collect` or pass different types to 'UnusedDifferentiatorType'
+// to create different types.
+template <typename T, typename UnusedDifferentiatorType = void>
+class collect final {
 	// This struct manages the instances that access the thread-local data.
 	// Its lifetime is marked as thread_local, which means that it can live longer than
-	// the splitter<> instance that spawned it.
-	struct thread_data {
-		~thread_data() noexcept {
-			if (owner != nullptr) {
-				owner->remove_thread(this);
-			}
+	// the collect<> instance that spawned it.
+	struct thread_data final {
+		thread_data() {
+			collect::init_thread(this);
+		}
+
+		~thread_data() {
+			collect::remove_thread(this);
 		}
 
 		// Return a reference to an instances local data
-		[[nodiscard]] T& get(collect* instance) noexcept {
-			// If the owner is null, (re-)initialize the thread.
-			// Data may still be present if the thread_local instance is still active
-			if (owner == nullptr) {
-				data = {};
-				owner = instance;
-				instance->init_thread(this);
-			}
+		[[nodiscard]] T& get() noexcept {
 			return data;
 		}
 
-		void remove(collect* instance) noexcept {
-			if (owner == instance) {
-				data = {};
-				owner = nullptr;
-				next = nullptr;
-			}
+		void remove() noexcept {
+			data = {};
+			next = nullptr;
 		}
 
 		[[nodiscard]] T* get_data() noexcept {
@@ -303,102 +279,85 @@ class collect {
 
 	private:
 		T data{};
-		collect* owner{};
 		thread_data* next = nullptr;
 	};
 
 private:
-	// the head of the threads that access this collect instance
+	// the head of the threads
 	inline static thread_data* head{};
-
-	// All the data collected from threads
-	inline static std::vector<T> data{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
 	inline static std::shared_mutex mtx;
 
+	// All the data collected from threads
+	inline static std::vector<T> data{};
+
 	// Adds a new thread
-	void init_thread(thread_data* t) noexcept {
-		std::scoped_lock sl(mtx);
+	static void init_thread(thread_data* t) {
+		std::unique_lock sl(mtx);
+
 		t->set_next(head);
 		head = t;
 	}
 
 	// Removes the thread
-	void remove_thread(thread_data* t) noexcept {
-		std::scoped_lock sl(mtx);
+	static void remove_thread(thread_data* t) {
+		std::unique_lock sl(mtx);
 
 		// Take the thread data
 		T* local_data = t->get_data();
 		data.push_back(static_cast<T&&>(*local_data));
-
-		// Reset the thread data
-		*local_data = T{};
 
 		// Remove the thread from the linked list
 		if (head == t) {
 			head = t->get_next();
 		} else {
 			auto curr = head;
-			while (curr->get_next() != nullptr) {
-				if (curr->get_next() == t) {
-					curr->set_next(t->get_next());
-					return;
-				} else {
-					curr = curr->get_next();
+			if (nullptr != curr) {
+				while (curr->get_next() != nullptr) {
+					if (curr->get_next() == t) {
+						curr->set_next(t->get_next());
+						return;
+					} else {
+						curr = curr->get_next();
+					}
 				}
 			}
 		}
 	}
 
 public:
-	collect() noexcept = default;
-	collect(collect const&) = delete;
-	collect(collect&&) noexcept = default;
-	collect& operator=(collect const&) = delete;
-	collect& operator=(collect&&) noexcept = default;
-	~collect() noexcept {
-		reset();
-	}
-
-	// Get the thread-local thread of T
-	[[nodiscard]] T& local() noexcept {
+	// Get the thread-local variable
+	[[nodiscard]] static T& local() noexcept {
 		thread_local thread_data var{};
-		return var.get(this);
+		return var.get();
 	}
 
 	// Gathers all the threads data and returns it. This clears all stored data.
-	[[nodiscard]] std::vector<T> gather() noexcept {
-		std::scoped_lock sl(mtx);
+	[[nodiscard]]
+	static std::vector<T> gather() {
+		std::unique_lock sl(mtx);
+
 		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
 			data.push_back(std::move(*thread->get_data()));
 			*thread->get_data() = T{};
 		}
 
-		return static_cast<std::vector<T>&&>(data);
+		return std::move(data);
 	}
 
 	// Gathers all the threads data and sends it to the output iterator. This clears all stored data.
-	void gather_flattened(auto dest_iterator) noexcept {
-		std::scoped_lock sl(mtx);
-		using U = typename T::value_type;
+	static void gather_flattened(auto dest_iterator) {
+		std::unique_lock sl(mtx);
 
 		for (T& per_thread_data : data) {
-			//std::move(t.begin(), t.end(), dest_iterator);
-			for (U& elem : per_thread_data) {
-				*dest_iterator = static_cast<U&&>(elem);
-				++dest_iterator;
-			}
+			std::move(per_thread_data.begin(), per_thread_data.end(), dest_iterator);
 		}
 		data.clear();
 
 		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
 			T* ptr_per_thread_data = thread->get_data();
-			//std::move(ptr_per_thread_data->begin(), ptr_per_thread_data->end(), dest_iterator);
-			for (U& elem : *ptr_per_thread_data) {
-				*dest_iterator = static_cast<U&&>(elem);
-				++dest_iterator;
-			}
+			std::move(ptr_per_thread_data->begin(), ptr_per_thread_data->end(), dest_iterator);
 			//*ptr_per_thread_data = T{};
 			ptr_per_thread_data->clear();
 		}
@@ -406,43 +365,40 @@ public:
 
 	// Perform an action on all threads data
 	template <class Fn>
-	void for_each(Fn&& fn) noexcept {
-		std::scoped_lock sl(mtx);
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
-			fn(*thread->get_data());
-		}
+	static void for_each(Fn&& fn) {
+		if constexpr (std::invocable<Fn, T const&>) {
+			std::shared_lock sl(mtx);
+			for (thread_data const* thread = head; thread != nullptr; thread = thread->get_next()) {
+				fn(*thread->get_data());
+			}
 
-		for (auto& d : data)
-			fn(d);
-	}
-
-	// Perform an non-modifying action on all threads data
-	template <class Fn>
-	void for_each(Fn&& fn) const noexcept {
-		{
-			std::scoped_lock sl(mtx);
+			for (auto const& d : data)
+				fn(d);
+		} else {
+			std::unique_lock sl(mtx);
 			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
 				fn(*thread->get_data());
 			}
-		}
 
-		for (auto const& d : data)
-			fn(d);
+			for (auto& d : data)
+				fn(d);
+		}
 	}
 
-	// Resets all data and threads
-	void reset() noexcept {
-		std::scoped_lock sl(mtx);
-		for (thread_data* thread = head; thread != nullptr;) {
-			auto next = thread->get_next();
-			thread->remove(this);
-			thread = next;
+	// Clears all data
+	static void clear() {
+		std::unique_lock sl(mtx);
+		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+			*(thread->get_data()) = {};
 		}
 
-		head = nullptr;
 		data.clear();
 	}
 };
+
+template <typename T, auto U = [] {}>
+using unique_collect = collect<T, decltype(U)>;
+
 } // namespace tls
 
 #endif // !TLS_COLLECT_H
@@ -465,7 +421,23 @@ struct type_pair {
 	using second = Second;
 };
 
+#if defined(_MSC_VER)
+#define ECS_NULLBODY ;
+#else
+#define ECS_NULLBODY { return nullptr; }
+#endif
+
 namespace impl {
+	// type wrapper
+	template <typename T>
+	struct wrap_t {
+		using type = T;
+	};
+
+	// size wrapper
+	template<int I>
+	struct wrap_size {};
+
 	//
 	// detect type_list
 	template <typename... Types>
@@ -476,7 +448,6 @@ namespace impl {
 		return false;
 	}
 
-
 	//
 	// type_list_size.
 	template <typename> struct type_list_size;
@@ -484,40 +455,54 @@ namespace impl {
 		static constexpr size_t value = sizeof...(Types);
 	};
 
+	//
+	// type_list concepts
+	template <typename TL>
+	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
+
+	template <typename TL>
+	concept NonEmptyTypeList = TypeList<TL> && (0 < type_list_size<TL>::value);
+
 
 	//
-	// type_list indices
+	// type_list indices and type lookup
 	template<int Index, typename...>
 	struct type_list_index {
-		using type_not_found_in_list = decltype([]{});
-		consteval static int index_of(type_not_found_in_list*);
+		static auto index_of(struct type_not_found_in_list*) noexcept -> int;
+		static auto type_at(...) noexcept -> struct index_out_of_range_in_list*;
 	};
 
 	template<int Index, typename T, typename... Rest>
 	struct type_list_index<Index, T, Rest...> : type_list_index<1+Index, Rest...> {
 		using type_list_index<1+Index, Rest...>::index_of;
+		using type_list_index<1+Index, Rest...>::type_at;
 
-		consteval static int index_of(T*) {
+		consteval static int index_of(wrap_t<T>*) noexcept {
 			return Index;
 		}
+
+		static wrap_t<T>* type_at(wrap_size<Index>* = nullptr) noexcept;
 	};
 
 	template<typename... Types>
-	consteval auto type_list_indices(type_list<Types...>*) {
-		struct all_indexers : impl::type_list_index<0, Types...> {
-			using impl::type_list_index<0, Types...>::index_of;
-		};
-		return all_indexers{};
+	consteval auto type_list_indices(type_list<Types...>*) noexcept {
+		return impl::type_list_index<0, Types...>{};
 	}
-
-	//
-	// type_list concept
-	template <typename TL>
-	concept TypeList = detect_type_list(static_cast<TL*>(nullptr));
 
 
 	//
 	// helper functions
+
+	// create a nullptr initialised type_list
+	template <typename... Ts>
+	constexpr type_list<Ts...>* null_list() {
+		return nullptr;
+	}
+	template <TypeList TL>
+	constexpr TL* null_tlist() {
+		return nullptr;
+	}
+
 	template <typename... Types, typename F>
 	constexpr void for_each_type(F&& f, type_list<Types...>*) {
 		(f.template operator()<Types>(), ...);
@@ -576,11 +561,27 @@ namespace impl {
 		}
 	}
 
+	template <template <typename> typename Predicate, typename... Types>
+	constexpr std::size_t count_type_if(type_list<Types...>*) {
+		return static_cast<std::size_t>((Predicate<Types>::value +...));
+	}
+
 	template <typename... Types, typename F>
 	constexpr std::size_t count_type_if(F&& f, type_list<Types...>*) {
 		return (static_cast<std::size_t>(f.template operator()<Types>()) + ...);
 	}
 
+	
+	template <typename TL>
+	struct first_type {
+		template <typename First, typename... Types>
+		constexpr static wrap_t<First>* helper(type_list<First, Types...>*);
+
+		using type = typename std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>::type;
+	};
+	
+	template <typename First, typename... Types>
+	constexpr type_list<Types...>* skip_first_type(type_list<First, Types...>*) ECS_NULLBODY
 	
 	template <typename TL, template <typename O> typename Transformer>
 	struct transform_type {
@@ -598,20 +599,18 @@ namespace impl {
 		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
 	};
 
-	template <typename TL, typename T>
-	struct add_type {
-		template <typename... Types>
-		constexpr static type_list<Types..., T>* helper(type_list<Types...>*);
+	template <typename T, typename... Types>
+	constexpr type_list<Types..., T>* add_type(type_list<Types...>*) ECS_NULLBODY
 
-		using type = std::remove_pointer_t<decltype(helper(static_cast<TL*>(nullptr)))>;
-	};
-	
+	template <typename TL, typename T>
+	using add_type_t = std::remove_pointer_t<decltype(add_type<T>(static_cast<TL*>(nullptr)))>;
+
 	template <typename TL, template <typename O> typename Predicate>
 	struct split_types_if {
 		template <typename ListTrue, typename ListFalse, typename Front, typename... Rest >
 		constexpr static auto helper(type_list<Front, Rest...>*) {
 			if constexpr (Predicate<Front>::value) {
-				using NewListTrue = typename add_type<ListTrue, Front>::type;
+				using NewListTrue = add_type_t<ListTrue, Front>;
 
 				if constexpr (sizeof...(Rest) > 0) {
 					return helper<NewListTrue, ListFalse>(static_cast<type_list<Rest...>*>(nullptr));
@@ -619,7 +618,7 @@ namespace impl {
 					return static_cast<type_pair<NewListTrue, ListFalse>*>(nullptr);
 				}
 			} else {
-				using NewListFalse = typename add_type<ListFalse, Front>::type;
+				using NewListFalse = add_type_t<ListFalse, Front>;
 
 				if constexpr (sizeof...(Rest) > 0) {
 					return helper<ListTrue, NewListFalse>(static_cast<type_list<Rest...>*>(nullptr));
@@ -631,6 +630,31 @@ namespace impl {
 
 		using list_pair = 
 			std::remove_pointer_t<decltype(helper<type_list<>, type_list<>>(static_cast<TL*>(nullptr)))>;
+	};
+	
+	template <typename TL, template <typename O> typename Predicate>
+	struct filter_types_if {
+		template <typename Result, typename Front, typename... Rest >
+		constexpr static auto helper(type_list<Front, Rest...>*) {
+			if constexpr (Predicate<Front>::value) {
+				using NewResult = add_type_t<Result, Front>;
+
+				if constexpr (sizeof...(Rest) > 0) {
+					return helper<NewResult>(static_cast<type_list<Rest...>*>(nullptr));
+				} else {
+					return static_cast<NewResult*>(nullptr);
+				}
+			} else {
+				if constexpr (sizeof...(Rest) > 0) {
+					return helper<Result>(static_cast<type_list<Rest...>*>(nullptr));
+				} else {
+					return static_cast<Result*>(nullptr);
+				}
+			}
+		}
+
+		using result = 
+			std::remove_pointer_t<decltype(helper<type_list<>>(static_cast<TL*>(nullptr)))>;
 	};
 
 	template<typename First, typename... Types>
@@ -646,8 +670,13 @@ namespace impl {
 	}
 
 	template <typename T, typename... Types>
-	static constexpr bool contains_type(type_list<Types...>*) {
+	static constexpr bool contains_type(type_list<Types...>* = nullptr) {
 		return (std::is_same_v<T, Types> || ...);
+	}
+
+	template <typename T, typename TL>
+	static constexpr bool list_contains_type(TL* tl = nullptr) {
+		return contains_type<T>(tl);
 	}
 
 	template <typename... Types1, typename... Types2>
@@ -655,41 +684,42 @@ namespace impl {
 	-> type_list<Types1..., Types2...>*;
 
 	struct merger {
-		template <typename... Left>
-		static auto helper(type_list<Left...>*, type_list<>*)
-		-> type_list<Left...>*;
+#if defined(_MSC_VER) && !defined(__clang__)
+		// This optimization is only possible in msvc due to it not checking templates
+		// before they are instantiated.
 
-	#if defined(_MSC_VER) && !defined(__clang__)
-		template <typename... Left, typename FirstRight, typename... Right>
-		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(merger::helper(
-			static_cast<type_list<Left...>*>(nullptr),
-			static_cast<type_list<Right...>*>(nullptr)));
+		// terminal node; the right list is empty, return the left list
+		template <typename LeftList>
+		consteval static auto helper(LeftList*, type_list<>*) -> LeftList*;
 
-		template <typename... Left, typename FirstRight, typename... Right>
-		static auto helper(type_list<Left...>*, type_list<FirstRight, Right...>*)
-		-> decltype(merger::helper(
-			static_cast<type_list<Left..., FirstRight>*>(nullptr),
-			static_cast<type_list<Right...>*>(nullptr)))
-		requires(!contains_type<FirstRight>(static_cast<type_list<Left...>*>(nullptr)));
-	#else
-		template <typename... Types1, typename First2, typename... Types2>
-		constexpr static auto* helper(type_list<Types1...>*, type_list<First2, Types2...>*) {
-			using NewTL2 = type_list<Types2...>;
+		// if the first type from the right list is not in the left list, add it and continue
+		template <typename LeftList, typename FirstRight, typename... Right>
+			requires(!list_contains_type<FirstRight, LeftList>())
+		consteval static auto helper(LeftList* left, type_list<FirstRight, Right...>* right)
+			-> decltype(merger::helper(add_type<FirstRight>(left), null_list<Right...>()));
 
-			if constexpr (contains_type<First2>(static_cast<type_list<Types1...>*>(nullptr))) {
-				if constexpr(sizeof...(Types2) == 0)
-					return static_cast<type_list<Types1...>*>(nullptr);
-				else
-					return helper(static_cast<type_list<Types1...>*>(nullptr), static_cast<NewTL2*>(nullptr));
-			} else {
-				if constexpr(sizeof...(Types2) == 0)
-					return static_cast<type_list<Types1..., First2>*>(nullptr);
-				else
-					return helper(static_cast<type_list<Types1..., First2>*>(nullptr), static_cast<NewTL2*>(nullptr));
-			}
-		}
-	#endif
+		// skip the first type in the right list and continue
+		template <typename LeftList, typename RightList>
+		consteval static auto helper(LeftList* left, RightList* right)
+			-> decltype(merger::helper(left, skip_first_type(right)));
+#else
+		// clang/gcc needs the function bodies.
+
+		template <typename LeftList>
+		constexpr static LeftList* helper(LeftList*, type_list<>*)
+		{ return nullptr; }
+
+		template <typename LeftList, typename FirstRight, typename... Right>
+			requires(!list_contains_type<FirstRight, LeftList>())
+		constexpr static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
+		//-> decltype(merger::helper(add_type<FirstRight>(left), null_list<Right...>())); // Doesn't work
+		{	return    merger::helper(add_type<FirstRight>(left), null_list<Right...>()); }
+
+		template <typename LeftList, typename RightList>
+		constexpr static auto helper(LeftList* left, RightList* right)
+		//-> decltype(merger::helper((LeftList*)left, skip_first_type(right))); // Doesn't work
+		{	return    merger::helper(left, skip_first_type(right)); }
+#endif
 	};
 
 } // namespace impl
@@ -697,20 +727,40 @@ namespace impl {
 template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
+// TODO change type alias to *_t
+
 // Classes can inherit from type_list_indices with a provided type_list
-// to have 'index_of(T*)' functions injected into it, for O(1) lookups
+// to have 'index_of(wrap_t<T>*)' functions injected into it, for O(1) lookups
 // of the indices of the types in the type_list
 template<typename TL>
 using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
 
 // Small helper to get the index of a type in a type_list
-template <typename T, typename TL>
+template <typename T, impl::NonEmptyTypeList TL>
 consteval int index_of() {
 	using TLI = type_list_indices<TL>;
-	return TLI::index_of(static_cast<T*>(nullptr));
+	return TLI::index_of(static_cast<impl::wrap_t<T>*>(nullptr));
 }
 
-// Transforms the types in a type_list
+// Small helper to get the type at an index in a type_list
+template <int I, impl::NonEmptyTypeList TL>
+	requires (I >= 0 && I < type_list_size<TL>)
+using type_at = typename std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>::type;
+
+// Return the first type in a type_list
+template <impl::NonEmptyTypeList TL>
+using first_type = typename impl::first_type<TL>::type;
+
+// Skip the first type in a type_list
+template <impl::NonEmptyTypeList TL>
+using skip_first_type = std::remove_pointer_t<decltype(impl::skip_first_type(static_cast<TL*>(nullptr)))>;
+
+
+// Add a type to a type_list
+template <impl::TypeList TL, typename T>
+using add_type = std::remove_pointer_t<decltype(impl::add_type<T>(static_cast<TL*>(nullptr)))>;//typename impl::add_type<TL, T>::type;
+
+	// Transforms the types in a type_list
 // Takes transformer that results in new type, like remove_cvref_t
 template <impl::TypeList TL, template <typename O> typename Transformer>
 using transform_type = typename impl::transform_type<TL, Transformer>::type;
@@ -726,6 +776,10 @@ using transform_type_all = typename impl::transform_type_all<TL, Transformer>::t
 // Splits a type_list into two list depending on the predicate
 template <impl::TypeList TL, template <typename O> typename Predicate>
 using split_types_if = typename impl::split_types_if<TL, Predicate>::list_pair;
+
+// Filter a type_list depending on the predicate
+template <impl::TypeList TL, template <typename O> typename Predicate>
+using filter_types_if = typename impl::filter_types_if<TL, Predicate>::result;
 
 // Applies the functor F to each type in the type list.
 // Takes lambdas of the form '[]<typename T>() {}'
@@ -784,6 +838,12 @@ constexpr std::size_t count_type_if(F&& f) {
 	return impl::count_type_if(f, static_cast<TL*>(nullptr));
 }
 
+// Returns the count of all types that satisfy the predicate. F takes a type template parameter and returns a boolean.
+template <impl::TypeList TL, template <typename> typename Predicate>
+constexpr std::size_t count_type_if() {
+	return impl::count_type_if<Predicate>(static_cast<TL*>(nullptr));
+}
+
 // Returns true if all types in the list are unique
 template <impl::TypeList TL>
 constexpr bool is_unique_types() {
@@ -802,7 +862,7 @@ using concat_type_lists = std::remove_pointer_t<decltype(
 	impl::concat_type_lists(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 // merge two type_list, duplicate types are ignored
-template <typename TL1, typename TL2>
+template <impl::TypeList TL1, impl::TypeList TL2>
 using merge_type_lists = std::remove_pointer_t<decltype(
 	impl::merger::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
@@ -987,8 +1047,8 @@ private:
 } // namespace ecs::detail
 
 #endif // ECS_DETAIL_TAGGED_POINTER_H
-#ifndef ECS_ENTITY_ID
-#define ECS_ENTITY_ID
+#ifndef ECS_ENTITY_ID_H
+#define ECS_ENTITY_ID_H
 
 namespace ecs {
 namespace detail {
@@ -1015,7 +1075,7 @@ private:
 };
 } // namespace ecs
 
-#endif // !ECS_ENTITY_ID
+#endif // !ECS_ENTITY_ID_H
 #ifndef ECS_ENTITY_ITERATOR
 #define ECS_ENTITY_ITERATOR
 
@@ -1513,6 +1573,29 @@ concept persistent = !transient<T>;
 template <typename T>
 concept unbound = (tagged<T> || global<T>); // component is not bound to a specific entity (ie static)
 
+
+//
+template <typename T>
+struct is_tagged : std::bool_constant<tagged<T>> {};
+
+template <typename T>
+struct is_transient : std::bool_constant<transient<T>> {};
+
+template <typename T>
+struct is_immutable : std::bool_constant<immutable<T>> {};
+
+template <typename T>
+struct is_global : std::bool_constant<global<T>> {};
+
+template <typename T>
+struct is_local : std::bool_constant<!global<T>> {};
+
+template <typename T>
+struct is_persistent : std::bool_constant<!transient<T>> {};
+
+template <typename T>
+struct is_unbound : std::bool_constant<tagged<T> || global<T>> {};
+
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_FLAGS_H
@@ -1695,6 +1778,12 @@ public:
 
 
 
+#ifdef _MSC_VER
+#define MSVC msvc::
+#else
+#define MSVC
+#endif
+
 namespace ecs::detail {
 
 template <typename ForwardIt, typename BinaryPredicate>
@@ -1818,34 +1907,28 @@ private:
 	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
-#ifdef _MSC_VER
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	[[msvc::no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-	[[msvc::no_unique_address]] Alloc alloc;
-#else
-	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	[[no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-	[[no_unique_address]] Alloc alloc;
-#endif
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	[[MSVC no_unique_address]] Alloc alloc;
 
 public:
 	component_pool() noexcept {
 		if constexpr (global<T>) {
-			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, false, false);
+			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, true, false);
 			chunks.front().data = new T[1];
 		}
 	}
+
 	component_pool(component_pool const&) = delete;
 	component_pool(component_pool&&) = delete;
 	component_pool& operator=(component_pool const&) = delete;
 	component_pool& operator=(component_pool&&) = delete;
 	~component_pool() noexcept override {
-		if (global<T>) {
+		if constexpr (global<T>) {
 			delete [] chunks.front().data.pointer();
+			chunks.clear();
 		} else {
 			free_all_chunks();
 		}
@@ -2044,10 +2127,10 @@ public:
 
 		// Clear all data
 		free_all_chunks();
-		deferred_adds.reset();
-		deferred_spans.reset();
-		deferred_gen.reset();
-		deferred_removes.reset();
+		deferred_adds.clear();
+		deferred_spans.clear();
+		deferred_gen.clear();
+		deferred_removes.clear();
 		chunks.clear();
 		clear_flags();
 
@@ -2122,7 +2205,7 @@ private:
 		return std::ranges::lower_bound(chunks, rng, std::less{}, &chunk::active);
 	}
 
-	ptrdiff_t ranges_dist(std::vector<chunk>::const_iterator it) const noexcept {
+	ptrdiff_t ranges_dist(typename std::vector<chunk>::const_iterator it) const noexcept {
 		return std::distance(chunks.begin(), it);
 	}
 
@@ -2316,19 +2399,20 @@ private:
 			}
 
 			this->process_add_components(vec);
+			vec.clear();
 
 			// Update the state
 			set_data_added();
 		};
 
 		deferred_adds.for_each(adder);
-		deferred_adds.reset();
+		deferred_adds.clear();
 
 		deferred_spans.for_each(adder);
-		deferred_spans.reset();
+		deferred_spans.clear();
 
 		deferred_gen.for_each(adder);
-		deferred_gen.reset();
+		deferred_gen.clear();
 	}
 
 	// Removes the entities and components
@@ -2346,7 +2430,7 @@ private:
 			// Update the state
 			set_data_removed();
 		});
-		deferred_removes.reset();
+		deferred_removes.clear();
 	}
 
 	void process_remove_components(std::vector<entity_range>& removes) noexcept {
@@ -2397,41 +2481,6 @@ private:
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_POOL_H
-#ifndef ECS_DETAIL_COMPONENT_POOLS_H
-#define ECS_DETAIL_COMPONENT_POOLS_H
-
-namespace ecs::detail {
-
-// Forward decls
-class component_pool_base;
-template <typename, typename> class component_pool;
-
-// 
-template <typename ComponentsList>
-struct component_pools : type_list_indices<ComponentsList> {
-	constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
-		Expects((pools != nullptr) && ...);
-	}
-
-	template <typename Component>
-	constexpr auto& get() const noexcept {
-		constexpr int index = component_pools::index_of(static_cast<Component*>(nullptr));
-		return *static_cast<component_pool<Component>*>(base_pools[index]);
-	}
-
-	constexpr bool has_component_count_changed() const {
-		return any_of_type<ComponentsList>([this]<typename T>() {
-			return this->get<T>().has_component_count_changed();
-		});
-	}
-
-private:
-	component_pool_base* base_pools[type_list_size<ComponentsList>];
-};
-
-}
-
-#endif //!ECS_DETAIL_COMPONENT_POOLS_H
 #ifndef ECS_SYSTEM_DEFS_H_
 #define ECS_SYSTEM_DEFS_H_
 
@@ -2444,12 +2493,18 @@ constexpr static bool is_entity = std::is_same_v<std::remove_cvref_t<T>, entity_
 // If given a parent, convert to detail::parent_id, otherwise do nothing
 template <typename T>
 using reduce_parent_t =
-	std::conditional_t<std::is_pointer_v<T>, std::conditional_t<is_parent<std::remove_pointer_t<T>>::value, parent_id*, T>,
-					   std::conditional_t<is_parent<T>::value, parent_id, T>>;
+	std::conditional_t<std::is_pointer_v<T>,
+		std::conditional_t<is_parent<std::remove_pointer_t<T>>::value, parent_id*, T>,
+		std::conditional_t<is_parent<T>::value, parent_id, T>>;
+
+// Given a component type, return the naked type without any modifiers.
+// Also converts ecs::parent into ecs::detail::parent_id.
+template <typename T>
+using naked_component_t = std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<T>>>;
 
 // Alias for stored pools
 template <typename T>
-using pool = component_pool<std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<T>>>>* const;
+using pool = component_pool<naked_component_t<T>>* const;
 
 // Returns true if a type is read-only
 template <typename T>
@@ -2468,7 +2523,6 @@ struct parent_type_list<void> {
 
 template <template <typename...> typename Parent, typename... ParentComponents> // partial specialization
 struct parent_type_list<Parent<ParentComponents...>> {
-	static_assert(!(is_parent<ParentComponents>::value || ...), "parents in parents not supported");
 	using type = type_list<ParentComponents...>;
 };
 template <typename T>
@@ -2486,81 +2540,79 @@ struct parent_pool_detect<Parent<ParentComponents...>> {
 template <typename T>
 using parent_pool_tuple_t = typename parent_pool_detect<T>::type;
 
-// Get a component pool from a component pool tuple.
-// Removes cvref and pointer from Component
-template <typename Component, typename Pools>
-auto& get_pool(Pools const& pools) {
-	using T = std::remove_pointer_t<std::remove_cvref_t<reduce_parent_t<Component>>>;
-	return pools.template get<T>();
-}
 
-// Get a pointer to an entities component data from a component pool tuple.
-// If the component type is a pointer, return nullptr
-template <typename Component, typename Pools>
-Component* get_entity_data([[maybe_unused]] entity_id id, [[maybe_unused]] Pools const& pools) {
-	// If the component type is a pointer, return a nullptr
-	if constexpr (std::is_pointer_v<Component>) {
-		return nullptr;
-	} else {
-		component_pool<Component>& pool = get_pool<Component>(pools);
-		return pool.find_component_data(id);
+// The type of a single component argument
+template <typename Component>
+using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Component>>::value,
+											  std::remove_cvref_t<reduce_parent_t<Component>>*,	// parent components are stored as copies
+											  std::remove_cvref_t<Component>*>; // rest are pointers
+} // namespace ecs::detail
+
+#endif // !ECS_SYSTEM_DEFS_H_
+#ifndef ECS_DETAIL_COMPONENT_POOLS_H
+#define ECS_DETAIL_COMPONENT_POOLS_H
+
+
+namespace ecs::detail {
+
+// Forward decls
+class component_pool_base;
+template <typename, typename> class component_pool;
+
+// Holds a bunch of component pools that can be looked up based on a type.
+// The types in the type_list must be naked, so no 'int&' or 'char*' allowed.
+template <impl::TypeList ComponentsList>
+	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
+struct component_pools {
+	explicit constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
+		Expects((pools != nullptr) && ...);
 	}
-}
+
+	// Get arguments corresponding component pool.
+	// The type must be naked, ie. 'int' and not 'int&'.
+	// This is to prevent the compiler from creating a bajillion
+	// different instances that all do the same thing.
+	template <typename Component>
+		requires(std::is_same_v<Component, naked_component_t<Component>>)
+	constexpr auto& get() const noexcept {
+		constexpr int index = index_of<Component, ComponentsList>();
+		return *static_cast<component_pool<Component>*>(base_pools[index]);
+	}
+
+	constexpr bool has_component_count_changed() const {
+		return any_of_type<ComponentsList>([this]<typename T>() {
+			return this->get<T>().has_component_count_changed();
+		});
+	}
+
+private:
+	component_pool_base* base_pools[type_list_size<ComponentsList>];
+};
+
+
+
 
 // Get an entities component from a component pool
-template <typename Component, typename Pools>
-[[nodiscard]] auto get_component(entity_id const entity, Pools const& pools) {
+template <typename Component, impl::TypeList PoolsList>
+[[nodiscard]] auto get_component(entity_id const entity, component_pools<PoolsList> const& pools) {
 	using T = std::remove_cvref_t<Component>;
 
 	if constexpr (std::is_pointer_v<T>) {
 		// Filter: return a nullptr
 		static_cast<void>(entity);
 		return static_cast<T*>(nullptr);
-
 	} else if constexpr (tagged<T>) {
 		// Tag: return a pointer to some dummy storage
 		thread_local char dummy_arr[sizeof(T)];
 		return reinterpret_cast<T*>(dummy_arr);
-
 	} else if constexpr (global<T>) {
 		// Global: return the shared component
-		return &get_pool<T>(pools).get_shared_component();
-
+		return &pools.template get<T>().get_shared_component();
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
-		return get_pool<parent_id>(pools).find_component_data(entity);
-
-		// Parent component: return the parent with the types filled out
-		//parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
-
-		// using parent_type = std::remove_cvref_t<Component>;
-		// auto const tup_parent_ptrs = for_all_types<parent_type_list_t<parent_type>>(
-		//	[&]<typename... ParentTypes>() {
-		//		return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
-		//	});
-
-		//return parent_type{pid, tup_parent_ptrs};
-
+		return pools.template get<parent_id>().find_component_data(entity);
 	} else {
 		// Standard: return the component from the pool
-		return get_pool<T>(pools).find_component_data(entity);
-	}
-}
-
-// Extracts a component argument from a tuple
-template <typename Component, typename Tuple>
-decltype(auto) extract_arg(Tuple& tuple, [[maybe_unused]] ptrdiff_t offset) {
-	using T = std::remove_cvref_t<Component>;
-
-	if constexpr (std::is_pointer_v<T>) {
-		return nullptr;
-	} else if constexpr (detail::unbound<T>) {
-		T* ptr = std::get<T*>(tuple);
-		return *ptr;
-	} else if constexpr (detail::is_parent<T>::value) {
-		return std::get<T>(tuple);
-	} else {
-		T* ptr = std::get<T*>(tuple);
-		return *(ptr + offset);
+		return pools.template get<T>().find_component_data(entity);
 	}
 }
 
@@ -2579,9 +2631,8 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 
 		// TODO store this in seperate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
-		using parent_type = std::remove_cvref_t<Component>;
-		return for_all_types<parent_type_list_t<parent_type>>([&]<typename... ParentTypes>() {
-			return parent_type{pid, get_entity_data<ParentTypes>(pid, pools)...};
+		return for_all_types<parent_type_list_t<T>>([&]<typename... ParentTypes>() {
+			return T{pid, get_component<ParentTypes>(pid, pools)...};
 		});
 	} else {
 		T* ptr = cmp;
@@ -2589,14 +2640,9 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 	}
 }
 
-// The type of a single component argument
-template <typename Component>
-using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Component>>::value,
-											  std::remove_cvref_t<reduce_parent_t<Component>>*,	// parent components are stored as copies
-											  std::remove_cvref_t<Component>*>; // rest are pointers
-} // namespace ecs::detail
+}
 
-#endif // !ECS_SYSTEM_DEFS_H_
+#endif //!ECS_DETAIL_COMPONENT_POOLS_H
 #ifndef ECS_PARENT_H_
 #define ECS_PARENT_H_
 
@@ -2617,8 +2663,9 @@ namespace ecs::detail {
 namespace ecs {
 // Special component that allows parent/child relationships
 template <typename... ParentTypes>
-struct parent : entity_id,
-				private std::conditional_t<(sizeof...(ParentTypes) > 0), detail::void_ptr_storage<sizeof...(ParentTypes)>, detail::empty_storage> {
+struct parent : entity_id, private std::conditional_t<(sizeof...(ParentTypes) > 0), detail::void_ptr_storage<sizeof...(ParentTypes)>, detail::empty_storage> {
+	static_assert((!detail::global<ParentTypes> && ...), "global components are not allowed in parents");
+	static_assert((!detail::is_parent<ParentTypes>::value && ...), "parents in parents is not supported");
 
 	explicit parent(entity_id id) : entity_id(id) {}
 
@@ -2927,30 +2974,30 @@ using get_type_t = std::conditional_t<std::invocable<T, entity_type>,
 
 // Returns true if all types passed are unique
 template <typename First, typename... T>
-consteval bool is_unique_types() {
+constexpr bool is_unique_type_args() {
 	if constexpr ((std::is_same_v<First, T> || ...))
 		return false;
 	else {
 		if constexpr (sizeof...(T) == 0)
 			return true;
 		else
-			return is_unique_types<T...>();
+			return is_unique_type_args<T...>();
 	}
 }
 
 
 // Find the types a sorting predicate takes
 template <typename R, typename T>
-consteval std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
+constexpr std::remove_cvref_t<T> get_sorter_type(R (*)(T, T)) { return T{}; }			// Standard function
 
 template <typename R, typename C, typename T>
-consteval std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
+constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) const) {return T{}; }	// const member function
 template <typename R, typename C, typename T>
-consteval std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
+constexpr std::remove_cvref_t<T> get_sorter_type(R (C::*)(T, T) ) {return T{}; }			// mutable member function
 
 
 template <typename Pred>
-consteval auto get_sorter_type() {
+constexpr auto get_sorter_type() {
 	// Verify predicate
 	static_assert(
 		requires {
@@ -2971,7 +3018,7 @@ using sorter_predicate_type_t = decltype(get_sorter_type<Pred>());
 
 // Implement the requirements for ecs::parent components
 template <typename C>
-consteval void verify_parent_component() {
+constexpr void verify_parent_component() {
 	if constexpr (detail::is_parent<C>::value) {
 		using parent_subtypes = parent_type_list_t<C>;
 		size_t const total_subtypes = type_list_size<parent_subtypes>;
@@ -2997,30 +3044,30 @@ consteval void verify_parent_component() {
 
 // Implement the requirements for tagged components
 template <typename C>
-consteval void verify_tagged_component() {
+constexpr void verify_tagged_component() {
 	if constexpr (detail::tagged<C>)
 		static_assert(!std::is_reference_v<C> && (sizeof(C) == 1), "components flagged as 'tag' must not be references");
 }
 
 // Implement the requirements for global components
 template <typename C>
-consteval void verify_global_component() {
+constexpr void verify_global_component() {
 	if constexpr (detail::global<C>)
 		static_assert(!detail::tagged<C> && !detail::transient<C>, "components flagged as 'global' must not be 'tag's or 'transient'");
 }
 
 // Implement the requirements for immutable components
 template <typename C>
-consteval void verify_immutable_component() {
+constexpr void verify_immutable_component() {
 	if constexpr (detail::immutable<C>)
 		static_assert(std::is_const_v<std::remove_reference_t<C>>, "components flagged as 'immutable' must also be const");
 }
 
 template <typename R, typename FirstArg, typename... Args>
-consteval void system_verifier() {
-	static_assert(std::is_same_v<R, void>, "systems can not have returnvalues");
+constexpr void system_verifier() {
+	static_assert(std::is_same_v<R, void>, "systems can not have return values");
 
-	static_assert(is_unique_types<FirstArg, Args...>(), "component parameter types can only be specified once");
+	static_assert(is_unique_type_args<FirstArg, Args...>(), "component parameter types can only be specified once");
 
 	if constexpr (is_entity<FirstArg>) {
 		static_assert(sizeof...(Args) > 0, "systems must take at least one component argument");
@@ -3042,19 +3089,19 @@ consteval void system_verifier() {
 
 // A small bridge to allow the Lambda to activate the system verifier
 template <typename R, typename C, typename FirstArg, typename... Args>
-consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename C, typename FirstArg, typename... Args>
-consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename C, typename FirstArg, typename... Args>
-consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename C, typename FirstArg, typename... Args>
-consteval void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
+constexpr void system_to_lambda_bridge(R (C::*)(FirstArg, Args...) const noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 // A small bridge to allow the function to activate the system verifier
 template <typename R, typename FirstArg, typename... Args>
-consteval void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
+constexpr void system_to_func_bridge(R (*)(FirstArg, Args...)) { system_verifier<R, FirstArg, Args...>(); }
 template <typename R, typename FirstArg, typename... Args>
-consteval void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
+constexpr void system_to_func_bridge(R (*)(FirstArg, Args...) noexcept) { system_verifier<R, FirstArg, Args...>(); }
 
 template <typename T>
 concept type_is_lambda = requires {
@@ -3067,7 +3114,7 @@ concept type_is_function = requires(T t) {
 };
 
 template <typename OptionsTypeList, typename SystemFunc, typename SortFunc>
-consteval void make_system_parameter_verifier() {
+consteval bool make_system_parameter_verifier() {
 	bool constexpr is_lambda = type_is_lambda<SystemFunc>;
 	bool constexpr is_func = type_is_function<SystemFunc>;
 
@@ -3090,6 +3137,8 @@ consteval void make_system_parameter_verifier() {
 		using sort_types = sorter_predicate_type_t<SortFunc>;
 		static_assert(std::predicate<SortFunc, sort_types, sort_types>, "Sorting function is not a predicate");
 	}
+
+	return true;
 }
 
 } // namespace ecs::detail
@@ -3245,66 +3294,13 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 
 namespace ecs::detail {
 
-template <typename Component, typename TuplePools>
-void pool_intersect(std::vector<entity_range>& ranges, TuplePools const& pools) {
-	using T = std::remove_cvref_t<Component>;
-	using iter1 = typename std::vector<entity_range>::iterator;
-	using iter2 = typename entity_range_view::iterator;
-
-	// Skip globals and parents
-	if constexpr (detail::global<T>) {
-		// do nothing
-	} else if constexpr (detail::is_parent<T>::value) {
-		auto const ents = get_pool<parent_id>(pools).get_entities();
-		ranges = intersect_ranges_iter(iter_pair<iter1>{ranges.begin(), ranges.end()}, iter_pair<iter2>{ents.begin(), ents.end()});
-	} else if constexpr (std::is_pointer_v<T>) {
-		// do nothing
-	} else {
-		// ranges = intersect_ranges(ranges, get_pool<T>(pools).get_entities());
-		auto const ents = get_pool<T>(pools).get_entities();
-		ranges = intersect_ranges_iter(iter_pair<iter1>{ranges.begin(), ranges.end()}, iter_pair<iter2>{ents.begin(), ents.end()});
-	}
-}
-
-template <typename Component, typename TuplePools>
-void pool_difference(std::vector<entity_range>& ranges, TuplePools const& pools) {
-	using T = std::remove_cvref_t<Component>;
-
-	if constexpr (std::is_pointer_v<T>) {
-		using NoPtr = std::remove_pointer_t<T>;
-
-		if constexpr (detail::is_parent<NoPtr>::value) {
-			ranges = difference_ranges(ranges, get_pool<parent_id>(pools).get_entities());
-		} else {
-			ranges = difference_ranges(ranges, get_pool<NoPtr>(pools).get_entities());
-		}
-	}
-}
-
-// Find the intersection of the sets of entities in the specified pools
-template <typename FirstComponent, typename... Components, typename TuplePools>
-std::vector<entity_range> find_entity_pool_intersections(TuplePools const& pools) {
-	std::vector<entity_range> ranges{entity_range::all()};
-
-	if constexpr (std::is_same_v<entity_id, FirstComponent>) {
-		(pool_intersect<Components, TuplePools>(ranges, pools), ...);
-		(pool_difference<Components, TuplePools>(ranges, pools), ...);
-	} else {
-		pool_intersect<FirstComponent, TuplePools>(ranges, pools);
-		(pool_intersect<Components, TuplePools>(ranges, pools), ...);
-
-		pool_difference<FirstComponent, TuplePools>(ranges, pools);
-		(pool_difference<Components, TuplePools>(ranges, pools), ...);
-	}
-
-	return ranges;
-}
-
-template <typename ComponentList, typename Pools>
-auto get_pool_iterators([[maybe_unused]] Pools pools) {
-	if constexpr (type_list_size<ComponentList> > 0) {
-		return for_all_types<ComponentList>([&]<typename... Components>() {
-			return std::to_array({get_pool<Components>(pools).get_entities()...});
+// Given a list of components, return an array containing the corresponding component pools
+template <typename ComponentsList>
+	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
+static constexpr auto get_pool_iterators([[maybe_unused]] auto const& pools) {
+	if constexpr (type_list_size < ComponentsList >> 0) {
+		return for_all_types<ComponentsList>([&]<typename... Components>() {
+			return std::to_array({pools.template get<Components>().get_entities()...});
 		});
 	} else {
 		return std::array<stride_view<0,char const>, 0>{};
@@ -3313,14 +3309,21 @@ auto get_pool_iterators([[maybe_unused]] Pools pools) {
 
 
 // Find the intersection of the sets of entities in the specified pools
-template <typename ComponentList, typename Pools, typename F>
-void find_entity_pool_intersections_cb(Pools pools, F callback) {
-	static_assert(0 < type_list_size<ComponentList>, "Empty component list supplied");
+template <typename InputList, typename PoolsList, typename F>
+void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, F&& callback) {
+	static_assert(0 < type_list_size<InputList>, "Empty component list supplied");
 
-	// Split the type_list into filters and non-filters (regular components)
-	using SplitPairList = split_types_if<ComponentList, std::is_pointer>;
-	auto iter_filters = get_pool_iterators<typename SplitPairList::first>(pools);
-	auto iter_components = get_pool_iterators<typename SplitPairList::second>(pools);
+	// Split the type_list into filters and non-filters (regular components).
+	using FilterComponentPairList = split_types_if<InputList, std::is_pointer>;
+	using FilterList = transform_type<typename FilterComponentPairList::first, naked_component_t>;
+	using ComponentList = typename FilterComponentPairList::second;
+	auto iter_filters = get_pool_iterators<FilterList>(pools);
+
+	// Filter local components.
+	// Global components are available for all entities,
+	// so don't bother wasting cycles on testing them.
+	using LocalComponentList = transform_type<filter_types_if<ComponentList, detail::is_local>, naked_component_t>;
+	auto iter_components = get_pool_iterators<LocalComponentList>(pools);
 
 	// Sort the filters
 	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
@@ -3337,7 +3340,7 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 		entity_range curr_range = *iter_components[0].current();
 
 		// Find all intersections
-		if constexpr (type_list_size<typename SplitPairList::second> == 1) {
+		if constexpr (type_list_size<LocalComponentList> == 1) {
 			iter_components[0].next();
 		} else {
 			bool intersection_found = false;
@@ -3376,7 +3379,7 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 		}
 
 		// Filter the range, if needed
-		if constexpr (type_list_size<typename SplitPairList::first> > 0) {
+		if constexpr (type_list_size<FilterList> > 0) {
 			bool completely_filtered = false;
 			for (auto& it : iter_filters) {
 				while(!done(it)) {
@@ -3406,9 +3409,10 @@ void find_entity_pool_intersections_cb(Pools pools, F callback) {
 							it.next();
 						} else {
 							// The result is an endpiece, so update the current range.
-							// The next filter might remove more from 'curr_range'
 							curr_range = res.first;
 
+							// The next filter might remove more from 'curr_range', so don't just
+							// skip past it without checking
 							if (curr_range.first() >= it.current()->first()) {
 								it.next();
 							}
@@ -3507,13 +3511,14 @@ private:
 namespace ecs::detail {
 
 // The implementation of a system specialized on its components
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
 class system : public system_base {
 	virtual void do_run() = 0;
 	virtual void do_build() = 0;
 
 public:
-	system(UpdateFn func, Pools in_pools) : update_func{func}, pools{in_pools} {
+	system(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: update_func{func}, pools{std::forward<component_pools<PoolsList>>(in_pools)} {
 	}
 
 	void run() override {
@@ -3541,7 +3546,7 @@ public:
 				(this->notify_pool_modifed<ParentTypes>(), ...);
 			});
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
-			get_pool<T>(pools).notify_components_modified();
+			pools.template get<std::remove_reference_t<T>>().notify_components_modified();
 		}
 	}
 
@@ -3656,8 +3661,8 @@ protected:
 
 
 	// Number of filters
-	static constexpr size_t num_filters = count_type_if<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
-	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
+	static constexpr size_t num_filters = count_type_if<ComponentsList, std::is_pointer>();
+	static_assert(num_components-num_filters > 0, "systems must have at least one non-filter component");
 
 	// Hashes of stripped types used by this system ('int' instead of 'int const&')
 	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
@@ -3666,7 +3671,7 @@ protected:
 	UpdateFn update_func;
 
 	// Fully typed component pools used by this system
-	Pools const pools;
+	component_pools<PoolsList> const pools;
 
 	interval_type interval_checker;
 };
@@ -3680,17 +3685,17 @@ protected:
 namespace ecs::detail {
 // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
 // will be passed to the user supplied lambda in a sorted manner
-template <typename Options, typename UpdateFn, typename SortFunc, typename TupPools, bool FirstIsEntity, typename ComponentsList>
-struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, typename SortFunc, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+struct system_sorted final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
 public:
-	system_sorted(UpdateFn func, SortFunc sort, TupPools in_pools)
-		: base(func, in_pools), sort_func{sort} {
+	system_sorted(UpdateFn func, SortFunc sort, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)}, sort_func{sort} {
 		this->process_changes(true);
 	}
 
@@ -3777,16 +3782,17 @@ private:
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
-class system_ranged final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+class system_ranged final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
 public:
-	system_ranged(UpdateFn func, Pools in_pools) : base{func, in_pools} {
+	system_ranged(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
 		this->process_changes(true);
 	}
 
@@ -3803,9 +3809,9 @@ private:
 		// Clear current arguments
 		lambda_arguments.clear();
 
-		for_all_types<ComponentsList>([&]<typename... Types>() {
+		for_all_types<ComponentsList>([&]<typename... Type>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				lambda_arguments.push_back(make_argument<Types...>(found_range, get_component<Types>(found_range.first(), this->pools)...));
+				lambda_arguments.push_back(make_argument<Type...>(found_range, get_component<Type>(found_range.first(), this->pools)...));
 			});
 		});
 	}
@@ -3843,9 +3849,9 @@ private:
 
 
 namespace ecs::detail {
-template <typename Options, typename UpdateFn, typename Pools, bool FirstIsEntity, typename ComponentsList>
-class system_hierarchy final : public system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, Pools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename CombinedList, typename PoolsList>
+class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, CombinedList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, CombinedList, PoolsList>;
 
 	// Is parallel execution wanted
 	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
@@ -3867,14 +3873,15 @@ class system_hierarchy final : public system<Options, UpdateFn, Pools, FirstIsEn
 	};
 
 public:
-	system_hierarchy(UpdateFn func, Pools in_pools) : base{func, in_pools} {
-		pool_parent_id = &detail::get_pool<parent_id>(this->pools);
+	system_hierarchy(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
+		pool_parent_id = &this->pools.template get<parent_id>();
 		this->process_changes(true);
 	}
 
 private:
 	void do_run() override {
-		auto const this_pools = this->pools;
+		auto const& this_pools = this->pools;
 
 		if constexpr (is_parallel) {
 			std::for_each(std::execution::par, info_spans.begin(), info_spans.end(), [&](hierarchy_span span) {
@@ -3885,7 +3892,7 @@ private:
 			});
 		} else {
 			for (entity_info const& info : infos) {
-				arguments[info.l.index](this->update_func, info.l.offset, this_pools);
+				arguments[info.l.index](this->update_func, info.l.offset, this->pools);
 			}
 		}
 	}
@@ -3896,7 +3903,7 @@ private:
 		ents_to_remove.clear();
 
 		// Find the entities
-		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [&](entity_range range) {
+		find_entity_pool_intersections_cb<ComponentsList>(this->pools, [&](entity_range const range) {
 			ranges.push_back(range);
 
 			// Get the parent ids in the range
@@ -3908,7 +3915,8 @@ private:
 				using X = std::remove_pointer_t<T>;
 				component_pool<X> const& sub_pool = this->pools.template get<X>();
 
-				for (size_t pid_index = 0; entity_id const ent : range) {
+				size_t pid_index = 0;
+				for (entity_id const ent : range) {
 					parent_id const pid = pid_ptr[pid_index];
 					pid_index += 1;
 
@@ -4007,7 +4015,7 @@ private:
 			auto current_root = infos.front().root_id;
 			unsigned count = 1;
 			unsigned offset = 0;
-			
+
 			for (size_t i = 1; i < infos.size(); i++) {
 				entity_info const& info = infos[i];
 				if (current_root != info.root_id) {
@@ -4028,7 +4036,7 @@ private:
 
 	template <typename... Ts>
 	static auto make_argument(entity_range range, auto... args) noexcept {
-		return [=](auto update_func, entity_offset offset, auto& pools) mutable {
+		return [=](auto update_func, entity_offset offset, component_pools<PoolsList> const& pools) mutable {
 			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
@@ -4036,12 +4044,6 @@ private:
 				update_func(/**/ extract_arg_lambda<Ts>(args, offset, pools)...);
 			}
 		};
-	}
-
-	decltype(auto) make_parent_types_tuple() const {
-		return for_all_types<parent_component_list>([this]<typename... T>() {
-			return std::make_tuple(&get_pool<std::remove_pointer_t<T>>(this->pools)...);
-		});
 	}
 
 private:
@@ -4085,18 +4087,20 @@ private:
 
 namespace ecs::detail {
 // The implementation of a system specialized on its components
-template <typename Options, typename UpdateFn, typename TupPools, bool FirstIsEntity, typename ComponentsList>
-class system_global final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+class system_global final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
+
 public:
-	system_global(UpdateFn func, TupPools in_pools)
-		: system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>{func, in_pools} {
+	system_global(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
 		this->process_changes(true);
 	  }
 
 private:
 	void do_run() override {
-		for_all_types<ComponentsList>([&]<typename... Types>(){
-			this->update_func(get_pool<Types>(this->pools).get_shared_component()...);
+		for_all_types<PoolsList>([&]<typename... Types>() {
+			this->update_func(this->pools.template get<Types>().get_shared_component()...);
 		});
 	}
 
@@ -4117,15 +4121,23 @@ namespace ecs::detail {
 struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
-	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, unfinished_dependencies{0}, dependencies{0} {
+	scheduler_node(detail::system_base* _sys) : sys(_sys), dependents{}, unfinished_dependencies{0}, dependencies{0} {
 		Expects(sys != nullptr);
 	}
 
 	scheduler_node(scheduler_node const& other) {
 		sys = other.sys;
-		dependants = other.dependants;
+		dependents = other.dependents;
 		dependencies = other.dependencies;
 		unfinished_dependencies = other.unfinished_dependencies.load();
+	}
+
+	scheduler_node& operator=(scheduler_node const& other) {
+		sys = other.sys;
+		dependents = other.dependents;
+		dependencies = other.dependencies;
+		unfinished_dependencies = other.unfinished_dependencies.load();
+		return *this;
 	}
 
 	detail::system_base* get_system() const noexcept {
@@ -4133,9 +4145,9 @@ struct scheduler_node final {
 	}
 
 	// Add a dependant to this system. This system has to run to
-	// completion before the dependants can run.
-	void add_dependant(size_t node_index) {
-		dependants.push_back(node_index);
+	// completion before the dependents can run.
+	void add_dependent(size_t node_index) {
+		dependents.push_back(node_index);
 	}
 
 	// Increase the dependency counter of this system. These dependencies has to
@@ -4163,20 +4175,14 @@ struct scheduler_node final {
 		// Run the system
 		sys->run();
 
-		// Notify the dependants that we are done
-		for (size_t const node : dependants)
+		// Notify the dependents that we are done
+		for (size_t const node : dependents)
 			nodes[node].dependency_done();
 
-		// Run the dependants in parallel
-		std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](size_t node) { nodes[node].run(nodes); });
-	}
-
-	scheduler_node& operator=(scheduler_node const& other) {
-		sys = other.sys;
-		dependants = other.dependants;
-		dependencies = other.dependencies;
-		unfinished_dependencies = other.unfinished_dependencies.load();
-		return *this;
+		// Run the dependents in parallel
+		std::for_each(std::execution::par, dependents.begin(), dependents.end(), [&nodes](size_t node) {
+			nodes[node].run(nodes);
+		});
 	}
 
 private:
@@ -4184,7 +4190,7 @@ private:
 	detail::system_base* sys{};
 
 	// The systems that depend on this
-	std::vector<size_t> dependants{};
+	std::vector<size_t> dependents{};
 
 	// The number of systems this depends on
 	std::atomic<int> unfinished_dependencies = 0;
@@ -4199,10 +4205,14 @@ class scheduler final {
 		std::vector<std::size_t> entry_nodes{};
 		int id;
 
+		systems_group() {}
+		systems_group(int group_id) : id(group_id) {}
+
 		// Runs the entry nodes in parallel
 		void run() {
-			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(),
-						  [this](size_t node_id) { all_nodes[node_id].run(all_nodes); });
+			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
+				all_nodes[node_id].run(all_nodes);
+			});
 		}
 	};
 
@@ -4220,14 +4230,17 @@ protected:
 		}
 
 		// No group found, so find an insertion point
-		auto const insert_point =
-			std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) { return group_id < sg.id; });
+		auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) {
+			return group_id < sg.id;
+		});
 
 		// Insert the group and return it
-		return *groups.insert(insert_point, systems_group{{}, {}, id});
+		return *groups.insert(insert_point, systems_group{id});
 	}
 
 public:
+	scheduler() {}
+
 	void insert(detail::system_base* sys) {
 		// Find the group
 		auto& group = find_group(sys->get_group());
@@ -4250,7 +4263,7 @@ public:
 						// The system writes to the component,
 						// so there is a strong dependency here.
 						inserted = true;
-						dep_node.add_dependant(node_index);
+						dep_node.add_dependent(node_index);
 						node.increase_dependency_count();
 						break;
 					} else { // 'other' reads component
@@ -4291,8 +4304,9 @@ public:
 } // namespace ecs::detail
 
 #endif // !ECS_SYSTEM_SCHEDULER
-#ifndef ECS_CONTEXT
-#define ECS_CONTEXT
+#ifndef ECS_CONTEXT_H
+#define ECS_CONTEXT_H
+
 
 
 
@@ -4303,16 +4317,28 @@ class context final {
 	// The values that make up the ecs core.
 	std::vector<std::unique_ptr<system_base>> systems;
 	std::vector<std::unique_ptr<component_pool_base>> component_pools;
-	std::map<type_hash, component_pool_base*> type_pool_lookup; // TODO vector
-	tls::split<tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>> type_caches;
+	std::vector<type_hash> pool_type_hash;
 	scheduler sched;
 
 	mutable std::shared_mutex system_mutex;
 	mutable std::shared_mutex component_pool_mutex;
 
+	bool commit_in_progress = false;
+	bool run_in_progress = false;
+
+	using cache_type = tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>;
+	tls::split<cache_type> type_caches;
+
 public:
+	~context() {
+		reset();
+	}
+
 	// Commits the changes to the entities.
 	void commit_changes() {
+		Expects(!commit_in_progress);
+		Expects(!run_in_progress);
+
 		// Prevent other threads from
 		//  adding components
 		//  registering new component types
@@ -4320,6 +4346,8 @@ public:
 		std::shared_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
+
+		commit_in_progress = true;
 
 		static constexpr auto process_changes = [](auto const& inst) {
 			inst->process_changes();
@@ -4335,15 +4363,23 @@ public:
 		for (auto const& pool : component_pools) {
 			pool->clear_flags();
 		}
+
+		commit_in_progress = false;
 	}
 
 	// Calls the 'update' function on all the systems in the order they were added.
 	void run_systems() {
+		Expects(!commit_in_progress);
+		Expects(!run_in_progress);
+
 		// Prevent other threads from adding new systems during the run
 		std::shared_lock system_lock(system_mutex);
+		run_in_progress = true;
 
 		// Run all the systems
 		sched.run();
+
+		run_in_progress = false;
 	}
 
 	// Returns true if a pool for the type exists
@@ -4353,20 +4389,22 @@ public:
 		std::shared_lock component_pool_lock(component_pool_mutex);
 
 		static constexpr auto hash = get_type_hash<T>();
-		return type_pool_lookup.contains(hash);
+		return std::ranges::find(pool_type_hash, hash) != pool_type_hash.end();
 	}
 
 	// Resets the runtime state. Removes all systems, empties component pools
 	void reset() {
+		Expects(!run_in_progress && !commit_in_progress);
+
 		std::unique_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
 		systems.clear();
 		sched.clear();
-		type_pool_lookup.clear();
+		pool_type_hash.clear();
 		component_pools.clear();
-		type_caches.reset();
+		type_caches.clear();
 	}
 
 	// Returns a reference to a components pool.
@@ -4379,6 +4417,9 @@ public:
 		static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>,
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
+		// Don't call this when a commit is in progress
+		Expects(!commit_in_progress);
+
 		auto& cache = type_caches.local();
 
 		static constexpr auto hash = get_type_hash<T>();
@@ -4387,12 +4428,12 @@ public:
 			std::unique_lock component_pool_lock(component_pool_mutex);
 
 			// Look in the pool for the type
-			auto const it = type_pool_lookup.find(_hash);
-			if (it == type_pool_lookup.end()) {
+			auto const it = std::ranges::find(pool_type_hash, _hash);
+			if (it == pool_type_hash.end()) {
 				// The pool wasn't found so create it.
 				return create_component_pool<T>();
 			} else {
-				return it->second;
+				return component_pools[std::distance(pool_type_hash.begin(), it)].get();
 			}
 		});
 
@@ -4418,21 +4459,20 @@ public:
 	}
 
 private:
-	template<typename T>
-	using stripper = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
-
 	template <impl::TypeList ComponentList>
 	auto make_pools() {
-		using stripped_list = transform_type<ComponentList, stripper>;
+		using NakedComponentList = transform_type<ComponentList, naked_component_t>;
 
-		return for_all_types<stripped_list>([this]<typename... Types>() {
-			return detail::component_pools<stripped_list>{
+		return for_all_types<NakedComponentList>([this]<typename... Types>() {
+			return detail::component_pools<NakedComponentList>{
 				&this->get_component_pool<Types>()...};
 		});
 	}
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
+		Expects(!run_in_progress && !commit_in_progress);
+
 		// Is the first component an entity_id?
 		static constexpr bool first_is_entity = is_entity<FirstComponent>;
 
@@ -4449,9 +4489,7 @@ private:
 				return (detail::global<Types> && ...);
 			});
 
-		// Global systems cannot have a sort function
 		static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
-
 		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
 		// Helper-lambda to insert system
@@ -4475,24 +4513,21 @@ private:
 
 		// Create the system instance
 		if constexpr (has_parent) {
-			auto const pools = make_pools<detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>>();
-			using typed_system = system_hierarchy<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using combined_list = detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>;
+			using typed_system = system_hierarchy<Options, UpdateFn, first_is_entity, component_list, combined_list, transform_type<combined_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<combined_list>());
 			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_global<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using typed_system = system_global<Options, UpdateFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else if constexpr (has_sort_func) {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+			using typed_system = system_sorted<Options, UpdateFn, SortFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, sort_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using typed_system = system_ranged<Options, UpdateFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
 		}
 	}
@@ -4503,14 +4538,14 @@ private:
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
 		static constexpr auto hash = get_type_hash<T>();
-		type_pool_lookup.emplace(hash, pool.get());
+		pool_type_hash.push_back(hash);
 		component_pools.push_back(std::move(pool));
 		return component_pools.back().get();
 	}
 };
 } // namespace ecs::detail
 
-#endif // !ECS_CONTEXT
+#endif // !ECS_CONTEXT_H
 #ifndef ECS_RUNTIME
 #define ECS_RUNTIME
 
@@ -4523,7 +4558,7 @@ public:
 	// Pre: entity does not already have the component, or have it in queue to be added
 	template <typename First, typename... T>
 	constexpr void add_component(entity_range const range, First&& first_val, T&&... vals) {
-		static_assert(detail::is_unique_types<First, T...>(), "the same component was specified more than once");
+		static_assert(detail::is_unique_type_args<First, T...>(), "the same component was specified more than once");
 		static_assert(!detail::global<First> && (!detail::global<T> && ...), "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<First>> && (!std::is_pointer_v<std::remove_cvref_t<T>> && ...),
 					  "can not add pointers to entities; wrap them in a struct");
@@ -4640,7 +4675,7 @@ public:
 	}
 
 	// Returns the components from an entity range, or an empty span if the entities are not found
-	// or does not containg the component.
+	// or does not contain the component.
 	// NOTE: Pointers to components are only guaranteed to be valid
 	//       until the next call to ecs::commit_changes or ecs::update,
 	//       after which the component might be reallocated.
@@ -4707,7 +4742,9 @@ public:
 		using opts = detail::type_list<Options...>;
 
 		// verify the input
-		detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
+		constexpr static bool dummy_for_clang_13 =
+			detail::make_system_parameter_verifier<opts, SystemFunc, SortFn>();
+		(void)dummy_for_clang_13;
 
 		if constexpr (ecs::detail::type_is_function<SystemFunc>) {
 			// Build from regular function
@@ -4748,6 +4785,7 @@ public:
 private:
 	detail::context ctx;
 };
+
 } // namespace ecs
 
 #endif // !ECS_RUNTIME
