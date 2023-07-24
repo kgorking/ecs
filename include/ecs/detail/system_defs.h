@@ -94,24 +94,6 @@ template <typename Component, typename Pools>
 	}
 }
 
-// Extracts a component argument from a tuple
-template <typename Component, typename Tuple>
-decltype(auto) extract_arg(Tuple& tuple, [[maybe_unused]] ptrdiff_t offset) {
-	using T = std::remove_cvref_t<Component>;
-
-	if constexpr (std::is_pointer_v<T>) {
-		return nullptr;
-	} else if constexpr (detail::unbound<T>) {
-		T* ptr = std::get<T*>(tuple);
-		return *ptr;
-	} else if constexpr (detail::is_parent<T>::value) {
-		return std::get<T>(tuple);
-	} else {
-		T* ptr = std::get<T*>(tuple);
-		return *(ptr + offset);
-	}
-}
-
 // Extracts a component argument from a pointer+offset
 template <typename Component>
 decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, [[maybe_unused]] auto pools = std::ptrdiff_t{0}) {
