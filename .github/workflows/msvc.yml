@@ -1,4 +1,4 @@
-name: MSVC
+name: MSVC 2022
 
 on: [push]
 
@@ -10,15 +10,6 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: true # recursive
-
-#    - name: Download Ninja
-#      shell: cmake -P {0}
-#      run: |
-#        set(ninja_version "1.11.1")
-#        
-#        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-win.zip")
-#        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-#        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
 
     - name: Configure
       shell: cmake -P {0}

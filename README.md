@@ -51,9 +51,9 @@ The latter command will fetch the submodules required to build this library.
 # Building 
 #### Tested compilers
 The CI build status for msvc, clang, and gcc is currently:
-* [![msvc 2022](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
-* [![gcc 11](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
-* [![clang-13 libstdc++-10](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml)
+* [![MSVC](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=runtime_global_component)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
+* [![GCC](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=runtime_global_component)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+* [![Clang](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg?branch=runtime_global_component)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
   * Clang builds are currently disabled due it being to far behind gccc and msvc in terms of c++20 features.
 
 # Table of Contents

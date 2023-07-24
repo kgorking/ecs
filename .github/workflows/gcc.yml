@@ -1,4 +1,4 @@
-name: GCC
+name: GCC 11/12/13
 
 on: [push]
 
