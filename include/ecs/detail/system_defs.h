@@ -79,35 +79,17 @@ template <typename Component, typename Pools>
 		// Filter: return a nullptr
 		static_cast<void>(entity);
 		return static_cast<T*>(nullptr);
-
 	} else if constexpr (tagged<T>) {
 		// Tag: return a pointer to some dummy storage
 		thread_local char dummy_arr[sizeof(T)];
 		return reinterpret_cast<T*>(dummy_arr);
-
 	} else if constexpr (global<T>) {
 		// Global: return the shared component
-		//return &get_pool<T>(pools).get_shared_component();
 		return &pools.template get<Component>().get_shared_component();
-
 	} else if constexpr (std::is_same_v<reduce_parent_t<T>, parent_id>) {
-		//return get_pool<parent_id>(pools).find_component_data(entity);
 		return pools.template get<parent_id>().find_component_data(entity);
-
-		// Parent component: return the parent with the types filled out
-		//parent_id pid = *get_pool<parent_id>(pools).find_component_data(entity);
-
-		// using parent_type = std::remove_cvref_t<Component>;
-		// auto const tup_parent_ptrs = for_all_types<parent_type_list_t<parent_type>>(
-		//	[&]<typename... ParentTypes>() {
-		//		return std::make_tuple(get_entity_data<ParentTypes>(pid, pools)...);
-		//	});
-
-		//return parent_type{pid, tup_parent_ptrs};
-
 	} else {
 		// Standard: return the component from the pool
-		//return get_pool<T>(pools).find_component_data(entity);
 		return pools.template get<Component>().find_component_data(entity);
 	}
 }
