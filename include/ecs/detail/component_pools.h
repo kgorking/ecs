@@ -41,18 +41,6 @@ private:
 
 
 
-// Get a pointer to an entities component data from a component pool tuple.
-// If the component type is a pointer, return nullptr
-template <typename Component, impl::TypeList PoolsList>
-Component* get_entity_data([[maybe_unused]] entity_id id, [[maybe_unused]] component_pools<PoolsList> const& pools) {
-	// If the component type is a pointer, return a nullptr
-	if constexpr (std::is_pointer_v<Component>) {
-		return nullptr;
-	} else {
-		component_pool<Component>& pool = pools.template get<Component>();
-		return pool.find_component_data(id);
-	}
-}
 
 // Get an entities component from a component pool
 template <typename Component, impl::TypeList PoolsList>
@@ -94,7 +82,7 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 		// TODO store this in seperate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
 		return for_all_types<parent_type_list_t<T>>([&]<typename... ParentTypes>() {
-			return T{pid, get_entity_data<ParentTypes>(pid, pools)...};
+			return T{pid, get_component<ParentTypes>(pid, pools)...};
 		});
 	} else {
 		T* ptr = cmp;
