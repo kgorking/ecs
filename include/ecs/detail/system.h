@@ -167,7 +167,7 @@ protected:
 
 
 	// Number of filters
-	static constexpr size_t num_filters = count_type_if<ComponentsList>([]<typename T>() { return std::is_pointer_v<T>; });
+	static constexpr size_t num_filters = count_type_if<ComponentsList, std::is_pointer>();
 	static_assert(num_filters < num_components, "systems must have at least one non-filter component");
 
 	// Hashes of stripped types used by this system ('int' instead of 'int const&')

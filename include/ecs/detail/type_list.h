@@ -157,6 +157,11 @@ namespace impl {
 		}
 	}
 
+	template <template <typename> typename Predicate, typename... Types>
+	constexpr std::size_t count_type_if(type_list<Types...>*) {
+		return static_cast<std::size_t>((Predicate<Types>::value +...));
+	}
+
 	template <typename... Types, typename F>
 	constexpr std::size_t count_type_if(F&& f, type_list<Types...>*) {
 		return (static_cast<std::size_t>(f.template operator()<Types>()) + ...);
@@ -425,6 +430,12 @@ constexpr auto run_if(F&& f) {
 template <impl::TypeList TL, typename F>
 constexpr std::size_t count_type_if(F&& f) {
 	return impl::count_type_if(f, static_cast<TL*>(nullptr));
+}
+
+// Returns the count of all types that satisfy the predicate. F takes a type template parameter and returns a boolean.
+template <impl::TypeList TL, template <typename> typename Predicate>
+constexpr std::size_t count_type_if() {
+	return impl::count_type_if<Predicate>(static_cast<TL*>(nullptr));
 }
 
 // Returns true if all types in the list are unique
