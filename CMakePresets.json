@@ -3,8 +3,8 @@
   "configurePresets": [
     {
       "name": "gcc-11-debug",
-      "displayName": "Debug, GCC 11 (WSL)",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "GCC 11 - Debug",
+      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -26,8 +26,8 @@
     },
     {
       "name": "gcc-11-release",
-      "displayName": "Release, GCC 11 (WSL)",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "GCC 11 - Release",
+      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -49,8 +49,8 @@
     },
     {
       "name": "gcc-12-debug",
-      "displayName": "Debug, GCC 12 (WSL)",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "GCC 12 - Debug",
+      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -72,8 +72,8 @@
     },
     {
       "name": "gcc-12-release",
-      "displayName": "Release, GCC 12 (WSL)",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "GCC 12 - Release",
+      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -95,8 +95,8 @@
     },
     {
       "name": "gcc-13-debug",
-      "displayName": "Debug, GCC 13 (WSL)",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "GCC 13 - Debug",
+      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -118,8 +118,8 @@
     },
     {
       "name": "gcc-13-release",
-      "displayName": "Release, GCC 13 (WSL)",
-      "description": "Target the Windows Subsystem for Linux (WSL) or a remote Linux system.",
+      "displayName": "GCC 13 - Release",
+      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -141,7 +141,7 @@
     },
     {
       "name": "clang-13-debug",
-      "displayName": "Debug, Clang 13 (WSL)",
+      "displayName": "Clang 13 - Debug",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -161,7 +161,7 @@
     },
     {
       "name": "clang-14-debug",
-      "displayName": "Debug, Clang 14 (WSL)",
+      "displayName": "Clang 14 - Debug",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -183,7 +183,7 @@
     },
     {
       "name": "clang-14-release",
-      "displayName": "Release, Clang 14 (WSL)",
+      "displayName": "Clang 14 - Release",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -205,7 +205,7 @@
     },
     {
       "name": "clang-15-debug",
-      "displayName": "Debug, Clang 15 (WSL)",
+      "displayName": "Clang 15 - Debug",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -227,7 +227,7 @@
     },
     {
       "name": "clang-15-release",
-      "displayName": "Release, Clang 15 (WSL)",
+      "displayName": "Clang 15 - Release",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -250,7 +250,7 @@
     {
       "name": "windows-2022-debug",
       "toolset": "14.3",
-      "displayName": "Debug, MSVC 2022",
+      "displayName": "Debug",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -273,7 +273,7 @@
     },
     {
       "name": "windows-2019-debug",
-      "displayName": "Debug, MSVC 2019",
+      "displayName": "Debug 2019 (v14.2)",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Visual Studio 17 2022",
       "toolset": "v142",
@@ -297,7 +297,7 @@
     },
     {
       "name": "windows-2022-release",
-      "displayName": "Release, MSVC 2022",
+      "displayName": "Release",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -320,7 +320,7 @@
     },
     {
       "name": "windows-2022-profile",
-      "displayName": "Profile, MSVC 2022",
+      "displayName": "Profile",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",

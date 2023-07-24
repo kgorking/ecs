@@ -4,7 +4,7 @@ name: MSVC 2022 (v14.3)
 on: [push]
 
 jobs:
-  build:
+  msvc:
     runs-on: windows-2022
 
     strategy:
