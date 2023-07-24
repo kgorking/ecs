@@ -128,8 +128,8 @@ public:
 		static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>,
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
-		// Don't call this when systems are running
-		Expects(!run_in_progress);
+		// Don't call this when a commit is in progress
+		Expects(!commit_in_progress);
 
 		auto& cache = type_caches.local();
 
