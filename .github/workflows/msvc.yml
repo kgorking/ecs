@@ -9,7 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [14.2] #, 14.3] # 2019, 2022
+        version: [14.3] # 2019(14.2), 2022(14.3)
+        built_type: [Debug, Release]
 
 
     steps:
@@ -39,7 +40,7 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=Debug
+            -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -G Ninja
           RESULT_VARIABLE result
         )

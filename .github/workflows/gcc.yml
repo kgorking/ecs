@@ -10,6 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         version: [11, 12, 13]
+        built_type: [Debug, Release]
 
     steps:
     - uses: actions/checkout@v3
@@ -35,7 +36,7 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=Debug
+            -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja
           RESULT_VARIABLE result

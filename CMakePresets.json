@@ -273,13 +273,10 @@
     },
     {
       "name": "windows-2019-debug",
-      "toolset": {
-        "value": "v142",
-        "strategy": "external"
-      },
       "displayName": "MSVC 2019 Debug",
       "description": "Target Windows with the Visual Studio development environment.",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
+      "toolset": "v142",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "architecture": {
         "value": "x64",
