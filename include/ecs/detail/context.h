@@ -149,15 +149,12 @@ public:
 	}
 
 private:
-	template<typename T>
-	using stripper = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
-
 	template <impl::TypeList ComponentList>
 	auto make_pools() {
-		using stripped_list = transform_type<ComponentList, stripper>;
+		using NakedComponentList = transform_type<ComponentList, naked_component_t>;
 
-		return for_all_types<stripped_list>([this]<typename... Types>() {
-			return detail::component_pools<ComponentList>{
+		return for_all_types<NakedComponentList>([this]<typename... Types>() {
+			return detail::component_pools<NakedComponentList>{
 				&this->get_component_pool<Types>()...};
 		});
 	}
@@ -207,19 +204,19 @@ private:
 		// Create the system instance
 		if constexpr (has_parent) {
 			using combined_list = detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>;
-			using typed_system = system_hierarchy<Options, UpdateFn, first_is_entity, component_list, combined_list>;
+			using typed_system = system_hierarchy<Options, UpdateFn, first_is_entity, component_list, combined_list, transform_type<combined_list, naked_component_t>>;
 			auto sys = std::make_unique<typed_system>(update_func, make_pools<combined_list>());
 			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
-			using typed_system = system_global<Options, UpdateFn, first_is_entity, component_list>;
+			using typed_system = system_global<Options, UpdateFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
 			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else if constexpr (has_sort_func) {
-			using typed_system = system_sorted<Options, UpdateFn, SortFn, first_is_entity, component_list>;
+			using typed_system = system_sorted<Options, UpdateFn, SortFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
 			auto sys = std::make_unique<typed_system>(update_func, sort_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else {
-			using typed_system = system_ranged<Options, UpdateFn, first_is_entity, component_list>;
+			using typed_system = system_ranged<Options, UpdateFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
 			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
 		}

@@ -9,9 +9,9 @@
 #include "type_list.h"
 
 namespace ecs::detail {
-template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename CombinedList>
-class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, CombinedList> {
-	using base = system<Options, UpdateFn, FirstIsEntity, CombinedList>;
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename CombinedList, typename PoolsList>
+class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, CombinedList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, CombinedList, PoolsList>;
 
 	// Is parallel execution wanted
 	static constexpr bool is_parallel = !ecs::detail::has_option<opts::not_parallel, Options>();
@@ -33,8 +33,8 @@ class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, C
 	};
 
 public:
-	system_hierarchy(UpdateFn func, component_pools<CombinedList>&& in_pools)
-		: base{func, std::forward<component_pools<CombinedList>>(in_pools)} {
+	system_hierarchy(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
 		pool_parent_id = &this->pools.template get<parent_id>();
 		this->process_changes(true);
 	}
@@ -195,7 +195,7 @@ private:
 
 	template <typename... Ts>
 	static auto make_argument(entity_range range, auto... args) noexcept {
-		return [=](auto update_func, entity_offset offset, component_pools<CombinedList> const& pools) mutable {
+		return [=](auto update_func, entity_offset offset, component_pools<PoolsList> const& pools) mutable {
 			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
