@@ -9,12 +9,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ["\"14.2\"", "\"14.3\""] # 2019, 2022
+        version: [14.2, 14.3] # 2019, 2022
 
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: true # recursive
+
+    - name: Setyp vcvars
+      shell: cmd
+      run: C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat -vcvars_ver="${{ matrix.version }}"
+
 
     - name: Configure
       shell: cmake -P {0}
@@ -23,7 +28,7 @@ jobs:
         set(ENV{CXX} "cl")
 
         execute_process(
-          COMMAND "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat -vcvars_ver=${{ matrix.version }} " && set
+          COMMAND set
           OUTPUT_FILE environment_script_output.txt
         )
         file(STRINGS environment_script_output.txt output_lines)
