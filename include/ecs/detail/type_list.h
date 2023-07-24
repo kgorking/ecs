@@ -17,6 +17,12 @@ struct type_pair {
 	using second = Second;
 };
 
+#if defined(_MSC_VER)
+#define ECS_NULLBODY ;
+#else
+#define ECS_NULLBODY { return nullptr; }
+#endif
+
 namespace impl {
 	// type wrapper
 	template <typename T>
@@ -166,7 +172,7 @@ namespace impl {
 	};
 	
 	template <typename First, typename... Types>
-	constexpr type_list<Types...>* skip_first_type(type_list<First, Types...>*);
+	consteval type_list<Types...>* skip_first_type(type_list<First, Types...>*) ECS_NULLBODY
 	
 	template <typename TL, template <typename O> typename Transformer>
 	struct transform_type {
@@ -185,7 +191,7 @@ namespace impl {
 	};
 
 	template <typename T, typename... Types>
-	constexpr type_list<Types..., T>* add_type(type_list<Types...>*);
+	constexpr type_list<Types..., T>* add_type(type_list<Types...>*) ECS_NULLBODY
 
 	template <typename TL, typename T>
 	using add_type_t = std::remove_pointer_t<decltype(add_type<T>(static_cast<TL*>(nullptr)))>;
@@ -275,36 +281,35 @@ namespace impl {
 
 		// terminal node; the right list is empty, return the left list
 		template <typename LeftList>
-		constexpr static auto helper(LeftList*, type_list<>*) -> LeftList*;
+		consteval static auto helper(LeftList*, type_list<>*) -> LeftList*;
 
 		// if the first type from the right list is not in the left list, add it and continue
 		template <typename LeftList, typename FirstRight, typename... Right>
 			requires(!list_contains_type<FirstRight, LeftList>())
-		static auto helper(LeftList* left, type_list<FirstRight, Right...>* right)
+		consteval static auto helper(LeftList* left, type_list<FirstRight, Right...>* right)
 			-> decltype(merger::helper(add_type<FirstRight>(left), null_list<Right...>()));
 
 		// skip the first type in the right list and continue
 		template <typename LeftList, typename RightList>
-		static auto helper(LeftList* left, RightList* right)
+		consteval static auto helper(LeftList* left, RightList* right)
 			-> decltype(merger::helper(left, skip_first_type(right)));
 #else
-		// clang/gcc needs the function bodies, for some goddamn reason.
+		// clang/gcc needs the function bodies.
 
 		template <typename LeftList>
-		constexpr static auto helper(LeftList* left, type_list<>*) {
-			return left;
-		}
+		consteval static LeftList* helper(LeftList*, type_list<>*)
+		{ return nullptr; }
 
-		template <typename... Types1, typename First2, typename... Types2>
-			requires(contains_type<First2>(null_list<Types1...>()))
-		constexpr static auto helper(type_list<Types1...>* left, type_list<First2, Types2...>*) {
-			return helper(left, null_list<Types2...>());
-		}
+		template <typename LeftList, typename FirstRight, typename... Right>
+			requires(!list_contains_type<FirstRight, LeftList>())
+		consteval static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
+		//-> decltype(merger::helper(add_type<FirstRight>(left), null_list<Right...>())); // Doesn't work
+		{	return    merger::helper(add_type<FirstRight>(left), null_list<Right...>()); }
 
-		template <typename... Types1, typename First2, typename... Types2>
-		constexpr static auto helper(type_list<Types1...>*, type_list<First2, Types2...>*) {
-			return helper(null_list<Types1..., First2>(), null_list<Types2...>());
-		}
+		template <typename LeftList, typename RightList>
+		consteval static auto helper(LeftList* left, RightList* right)
+		//-> decltype(merger::helper((LeftList*)left, skip_first_type(right))); // Doesn't work
+		{	return    merger::helper(left, skip_first_type(right)); }
 #endif
 	};
 
