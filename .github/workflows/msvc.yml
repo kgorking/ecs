@@ -22,8 +22,8 @@ jobs:
       shell: cmd
       run: |
         "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat" -vcvars_ver=${{ matrix.version }}
-		set CC=cl.exe
-		set CXX=cl.exe
+        set CC=cl.exe
+        set CXX=cl.exe
 
 
     - name: Configure
