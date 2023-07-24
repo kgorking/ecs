@@ -377,4 +377,25 @@ TEST_CASE("Hierarchies") {
 
 		ecs.update();
 	}
+
+	SECTION("can access all parent types") {
+		ecs::runtime rt;
+
+		struct tag_t {
+			ecs_flags(ecs::flag::tag);
+		};
+		struct filter_t {};
+		struct global_t {
+			ecs_flags(ecs::flag::global);
+		};
+
+		rt.add_component({0}, int{}, tag_t{}, filter_t{}, ecs::parent{-1});
+		rt.make_system([](int, tag_t, filter_t) {});
+
+		rt.add_component({1}, ecs::parent{0});
+		rt.make_system([](ecs::parent<tag_t>) {});
+		rt.make_system([](ecs::parent<filter_t*>) {});
+		// rt.make_system([](ecs::parent<global_t>) {}); // fails to compile
+		// rt.make_system([](ecs::parent<ecs::parent<>>) {}); // fails to compile
+	}
 }
