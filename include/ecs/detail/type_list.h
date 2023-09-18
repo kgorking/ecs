@@ -455,6 +455,14 @@ constexpr bool contains_type() {
 	return impl::contains_type<T>(static_cast<TL*>(nullptr));
 }
 
+// Returns true if a type list 'TA' contains all the types of type list 'TB'
+template <impl::TypeList TA, impl::TypeList TB>
+constexpr bool contains_list() {
+	return all_of_type<TB>([]<typename B>() {
+		return impl::contains_type<B>(static_cast<TA*>(nullptr));
+	});
+}
+
 // concatenates two type_list
 template <impl::TypeList TL1, impl::TypeList TL2>
 using concat_type_lists = std::remove_pointer_t<decltype(
