@@ -323,6 +323,9 @@ namespace impl {
 template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
+template <impl::TypeList TL>
+constexpr bool type_list_is_empty = (0 == impl::type_list_size<TL>::value);
+
 // TODO change type alias to *_t
 
 // Classes can inherit from type_list_indices with a provided type_list
