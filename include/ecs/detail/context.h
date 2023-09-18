@@ -176,7 +176,7 @@ private:
 		// Global systems cannot have a sort function
 		static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
 
-		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
+		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchical and sorted");
 
 		// Helper-lambda to insert system
 		auto const insert_system = [this](auto& system) -> decltype(auto) {
