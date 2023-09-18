@@ -25,8 +25,6 @@ static void build_sorted(benchmark::State& state) {
 		// triggers a rebuild
 		sys.set_enable(true);
 	}
-
-	state.SetItemsProcessed(nentities * state.iterations());
 }
 ECS_BENCHMARK(build_sorted);
 
@@ -55,6 +53,6 @@ static void build_sorted_many_ranges(benchmark::State& state) {
 		sys.set_enable(true);
 	}
 
-	state.SetItemsProcessed(nentities * state.iterations());
+	//state.SetItemsProcessed(nentities * state.iterations());
 }
 ECS_BENCHMARK(build_sorted_many_ranges);

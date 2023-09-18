@@ -15,7 +15,7 @@ template <impl::TypeList ComponentsList>
 	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
 struct component_pools {
 	explicit constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
-		Pre((pools != nullptr) && ...);
+		Pre(((pools != nullptr) && ...));
 	}
 
 	// Get arguments corresponding component pool.

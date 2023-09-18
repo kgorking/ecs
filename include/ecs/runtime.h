@@ -50,12 +50,15 @@ public:
 
 	// Adds a span of components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
+	// Pre: range and span must be same size
 	void add_component_span(entity_range const range, std::ranges::contiguous_range auto const& vals) {
 		using T = typename std::remove_cvref_t<decltype(vals)>::value_type;
 		static_assert(!detail::global<T>, "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<T>>, "can not add pointers to entities; wrap them in a struct");
 		//static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported"); // should work
 		static_assert(std::copyable<T>, "Type must be copyable");
+
+		Pre(range.ucount() == vals.size());
 
 		// Add it to the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
@@ -88,14 +91,17 @@ public:
 		add_component(entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
 	}
 
-	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
-	// called. Pre: entity has the component
+	// Removes a component from a range of entities.
+	// Will not be removed until 'commit_changes()' is called.
+	// Pre: entity has the component
 	template <detail::persistent T>
 	void remove_component(entity_range const range, T const& = T{}) {
 		static_assert(!detail::global<T>, "can not remove or add global components to entities");
 
 		// Remove the entities from the components pool
+		Pre(ctx.has_component_pool<T>() && "component pool of type 'T' has not been created");
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+		Pre(pool.has_entity(range) && "component pool does not contain some- or all of the entities in the range");
 		pool.remove(range);
 	}
 
@@ -127,7 +133,7 @@ public:
 
 	// Returns the component from an entity, or nullptr if the entity is not found
 	// NOTE: Pointers to components are only guaranteed to be valid
-	//       until the next call to 'ecs::commit_changes' or 'ecs::update',
+	//       until the next call to 'runtime::commit_changes' or 'runtime::update',
 	//       after which the component might be reallocated.
 	template <detail::local T>
 	T* get_component(entity_id const id) {
@@ -139,7 +145,7 @@ public:
 	// Returns the components from an entity range, or an empty span if the entities are not found
 	// or does not contain the component.
 	// NOTE: Pointers to components are only guaranteed to be valid
-	//       until the next call to ecs::commit_changes or ecs::update,
+	//       until the next call to 'runtime::commit_changes' or 'runtime::update',
 	//       after which the component might be reallocated.
 	template <detail::local T>
 	std::span<T> get_components(entity_range const range) {

@@ -259,7 +259,9 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ECS_ENABLE_CONTRACTS": true,
+        "ECS_ENABLE_CONTRACTS_AUDIT": true
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -306,7 +308,10 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "ECS_ENABLE_CONTRACTS": true,
+        "ECS_ENABLE_CONTRACTS_AUDIT": false
+
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -329,7 +334,8 @@
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "Release",
+        "ECS_ENABLE_CONTRACTS": false
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {

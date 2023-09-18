@@ -16,8 +16,6 @@ void build_ranged(benchmark::State& state) {
 		// triggers a rebuild
 		sys.set_enable(true);
 	}
-
-	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(build_ranged);
 
@@ -35,8 +33,6 @@ void build_many_ranged(benchmark::State& state) {
 		// triggers a rebuild
 		sys.set_enable(true);
 	}
-
-	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(build_many_ranged);
 
@@ -52,8 +48,6 @@ void run_serial_ranged(benchmark::State& state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		rt.run_systems();
 	}
-
-	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(run_serial_ranged);
 
@@ -69,7 +63,5 @@ void run_parallel_ranged(benchmark::State& state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		rt.run_systems();
 	}
-
-	state.SetItemsProcessed(state.iterations() * nentities);
 }
 ECS_BENCHMARK(run_parallel_ranged);

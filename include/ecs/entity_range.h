@@ -114,7 +114,7 @@ public:
 	// Pre: 'other' must overlap 'range', but must not be equal to it
 	[[nodiscard]] constexpr static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const& range,
 																							   entity_range const& other) {
-		Pre(!range.equals(other));
+		Pre(other.overlaps(range) && !range.equals(other));
 
 		// Remove from the front
 		if (other.first() == range.first()) {

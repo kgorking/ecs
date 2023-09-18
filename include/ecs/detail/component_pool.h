@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <utility>
+#include <ranges>
 
 #include "tls/collect.h"
 
@@ -177,6 +178,7 @@ public:
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
+	// Pre: range and span must be same size.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
 		Pre(range.count() == std::ssize(span));
 
