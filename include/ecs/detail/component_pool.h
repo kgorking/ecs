@@ -178,7 +178,7 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Expects(range.count() == std::ssize(span));
+		Pre(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
@@ -405,7 +405,7 @@ private:
 		if (c->get_owns_data()) {
 			auto next = std::next(c);
 			if (c->get_has_split_data() && chunks.end() != next) {
-				Expects(c->range == next->range);
+				Pre(c->range == next->range);
 				// transfer ownership
 				next->set_owns_data(true);
 			} else {
@@ -597,7 +597,7 @@ private:
 
 				if (curr->range.overlaps(r)) {
 					// Can not add components more than once to same entity
-					Expects(!curr->active.overlaps(r));
+					Pre(!curr->active.overlaps(r));
 
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, r);

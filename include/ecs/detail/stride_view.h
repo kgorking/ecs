@@ -18,7 +18,7 @@ public:
 		: first{reinterpret_cast<char const*>(first_)}
 		, curr {reinterpret_cast<char const*>(first_)}
 		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
-		Expects(first_ != nullptr);
+		Pre(first_ != nullptr);
 	}
 
 	T const* current() const noexcept {

@@ -872,11 +872,11 @@ using merge_type_lists = std::remove_pointer_t<decltype(
 #define ECS_CONTRACT
 
 // Contracts. If they are violated, the program is an invalid state, so nuke it from orbit
-#define Expects(cond)                                                                                                                      \
+#define Pre(cond)                                                                                                                      \
 	do {                                                                                                                                   \
 		((cond) ? static_cast<void>(0) : std::terminate());                                                                                \
 	} while (false)
-#define Ensures(cond)                                                                                                                      \
+#define Post(cond)                                                                                                                      \
 	do {                                                                                                                                   \
 		((cond) ? static_cast<void>(0) : std::terminate());                                                                                \
 	} while (false)
@@ -947,7 +947,7 @@ namespace ecs::detail {
 template <typename T>
 struct tagged_pointer {
 	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
-		Expects((ptr & TagMask) == 0);
+		Pre((ptr & TagMask) == 0);
 	}
 
 	tagged_pointer() noexcept = default;
@@ -972,7 +972,7 @@ struct tagged_pointer {
 		return ptr & TagMask;
 	}
 	void set_tag(int tag) noexcept {
-		Expects(tag >= 0 && tag <= static_cast<int>(TagMask));
+		Pre(tag >= 0 && tag <= static_cast<int>(TagMask));
 		ptr = (ptr & PointerMask) | static_cast<uintptr_t>(tag);
 	}
 
@@ -1297,7 +1297,7 @@ public:
 	entity_range() = delete; // no such thing as a 'default' range
 
 	constexpr entity_range(detail::entity_type first, detail::entity_type last) : first_(first), last_(last) {
-		Expects(first <= last);
+		Pre(first <= last);
 	}
 
 	static constexpr entity_range all() {
@@ -1368,7 +1368,7 @@ public:
 	// Returns the offset of an entity into this range
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
-		Expects(contains(ent));
+		Pre(contains(ent));
 		return static_cast<detail::entity_offset>(ent - first_);
 	}
 
@@ -1376,7 +1376,7 @@ public:
 	// Pre: 'offset' is in the range
 	[[nodiscard]] entity_id at(detail::entity_offset const offset) const {
 		entity_id const id = static_cast<detail::entity_type>(static_cast<detail::entity_offset>(first()) + offset);
-		Expects(id <= last());
+		Pre(id <= last());
 		return id;
 	}
 
@@ -1390,7 +1390,7 @@ public:
 	// Pre: 'other' must overlap 'range', but must not be equal to it
 	[[nodiscard]] constexpr static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const& range,
 																							   entity_range const& other) {
-		Expects(!range.equals(other));
+		Pre(!range.equals(other));
 
 		// Remove from the front
 		if (other.first() == range.first()) {
@@ -1407,7 +1407,7 @@ public:
 			return {entity_range{range.first(), other.first() - 1}, entity_range{other.last() + 1, range.last()}};
 		} else {
 			// Remove overlaps
-			Expects(range.overlaps(other));
+			Pre(range.overlaps(other));
 
 			if (range.first() < other.first())
 				return {entity_range{range.first(), other.first() - 1}, std::nullopt};
@@ -1419,7 +1419,7 @@ public:
 	// Combines two ranges into one
 	// Pre: r1 and r2 must be adjacent ranges, r1 < r2
 	[[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
-		Expects(r1.adjacent(r2));
+		Pre(r1.adjacent(r2));
 		if (r1 < r2)
 			return entity_range{r1.first(), r2.last()};
 		else
@@ -1429,7 +1429,7 @@ public:
 	// Returns the intersection of two ranges
 	// Pre: The ranges must overlap
 	[[nodiscard]] constexpr static entity_range intersect(entity_range const& range, entity_range const& other) {
-		Expects(range.overlaps(other));
+		Pre(range.overlaps(other));
 
 		entity_id const first{std::max(range.first(), other.first())};
 		entity_id const last{std::min(range.last(), other.last())};
@@ -1522,7 +1522,7 @@ public:
 		: first{reinterpret_cast<char const*>(first_)}
 		, curr {reinterpret_cast<char const*>(first_)}
 		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
-		Expects(first_ != nullptr);
+		Pre(first_ != nullptr);
 	}
 
 	T const* current() const noexcept {
@@ -1611,7 +1611,7 @@ namespace ecs::detail {
 template <typename T>
 struct tagged_pointer {
 	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
-		Expects((ptr & TagMask) == 0);
+		Pre((ptr & TagMask) == 0);
 	}
 
 	tagged_pointer() noexcept = default;
@@ -1636,7 +1636,7 @@ struct tagged_pointer {
 		return ptr & TagMask;
 	}
 	void set_tag(int tag) noexcept {
-		Expects(tag >= 0 && tag <= static_cast<int>(TagMask));
+		Pre(tag >= 0 && tag <= static_cast<int>(TagMask));
 		ptr = (ptr & PointerMask) | static_cast<uintptr_t>(tag);
 	}
 
@@ -1730,7 +1730,7 @@ public:
 		: first{reinterpret_cast<char const*>(first_)}
 		, curr {reinterpret_cast<char const*>(first_)}
 		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
-		Expects(first_ != nullptr);
+		Pre(first_ != nullptr);
 	}
 
 	T const* current() const noexcept {
@@ -1938,7 +1938,7 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Expects(range.count() == std::ssize(span));
+		Pre(range.count() == std::ssize(span));
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
@@ -2165,7 +2165,7 @@ private:
 		if (c->get_owns_data()) {
 			auto next = std::next(c);
 			if (c->get_has_split_data() && chunks.end() != next) {
-				Expects(c->range == next->range);
+				Pre(c->range == next->range);
 				// transfer ownership
 				next->set_owns_data(true);
 			} else {
@@ -2357,7 +2357,7 @@ private:
 
 				if (curr->range.overlaps(r)) {
 					// Can not add components more than once to same entity
-					Expects(!curr->active.overlaps(r));
+					Pre(!curr->active.overlaps(r));
 
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, r);
@@ -2565,7 +2565,7 @@ template <impl::TypeList ComponentsList>
 	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
 struct component_pools {
 	explicit constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
-		Expects((pools != nullptr) && ...);
+		Pre((pools != nullptr) && ...);
 	}
 
 	// Get arguments corresponding component pool.
@@ -2833,13 +2833,13 @@ struct pool_entity_walker {
 
 	// Get the current range
 	entity_range get_range() const {
-		Expects(!done());
+		Pre(!done());
 		return *ranges_it;
 	}
 
 	// Get the current entity
 	entity_id get_entity() const {
-		Expects(!done());
+		Pre(!done());
 		return ranges_it->first() + offset;
 	}
 
@@ -2940,7 +2940,7 @@ public:
 
 	int to_offset(entity_id ent) const noexcept {
 		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
-		Expects(it != ranges.end() && it->contains(ent)); // Expects the entity to be in the ranges
+		Pre(it != ranges.end() && it->contains(ent)); // Expects the entity to be in the ranges
 
 		auto const offset = static_cast<std::size_t>(std::distance(ranges.begin(), it));
 		return range_offsets[offset] + (ent - it->first());
@@ -4122,7 +4122,7 @@ struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
 	scheduler_node(detail::system_base* _sys) : sys(_sys), dependents{}, unfinished_dependencies{0}, dependencies{0} {
-		Expects(sys != nullptr);
+		Pre(sys != nullptr);
 	}
 
 	scheduler_node(scheduler_node const& other) {
@@ -4153,7 +4153,7 @@ struct scheduler_node final {
 	// Increase the dependency counter of this system. These dependencies has to
 	// run to completion before this system can run.
 	void increase_dependency_count() {
-		Expects(dependencies != std::numeric_limits<int16_t>::max());
+		Pre(dependencies != std::numeric_limits<int16_t>::max());
 		dependencies += 1;
 	}
 
@@ -4336,8 +4336,8 @@ public:
 
 	// Commits the changes to the entities.
 	void commit_changes() {
-		Expects(!commit_in_progress);
-		Expects(!run_in_progress);
+		Pre(!commit_in_progress);
+		Pre(!run_in_progress);
 
 		// Prevent other threads from
 		//  adding components
@@ -4369,8 +4369,8 @@ public:
 
 	// Calls the 'update' function on all the systems in the order they were added.
 	void run_systems() {
-		Expects(!commit_in_progress);
-		Expects(!run_in_progress);
+		Pre(!commit_in_progress);
+		Pre(!run_in_progress);
 
 		// Prevent other threads from adding new systems during the run
 		std::shared_lock system_lock(system_mutex);
@@ -4394,7 +4394,7 @@ public:
 
 	// Resets the runtime state. Removes all systems, empties component pools
 	void reset() {
-		Expects(!run_in_progress && !commit_in_progress);
+		Pre(!run_in_progress && !commit_in_progress);
 
 		std::unique_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
@@ -4418,7 +4418,7 @@ public:
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
 		// Don't call this when a commit is in progress
-		Expects(!commit_in_progress);
+		Pre(!commit_in_progress);
 
 		auto& cache = type_caches.local();
 
@@ -4471,7 +4471,7 @@ private:
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
-		Expects(!run_in_progress && !commit_in_progress);
+		Pre(!run_in_progress && !commit_in_progress);
 
 		// Is the first component an entity_id?
 		static constexpr bool first_is_entity = is_entity<FirstComponent>;
@@ -4500,7 +4500,7 @@ private:
 
 			systems.push_back(std::move(system));
 			detail::system_base* ptr_system = systems.back().get();
-			Ensures(ptr_system != nullptr);
+			Post(ptr_system != nullptr);
 
 			// -vv-  msvc shenanigans
 			[[maybe_unused]] static bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
