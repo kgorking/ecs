@@ -29,11 +29,11 @@ public:
 	}
 
 	[[nodiscard]] constexpr detail::entity_iterator begin() const {
-		return detail::entity_iterator{first_};
+		return {first_};
 	}
 
 	[[nodiscard]] constexpr detail::entity_iterator end() const {
-		return detail::entity_iterator{last_} + 1;
+		return {last_ + 1};
 	}
 
 	[[nodiscard]] constexpr bool operator==(entity_range const& other) const {
