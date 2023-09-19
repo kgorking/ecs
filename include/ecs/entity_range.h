@@ -141,7 +141,7 @@ public:
 	}
 
 	// Combines two ranges into one
-	// Pre: r1 and r2 must be adjacent ranges, r1 < r2
+	// Pre: r1 and r2 must be adjacent ranges
 	[[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
 		Pre(r1.adjacent(r2));
 		if (r1 < r2)
