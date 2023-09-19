@@ -66,8 +66,6 @@ private:
 			active = other.active;
 			data = other.data;
 			other.data = nullptr;
-			set_owns_data(other.get_owns_data());
-			set_has_split_data(other.get_has_split_data());
 			return *this;
 		}
 		chunk(entity_range range_, entity_range active_, T* data_ = nullptr, bool owns_data_ = false,
