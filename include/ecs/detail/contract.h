@@ -37,19 +37,11 @@ struct default_contract_violation_impl {
 	}
 
 	void precondition_violation(char const* what) {
-		if (std::is_constant_evaluated()) {
-			throw what;
-		} else {
-			panic("Precondition violation", what);
-		}
+		panic("Precondition violation", what);
 	}
 
 	void postcondition_violation(char const* what) {
-		if (std::is_constant_evaluated()) {
-			throw what;
-		} else {
-			panic("Postcondition violation", what);
-		}
+		panic("Postcondition violation", what);
 	}
 };
 } // namespace ecs::detail
