@@ -27,7 +27,7 @@ public:
 
 		auto const adder = [this, range]<typename Type>(Type&& val) {
 			// Add it to the component pool
-			if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
+			if constexpr (detail::is_parent<Type>::value) {
 				auto& pool = ctx.get_component_pool<detail::parent_id>();
 				pool.add(range, detail::parent_id{val.id()});
 			} else if constexpr (std::is_reference_v<Type>) {
