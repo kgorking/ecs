@@ -16,7 +16,7 @@ struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
 	scheduler_node(detail::system_base* _sys) : sys(_sys), dependents{}, unfinished_dependencies{0}, dependencies{0} {
-		Expects(sys != nullptr);
+		Pre(sys != nullptr, "system can not be null");
 	}
 
 	scheduler_node(scheduler_node const& other) {
@@ -47,7 +47,7 @@ struct scheduler_node final {
 	// Increase the dependency counter of this system. These dependencies has to
 	// run to completion before this system can run.
 	void increase_dependency_count() {
-		Expects(dependencies != std::numeric_limits<int16_t>::max());
+		Pre(dependencies != std::numeric_limits<int16_t>::max(), "system has too many dependencies (>32k)");
 		dependencies += 1;
 	}
 

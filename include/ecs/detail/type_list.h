@@ -323,6 +323,9 @@ namespace impl {
 template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
+template <impl::TypeList TL>
+constexpr bool type_list_is_empty = (0 == impl::type_list_size<TL>::value);
+
 // TODO change type alias to *_t
 
 // Classes can inherit from type_list_indices with a provided type_list
@@ -450,6 +453,14 @@ constexpr bool is_unique_types() {
 template <typename T, impl::TypeList TL>
 constexpr bool contains_type() {
 	return impl::contains_type<T>(static_cast<TL*>(nullptr));
+}
+
+// Returns true if a type list 'TA' contains all the types of type list 'TB'
+template <impl::TypeList TA, impl::TypeList TB>
+constexpr bool contains_list() {
+	return all_of_type<TB>([]<typename B>() {
+		return impl::contains_type<B>(static_cast<TA*>(nullptr));
+	});
 }
 
 // concatenates two type_list

@@ -12,7 +12,13 @@
       "ctestCommandArgs": "",
       "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "intelliSenseMode": "windows-msvc-x64",
-      "variables": []
+      "variables": [
+        {
+          "name": "ECS_ENABLE_CONTRACT_AUDIT",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ]
     },
     {
       "name": "x64-Release",
@@ -25,7 +31,6 @@
       "ctestCommandArgs": "",
       "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": [],
       "intelliSenseMode": "windows-msvc-x64"
     },
     {
@@ -89,7 +94,6 @@
       "inheritEnvironments": [ "linux_clang_x64" ],
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
-      "variables": [],
       "intelliSenseMode": "windows-msvc-x64",
       "addressSanitizerEnabled": true
     },
@@ -180,7 +184,6 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "linux_clang_x64" ],
-      "variables": [],
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "intelliSenseMode": "windows-msvc-x64",
@@ -196,7 +199,6 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": [],
       "intelliSenseMode": "windows-msvc-x64"
     }
   ]

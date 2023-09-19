@@ -33,8 +33,6 @@ static void build_hierarchy(benchmark::State& state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		sys.set_enable(true);
 	}
-
-	state.SetItemsProcessed(nentities * state.iterations());
 }
 ECS_BENCHMARK(build_hierarchy);
 
@@ -48,8 +46,6 @@ static void build_hierarchy_sub(benchmark::State& state) {
 	for ([[maybe_unused]] auto const _ : state) {
 		sys.set_enable(true);
 	}
-
-	state.SetItemsProcessed(nentities * state.iterations());
 }
 ECS_BENCHMARK(build_hierarchy_sub);
 
@@ -76,8 +72,6 @@ void run_hierarchy(benchmark::State& state) {
 			sys.run();
 		}
 	}
-
-	state.SetItemsProcessed(state.iterations() * nentities);
 }
 
 static void run_hierarchy_serial(benchmark::State& state) {

@@ -70,13 +70,13 @@ struct pool_entity_walker {
 
 	// Get the current range
 	entity_range get_range() const {
-		Expects(!done());
+		Pre(!done());
 		return *ranges_it;
 	}
 
 	// Get the current entity
 	entity_id get_entity() const {
-		Expects(!done());
+		Pre(!done());
 		return ranges_it->first() + offset;
 	}
 

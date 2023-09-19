@@ -126,18 +126,16 @@ void particles(benchmark::State& state) {
 	std::ranges::generate(colors, color_init);
 	std::ranges::generate(lifes, life_init);
 
-    for ([[maybe_unused]] auto const _ : state) {
-        ecs::runtime ecs;
-        make_systems(ecs);
-		ecs.add_component_span({0, num_particles}, particles);
-		ecs.add_component_span({0, num_particles}, velocities);
-		ecs.add_component_span({0, num_particles}, colors);
-		ecs.add_component_span({0, num_particles}, lifes);
-        ecs.commit_changes();
+	ecs::runtime ecs;
+	make_systems(ecs);
+	ecs.add_component_span({0, num_particles}, particles);
+	ecs.add_component_span({0, num_particles}, velocities);
+	ecs.add_component_span({0, num_particles}, colors);
+	ecs.add_component_span({0, num_particles}, lifes);
+	ecs.commit_changes();
 
+	for ([[maybe_unused]] auto const _ : state) {
 		ecs.update();
 	}
-
-	state.SetItemsProcessed(state.iterations() * num_particles);
 }
 ECS_BENCHMARK(particles);

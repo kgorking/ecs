@@ -13,7 +13,6 @@ else()
 	target_compile_options(${ARGV0} PRIVATE -fsanitize=undefined,address)
 	target_link_options(${ARGV0} PRIVATE -fsanitize=undefined,address)
 endif()
-
 endmacro()
 
 make_test (test_component_removal "component_removal.cpp")

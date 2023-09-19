@@ -10,8 +10,20 @@ install(
     DESTINATION include
 )
 
-# determine whether this is a standalone project or included by other projects
+# Set up some options
 set(ECS_STANDALONE_PROJECT OFF)
+set(ECS_ENABLE_CONTRACTS ON CACHE BOOL "Use contracts internally to verify state")
+set(ECS_ENABLE_CONTRACTS_AUDIT OFF CACHE BOOL "Enable expensive contracts. Should only be used for debugging")
+
+if (ECS_ENABLE_CONTRACTS)
+	target_compile_definitions(ecs INTERFACE ECS_ENABLE_CONTRACTS)
+
+	if (ECS_ENABLE_CONTRACTS_AUDIT)
+		target_compile_definitions(ecs INTERFACE ECS_ENABLE_CONTRACTS_AUDIT)
+	endif ()
+endif ()
+
+# determine whether this is a standalone project or included by other projects
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(ECS_STANDALONE_PROJECT ON)
 endif ()
@@ -134,6 +146,7 @@ if (ECS_STANDALONE_PROJECT)
     add_subdirectory ("examples/scheduler")
     add_subdirectory ("examples/sorting")
     add_subdirectory ("examples/tagged_components")
+    add_subdirectory ("examples/custom_contract_violation_handler")
 
     # Unittests
     enable_testing()

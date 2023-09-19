@@ -30,7 +30,7 @@ public:
 
 	int to_offset(entity_id ent) const noexcept {
 		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
-		Expects(it != ranges.end() && it->contains(ent)); // Expects the entity to be in the ranges
+		Pre(it != ranges.end() && it->contains(ent), "entity is not contained in the ranges");
 
 		auto const offset = static_cast<std::size_t>(std::distance(ranges.begin(), it));
 		return range_offsets[offset] + (ent - it->first());

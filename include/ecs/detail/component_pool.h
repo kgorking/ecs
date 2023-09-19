@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <utility>
+#include <ranges>
 
 #include "tls/collect.h"
 
@@ -65,8 +66,6 @@ private:
 			active = other.active;
 			data = other.data;
 			other.data = nullptr;
-			set_owns_data(other.get_owns_data());
-			set_has_split_data(other.get_has_split_data());
 			return *this;
 		}
 		chunk(entity_range range_, entity_range active_, T* data_ = nullptr, bool owns_data_ = false,
@@ -177,8 +176,9 @@ public:
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
+	// Pre: range and span must be same size.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Expects(range.count() == std::ssize(span));
+		Pre(range.count() == std::ssize(span), "range and span must be same size");
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
@@ -404,8 +404,8 @@ private:
 		// Check for potential ownership transfer
 		if (c->get_owns_data()) {
 			auto next = std::next(c);
-			if (c->get_has_split_data() && chunks.end() != next) {
-				Expects(c->range == next->range);
+			if (c->get_has_split_data() && next != chunks.end()) {
+				Assert(c->range == next->range, "ranges must be equal");
 				// transfer ownership
 				next->set_owns_data(true);
 			} else {
@@ -596,8 +596,8 @@ private:
 				}
 
 				if (curr->range.overlaps(r)) {
-					// Can not add components more than once to same entity
-					Expects(!curr->active.overlaps(r));
+					// Delayed pre-condition check: Can not add components more than once to same entity
+					Pre(!curr->active.overlaps(r), "entity already has a component of the type");
 
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, r);

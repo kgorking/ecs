@@ -66,7 +66,7 @@ public:
 			return is_at_end();
 
 		// Can't compare iterators from different sources
-		Expects(ranges.data() == other.ranges.data());
+		Pre(ranges.data() == other.ranges.data());
 
 		return current_range_index == other.current_range_index && range_it == other.range_it;
 	}

@@ -47,8 +47,8 @@ public:
 
 	// Commits the changes to the entities.
 	void commit_changes() {
-		Expects(!commit_in_progress);
-		Expects(!run_in_progress);
+		Pre(!commit_in_progress, "a commit is already in progress");
+		Pre(!run_in_progress, "can not commit changes while systems are running");
 
 		// Prevent other threads from
 		//  adding components
@@ -80,8 +80,8 @@ public:
 
 	// Calls the 'update' function on all the systems in the order they were added.
 	void run_systems() {
-		Expects(!commit_in_progress);
-		Expects(!run_in_progress);
+		Pre(!commit_in_progress, "can not run systems while changes are being committed");
+		Pre(!run_in_progress, "systems are already running");
 
 		// Prevent other threads from adding new systems during the run
 		std::shared_lock system_lock(system_mutex);
@@ -105,7 +105,8 @@ public:
 
 	// Resets the runtime state. Removes all systems, empties component pools
 	void reset() {
-		Expects(!run_in_progress && !commit_in_progress);
+		Pre(!commit_in_progress, "a commit is already in progress");
+		Pre(!run_in_progress, "can not commit changes while systems are running");
 
 		std::unique_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
@@ -129,7 +130,7 @@ public:
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
 		// Don't call this when a commit is in progress
-		Expects(!commit_in_progress);
+		Pre(!commit_in_progress, "can not get a component pool while a commit is in progress");
 
 		auto& cache = type_caches.local();
 
@@ -182,7 +183,8 @@ private:
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
-		Expects(!run_in_progress && !commit_in_progress);
+		Pre(!commit_in_progress, "can not create systems while changes are being committed");
+		Pre(!run_in_progress, "can not create systems while systems are running");
 
 		// Is the first component an entity_id?
 		static constexpr bool first_is_entity = is_entity<FirstComponent>;
@@ -208,14 +210,12 @@ private:
 			std::unique_lock system_lock(system_mutex);
 
 			[[maybe_unused]] auto sys_ptr = system.get();
-
 			systems.push_back(std::move(system));
-			detail::system_base* ptr_system = systems.back().get();
-			Ensures(ptr_system != nullptr);
 
-			// -vv-  msvc shenanigans
+			// -vv-  MSVC shenanigans
 			[[maybe_unused]] static bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
 			if constexpr (!request_manual_update) {
+				detail::system_base* ptr_system = systems.back().get();
 				sched.insert(ptr_system);
 			} else {
 				return (*sys_ptr);

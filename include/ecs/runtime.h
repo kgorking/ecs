@@ -4,6 +4,7 @@
 #include <concepts>
 #include <type_traits>
 
+#include "detail/contract.h"
 #include "detail/component_pool.h"
 #include "detail/context.h"
 #include "detail/system.h"
@@ -27,19 +28,22 @@ public:
 
 		auto const adder = [this, range]<typename Type>(Type&& val) {
 			// Add it to the component pool
-			if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
-				auto& pool = ctx.get_component_pool<detail::parent_id>();
+			if constexpr (detail::is_parent<Type>::value) {
+				detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, detail::parent_id{val.id()});
 			} else if constexpr (std::is_reference_v<Type>) {
 				using DerefT = std::remove_cvref_t<Type>;
 				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
 				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, val);
 			} else {
 				static_assert(std::copyable<Type>, "Type must be copyable");
 
 				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, std::forward<Type>(val));
 			}
 		};
@@ -50,6 +54,7 @@ public:
 
 	// Adds a span of components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
+	// Pre: range and span must be same size
 	void add_component_span(entity_range const range, std::ranges::contiguous_range auto const& vals) {
 		using T = typename std::remove_cvref_t<decltype(vals)>::value_type;
 		static_assert(!detail::global<T>, "can not add global components to entities");
@@ -57,8 +62,11 @@ public:
 		//static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported"); // should work
 		static_assert(std::copyable<T>, "Type must be copyable");
 
+		Pre(range.ucount() == vals.size(), "range and span must be same size");
+
 		// Add it to the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+		PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 		pool.add_span(range, std::span{vals});
 	}
 
@@ -74,9 +82,11 @@ public:
 			};
 
 			auto& pool = ctx.get_component_pool<detail::parent_id>();
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 			pool.add_generator(range, converter);
 		} else {
 			auto& pool = ctx.get_component_pool<ComponentType>();
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 			pool.add_generator(range, std::forward<Fn>(gen));
 		}
 	}
@@ -88,14 +98,16 @@ public:
 		add_component(entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
 	}
 
-	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
-	// called. Pre: entity has the component
+	// Removes a component from a range of entities.
+	// Will not be removed until 'commit_changes()' is called.
+	// Pre: entity has the component
 	template <detail::persistent T>
 	void remove_component(entity_range const range, T const& = T{}) {
 		static_assert(!detail::global<T>, "can not remove or add global components to entities");
 
 		// Remove the entities from the components pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+		Pre(pool.has_entity(range), "component pool does not contain some- or all of the entities in the range");
 		pool.remove(range);
 	}
 
@@ -127,7 +139,7 @@ public:
 
 	// Returns the component from an entity, or nullptr if the entity is not found
 	// NOTE: Pointers to components are only guaranteed to be valid
-	//       until the next call to 'ecs::commit_changes' or 'ecs::update',
+	//       until the next call to 'runtime::commit_changes' or 'runtime::update',
 	//       after which the component might be reallocated.
 	template <detail::local T>
 	T* get_component(entity_id const id) {
@@ -139,7 +151,7 @@ public:
 	// Returns the components from an entity range, or an empty span if the entities are not found
 	// or does not contain the component.
 	// NOTE: Pointers to components are only guaranteed to be valid
-	//       until the next call to ecs::commit_changes or ecs::update,
+	//       until the next call to 'runtime::commit_changes' or 'runtime::update',
 	//       after which the component might be reallocated.
 	template <detail::local T>
 	std::span<T> get_components(entity_range const range) {
