@@ -19,10 +19,10 @@ concept contract_violation_interface = requires(T t) {
 
 struct default_contract_violation_impl {
 	void panic(char const* why, char const* what, char const* how) noexcept {
-		std::cerr << why << " (" << what << ") : " << how << '\n';
+		std::cerr << why << ": \"" << how << "\"\n\t" << what << "\n\n";
 #ifdef __cpp_lib_stacktrace
 		// Dump a stack trace if available
-		std::cerr << std::stacktrace::current(2) << '\n';
+		std::cerr << "** Stackdump **\n" << std::stacktrace::current(3) << '\n';
 #endif
 	}
 
