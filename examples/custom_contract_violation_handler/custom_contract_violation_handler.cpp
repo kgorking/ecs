@@ -1,27 +1,33 @@
-#include <ecs/ecs.h>
+#include <ecs/detail/contract.h>
 #include <iostream>
 
-struct contract_violation_impl {
-	void assertion_failed(char const* sz) {
-		puts("Fancy assertion failed");
-		puts(sz);
+
+struct example_handler {
+	void assertion_failed(char const* sz, char const* msg) {
+		std::cout << "assert (" << sz << "): " << msg << '\n';
 	}
 
-	void precondition_violation(char const* sz) {
-		puts("Fancy precondition violation");
-		puts(sz);
+	void precondition_violation(char const* sz, char const* msg) {
+		std::cout << "precondition (" << sz << "): " << msg << '\n';
 	}
 
-	void postcondition_violation(char const* sz) {
-		puts("Fancy postcondition violation");
-		puts(sz);
+	void postcondition_violation(char const* sz, char const* msg) {
+		std::cout << "postcondition (" << sz << "): " << msg << '\n';
 	}
 };
 
+// Override the default contract violation handler
 template <>
-inline auto contract_violation_handler<> = contract_violation_impl{};
+inline auto contract_violation_handler<> = example_handler{};
+
 
 int main() {
-	ecs::runtime rt;
-	rt.remove_component<int>({0});
+	// trigger assert
+	Assert(false, "test assert");
+
+	// trigger pre-condition
+	Pre(false, "test precondition");
+
+	// trigger post-condition
+	Post(false, "test postcondition");
 }

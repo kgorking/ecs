@@ -30,20 +30,20 @@ public:
 			// Add it to the component pool
 			if constexpr (detail::is_parent<Type>::value) {
 				detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
-				PreAudit(!pool.has_entity(range));
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, detail::parent_id{val.id()});
 			} else if constexpr (std::is_reference_v<Type>) {
 				using DerefT = std::remove_cvref_t<Type>;
 				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
 				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
-				PreAudit(!pool.has_entity(range));
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, val);
 			} else {
 				static_assert(std::copyable<Type>, "Type must be copyable");
 
 				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
-				PreAudit(!pool.has_entity(range));
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, std::forward<Type>(val));
 			}
 		};
@@ -62,11 +62,11 @@ public:
 		//static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported"); // should work
 		static_assert(std::copyable<T>, "Type must be copyable");
 
-		Pre(range.ucount() == vals.size());
+		Pre(range.ucount() == vals.size(), "range and span must be same size");
 
 		// Add it to the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
-		PreAudit(!pool.has_entity(range));
+		PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 		pool.add_span(range, std::span{vals});
 	}
 
@@ -82,11 +82,11 @@ public:
 			};
 
 			auto& pool = ctx.get_component_pool<detail::parent_id>();
-			PreAudit(!pool.has_entity(range));
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 			pool.add_generator(range, converter);
 		} else {
 			auto& pool = ctx.get_component_pool<ComponentType>();
-			PreAudit(!pool.has_entity(range));
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 			pool.add_generator(range, std::forward<Fn>(gen));
 		}
 	}
@@ -107,7 +107,7 @@ public:
 
 		// Remove the entities from the components pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
-		Pre(pool.has_entity(range) && "component pool does not contain some- or all of the entities in the range");
+		Pre(pool.has_entity(range), "component pool does not contain some- or all of the entities in the range");
 		pool.remove(range);
 	}
 

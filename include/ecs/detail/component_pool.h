@@ -178,7 +178,7 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	// Pre: range and span must be same size.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Pre(range.count() == std::ssize(span));
+		Pre(range.count() == std::ssize(span), "range and span must be same size");
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
@@ -404,8 +404,8 @@ private:
 		// Check for potential ownership transfer
 		if (c->get_owns_data()) {
 			auto next = std::next(c);
-			if (c->get_has_split_data() && chunks.end() != next) {
-				Pre(c->range == next->range);
+			if (c->get_has_split_data() && next != chunks.end()) {
+				Assert(c->range == next->range, "ranges must be equal");
 				// transfer ownership
 				next->set_owns_data(true);
 			} else {
@@ -596,8 +596,8 @@ private:
 				}
 
 				if (curr->range.overlaps(r)) {
-					// Can not add components more than once to same entity
-					Pre(!curr->active.overlaps(r));
+					// Delayed pre-condition check: Can not add components more than once to same entity
+					Pre(!curr->active.overlaps(r), "entity already has a component of the type");
 
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, r);

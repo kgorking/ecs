@@ -12,36 +12,30 @@ namespace ecs::detail {
 // Concept for the contract violation interface.
 template <typename T>
 concept contract_violation_interface = requires(T t) {
-	{ t.assertion_failed("") } -> std::same_as<void>;
-	{ t.precondition_violation("") } -> std::same_as<void>;
-	{ t.postcondition_violation("") } -> std::same_as<void>;
+	{ t.assertion_failed("", "") } -> std::same_as<void>;
+	{ t.precondition_violation("", "") } -> std::same_as<void>;
+	{ t.postcondition_violation("", "") } -> std::same_as<void>;
 };
 
 struct default_contract_violation_impl {
-	void panic(char const* why, char const* what) {
-		if (std::is_constant_evaluated()) {
-			// During compile-time just "throw" an exception, which will halt compilation
-			// static_assert(!why, what);
-			throw;
-		} else {
-			std::cerr << why << " - '" << what << "'\n";
+	void panic(char const* why, char const* what, char const* how) noexcept {
+		std::cerr << why << " (" << what << ") : " << how << '\n';
 #ifdef __cpp_lib_stacktrace
-			// Dump a stack trace if available
-			std::cerr << std::stacktrace::current(2) << '\n';
+		// Dump a stack trace if available
+		std::cerr << std::stacktrace::current(2) << '\n';
 #endif
-		}
 	}
 
-	void assertion_failed(char const* what) {
-		panic("Assertion failed", what);
+	void assertion_failed(char const* what, char const* how) noexcept {
+		panic("Assertion failed", what, how);
 	}
 
-	void precondition_violation(char const* what) {
-		panic("Precondition violation", what);
+	void precondition_violation(char const* what, char const* how) noexcept {
+		panic("Precondition violation", what, how);
 	}
 
-	void postcondition_violation(char const* what) {
-		panic("Postcondition violation", what);
+	void postcondition_violation(char const* what, char const* how) noexcept {
+		panic("Postcondition violation", what, how);
 	}
 };
 } // namespace ecs::detail
@@ -54,79 +48,79 @@ inline auto contract_violation_handler = ecs::detail::default_contract_violation
 namespace ecs::detail {
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
-inline void do_assertion_failed(char const* what) {
+inline void do_assertion_failed(char const* what, char const* how) noexcept {
 	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
-	cvi.assertion_failed(what);
+	cvi.assertion_failed(what, how);
 	std::terminate();
 }
 
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
-inline void do_precondition_violation(char const* what) {
+inline void do_precondition_violation(char const* what, char const* how) noexcept {
 	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
-	cvi.precondition_violation(what);
+	cvi.precondition_violation(what, how);
 	std::terminate();
 }
 
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
-inline void do_postcondition_violation(char const* what) {
+inline void do_postcondition_violation(char const* what, char const* how) noexcept {
 	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
-	cvi.postcondition_violation(what);
+	cvi.postcondition_violation(what, how);
 	std::terminate();
 }
 } // namespace ecs::detail
 
 #if defined(ECS_ENABLE_CONTRACTS)
 
-#define Assert(cond)                                                                                                                       \
+#define Assert(expression, message)                                                                                                        \
 	do {                                                                                                                                   \
-		((cond) ? static_cast<void>(0) : ecs::detail::do_assertion_failed(#cond));                                                         \
+		((expression) ? static_cast<void>(0) : ecs::detail::do_assertion_failed(#expression, message));                                    \
 	} while (false)
 
-#define Pre(cond)                                                                                                                          \
+#define Pre(expression, message)                                                                                                           \
 	do {                                                                                                                                   \
-		((cond) ? static_cast<void>(0) : ecs::detail::do_precondition_violation(#cond));                                                   \
+		((expression) ? static_cast<void>(0) : ecs::detail::do_precondition_violation(#expression, message));                              \
 	} while (false)
 
-#define Post(cond)                                                                                                                         \
+#define Post(expression, message)                                                                                                          \
 	do {                                                                                                                                   \
-		((cond) ? static_cast<void>(0) : ecs::detail::do_postcondition_violation(#cond));                                                  \
+		((expression) ? static_cast<void>(0) : ecs::detail::do_postcondition_violation(#expression, message));                             \
 	} while (false)
 
 // Audit contracts. Used for expensive checks; can be disabled.
 #if defined(ECS_ENABLE_CONTRACTS_AUDIT)
-#define AssertAudit(cond) Assert(cond)
-#define PreAudit(cond) Pre(cond)
-#define PostAudit(cond) Post(cond)
+#define AssertAudit(expression, message) Assert(expression, message)
+#define PreAudit(expression, message) Pre(expression, message)
+#define PostAudit(expression, message) Post(expression, message)
 #else
-#define AssertAudit(cond)
-#define PreAudit(cond)
-#define PostAudit(cond)
+#define AssertAudit(expression, message)
+#define PreAudit(expression, message)
+#define PostAudit(expression, message)
 #endif
 
 #else
 
 #if __has_cpp_attribute(assume)
-#define ASSUME(cond) [[assume(cond)]]
+#define ASSUME(expression) [[assume((expression))]]
 #else
 #ifdef _MSC_VER
-#define ASSUME(cond) __assume((cond))
+#define ASSUME(expression) __assume((expression))
 #elif defined(__clang)
-#define ASSUME(cond) __builtin_assume((cond))
+#define ASSUME(expression) __builtin_assume((expression))
 #elif defined(GCC)
-#define ASSUME(cond) __attribute__((assume((cond))))
+#define ASSUME(expression) __attribute__((assume((expression))))
 #else
-#define ASSUME(cond) /* unknown */
+#define ASSUME(expression) /* unknown */
 #endif
 #endif // __has_cpp_attribute
 
-#define Assert(cond) ASSUME(cond)
-#define Pre(cond) ASSUME(cond)
-#define Post(cond) ASSUME(cond)
-#define AssertAudit(cond) ASSUME(cond)
-#define PreAudit(cond) ASSUME(cond)
-#define PostAudit(cond) ASSUME(cond)
+#define Assert(expression, message) ASSUME(expression)
+#define Pre(expression, message) ASSUME(expression)
+#define Post(expression, message) ASSUME(expression)
+#define AssertAudit(expression, message) ASSUME(expression)
+#define PreAudit(expression, message) ASSUME(expression)
+#define PostAudit(expression, message) ASSUME(expression)
 #endif
 
 #endif // !ECS_CONTRACT_H

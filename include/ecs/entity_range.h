@@ -21,7 +21,7 @@ public:
 	entity_range() = delete; // no such thing as a 'default' range
 
 	constexpr entity_range(detail::entity_type first, detail::entity_type last) : first_(first), last_(last) {
-		Pre(first <= last);
+		Pre(first <= last, "invalid interval; first entity can not be larger than the last entity");
 	}
 
 	static constexpr entity_range all() {
@@ -92,7 +92,7 @@ public:
 	// Returns the offset of an entity into this range
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
-		Pre(contains(ent));
+		Pre(contains(ent), "entity must exist in the range");
 		return static_cast<detail::entity_offset>(ent - first_);
 	}
 
@@ -100,7 +100,7 @@ public:
 	// Pre: 'offset' is in the range
 	[[nodiscard]] entity_id at(detail::entity_offset const offset) const {
 		entity_id const id = static_cast<detail::entity_type>(static_cast<detail::entity_offset>(first()) + offset);
-		Pre(id <= last());
+		Pre(id <= last(), "offset is out of bounds of the range");
 		return id;
 	}
 
@@ -114,7 +114,8 @@ public:
 	// Pre: 'other' must overlap 'range', but must not be equal to it
 	[[nodiscard]] constexpr static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const& range,
 																							   entity_range const& other) {
-		Pre(other.overlaps(range) && !range.equals(other));
+		Pre(range.overlaps(other), "the two ranges must overlap");
+		Pre(!range.equals(other), "the two ranges can not be equal");
 
 		// Remove from the front
 		if (other.first() == range.first()) {
@@ -131,8 +132,6 @@ public:
 			return {entity_range{range.first(), other.first() - 1}, entity_range{other.last() + 1, range.last()}};
 		} else {
 			// Remove overlaps
-			Pre(range.overlaps(other));
-
 			if (range.first() < other.first())
 				return {entity_range{range.first(), other.first() - 1}, std::nullopt};
 			else
@@ -143,7 +142,7 @@ public:
 	// Combines two ranges into one
 	// Pre: r1 and r2 must be adjacent ranges
 	[[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
-		Pre(r1.adjacent(r2));
+		Pre(r1.adjacent(r2), "can not merge two ranges that are not adjacent to each other");
 		if (r1 < r2)
 			return entity_range{r1.first(), r2.last()};
 		else
@@ -153,7 +152,7 @@ public:
 	// Returns the intersection of two ranges
 	// Pre: The ranges must overlap
 	[[nodiscard]] constexpr static entity_range intersect(entity_range const& range, entity_range const& other) {
-		Pre(range.overlaps(other));
+		Pre(range.overlaps(other), "ranges must overlap in order to intersect");
 
 		entity_id const first{std::max(range.first(), other.first())};
 		entity_id const last{std::min(range.last(), other.last())};
