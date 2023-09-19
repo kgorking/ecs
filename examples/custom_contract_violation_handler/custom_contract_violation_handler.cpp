@@ -23,7 +23,5 @@ inline auto contract_violation_handler<> = contract_violation_impl{};
 
 int main() {
 	ecs::runtime rt;
-
-	std::srand((unsigned)std::time(nullptr));
-	rt.remove_component<int>({std::rand()});
+	rt.remove_component<int>({0});
 }
