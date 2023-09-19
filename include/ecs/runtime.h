@@ -4,6 +4,7 @@
 #include <concepts>
 #include <type_traits>
 
+#include "detail/contract.h"
 #include "detail/component_pool.h"
 #include "detail/context.h"
 #include "detail/system.h"
@@ -28,18 +29,21 @@ public:
 		auto const adder = [this, range]<typename Type>(Type&& val) {
 			// Add it to the component pool
 			if constexpr (detail::is_parent<Type>::value) {
-				auto& pool = ctx.get_component_pool<detail::parent_id>();
+				detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
+				PreAudit(!pool.has_entity(range));
 				pool.add(range, detail::parent_id{val.id()});
 			} else if constexpr (std::is_reference_v<Type>) {
 				using DerefT = std::remove_cvref_t<Type>;
 				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
 				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
+				PreAudit(!pool.has_entity(range));
 				pool.add(range, val);
 			} else {
 				static_assert(std::copyable<Type>, "Type must be copyable");
 
 				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
+				PreAudit(!pool.has_entity(range));
 				pool.add(range, std::forward<Type>(val));
 			}
 		};
@@ -62,6 +66,7 @@ public:
 
 		// Add it to the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+		PreAudit(!pool.has_entity(range));
 		pool.add_span(range, std::span{vals});
 	}
 
@@ -77,9 +82,11 @@ public:
 			};
 
 			auto& pool = ctx.get_component_pool<detail::parent_id>();
+			PreAudit(!pool.has_entity(range));
 			pool.add_generator(range, converter);
 		} else {
 			auto& pool = ctx.get_component_pool<ComponentType>();
+			PreAudit(!pool.has_entity(range));
 			pool.add_generator(range, std::forward<Fn>(gen));
 		}
 	}
@@ -99,7 +106,6 @@ public:
 		static_assert(!detail::global<T>, "can not remove or add global components to entities");
 
 		// Remove the entities from the components pool
-		Pre(ctx.has_component_pool<T>() && "component pool of type 'T' has not been created");
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
 		Pre(pool.has_entity(range) && "component pool does not contain some- or all of the entities in the range");
 		pool.remove(range);
