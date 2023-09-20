@@ -1,7 +1,11 @@
 name: MSVC 2022 (v14.3)
 #name: MSVC 2019 (v14.2) / 2022 (v14.3)
 
-on: [push]
+on:
+  workflow_run:
+    workflows: [Generate single-include header]
+    types: 
+      - completed
 
 jobs:
   msvc:

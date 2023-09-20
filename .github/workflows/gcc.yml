@@ -1,10 +1,15 @@
 name: GCC 11/12/13
 
-on: [push]
+on:
+  workflow_run:
+    workflows: [Generate single-include header]
+    types: 
+      - completed
 
 jobs:
   gcc:
     runs-on: ubuntu-latest
+    needs: call_generator
 
     strategy:
       fail-fast: false
