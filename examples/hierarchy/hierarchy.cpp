@@ -6,6 +6,7 @@ int main() {
 }
 #else
 #include <ecs/ecs.h>
+#include <array>
 #include <format>
 
 void print_trees(ecs::runtime& rt) {

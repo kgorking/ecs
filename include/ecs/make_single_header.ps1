@@ -19,9 +19,6 @@ $files = (
 	'detail/parent_id.h',
 	'flags.h',
 	'detail/stride_view.h',
-	'detail/flags.h',
-	'detail/tagged_pointer.h',
-	'detail/stride_view.h',
 	'detail/component_pool_base.h',
 	'detail/component_pool.h',
 	'detail/system_defs.h',
@@ -29,9 +26,6 @@ $files = (
 	'parent.h',
 	'options.h',
 	'detail/interval_limiter.h',
-#	'detail/pool_entity_walker.h',
-#	'detail/pool_range_walker.h',
-#	'detail/entity_offset.h',
 	'detail/verification.h',
 	'detail/entity_range.h',
 	'detail/find_entity_pool_intersections.h',
@@ -46,10 +40,7 @@ $files = (
 	'runtime.h')
 
 # Write all system includes
-'// Auto-generated single-header include file
-#if defined(ECS_USE_MODULES)
-import std;
-#else
+$sys_headers = '// Auto-generated single-header include file
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -78,9 +69,20 @@ import std;
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#endif
+'
 
-' > ecs_sh.h
+# Write out module
+"module;
+$sys_headers
+export module ecs;
+#define ECS_EXPORT export
+" > ecs.ixx
+
+# Write out single-include header
+$sys_headers > ecs_sh.h
 
 # Filter out the local includes from the content of each header and pipe it to ecs_sh.h
-(sls -Path $files -SimpleMatch -Pattern '#include' -NotMatch).Line >> ecs_sh.h
+$filtered = (sls -Path $files -SimpleMatch -Pattern '#include' -NotMatch).Line
+
+$filtered >> ecs.ixx
+$filtered >> ecs_sh.h

@@ -3,13 +3,13 @@
 #include <string>
 
 struct flameable_t {
-	ecs_flags(ecs::flag::tag);
+	using ecs_flags = ecs::flags<ecs::tag>;
 };
 struct freezeable_t {
-	ecs_flags(ecs::flag::tag);
+	using ecs_flags = ecs::flags<ecs::tag>;
 };
 struct shockable_t {
-	ecs_flags(ecs::flag::tag);
+	using ecs_flags = ecs::flags<ecs::tag>;
 };
 
 struct Name : std::string {};

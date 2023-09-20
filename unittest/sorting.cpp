@@ -2,6 +2,7 @@
 #include "catch.hpp"
 #include <ecs/ecs.h>
 #include <functional>
+#include <numeric>
 
 TEST_CASE("Sorting") {
 	ecs::runtime ecs;

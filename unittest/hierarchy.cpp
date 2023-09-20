@@ -1,7 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
-#include <ecs/parent.h>
 #include <unordered_set>
 #include <vector>
 
@@ -147,7 +146,7 @@ TEST_CASE("Hierarchies") {
 		// The set to verify the traversal order
 		std::unordered_set<int> traversal_order;
 
-		ecs::detail::entity_type i = 0;
+		int i = 0;
 		while (i < nentities) {
 			traversal_order.insert(i + 0);
 			ecs.add_component({i + 0}, int{});
@@ -316,7 +315,7 @@ TEST_CASE("Hierarchies") {
 
 		auto const nentities = 256;
 
-		ecs::detail::entity_type id = 0;
+		int id = 0;
 		while (id < nentities) {
 			ecs.add_component({id + 0}, int{});
 
@@ -382,11 +381,11 @@ TEST_CASE("Hierarchies") {
 		ecs::runtime rt;
 
 		struct tag_t {
-			ecs_flags(ecs::flag::tag);
+			using ecs_flags = ecs::flags<ecs::tag>;
 		};
 		struct filter_t {};
 		struct global_t {
-			ecs_flags(ecs::flag::global);
+			using ecs_flags = ecs::flags<ecs::global>;
 		};
 
 		rt.add_component({0}, int{}, tag_t{}, filter_t{}, ecs::parent{-1});

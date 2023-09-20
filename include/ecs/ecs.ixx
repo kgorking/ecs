@@ -1,4 +1,5 @@
-﻿// Auto-generated single-header include file
+﻿module;
+// Auto-generated single-header include file
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -27,6 +28,9 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+export module ecs;
+#define ECS_EXPORT export
 
 #ifndef TLS_CACHE
 #define TLS_CACHE

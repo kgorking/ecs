@@ -13,7 +13,7 @@
 namespace ecs {
 // Defines a range of entities.
 // 'last' is included in the range.
-class entity_range final {
+ECS_EXPORT class entity_range final {
 	detail::entity_type first_;
 	detail::entity_type last_;
 

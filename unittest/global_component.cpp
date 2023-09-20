@@ -7,11 +7,11 @@ TEST_CASE("Global components", "[component][global]") {
 		ecs::runtime ecs;
 
 		struct G1 {
-			ecs_flags(ecs::flag::global);
+			using ecs_flags = ecs::flags<ecs::global>;
 			int i = 1;
 		};
 		struct G2 {
-			ecs_flags(ecs::flag::global);
+			using ecs_flags = ecs::flags<ecs::global>;
 			int i = 2;
 		};
 
@@ -38,7 +38,7 @@ TEST_CASE("Global components", "[component][global]") {
 		ecs::runtime ecs;
 
 		struct test_s {
-			ecs_flags(ecs::flag::global);
+			using ecs_flags = ecs::flags<ecs::global>;
 			int i = 0;
 		};
 

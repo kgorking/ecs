@@ -3,10 +3,10 @@
   "configurePresets": [
     {
       "name": "gcc-11-debug",
-      "displayName": "GCC 11 - Debug",
       "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "toolset": "11",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "gcc-11",
@@ -26,25 +26,9 @@
     },
     {
       "name": "gcc-11-release",
-      "displayName": "GCC 11 - Release",
-      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "inherits": "gcc-11-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_C_COMPILER": "gcc-11",
-        "CMAKE_CXX_COMPILER": "g++-11"
-      },
-      "vendor": {
-        "microsoft.com/VisualStudioSettings/CMake/1.0": {
-          "hostOS": [
-            "Linux"
-          ],
-          "intelliSenseMode": "linux-gcc-x64"
-        },
-        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
-          "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
-        }
       }
     },
     {
