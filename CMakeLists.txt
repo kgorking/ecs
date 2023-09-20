@@ -2,14 +2,14 @@
 
 project (ecs CXX)
 
-add_custom_command(OUTPUT ecs_sh.h
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ecs/
-	COMMAND powershell.exe -File make_single_header.ps1
-	COMMENT "Generating single-include header"
-)
+#add_custom_command(OUTPUT ecs_sh.h
+#	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ecs/
+#	COMMAND powershell.exe -File make_single_header.ps1
+#	COMMENT "Generating single-include header"
+#)
 
 # creates a library 'ecs' which is an interface (header files only)
-add_library(ecs INTERFACE ecs_sh.h)
+add_library(ecs INTERFACE)
 
 install(
     DIRECTORY include/ecs
