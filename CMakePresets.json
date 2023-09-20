@@ -244,7 +244,6 @@
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ECS_COMPILE_AS_MODULE": false,
         "ECS_ENABLE_CONTRACTS": true,
         "ECS_ENABLE_CONTRACTS_AUDIT": true
       },
@@ -263,7 +262,7 @@
       "displayName": "Debug 2019 (v14.2)",
       "description": "Target Windows with the Visual Studio development environment.",
       "generator": "Visual Studio 17 2022",
-      "toolset": "v142",
+      "toolset": "14.2",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "architecture": {
         "value": "x64",
