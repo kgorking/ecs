@@ -19,7 +19,9 @@ import std;
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#if __has_include(<stacktrace>)
 #include <stacktrace>
+#endif
 #include <mutex> // needed for scoped_lock
 #include <span>
 #include <string_view>
