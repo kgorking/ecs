@@ -9,7 +9,6 @@ on:
 jobs:
   clang:
     runs-on: ubuntu-latest
-    needs: call_generator
 
     strategy:
       fail-fast: false
