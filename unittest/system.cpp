@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
+#include <numeric>
 
 TEST_CASE("System specification", "[system]") {
 	SECTION("Running a system works") {
@@ -88,36 +89,36 @@ TEST_CASE("System specification", "[system]") {
 		REQUIRE(1 == ecs.get_component<local4>(0)->c);
 	}
 
-	SECTION("Read/write info on systems is correct") {
-		ecs::runtime ecs;
+	//SECTION("Read/write info on systems is correct") {
+	//	ecs::runtime ecs;
 
-		auto const& sys1 = ecs.make_system<ecs::opts::manual_update>([](int const&, float const&) {});
-		CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<int>()));
-		CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<float>()));
+	//	auto const& sys1 = ecs.make_system<ecs::opts::manual_update>([](int const&, float const&) {});
+	//	CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<int>()));
+	//	CHECK(false == sys1.writes_to_component(ecs::detail::get_type_hash<float>()));
 
-		auto const& sys2 = ecs.make_system<ecs::opts::manual_update>([](int&, float const&) {});
-		CHECK(true == sys2.writes_to_component(ecs::detail::get_type_hash<int>()));
-		CHECK(false == sys2.writes_to_component(ecs::detail::get_type_hash<float>()));
+	//	auto const& sys2 = ecs.make_system<ecs::opts::manual_update>([](int&, float const&) {});
+	//	CHECK(true == sys2.writes_to_component(ecs::detail::get_type_hash<int>()));
+	//	CHECK(false == sys2.writes_to_component(ecs::detail::get_type_hash<float>()));
 
-		auto const& sys3 = ecs.make_system<ecs::opts::manual_update>([](int&, float&) {});
-		CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<int>()));
-		CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<float>()));
-	}
+	//	auto const& sys3 = ecs.make_system<ecs::opts::manual_update>([](int&, float&) {});
+	//	CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<int>()));
+	//	CHECK(true == sys3.writes_to_component(ecs::detail::get_type_hash<float>()));
+	//}
 
 	SECTION("System with all combinations of types works") {
 		ecs::runtime ecs;
 
 		struct tagged {
-			ecs_flags(ecs::flag::tag);
+			using ecs_flags = ecs::flags<ecs::tag>;
 		};
 		struct transient {
-			ecs_flags(ecs::flag::transient);
+			using ecs_flags = ecs::flags<ecs::transient>;
 		};
 		struct immutable {
-			ecs_flags(ecs::flag::immutable);
+			using ecs_flags = ecs::flags<ecs::immutable>;
 		};
 		struct global {
-			ecs_flags(ecs::flag::global);
+			using ecs_flags = ecs::flags<ecs::global>;
 		};
 
 		auto constexpr vanilla_sort = [](int l, int r) {

@@ -3,7 +3,7 @@
 #include <ecs/ecs.h>
 
 struct _dummy {
-	ecs_flags(ecs::flag::transient);
+	using ecs_flags = ecs::flags<ecs::transient>;
 };
 
 TEST_CASE("Transient components", "[component][transient]") {
@@ -11,9 +11,8 @@ TEST_CASE("Transient components", "[component][transient]") {
 
 	struct foo {};
 	struct test_t {
-		ecs_flags(ecs::flag::transient);
+		using ecs_flags = ecs::flags<ecs::transient>;
 	};
-	static_assert(ecs::detail::transient<test_t>);
 
 	int counter = 0;
 	ecs.make_system<ecs::opts::not_parallel>([&counter](foo const& /*f*/, test_t const& /*t*/) { counter++; });

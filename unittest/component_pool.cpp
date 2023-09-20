@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
+#include <numeric>
 
 struct ctr_counter {
 	inline static size_t def_ctr_count = 0;
@@ -31,13 +32,6 @@ struct ctr_counter {
 
 // A bunch of tests to ensure that the component_pool behaves as expected
 TEST_CASE("Component pool specification", "[component]") {
-	auto x = sizeof(ecs::detail::component_pool<int>);
-	(void)x;
-	auto y = sizeof(tls::collect<std::vector<int>>);
-	(void)y;
-	auto z = alignof(void*);
-	(void)z;
-
 	SECTION("A new component pool is empty") {
 		ecs::detail::component_pool<int> pool;
 		REQUIRE(pool.num_entities() == 0);
@@ -248,7 +242,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("Transient components") {
 		SECTION("are automatically removed in process_changes()") {
 			struct tr_test {
-				ecs_flags(ecs::flag::transient);
+				using ecs_flags = ecs::flags<ecs::transient>;
 			};
 			ecs::detail::component_pool<tr_test> pool;
 			pool.add({0, 9}, tr_test{});
@@ -262,7 +256,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("Tagged components") {
 		SECTION("maintains sorting of entities") { // test case is response to a found bug
 			struct some_tag {
-				ecs_flags(ecs::flag::tag);
+				using ecs_flags = ecs::flags<ecs::tag>;
 			};
 			ecs::detail::component_pool<some_tag> pool;
 			pool.add({0, 0}, {});
@@ -278,7 +272,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("Global components") {
 		SECTION("are always available") {
 			struct some_global {
-				ecs_flags(ecs::flag::global);
+				using ecs_flags = ecs::flags<ecs::global>;
 				int v = 0;
 			};
 			ecs::detail::component_pool<some_global> pool;

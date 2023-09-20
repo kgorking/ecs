@@ -1,5 +1,6 @@
 #include "gbench/include/benchmark/benchmark.h"
 
+#include <ecs/ecs.h>
 #include "global.h"
 #include <execution>
 #include <iterator>
@@ -7,13 +8,11 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
-#include <ecs/entity_id.h>
-#include <ecs/entity_range.h>
 
 template <bool parallel>
 void run_raw(benchmark::State &state) {
 	auto const num_items = state.range(0);
-	auto const num_entities = static_cast<ecs::detail::entity_type>(num_items);
+	auto const num_entities = static_cast<int>(num_items);
 	auto const num_colors = static_cast<size_t>(num_items) + 1;
 
 	std::vector<int> colors(num_colors);
@@ -34,7 +33,7 @@ void run_raw(benchmark::State &state) {
 template <bool parallel>
 void run_hierarchy_raw(benchmark::State &state) {
 	auto const num_items = static_cast<std::size_t>(state.range(0));
-	//auto const num_entities = static_cast<ecs::detail::entity_type>(num_items);
+	//auto const num_entities = static_cast<int>(num_items);
 	auto const num_colors = static_cast<size_t>(num_items) + 1;
 
 

@@ -5,13 +5,13 @@
 #include "global.h"
 
 void build_ranged(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	ecs::runtime rt;
 	rt.add_component({0, nentities}, int{});
 	rt.commit_changes();
 
-	ecs::detail::system_base& sys = rt.make_system<ecs::opts::manual_update>([](int) {});
+	auto& sys = rt.make_system<ecs::opts::manual_update>([](int) {});
 	for ([[maybe_unused]] auto const _ : state) {
 		// triggers a rebuild
 		sys.set_enable(true);
@@ -20,7 +20,7 @@ void build_ranged(benchmark::State& state) {
 ECS_BENCHMARK(build_ranged);
 
 void build_many_ranged(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	ecs::runtime rt;
 	for (int i = 0; i < nentities; i += 8) {
@@ -28,7 +28,7 @@ void build_many_ranged(benchmark::State& state) {
 		rt.commit_changes();
 	}
 
-	ecs::detail::system_base& sys = rt.make_system<ecs::opts::manual_update>([](int) {});
+	auto& sys = rt.make_system<ecs::opts::manual_update>([](int) {});
 	for ([[maybe_unused]] auto const _ : state) {
 		// triggers a rebuild
 		sys.set_enable(true);
@@ -37,7 +37,7 @@ void build_many_ranged(benchmark::State& state) {
 ECS_BENCHMARK(build_many_ranged);
 
 void run_serial_ranged(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	ecs::runtime rt;
 	rt.make_system<ecs::opts::not_parallel>(benchmark_system);
@@ -52,7 +52,7 @@ void run_serial_ranged(benchmark::State& state) {
 ECS_BENCHMARK(run_serial_ranged);
 
 void run_parallel_ranged(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	ecs::runtime rt;
 	rt.make_system(benchmark_system);

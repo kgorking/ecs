@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include <ecs/ecs.h>
+#include <atomic>
 
 TEST_CASE("Filtering", "[component][system]") {
 	ecs::runtime ecs;

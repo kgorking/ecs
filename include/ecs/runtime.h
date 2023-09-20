@@ -15,7 +15,7 @@
 #include "flags.h"
 
 namespace ecs {
-class runtime {
+ECS_EXPORT class runtime {
 public:
 	// Add several components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
@@ -65,9 +65,16 @@ public:
 		Pre(range.ucount() == vals.size(), "range and span must be same size");
 
 		// Add it to the component pool
-		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
-		PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
-		pool.add_span(range, std::span{vals});
+		if constexpr (detail::is_parent<T>::value) {
+			detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+			pool.add_span(range, vals | std::views::transform([](T v) {
+				return detail::parent_id{v.id()}; }));
+		} else {
+			detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+			pool.add_span(range, std::span{vals});
+		}
 	}
 
 	template <typename Fn>

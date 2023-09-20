@@ -16,7 +16,7 @@
 #include "stride_view.h"
 
 #include "component_pool_base.h"
-#include "flags.h"
+#include "../flags.h"
 #include "options.h"
 
 #ifdef _MSC_VER
@@ -48,7 +48,7 @@ void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	cont.erase(end, cont.end());
 }
 
-template <typename T, typename Alloc = std::allocator<T>>
+ECS_EXPORT template <typename T, typename Alloc = std::allocator<T>>
 class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
@@ -389,7 +389,8 @@ private:
 		return chunks.emplace(it_loc, range, active, data, owns_data, split_data);
 	}
 
-	chunk_iter create_new_chunk(chunk_iter loc, std::forward_iterator auto const& iter) noexcept {
+	template <typename U>
+	chunk_iter create_new_chunk(chunk_iter loc, std::vector<U>::const_iterator const& iter) noexcept {
 		entity_range const r = iter->rng;
 		chunk_iter c = create_new_chunk(loc, r, r);
 		if constexpr (!unbound<T>) {
@@ -584,7 +585,7 @@ private:
 		// Fill in values
 		while (iter != vec.end()) {
 			if (chunks.empty()) {
-				curr = create_new_chunk(curr, iter);
+				curr = create_new_chunk<U>(curr, iter);
 			} else {
 				entity_range const r = iter->rng;
 
@@ -606,11 +607,11 @@ private:
 					}
 				} else if (curr->range < r) {
 					// Incoming range is larger than the current one, so add it after 'curr'
-					curr = create_new_chunk(std::next(curr), iter);
+					curr = create_new_chunk<U>(std::next(curr), iter);
 					// std::advance(curr, 1);
 				} else if (r < curr->range) {
 					// Incoming range is less than the current one, so add it before 'curr' (after 'prev')
-					curr = create_new_chunk(curr, iter);
+					curr = create_new_chunk<U>(curr, iter);
 				}
 			}
 

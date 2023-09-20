@@ -2,24 +2,33 @@
 
 project (ecs CXX)
 
-#add_custom_command(OUTPUT ecs_sh.h
-#	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ecs/
-#	COMMAND powershell.exe -File make_single_header.ps1
-#	COMMENT "Generating single-include header"
-#)
-
-# creates a library 'ecs' which is an interface (header files only)
-add_library(ecs INTERFACE)
-
-install(
-    DIRECTORY include/ecs
-    DESTINATION include
-)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set up some options
 set(ECS_STANDALONE_PROJECT OFF)
+set(ECS_COMPILE_AS_MODULE ON CACHE BOOL "Compile 'ecs' to a module")
 set(ECS_ENABLE_CONTRACTS ON CACHE BOOL "Use contracts internally to verify state")
 set(ECS_ENABLE_CONTRACTS_AUDIT OFF CACHE BOOL "Enable expensive contracts. Should only be used for debugging")
+
+if (ECS_COMPILE_AS_MODULE)
+	# Module stuff (experimental)
+	include(cxx_modules_rules.cmake)
+
+	add_library(ecs)
+	target_compile_definitions(ecs PUBLIC ECS_USE_MODULES)
+	target_sources(ecs PUBLIC FILE_SET CXX_MODULES FILES "include/ecs/ecs.ixx")
+else()
+	# creates a library 'ecs' which is an interface (header files only)
+	add_library(ecs INTERFACE)
+
+	install(
+		DIRECTORY include/ecs
+		DESTINATION include
+	)
+
+	target_compile_definitions(ecs INTERFACE ECS_EXPORT=)
+endif()
 
 if (ECS_ENABLE_CONTRACTS)
 	target_compile_definitions(ecs INTERFACE ECS_ENABLE_CONTRACTS)
@@ -36,7 +45,7 @@ endif ()
 
 if (MSVC)
     target_compile_options(ecs INTERFACE
-        /std:c++latest
+        #/std:c++latest
 
         # enable lots of warnings
         /W4
@@ -86,7 +95,7 @@ if (MSVC)
 else()
     # lots of warnings
     target_compile_options(ecs INTERFACE
-        -std=c++2a
+        #-std=c++2a
         -Wall
         -Wextra
         -Wpedantic
