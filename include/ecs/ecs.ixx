@@ -2113,7 +2113,7 @@ private:
 	}
 
 	template <typename U>
-	chunk_iter create_new_chunk(chunk_iter loc, std::vector<U>::const_iterator const& iter) noexcept {
+	chunk_iter create_new_chunk(chunk_iter loc, typename std::vector<U>::const_iterator const& iter) noexcept {
 		entity_range const r = iter->rng;
 		chunk_iter c = create_new_chunk(loc, r, r);
 		if constexpr (!unbound<T>) {
