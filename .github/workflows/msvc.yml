@@ -28,7 +28,7 @@ jobs:
       run: |
         set(ninja_version "1.11.1") # needed for module support
         
-        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-windows.zip")
+        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-win.zip")
         file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
         execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
 
@@ -41,7 +41,7 @@ jobs:
         set(ENV{CC} "cl.exe")
         set(ENV{CXX} "cl.exe")
 
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja.exe" ninja_program)
 
         execute_process(
           COMMAND "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat" -vcvars_ver=${{ matrix.version }} && set

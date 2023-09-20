@@ -22,8 +22,16 @@ jobs:
       with:
         submodules: true # recursive
 
-    - name: Install Ninja
-      run: /usr/bin/ninja --version || sudo apt-get install ninja-build
+    - name: Download Ninja
+      shell: cmake -P {0}
+      run: |
+        set(ninja_version "1.11.1") # needed for module support
+        
+        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-linux.zip")
+        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
+
+        execute_process(COMMAND chmod +x ninja)
 
     - name: Install clang ${{ matrix.version }}
       run: |
