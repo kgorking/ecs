@@ -6,13 +6,10 @@ on:
     workflows: [Generate single-include header]
     types: 
       - completed
-    #branches:
-    #  - '**'
 
 jobs:
   msvc:
     runs-on: windows-2022
-    needs: call_generator
 
     strategy:
       fail-fast: false
