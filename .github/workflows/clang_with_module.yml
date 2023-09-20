@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        version: [17, 18]
+        version: [16, 17, 18]
         modules: [false, true]
         built_type: [Debug, Release]
 
@@ -25,10 +25,12 @@ jobs:
     - name: Install Ninja
       run: /usr/bin/ninja --version || sudo apt-get install ninja-build
 
-    - name: Install compiler
+    - name: Install clang ${{ matrix.version }}
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get install clang-${{ matrix.version }} clang++-${{ matrix.version }} llvm-${{ matrix.version }}-dev libstdc++6 libstdc++-13-dev
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh ${{ matrix.version }}
+        sudo apt install clang-tools-${{ matrix.version }} libstdc++-13-dev
 
     - name: Configure
       shell: cmake -P {0}

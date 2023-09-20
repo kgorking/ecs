@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [13, 14, 15, 16]
+        version: [13, 14, 15]
         built_type: [Debug, Release]
 
     steps:
@@ -21,14 +21,23 @@ jobs:
       with:
         submodules: true # recursive
 
-    - name: Install Ninja
-      run: /usr/bin/ninja --version || sudo apt-get install ninja-build
-
-    - name: Install compiler
-      if: ${{ matrix.version >= 15 }}
+    - name: Download Ninja
+      shell: cmake -P {0}
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get install clang-${{ matrix.version }} clang++-${{ matrix.version }} llvm-${{ matrix.version }}-dev libstdc++6 libstdc++-13-dev
+        set(ninja_version "1.11.1") # needed for module support
+        
+        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-linux.zip")
+        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf ./ninja.zip)
+
+        execute_process(COMMAND chmod +x ninja)
+
+    - name: Install clang ${{ matrix.version }}
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh ${{ matrix.version }}
+        sudo apt install clang-tools-${{ matrix.version }} libstdc++-13-dev
 
     - name: Configure
       shell: cmake -P {0}
@@ -36,13 +45,15 @@ jobs:
         set(ENV{CC} "/usr/bin/clang-${{ matrix.version }}")
         set(ENV{CXX} "/usr/bin/clang++-${{ matrix.version }}")
 
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
+
         execute_process(
           COMMAND cmake
             -S .
             -B build
             -G Ninja
             -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
-            -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja
+            -D CMAKE_MAKE_PROGRAM=${ninja_program}
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
