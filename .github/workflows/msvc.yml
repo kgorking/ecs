@@ -6,11 +6,10 @@ on:
     workflows: ["Generate single-include header"]
     types: 
       - completed
+    branches:
+      - '**'
 
 jobs:
-  call_generator:
-    uses: ./.github/workflows/single_include_header.yml
-
   msvc:
     runs-on: windows-2022
     needs: call_generator
