@@ -2,7 +2,6 @@
 #define ECS_SYSTEM_HIERARCHY_H_
 
 #include "../parent.h"
-#include "entity_offset.h"
 #include "find_entity_pool_intersections.h"
 #include "system.h"
 #include "system_defs.h"

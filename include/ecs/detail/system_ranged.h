@@ -1,7 +1,6 @@
 #ifndef ECS_SYSTEM_RANGED_H_
 #define ECS_SYSTEM_RANGED_H_
 
-#include "pool_range_walker.h"
 #include "system.h"
 
 namespace ecs::detail {
