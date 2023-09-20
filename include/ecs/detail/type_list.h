@@ -266,12 +266,12 @@ namespace impl {
 	}
 
 	template <typename T, typename... Types>
-	static constexpr bool contains_type(type_list<Types...>* = nullptr) {
+	constexpr bool contains_type(type_list<Types...>* = nullptr) {
 		return (std::is_same_v<T, Types> || ...);
 	}
 
 	template <typename T, typename TL>
-	static constexpr bool list_contains_type(TL* tl = nullptr) {
+	constexpr bool list_contains_type(TL* tl = nullptr) {
 		return contains_type<T>(tl);
 	}
 

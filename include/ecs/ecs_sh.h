@@ -669,12 +669,12 @@ namespace impl {
 	}
 
 	template <typename T, typename... Types>
-	static constexpr bool contains_type(type_list<Types...>* = nullptr) {
+	constexpr bool contains_type(type_list<Types...>* = nullptr) {
 		return (std::is_same_v<T, Types> || ...);
 	}
 
 	template <typename T, typename TL>
-	static constexpr bool list_contains_type(TL* tl = nullptr) {
+	constexpr bool list_contains_type(TL* tl = nullptr) {
 		return contains_type<T>(tl);
 	}
 
@@ -3065,7 +3065,7 @@ namespace ecs::detail {
 // Given a list of components, return an array containing the corresponding component pools
 template <typename ComponentsList, typename PoolsList>
 	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
-static constexpr auto get_pool_iterators([[maybe_unused]] component_pools<PoolsList> const& pools) {
+constexpr auto get_pool_iterators([[maybe_unused]] component_pools<PoolsList> const& pools) {
 	if constexpr (type_list_is_empty<ComponentsList>) {
 		return std::array<stride_view<0, char const>, 0>{};
 	} else {

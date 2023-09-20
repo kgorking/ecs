@@ -3,6 +3,7 @@
 #include <ecs/ecs.h>
 #include <unordered_set>
 #include <vector>
+#include <atomic>
 
 TEST_CASE("Hierarchies") {
 	SECTION("can extract parent info") {
@@ -384,9 +385,9 @@ TEST_CASE("Hierarchies") {
 			using ecs_flags = ecs::flags<ecs::tag>;
 		};
 		struct filter_t {};
-		struct global_t {
-			using ecs_flags = ecs::flags<ecs::global>;
-		};
+		//struct global_t {
+		//	using ecs_flags = ecs::flags<ecs::global>;
+		//};
 
 		rt.add_component({0}, int{}, tag_t{}, filter_t{}, ecs::parent{-1});
 		rt.make_system([](int, tag_t, filter_t) {});

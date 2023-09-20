@@ -95,7 +95,7 @@ if (MSVC)
 else()
     # lots of warnings
     target_compile_options(ecs INTERFACE
-        -std=c++2a
+        #-std=c++2a
         -Wall
         -Wextra
         -Wpedantic
