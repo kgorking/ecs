@@ -1,8 +1,8 @@
 #ifndef ECS_OPTIONS_H
 #define ECS_OPTIONS_H
 
-namespace ecs::opts {
-template <int I>
+ECS_EXPORT namespace ecs::opts {
+	template <int I>
 struct group {
 	static constexpr int group_id = I;
 };

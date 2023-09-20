@@ -8,7 +8,7 @@ using entity_offset = unsigned int; // must cover the entire entity_type domain
 } // namespace detail
 
 // A simple struct that is an entity identifier.
-struct entity_id {
+ECS_EXPORT struct entity_id {
 	// Uninitialized entity ids are not allowed, because they make no sense
 	entity_id() = delete;
 

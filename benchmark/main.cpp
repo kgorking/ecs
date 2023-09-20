@@ -1,7 +1,7 @@
 #include "benchmark/benchmark.h"
 
 
-#include <ecs/entity_id.h>
+#include <ecs/ecs.h>
 #include <complex>
 
 void benchmark_system(ecs::entity_id ent, int &color) noexcept {

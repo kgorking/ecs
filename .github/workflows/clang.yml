@@ -1,4 +1,4 @@
-name: Clang 13/14/15
+name: Clang 13-16
 
 on:
   workflow_run:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [13, 14, 15]
+        version: [13, 14, 15, 16]
         built_type: [Debug, Release]
 
     steps:
@@ -40,8 +40,8 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -G Ninja
+            -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja
           RESULT_VARIABLE result
         )

@@ -1,6 +1,7 @@
 #include "gbench/include/benchmark/benchmark.h"
 #include <ecs/ecs.h>
 #include <random>
+#include <numeric>
 
 #include "global.h"
 
@@ -9,7 +10,7 @@ auto constexpr test_component = test_component_type{9};
 
 void component_add_spans(benchmark::State& state) {
 	auto const range = static_cast<std::size_t>(state.range(0));
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	std::vector<test_component_type> ints(range + 1);
 	std::iota(ints.begin(), ints.end(), 9);
@@ -24,7 +25,7 @@ void component_add_spans(benchmark::State& state) {
 ECS_BENCHMARK(component_add_spans);
 
 void component_add_generator(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -38,7 +39,7 @@ void component_add_generator(benchmark::State& state) {
 ECS_BENCHMARK(component_add_generator);
 
 void component_add(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -50,7 +51,7 @@ void component_add(benchmark::State& state) {
 ECS_BENCHMARK(component_add);
 
 void component_add_1k_blocks(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -64,7 +65,7 @@ void component_add_1k_blocks(benchmark::State& state) {
 ECS_BENCHMARK(component_add_1k_blocks);
 
 void component_add_half_front(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -81,7 +82,7 @@ void component_add_half_front(benchmark::State& state) {
 ECS_BENCHMARK(component_add_half_front);
 
 void component_add_half_back(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -99,7 +100,7 @@ ECS_BENCHMARK(component_add_half_back);
 
 // This is currently the worst case scenario. Every commit will move all other components as well.
 void component_insert_worst_case(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 	constexpr int block_size = 256;
 
 	for ([[maybe_unused]] auto const _ : state) {
@@ -114,7 +115,7 @@ void component_insert_worst_case(benchmark::State& state) {
 ECS_BENCHMARK(component_insert_worst_case);
 
 void component_remove_all(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -131,7 +132,7 @@ void component_remove_all(benchmark::State& state) {
 ECS_BENCHMARK(component_remove_all);
 
 void component_remove_half_front(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -148,7 +149,7 @@ void component_remove_half_front(benchmark::State& state) {
 ECS_BENCHMARK(component_remove_half_front);
 
 void component_remove_half_back(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -165,7 +166,7 @@ void component_remove_half_back(benchmark::State& state) {
 ECS_BENCHMARK(component_remove_half_back);
 
 void component_remove_half_middle(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
@@ -182,7 +183,7 @@ ECS_BENCHMARK(component_remove_half_middle);
 
 void component_randomized_add(benchmark::State& state) {
 	auto const range = static_cast<std::size_t>(state.range(0));
-	//auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	//auto const nentities = static_cast<int>(state.range(0));
 
 	std::vector<ecs::entity_id> ids;
 	ids.reserve(range);
@@ -204,7 +205,7 @@ ECS_BENCHMARK(component_randomized_add);
 
 void component_randomized_remove(benchmark::State& state) {
 	auto const range = static_cast<std::size_t>(state.range(0));
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	std::vector<ecs::entity_id> ids;
 	ids.reserve(range);
@@ -230,7 +231,7 @@ void component_randomized_remove(benchmark::State& state) {
 ECS_BENCHMARK(component_randomized_remove);
 
 void find_component_data(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	ecs::detail::component_pool<int> pool;
 
@@ -250,7 +251,7 @@ ECS_BENCHMARK(find_component_data);
 
 
 void find_component_data_random(benchmark::State& state) {
-	auto const nentities = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const nentities = static_cast<int>(state.range(0));
 
 	ecs::detail::component_pool<int> pool;
 

@@ -14,16 +14,16 @@ struct state_connecting {
 
 // Events. Marked as transient so they are automatically removed
 struct ev_connect_t {
-	ecs_flags(ecs::flag::transient);
+	using ecs_flags = ecs::flags<ecs::transient>;
 };
 struct ev_timeout_t {
-	ecs_flags(ecs::flag::transient);
+	using ecs_flags = ecs::flags<ecs::transient>;
 };
 struct ev_connected_t {
-	ecs_flags(ecs::flag::transient);
+	using ecs_flags = ecs::flags<ecs::transient>;
 };
 struct ev_disconnect_t {
-	ecs_flags(ecs::flag::transient);
+	using ecs_flags = ecs::flags<ecs::transient>;
 };
 
 // Add the systems that handle state/event interactions
@@ -96,7 +96,7 @@ int main() {
 
 	// Add a new event and system
 	struct ev_hello {
-		ecs_flags(ecs::flag::transient);
+		using ecs_flags = ecs::flags<ecs::transient>;
 		const char* msg = "hello!";
 	};
 	rt.make_system([](state_idle const &, ev_hello const &ev) { std::cout << "ev_hello: state_idle says '" << ev.msg << "'\n"; });
