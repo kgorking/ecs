@@ -1,4 +1,4 @@
-name: Clang 17-18
+name: Clang 17-18 (module)
 
 on:
   workflow_run:
