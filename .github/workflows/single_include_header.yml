@@ -1,6 +1,6 @@
-name: Generate single-include header
+name: Generate
 
-on: [push]
+on: push
 
 permissions:
   contents: write
