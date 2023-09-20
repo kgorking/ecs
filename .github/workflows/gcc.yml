@@ -40,8 +40,8 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -G Ninja
+            -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja
           RESULT_VARIABLE result
         )
