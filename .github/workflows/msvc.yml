@@ -1,14 +1,12 @@
 name: MSVC 2022 (v14.3)
 #name: MSVC 2019 (v14.2) / 2022 (v14.3)
 
-#on: [push]
-on:
-  workflow_run:
-    workflows: ["Generate"]
-    types:
-      - completed
+on: [push]
 
 jobs:
+  call_generator:
+    uses: ./.github/workflows/single_include_header.yml
+
   msvc:
     runs-on: windows-2022
 

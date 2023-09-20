@@ -1,6 +1,6 @@
-name: Generate
+name: Generate single-include header
 
-on: push
+on: [workflow_call]
 
 permissions:
   contents: write

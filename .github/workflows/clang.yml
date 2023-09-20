@@ -1,13 +1,11 @@
 name: Clang 13/14/15
 
-#on: [push]
-on:
-  workflow_run:
-    workflows: [Generate single-include header]
-    types:
-      - completed
+on: [push]
 
 jobs:
+  call_generator:
+    uses: ./.github/workflows/single_include_header.yml
+
   clang:
     runs-on: ubuntu-latest
 
