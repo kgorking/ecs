@@ -3,11 +3,11 @@ name: MSVC 2022 (v14.3)
 
 on:
   workflow_run:
-    workflows: ["Generate single-include header"]
+    workflows: [Generate single-include header]
     types: 
       - completed
-    branches:
-      - '**'
+    #branches:
+    #  - '**'
 
 jobs:
   msvc:
