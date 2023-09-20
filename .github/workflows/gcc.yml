@@ -53,6 +53,7 @@ jobs:
             -G Ninja
             -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
+            -D ECS_COMPILE_AS_MODULE=false
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
