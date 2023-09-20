@@ -1,4 +1,4 @@
-name: Clang 13/14/15
+name: Clang 13-16
 
 on:
   workflow_run:
@@ -13,14 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [13, 14, 15, 17, 18]
-        modules: [false]
+        version: [13, 14, 15, 16]
         built_type: [Debug, Release]
-        include:
-          - version: 17
-            modules: true
-          - version: 18
-            modules: true
 
     steps:
     - uses: actions/checkout@v3
@@ -48,7 +42,6 @@ jobs:
             -B build
             -G Ninja
             -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
-            -D ECS_COMPILE_AS_MODULE=${{ matrix.modules }}
             -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja
           RESULT_VARIABLE result
         )
