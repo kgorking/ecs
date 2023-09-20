@@ -28,7 +28,7 @@
       "name": "gcc-11-release",
       "inherits": "gcc-11-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
@@ -230,6 +230,15 @@
           "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
         }
       }
+    },
+    {
+      "name": "clang-16-debug",
+      "inherits": "clang-15-debug",
+      "cacheVariables": {
+        "ECS_COMPILE_AS_MODULE": false,
+        "CMAKE_C_COMPILER": "clang-16",
+        "CMAKE_CXX_COMPILER": "clang++-16"
+      },
     },
     {
       "name": "windows-2022-debug",

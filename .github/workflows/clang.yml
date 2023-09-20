@@ -1,10 +1,10 @@
-name: Clang 13-16
+name: Clang
 
-on:
-  workflow_run:
-    workflows: [Generate single-include header]
-    types: 
-      - completed
+#on:
+#  workflow_run:
+#    workflows: [Generate single-include header]
+#    types: 
+#      - completed
 
 jobs:
   clang:
@@ -54,6 +54,7 @@ jobs:
             -G Ninja
             -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
+            -D ECS_COMPILE_AS_MODULE=false
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
