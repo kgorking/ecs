@@ -1,0 +1,22 @@
+name: Generate single-include header
+
+on: [push]
+
+permissions:
+  contents: write
+
+jobs:
+  generate_header:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate header
+        shell: powershell
+        run: |
+          cd include/ecs
+          ./make_single_header.ps1
+          git config --global user.name 'github_actions'
+          git config --global user.email 'github_actions@users.noreply.github.com'
+          git commit -am "Automated single-include header generation"
+          git push
