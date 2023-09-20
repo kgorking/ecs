@@ -52,10 +52,10 @@ The latter command will fetch the submodules required to build this library.
 ## Tested compilers
 The CI build status for msvc, clang, and gcc is currently
 
-[![MSVC (with module support)  ](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
-[![Clang 17-18 (with module support)  ](https://github.com/kgorking/ecs/actions/workflows/clang_with_module.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang_with_module.yml)
-[![Clang 13-16 (no module support)  ](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
-[![GCC 11/12/13  ](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+[![MSVC (with module support)  ](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)<br>
+[![Clang 17-18 (with module support)  ](https://github.com/kgorking/ecs/actions/workflows/clang_with_module.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang_with_module.yml)<br>
+[![Clang 13-16 (no module support)  ](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)<br>
+[![GCC 11/12/13  ](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)<br>
 
 # Table of Contents
 - [Entities](#entities)
