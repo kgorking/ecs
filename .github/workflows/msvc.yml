@@ -3,6 +3,8 @@ name: MSVC 2022 (v14.3)
 
 #on: [push]
 on:
+  push:
+  
   workflow_run:
     workflows: [Generate single-include header]
     types:
