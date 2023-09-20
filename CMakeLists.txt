@@ -5,9 +5,6 @@ project (ecs CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Module stuff (experimental)
-include(cxx_modules_rules.cmake)
-
 # Set up some options
 set(ECS_STANDALONE_PROJECT OFF)
 set(ECS_COMPILE_AS_MODULE ON CACHE BOOL "Compile 'ecs' to a module")
@@ -15,6 +12,9 @@ set(ECS_ENABLE_CONTRACTS ON CACHE BOOL "Use contracts internally to verify state
 set(ECS_ENABLE_CONTRACTS_AUDIT OFF CACHE BOOL "Enable expensive contracts. Should only be used for debugging")
 
 if (ECS_COMPILE_AS_MODULE)
+	# Module stuff (experimental)
+	include(cxx_modules_rules.cmake)
+
 	add_library(ecs)
 	target_compile_definitions(ecs PUBLIC ECS_USE_MODULES)
 	target_sources(ecs PUBLIC FILE_SET CXX_MODULES FILES "include/ecs/ecs.ixx")
@@ -27,7 +27,7 @@ else()
 		DESTINATION include
 	)
 
-	target_compile_definitions(ecs PUBLIC ECS_EXPORT)
+	target_compile_definitions(ecs INTERFACE ECS_EXPORT=)
 endif()
 
 if (ECS_ENABLE_CONTRACTS)
