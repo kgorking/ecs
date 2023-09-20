@@ -10,6 +10,7 @@ import std;
 #include <cstdint>
 #include <execution>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -18,6 +19,7 @@ import std;
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <stacktrace>
 #include <mutex> // needed for scoped_lock
 #include <span>
 #include <string_view>
@@ -727,6 +729,9 @@ namespace impl {
 template <impl::TypeList TL>
 constexpr size_t type_list_size = impl::type_list_size<TL>::value;
 
+template <impl::TypeList TL>
+constexpr bool type_list_is_empty = (0 == impl::type_list_size<TL>::value);
+
 // TODO change type alias to *_t
 
 // Classes can inherit from type_list_indices with a provided type_list
@@ -856,6 +861,14 @@ constexpr bool contains_type() {
 	return impl::contains_type<T>(static_cast<TL*>(nullptr));
 }
 
+// Returns true if a type list 'TA' contains all the types of type list 'TB'
+template <impl::TypeList TA, impl::TypeList TB>
+constexpr bool contains_list() {
+	return all_of_type<TB>([]<typename B>() {
+		return impl::contains_type<B>(static_cast<TA*>(nullptr));
+	});
+}
+
 // concatenates two type_list
 template <impl::TypeList TL1, impl::TypeList TL2>
 using concat_type_lists = std::remove_pointer_t<decltype(
@@ -868,20 +881,129 @@ using merge_type_lists = std::remove_pointer_t<decltype(
 
 } // namespace ecs::detail
 #endif // !TYPE_LIST_H_
-#ifndef ECS_CONTRACT
-#define ECS_CONTRACT
+#ifndef ECS_CONTRACT_H
+#define ECS_CONTRACT_H
 
-// Contracts. If they are violated, the program is an invalid state, so nuke it from orbit
-#define Pre(cond)                                                                                                                      \
+#if __has_include(<stacktrace>)
+#endif
+
+// Contracts. If they are violated, the program is in an invalid state and is terminated.
+namespace ecs::detail {
+// Concept for the contract violation interface.
+template <typename T>
+concept contract_violation_interface = requires(T t) {
+	{ t.assertion_failed("", "") } -> std::same_as<void>;
+	{ t.precondition_violation("", "") } -> std::same_as<void>;
+	{ t.postcondition_violation("", "") } -> std::same_as<void>;
+};
+
+struct default_contract_violation_impl {
+	void panic(char const* why, char const* what, char const* how) noexcept {
+		std::cerr << why << ": \"" << how << "\"\n\t" << what << "\n\n";
+#ifdef __cpp_lib_stacktrace
+		// Dump a stack trace if available
+		std::cerr << "** Stackdump **\n" << std::stacktrace::current(3) << '\n';
+#endif
+	}
+
+	void assertion_failed(char const* what, char const* how) noexcept {
+		panic("Assertion failed", what, how);
+	}
+
+	void precondition_violation(char const* what, char const* how) noexcept {
+		panic("Precondition violation", what, how);
+	}
+
+	void postcondition_violation(char const* what, char const* how) noexcept {
+		panic("Postcondition violation", what, how);
+	}
+};
+} // namespace ecs::detail
+
+// The contract violation interface, which can be overridden by users
+
+template <typename...>
+inline auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
+
+namespace ecs::detail {
+template <typename... DummyArgs>
+	requires(sizeof...(DummyArgs) == 0)
+inline void do_assertion_failed(char const* what, char const* how) noexcept {
+	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+	cvi.assertion_failed(what, how);
+	std::terminate();
+}
+
+template <typename... DummyArgs>
+	requires(sizeof...(DummyArgs) == 0)
+inline void do_precondition_violation(char const* what, char const* how) noexcept {
+	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+	cvi.precondition_violation(what, how);
+	std::terminate();
+}
+
+template <typename... DummyArgs>
+	requires(sizeof...(DummyArgs) == 0)
+inline void do_postcondition_violation(char const* what, char const* how) noexcept {
+	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+	cvi.postcondition_violation(what, how);
+	std::terminate();
+}
+} // namespace ecs::detail
+
+#if defined(ECS_ENABLE_CONTRACTS)
+
+#define Assert(expression, message)                                                                                                        \
 	do {                                                                                                                                   \
-		((cond) ? static_cast<void>(0) : std::terminate());                                                                                \
-	} while (false)
-#define Post(cond)                                                                                                                      \
-	do {                                                                                                                                   \
-		((cond) ? static_cast<void>(0) : std::terminate());                                                                                \
+		((expression) ? static_cast<void>(0) : ecs::detail::do_assertion_failed(#expression, message));                                    \
 	} while (false)
 
-#endif // !ECS_CONTRACT
+#define Pre(expression, message)                                                                                                           \
+	do {                                                                                                                                   \
+		((expression) ? static_cast<void>(0) : ecs::detail::do_precondition_violation(#expression, message));                              \
+	} while (false)
+
+#define Post(expression, message)                                                                                                          \
+	do {                                                                                                                                   \
+		((expression) ? static_cast<void>(0) : ecs::detail::do_postcondition_violation(#expression, message));                             \
+	} while (false)
+
+// Audit contracts. Used for expensive checks; can be disabled.
+#if defined(ECS_ENABLE_CONTRACTS_AUDIT)
+#define AssertAudit(expression, message) Assert(expression, message)
+#define PreAudit(expression, message) Pre(expression, message)
+#define PostAudit(expression, message) Post(expression, message)
+#else
+#define AssertAudit(expression, message)
+#define PreAudit(expression, message)
+#define PostAudit(expression, message)
+#endif
+
+#else
+
+#if __has_cpp_attribute(assume)
+#define ASSUME(expression) [[assume((expression))]]
+#else
+#ifdef _MSC_VER
+#define ASSUME(expression) __assume((expression))
+#elif defined(__clang)
+#define ASSUME(expression) __builtin_assume((expression))
+#elif defined(GCC)
+#define ASSUME(expression) __attribute__((assume((expression))))
+#else
+#define ASSUME(expression) /* unknown */
+#endif
+#endif // __has_cpp_attribute
+
+#define Assert(expression, message) ASSUME(expression)
+#define Pre(expression, message) ASSUME(expression)
+#define Post(expression, message) ASSUME(expression)
+#define AssertAudit(expression, message) ASSUME(expression)
+#define PreAudit(expression, message) ASSUME(expression)
+#define PostAudit(expression, message) ASSUME(expression)
+#endif
+
+#endif // !ECS_CONTRACT_H
 #ifndef ECS_TYPE_HASH
 #define ECS_TYPE_HASH
 
@@ -947,7 +1069,7 @@ namespace ecs::detail {
 template <typename T>
 struct tagged_pointer {
 	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
-		Pre((ptr & TagMask) == 0);
+		Pre((ptr & TagMask) == 0, "pointer must not have its tag already set");
 	}
 
 	tagged_pointer() noexcept = default;
@@ -972,7 +1094,7 @@ struct tagged_pointer {
 		return ptr & TagMask;
 	}
 	void set_tag(int tag) noexcept {
-		Pre(tag >= 0 && tag <= static_cast<int>(TagMask));
+		Pre(tag >= 0 && tag <= static_cast<int>(TagMask), "tag is outside supported range");
 		ptr = (ptr & PointerMask) | static_cast<uintptr_t>(tag);
 	}
 
@@ -1297,7 +1419,7 @@ public:
 	entity_range() = delete; // no such thing as a 'default' range
 
 	constexpr entity_range(detail::entity_type first, detail::entity_type last) : first_(first), last_(last) {
-		Pre(first <= last);
+		Pre(first <= last, "invalid interval; first entity can not be larger than the last entity");
 	}
 
 	static constexpr entity_range all() {
@@ -1305,11 +1427,11 @@ public:
 	}
 
 	[[nodiscard]] constexpr detail::entity_iterator begin() const {
-		return detail::entity_iterator{first_};
+		return {first_};
 	}
 
 	[[nodiscard]] constexpr detail::entity_iterator end() const {
-		return detail::entity_iterator{last_} + 1;
+		return {last_ + 1};
 	}
 
 	[[nodiscard]] constexpr bool operator==(entity_range const& other) const {
@@ -1368,7 +1490,7 @@ public:
 	// Returns the offset of an entity into this range
 	// Pre: 'ent' must be in the range
 	[[nodiscard]] constexpr detail::entity_offset offset(entity_id const ent) const {
-		Pre(contains(ent));
+		Pre(contains(ent), "entity must exist in the range");
 		return static_cast<detail::entity_offset>(ent - first_);
 	}
 
@@ -1376,7 +1498,7 @@ public:
 	// Pre: 'offset' is in the range
 	[[nodiscard]] entity_id at(detail::entity_offset const offset) const {
 		entity_id const id = static_cast<detail::entity_type>(static_cast<detail::entity_offset>(first()) + offset);
-		Pre(id <= last());
+		Pre(id <= last(), "offset is out of bounds of the range");
 		return id;
 	}
 
@@ -1390,7 +1512,8 @@ public:
 	// Pre: 'other' must overlap 'range', but must not be equal to it
 	[[nodiscard]] constexpr static std::pair<entity_range, std::optional<entity_range>> remove(entity_range const& range,
 																							   entity_range const& other) {
-		Pre(!range.equals(other));
+		Pre(range.overlaps(other), "the two ranges must overlap");
+		Pre(!range.equals(other), "the two ranges can not be equal");
 
 		// Remove from the front
 		if (other.first() == range.first()) {
@@ -1407,8 +1530,6 @@ public:
 			return {entity_range{range.first(), other.first() - 1}, entity_range{other.last() + 1, range.last()}};
 		} else {
 			// Remove overlaps
-			Pre(range.overlaps(other));
-
 			if (range.first() < other.first())
 				return {entity_range{range.first(), other.first() - 1}, std::nullopt};
 			else
@@ -1417,9 +1538,9 @@ public:
 	}
 
 	// Combines two ranges into one
-	// Pre: r1 and r2 must be adjacent ranges, r1 < r2
+	// Pre: r1 and r2 must be adjacent ranges
 	[[nodiscard]] constexpr static entity_range merge(entity_range const& r1, entity_range const& r2) {
-		Pre(r1.adjacent(r2));
+		Pre(r1.adjacent(r2), "can not merge two ranges that are not adjacent to each other");
 		if (r1 < r2)
 			return entity_range{r1.first(), r2.last()};
 		else
@@ -1429,7 +1550,7 @@ public:
 	// Returns the intersection of two ranges
 	// Pre: The ranges must overlap
 	[[nodiscard]] constexpr static entity_range intersect(entity_range const& range, entity_range const& other) {
-		Pre(range.overlaps(other));
+		Pre(range.overlaps(other), "ranges must overlap in order to intersect");
 
 		entity_id const first{std::max(range.first(), other.first())};
 		entity_id const last{std::min(range.last(), other.last())};
@@ -1522,7 +1643,7 @@ public:
 		: first{reinterpret_cast<char const*>(first_)}
 		, curr {reinterpret_cast<char const*>(first_)}
 		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
-		Pre(first_ != nullptr);
+		Pre(first_ != nullptr, "input pointer can not be null");
 	}
 
 	T const* current() const noexcept {
@@ -1611,7 +1732,7 @@ namespace ecs::detail {
 template <typename T>
 struct tagged_pointer {
 	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
-		Pre((ptr & TagMask) == 0);
+		Pre((ptr & TagMask) == 0, "pointer must not have its tag already set");
 	}
 
 	tagged_pointer() noexcept = default;
@@ -1636,7 +1757,7 @@ struct tagged_pointer {
 		return ptr & TagMask;
 	}
 	void set_tag(int tag) noexcept {
-		Pre(tag >= 0 && tag <= static_cast<int>(TagMask));
+		Pre(tag >= 0 && tag <= static_cast<int>(TagMask), "tag is outside supported range");
 		ptr = (ptr & PointerMask) | static_cast<uintptr_t>(tag);
 	}
 
@@ -1730,7 +1851,7 @@ public:
 		: first{reinterpret_cast<char const*>(first_)}
 		, curr {reinterpret_cast<char const*>(first_)}
 		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
-		Pre(first_ != nullptr);
+		Pre(first_ != nullptr, "input pointer can not be null");
 	}
 
 	T const* current() const noexcept {
@@ -1825,8 +1946,6 @@ private:
 			active = other.active;
 			data = other.data;
 			other.data = nullptr;
-			set_owns_data(other.get_owns_data());
-			set_has_split_data(other.get_has_split_data());
 			return *this;
 		}
 		chunk(entity_range range_, entity_range active_, T* data_ = nullptr, bool owns_data_ = false,
@@ -1937,8 +2056,9 @@ public:
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
+	// Pre: range and span must be same size.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Pre(range.count() == std::ssize(span));
+		Pre(range.count() == std::ssize(span), "range and span must be same size");
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
@@ -2164,8 +2284,8 @@ private:
 		// Check for potential ownership transfer
 		if (c->get_owns_data()) {
 			auto next = std::next(c);
-			if (c->get_has_split_data() && chunks.end() != next) {
-				Pre(c->range == next->range);
+			if (c->get_has_split_data() && next != chunks.end()) {
+				Assert(c->range == next->range, "ranges must be equal");
 				// transfer ownership
 				next->set_owns_data(true);
 			} else {
@@ -2356,8 +2476,8 @@ private:
 				}
 
 				if (curr->range.overlaps(r)) {
-					// Can not add components more than once to same entity
-					Pre(!curr->active.overlaps(r));
+					// Delayed pre-condition check: Can not add components more than once to same entity
+					Pre(!curr->active.overlaps(r), "entity already has a component of the type");
 
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, r);
@@ -2565,7 +2685,7 @@ template <impl::TypeList ComponentsList>
 	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
 struct component_pools {
 	explicit constexpr component_pools(auto... pools) noexcept : base_pools{pools...} {
-		Pre((pools != nullptr) && ...);
+		Pre(((pools != nullptr) && ...), "pools can not be null");
 	}
 
 	// Get arguments corresponding component pool.
@@ -2765,198 +2885,6 @@ struct no_interval_limiter {
 } // namespace ecs::detail
 
 #endif // !ECS_FREQLIMIT_H
-#ifndef POOL_ENTITY_WALKER_H_
-#define POOL_ENTITY_WALKER_H_
-
-
-namespace ecs::detail {
-
-// The type of a single component argument
-template <typename Component>
-using walker_argument = reduce_parent_t<std::remove_cvref_t<Component>>*;
-
-template <typename T>
-struct pool_type_detect; // primary template
-
-template <template <typename> typename Pool, typename Type>
-struct pool_type_detect<Pool<Type>> {
-	using type = Type;
-};
-template <template <typename> typename Pool, typename Type>
-struct pool_type_detect<Pool<Type>*> {
-	using type = Type;
-};
-
-template <typename T>
-struct tuple_pool_type_detect; // primary template
-
-template <template <typename...> typename Tuple, typename... PoolTypes> // partial specialization
-struct tuple_pool_type_detect<const Tuple<PoolTypes* const...>> {
-	using type = std::tuple<typename pool_type_detect<PoolTypes>::type*...>;
-};
-
-template <typename T>
-using tuple_pool_type_detect_t = typename tuple_pool_type_detect<T>::type;
-
-// Linearly walks one-or-more component pools
-// TODO why is this not called an iterator?
-template <typename Pools>
-struct pool_entity_walker {
-	void reset(Pools* _pools, entity_range_view view) {
-		pools = _pools;
-		ranges = view;
-		ranges_it = ranges.begin();
-		offset = 0;
-
-		//update_pool_offsets();
-	}
-
-	bool done() const {
-		return ranges_it == ranges.end();
-	}
-
-	void next_range() {
-		++ranges_it;
-		offset = 0;
-
-		//if (!done())
-		//	update_pool_offsets();
-	}
-
-	void next() {
-		if (offset == static_cast<entity_type>(ranges_it->count()) - 1) {
-			next_range();
-		} else {
-			++offset;
-		}
-	}
-
-	// Get the current range
-	entity_range get_range() const {
-		Pre(!done());
-		return *ranges_it;
-	}
-
-	// Get the current entity
-	entity_id get_entity() const {
-		Pre(!done());
-		return ranges_it->first() + offset;
-	}
-
-	// Get an entities component from a component pool
-	template <typename Component>
-	[[nodiscard]] auto get() const {
-		return get_component<Component>(get_entity(), *pools);
-	}
-
-private:
-	// The ranges to iterate over
-	entity_range_view ranges;
-
-	// Iterator over the current range
-	entity_range_view::iterator ranges_it;
-
-	// Pointers to the start of each pools data
-	//tuple_pool_type_detect_t<Pools> pointers;
-
-	// Entity id and pool-pointers offset
-	entity_type offset;
-
-	// The tuple of pools in use
-	Pools* pools;
-};
-
-} // namespace ecs::detail
-
-#endif // !POOL_ENTITY_WALKER_H_
-#ifndef POOL_RANGE_WALKER_H_
-#define POOL_RANGE_WALKER_H_
-
-
-namespace ecs::detail {
-
-// Linearly walks one-or-more component pools
-template <typename Pools>
-struct pool_range_walker {
-	pool_range_walker(Pools const _pools) : pools(_pools) {}
-
-	void reset(entity_range_view view) {
-		ranges.assign(view.begin(), view.end());
-		it = ranges.begin();
-	}
-
-	bool done() const {
-		return it == ranges.end();
-	}
-
-	void next() {
-		++it;
-	}
-
-	// Get the current range
-	entity_range get_range() const {
-		return *it;
-	}
-
-	// Get an entities component from a component pool
-	template <typename Component>
-	[[nodiscard]] auto get() const {
-		return get_component<Component>(get_range().first(), pools);
-	}
-
-private:
-	std::vector<entity_range> ranges;
-	std::vector<entity_range>::iterator it;
-	Pools const pools;
-};
-
-} // namespace ecs::detail
-
-#endif // !POOL_RANGE_WALKER_H_
-#ifndef _ENTITY_OFFSET_H
-#define _ENTITY_OFFSET_H
-
-
-namespace ecs::detail {
-
-class entity_offset_conv {
-	entity_range_view ranges;
-	std::vector<int> range_offsets;
-
-public:
-	entity_offset_conv(entity_range_view _ranges) noexcept : ranges(_ranges) {
-		range_offsets.resize(ranges.size());
-		std::exclusive_scan(ranges.begin(), ranges.end(), range_offsets.begin(), int{0},
-							[](int val, entity_range r) { return val + static_cast<int>(r.count()); });
-	}
-
-	bool contains(entity_id ent) const noexcept {
-		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
-		if (it == ranges.end() || !it->contains(ent))
-			return false;
-		else
-			return true;
-	}
-
-	int to_offset(entity_id ent) const noexcept {
-		auto const it = std::lower_bound(ranges.begin(), ranges.end(), ent);
-		Pre(it != ranges.end() && it->contains(ent)); // Expects the entity to be in the ranges
-
-		auto const offset = static_cast<std::size_t>(std::distance(ranges.begin(), it));
-		return range_offsets[offset] + (ent - it->first());
-	}
-
-	entity_id from_offset(int offset) const noexcept {
-		auto const it = std::upper_bound(range_offsets.begin(), range_offsets.end(), offset);
-		auto const dist = std::distance(range_offsets.begin(), it);
-		auto const dist_prev = static_cast<std::size_t>(std::max(ptrdiff_t{0}, dist - 1));
-		return static_cast<entity_id>(ranges[dist_prev].first() + offset - range_offsets[dist_prev]);
-	}
-};
-
-} // namespace ecs::detail
-
-#endif // !_ENTITY_OFFSET_H
 #ifndef ECS_VERIFICATION_H
 #define ECS_VERIFICATION_H
 
@@ -3295,15 +3223,20 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 namespace ecs::detail {
 
 // Given a list of components, return an array containing the corresponding component pools
-template <typename ComponentsList>
+template <typename ComponentsList, typename PoolsList>
 	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
-static constexpr auto get_pool_iterators([[maybe_unused]] auto const& pools) {
-	if constexpr (type_list_size < ComponentsList >> 0) {
+static constexpr auto get_pool_iterators([[maybe_unused]] component_pools<PoolsList> const& pools) {
+	if constexpr (type_list_is_empty<ComponentsList>) {
+		return std::array<stride_view<0, char const>, 0>{};
+	} else {
+		// Verify that the component list passed has a corresponding pool
+		for_each_type<ComponentsList>([]<typename T>() {
+			static_assert(contains_type<T, PoolsList>(), "A component is missing its corresponding component pool");
+		});
+
 		return for_all_types<ComponentsList>([&]<typename... Components>() {
 			return std::to_array({pools.template get<Components>().get_entities()...});
 		});
-	} else {
-		return std::array<stride_view<0,char const>, 0>{};
 	}
 }
 
@@ -3311,16 +3244,18 @@ static constexpr auto get_pool_iterators([[maybe_unused]] auto const& pools) {
 // Find the intersection of the sets of entities in the specified pools
 template <typename InputList, typename PoolsList, typename F>
 void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, F&& callback) {
-	static_assert(0 < type_list_size<InputList>, "Empty component list supplied");
+	static_assert(not type_list_is_empty<InputList>, "Empty component list supplied");
 
 	// Split the type_list into filters and non-filters (regular components).
 	using FilterComponentPairList = split_types_if<InputList, std::is_pointer>;
 	using FilterList = transform_type<typename FilterComponentPairList::first, naked_component_t>;
 	using ComponentList = typename FilterComponentPairList::second;
+
+	// Get the iterators for the filters
 	auto iter_filters = get_pool_iterators<FilterList>(pools);
 
 	// Filter local components.
-	// Global components are available for all entities,
+	// Global components are available for all entities
 	// so don't bother wasting cycles on testing them.
 	using LocalComponentList = transform_type<filter_types_if<ComponentList, detail::is_local>, naked_component_t>;
 	auto iter_components = get_pool_iterators<LocalComponentList>(pools);
@@ -3331,7 +3266,7 @@ void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, 
 	});
 
 	// helper lambda to test if an iterator has reached its end
-	auto const done = [](auto it) {
+	auto const done = [](auto const& it) {
 		return it.done();
 	};
 
@@ -4122,7 +4057,7 @@ struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
 	scheduler_node(detail::system_base* _sys) : sys(_sys), dependents{}, unfinished_dependencies{0}, dependencies{0} {
-		Pre(sys != nullptr);
+		Pre(sys != nullptr, "system can not be null");
 	}
 
 	scheduler_node(scheduler_node const& other) {
@@ -4153,7 +4088,7 @@ struct scheduler_node final {
 	// Increase the dependency counter of this system. These dependencies has to
 	// run to completion before this system can run.
 	void increase_dependency_count() {
-		Pre(dependencies != std::numeric_limits<int16_t>::max());
+		Pre(dependencies != std::numeric_limits<int16_t>::max(), "system has too many dependencies (>32k)");
 		dependencies += 1;
 	}
 
@@ -4336,8 +4271,8 @@ public:
 
 	// Commits the changes to the entities.
 	void commit_changes() {
-		Pre(!commit_in_progress);
-		Pre(!run_in_progress);
+		Pre(!commit_in_progress, "a commit is already in progress");
+		Pre(!run_in_progress, "can not commit changes while systems are running");
 
 		// Prevent other threads from
 		//  adding components
@@ -4369,8 +4304,8 @@ public:
 
 	// Calls the 'update' function on all the systems in the order they were added.
 	void run_systems() {
-		Pre(!commit_in_progress);
-		Pre(!run_in_progress);
+		Pre(!commit_in_progress, "can not run systems while changes are being committed");
+		Pre(!run_in_progress, "systems are already running");
 
 		// Prevent other threads from adding new systems during the run
 		std::shared_lock system_lock(system_mutex);
@@ -4394,7 +4329,8 @@ public:
 
 	// Resets the runtime state. Removes all systems, empties component pools
 	void reset() {
-		Pre(!run_in_progress && !commit_in_progress);
+		Pre(!commit_in_progress, "a commit is already in progress");
+		Pre(!run_in_progress, "can not commit changes while systems are running");
 
 		std::unique_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
@@ -4418,7 +4354,7 @@ public:
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
 		// Don't call this when a commit is in progress
-		Pre(!commit_in_progress);
+		Pre(!commit_in_progress, "can not get a component pool while a commit is in progress");
 
 		auto& cache = type_caches.local();
 
@@ -4471,7 +4407,8 @@ private:
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
-		Pre(!run_in_progress && !commit_in_progress);
+		Pre(!commit_in_progress, "can not create systems while changes are being committed");
+		Pre(!run_in_progress, "can not create systems while systems are running");
 
 		// Is the first component an entity_id?
 		static constexpr bool first_is_entity = is_entity<FirstComponent>;
@@ -4497,14 +4434,12 @@ private:
 			std::unique_lock system_lock(system_mutex);
 
 			[[maybe_unused]] auto sys_ptr = system.get();
-
 			systems.push_back(std::move(system));
-			detail::system_base* ptr_system = systems.back().get();
-			Post(ptr_system != nullptr);
 
-			// -vv-  msvc shenanigans
+			// -vv-  MSVC shenanigans
 			[[maybe_unused]] static bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
 			if constexpr (!request_manual_update) {
+				detail::system_base* ptr_system = systems.back().get();
 				sched.insert(ptr_system);
 			} else {
 				return (*sys_ptr);
@@ -4565,19 +4500,22 @@ public:
 
 		auto const adder = [this, range]<typename Type>(Type&& val) {
 			// Add it to the component pool
-			if constexpr (detail::is_parent<std::remove_cvref_t<Type>>::value) {
-				auto& pool = ctx.get_component_pool<detail::parent_id>();
+			if constexpr (detail::is_parent<Type>::value) {
+				detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, detail::parent_id{val.id()});
 			} else if constexpr (std::is_reference_v<Type>) {
 				using DerefT = std::remove_cvref_t<Type>;
 				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
 				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, val);
 			} else {
 				static_assert(std::copyable<Type>, "Type must be copyable");
 
 				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
+				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, std::forward<Type>(val));
 			}
 		};
@@ -4588,6 +4526,7 @@ public:
 
 	// Adds a span of components to a range of entities. Will not be added until 'commit_changes()' is called.
 	// Pre: entity does not already have the component, or have it in queue to be added
+	// Pre: range and span must be same size
 	void add_component_span(entity_range const range, std::ranges::contiguous_range auto const& vals) {
 		using T = typename std::remove_cvref_t<decltype(vals)>::value_type;
 		static_assert(!detail::global<T>, "can not add global components to entities");
@@ -4595,8 +4534,11 @@ public:
 		//static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported"); // should work
 		static_assert(std::copyable<T>, "Type must be copyable");
 
+		Pre(range.ucount() == vals.size(), "range and span must be same size");
+
 		// Add it to the component pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+		PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 		pool.add_span(range, std::span{vals});
 	}
 
@@ -4612,9 +4554,11 @@ public:
 			};
 
 			auto& pool = ctx.get_component_pool<detail::parent_id>();
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 			pool.add_generator(range, converter);
 		} else {
 			auto& pool = ctx.get_component_pool<ComponentType>();
+			PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
 			pool.add_generator(range, std::forward<Fn>(gen));
 		}
 	}
@@ -4626,14 +4570,16 @@ public:
 		add_component(entity_range{id, id}, std::forward<First>(first_val), std::forward<T>(vals)...);
 	}
 
-	// Removes a component from a range of entities. Will not be removed until 'commit_changes()' is
-	// called. Pre: entity has the component
+	// Removes a component from a range of entities.
+	// Will not be removed until 'commit_changes()' is called.
+	// Pre: entity has the component
 	template <detail::persistent T>
 	void remove_component(entity_range const range, T const& = T{}) {
 		static_assert(!detail::global<T>, "can not remove or add global components to entities");
 
 		// Remove the entities from the components pool
 		detail::component_pool<T>& pool = ctx.get_component_pool<T>();
+		Pre(pool.has_entity(range), "component pool does not contain some- or all of the entities in the range");
 		pool.remove(range);
 	}
 
@@ -4665,7 +4611,7 @@ public:
 
 	// Returns the component from an entity, or nullptr if the entity is not found
 	// NOTE: Pointers to components are only guaranteed to be valid
-	//       until the next call to 'ecs::commit_changes' or 'ecs::update',
+	//       until the next call to 'runtime::commit_changes' or 'runtime::update',
 	//       after which the component might be reallocated.
 	template <detail::local T>
 	T* get_component(entity_id const id) {
@@ -4677,7 +4623,7 @@ public:
 	// Returns the components from an entity range, or an empty span if the entities are not found
 	// or does not contain the component.
 	// NOTE: Pointers to components are only guaranteed to be valid
-	//       until the next call to ecs::commit_changes or ecs::update,
+	//       until the next call to 'runtime::commit_changes' or 'runtime::update',
 	//       after which the component might be reallocated.
 	template <detail::local T>
 	std::span<T> get_components(entity_range const range) {

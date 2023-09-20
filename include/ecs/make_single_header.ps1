@@ -29,9 +29,9 @@ $files = (
 	'parent.h',
 	'options.h',
 	'detail/interval_limiter.h',
-	'detail/pool_entity_walker.h',
-	'detail/pool_range_walker.h',
-	'detail/entity_offset.h',
+#	'detail/pool_entity_walker.h',
+#	'detail/pool_range_walker.h',
+#	'detail/entity_offset.h',
 	'detail/verification.h',
 	'detail/entity_range.h',
 	'detail/find_entity_pool_intersections.h',
@@ -58,6 +58,7 @@ import std;
 #include <cstdint>
 #include <execution>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -66,6 +67,7 @@ import std;
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <stacktrace>
 #include <mutex> // needed for scoped_lock
 #include <span>
 #include <string_view>

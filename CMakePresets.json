@@ -140,14 +140,14 @@
       }
     },
     {
-      "name": "clang-13-debug",
-      "displayName": "Clang 13 - Debug",
+      "name": "clang-17-debug",
+      "displayName": "Clang 17 - Debug",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "clang-13",
-        "CMAKE_CXX_COMPILER": "clang++-13"
+        "CMAKE_C_COMPILER": "clang-17",
+        "CMAKE_CXX_COMPILER": "clang++-17"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {

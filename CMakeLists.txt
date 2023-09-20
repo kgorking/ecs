@@ -3,7 +3,7 @@
 project (ecs CXX)
 
 # creates a library 'ecs' which is an interface (header files only)
-add_library(ecs INTERFACE)
+add_library(ecs INTERFACE ecs_sh.h)
 
 install(
     DIRECTORY include/ecs
@@ -114,6 +114,15 @@ if(ECS_STANDALONE_PROJECT)
             ${CMAKE_CURRENT_SOURCE_DIR}/include
         >
     )
+
+	# command to generate the single-include header
+	if (MSVC)
+	add_custom_command(OUTPUT ecs_sh.h
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ecs/
+		COMMAND powershell.exe -File make_single_header.ps1
+		COMMENT "Generating single-include header"
+	)
+	endif ()
 else()
     target_include_directories(ecs SYSTEM INTERFACE
         $<BUILD_INTERFACE:
