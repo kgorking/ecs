@@ -1,10 +1,10 @@
 name: GCC 11/12/13
 
-#on:
-#  workflow_run:
-#    workflows: [Generate single-include header]
-#    types: 
-#      - completed
+on:
+  workflow_run:
+    workflows: [Generate single-include header]
+    types: 
+      - completed
 
 jobs:
   gcc:
