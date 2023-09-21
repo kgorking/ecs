@@ -41,6 +41,13 @@ $files = (
 
 # Write all system includes
 $sys_headers = '// Auto-generated single-header include file
+#if defined(__cpp_lib_modules)
+#if defined(_MSC_VER) && _MSC_VER <= 1938
+import std.core;
+#else
+import std;
+#endif
+#else
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -69,6 +76,7 @@ $sys_headers = '// Auto-generated single-header include file
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#endif
 '
 
 # Write out module

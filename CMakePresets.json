@@ -267,6 +267,14 @@
       }
     },
     {
+      "name": "windows-2022-debug-modules",
+      "inherits": "windows-2022-debug",
+      "displayName": "Debug (modules)",
+      "cacheVariables": {
+        "ECS_COMPILE_AS_MODULE": true
+      }
+    },
+    {
       "name": "windows-2019-debug",
       "displayName": "Debug 2019 (v14.2)",
       "description": "Target Windows with the Visual Studio development environment.",

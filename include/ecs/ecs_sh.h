@@ -1,4 +1,11 @@
 ﻿// Auto-generated single-header include file
+#if defined(__cpp_lib_modules)
+#if defined(_MSC_VER) && _MSC_VER <= 1938
+import std.core;
+#else
+import std;
+#endif
+#else
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -27,6 +34,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#endif
 
 #ifndef TLS_CACHE
 #define TLS_CACHE
@@ -403,6 +411,7 @@ using unique_collect = collect<T, decltype(U)>;
 #endif // !TLS_COLLECT_H
 #ifndef TYPE_LIST_H_
 #define TYPE_LIST_H_
+
 
 namespace ecs::detail {
 
