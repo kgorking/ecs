@@ -71,6 +71,10 @@ import std;
 #include <utility>
 #include <vector>
 #endif
+
+#ifndef ECS_EXPORT
+#define ECS_EXPORT
+#endif
 '
 
 # Write out module
