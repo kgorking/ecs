@@ -3058,7 +3058,7 @@ namespace ecs::detail {
 // Given a list of components, return an array containing the corresponding component pools
 template <typename ComponentsList, typename PoolsList>
 	requires(std::is_same_v<ComponentsList, transform_type<ComponentsList, naked_component_t>>)
-constexpr auto get_pool_iterators([[maybe_unused]] component_pools<PoolsList> const& pools) {
+auto get_pool_iterators([[maybe_unused]] component_pools<PoolsList> const& pools) {
 	if constexpr (type_list_is_empty<ComponentsList>) {
 		return std::array<stride_view<0, char const>, 0>{};
 	} else {
@@ -3084,18 +3084,28 @@ void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, 
 	using FilterList = transform_type<typename FilterComponentPairList::first, naked_component_t>;
 	using ComponentList = typename FilterComponentPairList::second;
 
-	// Get the iterators for the filters
-	auto iter_filters = get_pool_iterators<FilterList>(pools);
-
 	// Filter local components.
 	// Global components are available for all entities
 	// so don't bother wasting cycles on testing them.
 	using LocalComponentList = transform_type<filter_types_if<ComponentList, detail::is_local>, naked_component_t>;
 	auto iter_components = get_pool_iterators<LocalComponentList>(pools);
 
+	// If any of the pools are empty, bail
+	bool const any_emtpy_pools = std::ranges::any_of(iter_components, [](auto p) {
+		return p.current() == nullptr;
+	});
+	if (any_emtpy_pools)
+		return;
+
+	// Get the iterators for the filters
+	auto iter_filters = get_pool_iterators<FilterList>(pools);
+
 	// Sort the filters
 	std::sort(iter_filters.begin(), iter_filters.end(), [](auto const& a, auto const& b) {
-		return *a.current() < *b.current();
+		if (a.current() && b.current())
+			return *a.current() < *b.current();
+		else
+			return nullptr != a.current();
 	});
 
 	// helper lambda to test if an iterator has reached its end
@@ -3469,10 +3479,9 @@ public:
 
 private:
 	void do_run() override {
-		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-
 		// Sort the arguments if the component data has been modified
 		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
+			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
 			std::sort(e_p, sorted_args.begin(), sorted_args.end(), [this](sort_help const& l, sort_help const& r) {
 				return sort_func(*l.sort_val_ptr, *r.sort_val_ptr);
 			});
