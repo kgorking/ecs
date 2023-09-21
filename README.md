@@ -287,7 +287,7 @@ Sorting functions must correspond to a type that is processed by the system, or 
 
 
 ## Filtering[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/zE9Yh5Kbh)
-Components can be filtered by marking the component you wish to filter as a pointer argument:
+Entities can be filtered by marking the component you wish to filter as a pointer argument:
 ```cpp
 rt.make_system([](int&, float*) { /* ... */ });
 ```
