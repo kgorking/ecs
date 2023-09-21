@@ -30,13 +30,20 @@ int main() {
 		std::cout << "  state_s::total: " << global.total << "\n\n";
 	});
 
-	std::cout << "Adding 10 entities with an A component:\n";
-	rt.add_component({0, 9}, A{});
+	std::cout << "Adding 100 entities with an A component:\n";
+	rt.add_component({0, 99}, A{});
 
-	std::cout << "Adding 10 more entities with a B component:\n\n";
-	rt.add_component({10, 19}, B{});
+	std::cout << "Adding 100 more entities with a B component:\n\n";
+	rt.add_component({100, 199}, B{});
 
 	rt.update();
+
+	// Dump state_s data
+	auto& state = rt.get_global_component<state_s>();
+	std::cout << '\n';
+	std::cout << "Value of state_s::a :      " << state.a << "\n";
+	std::cout << "Value of state_s::b :      " << state.b << "\n";
+	std::cout << "Value of state_s::total :  " << state.total << "\n";
 
 	// Dump some stats
 	std::cout << "Number of entities with an A component:      " << rt.get_entity_count<A>() << "\n";
