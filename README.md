@@ -312,7 +312,7 @@ rt.make_system([](entity_id id, parent<> const& p) {
 ```
 The angular brackets are needed because `ecs::parent` is a templated component which allows you to specify which, if any, of the parents components you would like access to.
 
-### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Toxc5MTbj)
+### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o9fer87x6)
 A parents sub-components can be accessed by specifying them in a systems parent parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to access. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
 
 If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must always be taken as a value or a constant reference in systems, or an error will be reported.
@@ -332,7 +332,7 @@ rt.make_system([](ecs::parent<short, long> p) { // runs on entity 1
 //rt.make_system([](ecs::parent<short> const& p) { p.get<int>(); });
 ```
 
-### Filtering on parents components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/v14T1efbK)
+### Filtering on parents components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o9fer87x6)
 Filters work like regular component filters and can be specified on a parents sub-components:
 ```cpp
 rt.make_system([](ecs::parent<short*> p) { });
