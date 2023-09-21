@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set up some options
 set(ECS_STANDALONE_PROJECT OFF)
-set(ECS_COMPILE_AS_MODULE ON CACHE BOOL "Compile 'ecs' to a module")
+set(ECS_COMPILE_AS_MODULE OFF CACHE BOOL "Compile 'ecs' to a module")
 set(ECS_ENABLE_CONTRACTS ON CACHE BOOL "Use contracts internally to verify state")
 set(ECS_ENABLE_CONTRACTS_AUDIT OFF CACHE BOOL "Enable expensive contracts. Should only be used for debugging")
 

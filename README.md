@@ -47,8 +47,6 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 The latter command will fetch the submodules required to build this library.
 
-
-# Building 
 ## Tested compilers
 The CI build status for msvc, clang, and gcc is currently
 
@@ -56,6 +54,30 @@ The CI build status for msvc, clang, and gcc is currently
 [![Clang 17-18 (with module support)  ](https://github.com/kgorking/ecs/actions/workflows/clang_with_module.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang_with_module.yml)
 [![Clang 13-16 (no module support)  ](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
 [![GCC 11/12/13  ](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+
+
+## Initial support for modules
+The library can be built as a module that can be imported with `import ecs;`. You can also use the regular `#include <ecs/ecs.h>` which imports the module in the header when modules are enabled. This makes it easy to support both include- and modular builds.
+
+Enable module building by setting the option `ECS_COMPILE_AS_MODULE` to `true` in your CMake script (`set(ECS_COMPILE_AS_MODULE ON)`) or setting it in your CMakePresets.json file.
+
+MSVC v14.3 (2022) or clang 17+ is required to use modules. 
+GCC support will be added when version 14 is eventually released.
+
+#### Note when using clang!
+Clangs (17+18) ODR detection code gives false positives when used with modules, so when including other headers, make sure they appear *after* the module import.
+
+```cpp
+// Correct, should not induce ODR errors in clang
+import ecs;
+#include <vector>
+
+// Wrong, might induce ODR errors in clang
+#include <vector>
+import ecs;
+```
+
+
 
 # Table of Contents
 - [Entities](#entities)
@@ -85,6 +107,7 @@ The CI build status for msvc, clang, and gcc is currently
   - [`transient`](#transient)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/W7hvrnjT6)
   - [`global`](#global)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ETjKzbE7o)
     - [Global systems](#Global-systems)
+
 
 # Entities
 Entities are the scaffolding on which you build your objects. There are two classes in the library for managing entities:
