@@ -1,6 +1,8 @@
 #ifndef TYPE_LIST_H_
 #define TYPE_LIST_H_
 
+#include <type_traits>
+
 namespace ecs::detail {
 
 //
