@@ -408,8 +408,7 @@ This option will prevent a system from processing components in parallel, which 
 It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::collect`](https://github.com/kgorking/tls/blob/master/examples/collect/accumulate/accumulate.cpp) in these cases, if possible.
 
 # Component Flags
-The behavior of components can be changed by using component flags, which can change how they are managed
-internally and can offer performance and memory benefits. Flags can be added to components using the `ecs_flags()` macro:
+The behavior of components can be changed by using component flags, which can change how they are managed internally and can offer performance and memory benefits.
 
 ### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/dj8WjTWbE)
 Marking a component as a *tag* is used for components that signal some kind of state, without needing to
@@ -418,7 +417,7 @@ like a 'freezable' tag to mark stuff that can be frozen.
 
 ```cpp
 struct freezable {
-    ecs_flags(ecs::flag::tag);
+    using ecs_flags = ecs::flags<ecs::tag>;
 };
 ```
 
@@ -443,7 +442,7 @@ Marking a component as *transient* is used for components that only exists on en
 from entities automatically after one cycle.
 ```cpp
 struct damage {
-    ecs_flags(ecs::flag::transient);
+    using ecs_flags = ecs::flags<ecs::transient>;
     double value;
 };
 // ...
@@ -457,7 +456,7 @@ Marking a component as *global* is used for components that hold data that is sh
 
 ```cpp
 struct frame_data {
-    ecs_flags(ecs::flag::global);
+    using ecs_flags = ecs::flags<ecs::global>;
     double delta_time = 0.0;
 };
 // ...
@@ -467,8 +466,6 @@ rt.make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
 });
 ```
-**Note!** Beware of using mutable global components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
-to disallow systems modifying the global component, using `ecs_flags(ecs::flag::global, ecs::flag::immutable);`
 
 Global components can contain `std::atomic<>` types, unlike regular components, due to the fact that they are never copied.
 
