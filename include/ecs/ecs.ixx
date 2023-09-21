@@ -3473,10 +3473,9 @@ public:
 
 private:
 	void do_run() override {
-		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-
 		// Sort the arguments if the component data has been modified
 		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
+			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
 			std::sort(e_p, sorted_args.begin(), sorted_args.end(), [this](sort_help const& l, sort_help const& r) {
 				return sort_func(*l.sort_val_ptr, *r.sort_val_ptr);
 			});
