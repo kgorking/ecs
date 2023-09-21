@@ -254,7 +254,7 @@ rt.make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/xKfTdWqnY)
+## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Ge1PMaM97)
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
