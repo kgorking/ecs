@@ -319,38 +319,30 @@ If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must alw
 
  More than one sub-component can be specified; there is no upper limit.
 ```cpp
-rt.add_component(2, short{10});
-rt.add_component(3, long{20});
-rt.add_component(4, float{30});
-
-rt.add_component({5, 7}, ecs::parent{2});  // short children, parent 2 has a short
-rt.add_component({7, 9}, ecs::parent{3});  // long children, parent 3 has a long
-rt.add_component({9, 11}, ecs::parent{4}); // float children, parent 4 has a float
+rt.add_component(0, short{1}, long{2});
+rt.add_component(1, ecs::parent{0});
 
 // Systems that only runs on entities that has a parent with a specific component,
-rt.make_system([](ecs::parent<short> const& p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
-rt.make_system([](ecs::parent<long>  const& p) { /* 20 == p.get<long>() */ });   // runs on entities 7-9
-rt.make_system([](ecs::parent<float> const& p) { /* 30 == p.get<float>() */ });  // runs on entities 9-11
-rt.make_system([](ecs::parent<short, long> const& p) { // runs on entity 7
-  /* 10 == p.get<short>() */
-  /* 20 == p.get<long>() */
+rt.make_system([](ecs::parent<short, long> p) { // runs on entity 1
+  /* 1 == p.get<short>() */
+  /* 2 == p.get<long>() */
 ); 
 
-// Fails
-//rt.make_system([](ecs::parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
+// Fails: will not compile; no 'int' in 'p'
+//rt.make_system([](ecs::parent<short> const& p) { p.get<int>(); });
 ```
 
 ### Filtering on parents components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/v14T1efbK)
 Filters work like regular component filters and can be specified on a parents sub-components:
 ```cpp
-rt.make_system([](ecs::parent<short*> p) { });  // runs on entities 8-11
+rt.make_system([](ecs::parent<short*> p) { });
 ```
 An `ecs::parent` that only consist of filters does not need to be passed as a constant reference.
 
 
 Marking the parent itself as a filter means that any entity with a parent component on it will be ignored. Any sub-components specified are ignored.
 ```cpp
-rt.make_system([](int, ecs::parent<> *p) { });  // runs on entities with an int and no parents
+rt.make_system([](int, ecs::parent<> *p) { });
 ```
 
 ### Traversal and layout
