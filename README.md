@@ -286,7 +286,7 @@ Sorting functions must correspond to a type that is processed by the system, or 
 **Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
 
 
-## Filtering[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/zE9Yh5Kbh)
+## Filtering[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/a3dhK341T)
 Entities can be filtered by marking the component you wish to filter as a pointer argument:
 ```cpp
 rt.make_system([](int&, float*) { /* ... */ });
