@@ -1,7 +1,7 @@
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
 #include <ecs/ecs.h>
 #include <atomic>
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 
 TEST_CASE("Global components", "[component][global]") {
 	SECTION("work in global systems") {

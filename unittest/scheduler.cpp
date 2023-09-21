@@ -1,8 +1,8 @@
-#define CATCH_CONFIG_MAIN
 #include <ecs/ecs.h>
-#include "catch.hpp"
 #include <thread>
 #include <atomic>
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 
 using namespace std::chrono_literals;
 

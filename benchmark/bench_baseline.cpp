@@ -1,13 +1,12 @@
-#include "gbench/include/benchmark/benchmark.h"
-
 #include <ecs/ecs.h>
-#include "global.h"
 #include <execution>
 #include <iterator>
 #include <span>
 #include <tuple>
 #include <type_traits>
 #include <vector>
+#include "gbench/include/benchmark/benchmark.h"
+#include "global.h"
 
 template <bool parallel>
 void run_raw(benchmark::State &state) {

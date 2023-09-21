@@ -1,9 +1,9 @@
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
 #define ECS_EXPORT
 #include <ecs/detail/type_list.h>
 #include <ecs/detail/options.h>
 #include <ecs/parent.h>
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 
 using namespace ecs::detail;
 

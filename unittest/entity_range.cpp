@@ -1,8 +1,8 @@
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
 #define ECS_EXPORT
 #include <ecs/detail/component_pool.h>
 #include <ecs/detail/entity_range.h>
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 
 using ecs::detail::iter_pair;
 using Iter = typename std::vector<ecs::entity_range>::const_iterator;

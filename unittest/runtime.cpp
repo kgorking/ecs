@@ -1,6 +1,6 @@
+#include <ecs/ecs.h>
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include <ecs/ecs.h>
 
 struct runtime_ctr_counter {
 	inline static int def_ctr_count = 0;

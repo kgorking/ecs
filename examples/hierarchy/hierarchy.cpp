@@ -1,11 +1,12 @@
-#include <iostream>
 
 #ifndef __cpp_lib_format
+#include <iostream>
 int main() {
 	std::cout << "This example requires <format>\n";
 }
 #else
 #include <ecs/ecs.h>
+#include <iostream>
 #include <array>
 #include <format>
 

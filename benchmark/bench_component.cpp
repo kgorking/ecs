@@ -1,5 +1,5 @@
-#include "gbench/include/benchmark/benchmark.h"
 #include <ecs/ecs.h>
+#include "gbench/include/benchmark/benchmark.h"
 #include <random>
 #include <numeric>
 

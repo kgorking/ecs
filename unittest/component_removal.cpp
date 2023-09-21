@@ -1,6 +1,6 @@
+#include <ecs/ecs.h>
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include <ecs/ecs.h>
 
 //
 // Test to make sure components are properly removed from systems.

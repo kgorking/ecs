@@ -1,6 +1,6 @@
+#include <ecs/ecs.h>
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include <ecs/ecs.h>
 
 TEST_CASE("System options tests") {
 	SECTION("opts::group<> order systems correctly") {

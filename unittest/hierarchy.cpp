@@ -1,9 +1,10 @@
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
 #include <ecs/ecs.h>
 #include <unordered_set>
 #include <vector>
 #include <atomic>
+
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 
 TEST_CASE("Hierarchies") {
 	SECTION("can extract parent info") {
