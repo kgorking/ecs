@@ -56,13 +56,14 @@ public:
 	// Pre: entity does not already have the component, or have it in queue to be added
 	// Pre: range and span must be same size
 	void add_component_span(entity_range const range, std::ranges::contiguous_range auto const& vals) {
-		using T = typename std::remove_cvref_t<decltype(vals)>::value_type;
+		static_assert(std::ranges::sized_range<decltype(vals)>, "Size of span is needed.");
+		using T = std::remove_cvref_t<decltype(vals[0])>;
 		static_assert(!detail::global<T>, "can not add global components to entities");
 		static_assert(!std::is_pointer_v<std::remove_cvref_t<T>>, "can not add pointers to entities; wrap them in a struct");
 		//static_assert(!detail::is_parent<std::remove_cvref_t<T>>::value, "adding spans of parents is not (yet?) supported"); // should work
 		static_assert(std::copyable<T>, "Type must be copyable");
 
-		Pre(range.ucount() == vals.size(), "range and span must be same size");
+		Pre(range.ucount() == std::size(vals), "range and span must be same size");
 
 		// Add it to the component pool
 		if constexpr (detail::is_parent<T>::value) {
