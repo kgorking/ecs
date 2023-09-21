@@ -9,6 +9,7 @@ on:
 jobs:
   gcc:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
       fail-fast: false

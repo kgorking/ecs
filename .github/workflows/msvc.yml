@@ -10,6 +10,7 @@ on:
 jobs:
   msvc:
     runs-on: windows-2022
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
       fail-fast: true
