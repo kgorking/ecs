@@ -25,8 +25,7 @@ struct parent : entity_id, private std::conditional_t<(sizeof...(ParentTypes) > 
 	static_assert((!detail::global<ParentTypes> && ...), "global components are not allowed in parents");
 	static_assert((!detail::is_parent<ParentTypes>::value && ...), "parents in parents is not supported");
 
-	using entity_id::entity_id;
-	//explicit parent(entity_id id) : entity_id(id) {}
+	explicit parent(entity_id id) : entity_id(id) {}
 
 	parent(parent const&) = default;
 	parent& operator=(parent const&) = default;
