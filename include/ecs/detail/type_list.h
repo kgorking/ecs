@@ -50,7 +50,7 @@ namespace impl {
 	// type_list_size.
 	template <typename> struct type_list_size;
 	template <typename... Types> struct type_list_size<type_list<Types...>> {
-		static constexpr size_t value = sizeof...(Types);
+		static constexpr std::size_t value = sizeof...(Types);
 	};
 
 	//
@@ -323,7 +323,7 @@ namespace impl {
 } // namespace impl
 
 template <impl::TypeList TL>
-constexpr size_t type_list_size = impl::type_list_size<TL>::value;
+constexpr std::size_t type_list_size = impl::type_list_size<TL>::value;
 
 template <impl::TypeList TL>
 constexpr bool type_list_is_empty = (0 == impl::type_list_size<TL>::value);
