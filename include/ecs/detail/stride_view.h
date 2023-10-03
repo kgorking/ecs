@@ -21,6 +21,10 @@ public:
 		Pre(first_ != nullptr, "input pointer can not be null");
 	}
 
+	consteval std::size_t stride_size() const {
+		return Stride;
+	}
+
 	T const* current() const noexcept {
 		return reinterpret_cast<T const*>(curr);
 	}

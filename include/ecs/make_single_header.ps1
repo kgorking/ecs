@@ -17,6 +17,7 @@ $files = (
 	'detail/options.h',
 	'entity_range.h',
 	'detail/parent_id.h',
+	'variant.h',
 	'flags.h',
 	'detail/stride_view.h',
 	'detail/component_pool_base.h',
@@ -72,9 +73,6 @@ import std;
 #include <vector>
 #endif
 
-#ifndef ECS_EXPORT
-#define ECS_EXPORT
-#endif
 '
 
 # Write out module
@@ -85,6 +83,10 @@ export module ecs;
 " > ecs.ixx
 
 # Write out single-include header
+'#ifndef ECS_EXPORT
+#define ECS_EXPORT
+#endif
+' >> ecs_sh.h
 $sys_headers > ecs_sh.h
 
 # Filter out the local includes from the content of each header and pipe it to ecs_sh.h

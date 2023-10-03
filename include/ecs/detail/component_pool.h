@@ -338,11 +338,11 @@ public:
 	}
 
 	// Returns the pools entities
-	auto get_entities() const noexcept {
+	stride_view<sizeof(chunk), entity_range const> get_entities() const noexcept {
 		if (!chunks.empty())
-			return stride_view<sizeof(chunk), entity_range const>(&chunks[0].active, chunks.size());
+			return {&chunks[0].active, chunks.size()};
 		else
-			return stride_view<sizeof(chunk), entity_range const>();
+			return {};
 	}
 
 	// Returns true if an entity has a component in this pool

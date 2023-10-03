@@ -30,9 +30,6 @@ import std;
 #include <vector>
 #endif
 
-#ifndef ECS_EXPORT
-#define ECS_EXPORT
-#endif
 
 #ifndef TLS_CACHE
 #define TLS_CACHE
