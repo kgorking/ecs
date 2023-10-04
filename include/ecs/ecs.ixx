@@ -1910,7 +1910,6 @@ private:
 	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
 
 	std::vector<chunk> chunks;
-
 	std::vector<component_pool_base*> variants;
 
 	// Status flags
@@ -4175,7 +4174,7 @@ class context final {
 	scheduler sched;
 
 	mutable std::shared_mutex system_mutex;
-	mutable std::shared_mutex component_pool_mutex;
+	mutable std::recursive_mutex component_pool_mutex;
 
 	bool commit_in_progress = false;
 	bool run_in_progress = false;
