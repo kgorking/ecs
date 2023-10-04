@@ -219,7 +219,7 @@ public:
 		}
 	}
 
-	// Adds a variant of this component
+	// Adds a variant to this component pool
 	void add_variant(component_pool_base* variant) {
 		Pre(nullptr != variant, "variant can not be null");
 		if (std::ranges::find(variants, variant) == variants.end())
