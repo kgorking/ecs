@@ -1,5 +1,4 @@
 #include <ecs/ecs.h>
-#include <ecs/detail/variant.h>
 #include <iostream>
 
 // Prints out 'ACB'
