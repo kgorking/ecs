@@ -32,7 +32,7 @@ class context final {
 	scheduler sched;
 
 	mutable std::shared_mutex system_mutex;
-	mutable std::shared_mutex component_pool_mutex;
+	mutable std::recursive_mutex component_pool_mutex;
 
 	bool commit_in_progress = false;
 	bool run_in_progress = false;
