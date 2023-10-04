@@ -144,6 +144,14 @@
       }
     },
     {
+      "name": "clang-17-debug-modules",
+      "displayName": "Clang 17 - Debug with Modules",
+      "inherits": "clang-17-debug",
+      "cacheVariables": {
+        "ECS_COMPILE_AS_MODULE": true
+      }
+    },
+    {
       "name": "clang-14-debug",
       "displayName": "Clang 14 - Debug",
       "generator": "Ninja",

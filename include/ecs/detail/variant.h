@@ -1,7 +1,7 @@
 #ifndef ECS_DETAIL_VARIANT_H
 #define ECS_DETAIL_VARIANT_H
 
-// #include "type_list.h"
+#include <concepts>
 
 namespace ecs::detail {
 	template <typename T>
@@ -14,16 +14,16 @@ namespace ecs::detail {
 		}
 
 		if constexpr (is_variant<A>) {
-			static_assert(!std::is_same_v<A, typename A::variant_of>, "Types can not be variant with themselves");
-			if (std::is_same_v<typename A::variant_of, B>)
+			static_assert(!std::same_as<A, typename A::variant_of>, "Types can not be variant with themselves");
+			if (std::same_as<typename A::variant_of, B>)
 				return true;
 			if (is_variant<typename A::variant_of>)
 				return is_variant_of<typename A::variant_of, B>();
 		}
 
 		if constexpr (is_variant<B>) {
-			static_assert(!std::is_same_v<B, typename B::variant_of>, "Types can not be variant with themselves");
-			if (std::is_same_v<typename B::variant_of, A>)
+			static_assert(!std::same_as<B, typename B::variant_of>, "Types can not be variant with themselves");
+			if (std::same_as<typename B::variant_of, A>)
 				return true;
 			if (is_variant<typename B::variant_of>)
 				return is_variant_of<typename B::variant_of, A>();
