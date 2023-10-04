@@ -1,21 +1,12 @@
 #include <ecs/ecs.h>
+#include <ecs/detail/variant.h>
 #include <iostream>
-#include <ecs/variant.h>
-#include <typeinfo>
+
+// Prints out 'ACB'
 
 struct A { };
 struct B { using variant_of = A; };
 struct C { using variant_of = B; };
-
-static_assert(!ecs::detail::is_variant<A>);
-static_assert(ecs::detail::is_variant<B>);
-static_assert(ecs::detail::is_variant<C>);
-static_assert(ecs::detail::is_variant_of<A, B>());
-static_assert(ecs::detail::is_variant_of<A, C>());
-static_assert(ecs::detail::is_variant_of<B, A>());
-static_assert(ecs::detail::is_variant_of<B, C>());
-static_assert(ecs::detail::is_variant_of<C, A>());
-static_assert(ecs::detail::is_variant_of<C, B>());
 
 int main() {
 	ecs::runtime rt;
@@ -24,7 +15,7 @@ int main() {
 	rt.make_system([](B) { std::cout << 'B'; });
 	rt.make_system([](C) { std::cout << 'C'; });
 
-	// Print A
+	// Print 'A'
 	rt.add_component(0, A{});
 	rt.update();
 
@@ -37,6 +28,8 @@ int main() {
 	rt.update();
 
 	// Print nothing
-	rt.remove_component<C>(0);
+	rt.remove_component<B>(0);
 	rt.update();
+
+	//rt.add_component(0, A{}, B{}, C{}); 
 }

@@ -185,6 +185,17 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(pool.num_components() == 0);
 		}
+		SECTION("that don't exist does nothing") {
+			ecs::detail::component_pool<int> pool;
+			pool.remove({0, 5});
+			pool.process_changes();
+
+			pool.add({6, 10}, int{});
+			pool.process_changes();
+			pool.remove({0, 5});
+			pool.process_changes();
+			SUCCEED();
+		}
 	}
 
 	SECTION("A non empty pool") {
