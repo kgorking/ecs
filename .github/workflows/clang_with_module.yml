@@ -39,6 +39,7 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh ${{ matrix.version }}
+        sudo apt remove libstdc++-13-dev
         sudo apt install clang-tools-${{ matrix.version }} libstdc++-12-dev
 
     - name: Configure
