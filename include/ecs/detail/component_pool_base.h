@@ -15,6 +15,9 @@ public:
 	virtual void process_changes() = 0;
 	virtual void clear_flags() = 0;
 	virtual void clear() = 0;
+
+	// facilitate variant implementation
+	virtual void remove(entity_range const range) = 0;
 };
 } // namespace ecs::detail
 

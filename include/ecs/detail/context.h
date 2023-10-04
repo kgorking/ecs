@@ -20,7 +20,7 @@
 #include "system_sorted.h"
 #include "type_hash.h"
 #include "type_list.h"
-
+#include "variant.h"
 
 namespace ecs::detail {
 // The central class of the ecs implementation. Maintains the state of the system.
@@ -243,14 +243,31 @@ private:
 		}
 	}
 
+	template<typename T, typename V>
+	void setup_variant_pool(component_pool<T>& pool, component_pool<V>& variant_pool) {
+		pool.add_variant(&variant_pool);
+		variant_pool.add_variant(&pool);
+		if constexpr (is_variant<V> && !std::same_as<T, V>) {
+			setup_variant_pool(pool, get_component_pool<variant_t<V>>());
+		}
+	}
+
 	// Create a component pool for a new type
 	template <typename T>
 	component_pool_base* create_component_pool() {
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
+
+		// Set up variants
+		if constexpr (ecs::detail::is_variant<T>) {
+			setup_variant_pool(*pool.get(), get_component_pool<variant_t<T>>());
+		}
+
+		// Store the pool and its type hash
 		static constexpr auto hash = get_type_hash<T>();
 		pool_type_hash.push_back(hash);
 		component_pools.push_back(std::move(pool));
+
 		return component_pools.back().get();
 	}
 };

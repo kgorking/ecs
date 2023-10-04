@@ -140,6 +140,8 @@ private:
 
 	std::vector<chunk> chunks;
 
+	std::vector<component_pool_base*> variants;
+
 	// Status flags
 	bool components_added : 1 = false;
 	bool components_removed : 1 = false;
@@ -179,7 +181,7 @@ public:
 	// Pre: range and span must be same size.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
 		Pre(range.count() == std::ssize(span), "range and span must be same size");
-
+		remove_from_variants(range);
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
 	}
@@ -189,6 +191,7 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	template <typename Fn>
 	void add_generator(entity_range const range, Fn&& gen) {
+		remove_from_variants(range);
 		// Add the range and function to a temp storage
 		deferred_gen.local().emplace_back(range, std::forward<Fn>(gen));
 	}
@@ -197,6 +200,7 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add(entity_range const range, T&& component) noexcept {
+		remove_from_variants(range);
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
@@ -208,10 +212,25 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add(entity_range const range, T const& component) noexcept {
+		remove_from_variants(range);
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
 			deferred_adds.local().emplace_back(range, component);
+		}
+	}
+
+	// Adds a variant of this component
+	void add_variant(component_pool_base* variant) {
+		Pre(nullptr != variant, "variant can not be null");
+		if (std::ranges::find(variants, variant) == variants.end())
+			variants.push_back(variant);
+	}
+
+	// Remove a range from the variants
+	void remove_from_variants(entity_range const range) {
+		for (component_pool_base* variant : variants) {
+			variant->remove(range);
 		}
 	}
 
@@ -226,7 +245,7 @@ public:
 	}
 
 	// Remove an entity from the component pool.
-	void remove(entity_range const range) noexcept {
+	void remove(entity_range const range) noexcept override {
 		deferred_removes.local().push_back(range);
 	}
 
