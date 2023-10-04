@@ -139,7 +139,6 @@ private:
 	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
 
 	std::vector<chunk> chunks;
-
 	std::vector<component_pool_base*> variants;
 
 	// Status flags
