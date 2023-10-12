@@ -48,6 +48,9 @@ if (MSVC)
     target_compile_options(ecs INTERFACE
         #/std:c++latest
 
+		# Match 'std' module
+		/EHsc
+
         # enable lots of warnings
         /W4
 

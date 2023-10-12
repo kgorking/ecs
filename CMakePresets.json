@@ -246,7 +246,7 @@
         "ECS_COMPILE_AS_MODULE": false,
         "CMAKE_C_COMPILER": "clang-16",
         "CMAKE_CXX_COMPILER": "clang++-16"
-      },
+      }
     },
     {
       "name": "windows-2022-debug",
@@ -256,8 +256,8 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "architecture": {
-        "value": "x64",
-        "strategy": "external"
+        "strategy": "external",
+        "value": "x64"
       },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -266,11 +266,11 @@
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "enableMicrosoftCodeAnalysis": true,
+          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset",
           "hostOS": [
             "Windows"
-          ],
-          "enableMicrosoftCodeAnalysis": true,
-          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset"
+          ]
         }
       }
     },

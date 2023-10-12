@@ -1,7 +1,8 @@
 ﻿// Auto-generated single-header include file
-#if defined(__cpp_lib_modules)
+#if __cpp_lib_modules
 #if defined(_MSC_VER) && _MSC_VER <= 1938
 import std.core;
+//import std.chrono;
 #else
 import std;
 #endif
@@ -1986,7 +1987,7 @@ public:
 		}
 	}
 
-	// Adds a variant of this component
+	// Adds a variant to this component pool
 	void add_variant(component_pool_base* variant) {
 		Pre(nullptr != variant, "variant can not be null");
 		if (std::ranges::find(variants, variant) == variants.end())

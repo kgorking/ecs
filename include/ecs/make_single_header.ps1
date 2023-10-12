@@ -42,7 +42,7 @@ $files = (
 
 # Write all system includes
 $sys_headers = '// Auto-generated single-header include file
-#if defined(__cpp_lib_modules)
+#if __cpp_lib_modules
 #if defined(_MSC_VER) && _MSC_VER <= 1938
 import std.core;
 #else
