@@ -59,7 +59,7 @@ import std;
 #include <iostream>
 #include <limits>
 #include <memory>
-#include <mutex> // needed for scoped_lock
+#include <mutex>
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
@@ -70,10 +70,6 @@ import std;
 #include <type_traits>
 #include <utility>
 #include <vector>
-#endif
-
-#ifndef ECS_EXPORT
-#define ECS_EXPORT
 #endif
 '
 

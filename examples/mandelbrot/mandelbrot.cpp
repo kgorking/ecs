@@ -1,5 +1,5 @@
-#include <complex>
 #include <ecs/ecs.h>
+#include <complex>
 #include <iostream>
 
 // Based on https://solarianprogrammer.com/2013/02/28/mandelbrot-set-cpp-11/
