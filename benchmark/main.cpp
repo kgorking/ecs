@@ -1,8 +1,8 @@
-#include <ecs/ecs.h>
-#include <complex>
-#include "benchmark/benchmark.h"
+//#include <ecs/ecs.h>
+//#include <complex>
+#include "gbench/include/benchmark/benchmark.h"
 
-void benchmark_system(ecs::entity_id ent, int &color) noexcept {
+/*void benchmark_system(ecs::entity_id ent, int& color) noexcept {
 	constexpr int dimension = 16384;
 	constexpr int max_iterations = 50;
 	constexpr double fr_w = 1.5;
@@ -27,6 +27,6 @@ void benchmark_system(ecs::entity_id ent, int &color) noexcept {
 	}
 
 	color = iter;
-}
+}*/
 
 BENCHMARK_MAIN();
