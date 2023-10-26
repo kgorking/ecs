@@ -1,7 +1,7 @@
 ﻿module;
 // Auto-generated single-header include file
 #if __cpp_lib_modules
-#if defined(_MSC_VER) && _MSC_VER <= 1938
+#if defined(_MSC_VER)
 import std.core;
 #else
 import std;
@@ -18,7 +18,7 @@ import std;
 #include <iostream>
 #include <limits>
 #include <memory>
-#include <mutex> // needed for scoped_lock
+#include <mutex>
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
@@ -1584,27 +1584,30 @@ ECS_EXPORT struct parent_id : entity_id {
 
 namespace ecs::detail {
 	template <typename T>
-	concept is_variant = requires { T::variant_of(); };
+	concept has_variant_alias = requires { typename T::variant_of; };
+
+	template <has_variant_alias T>
+	using variant_t = typename T::variant_of;
 
 	template <typename A, typename B>
-	constexpr bool is_variant_of() {
-		if constexpr (!is_variant<A> && !is_variant<B>) {
+	consteval bool is_variant_of() {
+		if constexpr (!has_variant_alias<A> && !has_variant_alias<B>) {
 			return false;
 		}
 
-		if constexpr (is_variant<A>) {
+		if constexpr (has_variant_alias<A>) {
 			static_assert(!std::same_as<A, typename A::variant_of>, "Types can not be variant with themselves");
 			if (std::same_as<typename A::variant_of, B>)
 				return true;
-			if (is_variant<typename A::variant_of>)
+			if (has_variant_alias<typename A::variant_of>)
 				return is_variant_of<typename A::variant_of, B>();
 		}
 
-		if constexpr (is_variant<B>) {
+		if constexpr (has_variant_alias<B>) {
 			static_assert(!std::same_as<B, typename B::variant_of>, "Types can not be variant with themselves");
 			if (std::same_as<typename B::variant_of, A>)
 				return true;
-			if (is_variant<typename B::variant_of>)
+			if (has_variant_alias<typename B::variant_of>)
 				return is_variant_of<typename B::variant_of, A>();
 		}
 
@@ -1613,7 +1616,7 @@ namespace ecs::detail {
 
 	// Returns false if any types passed are variants of each other
 	template <typename First, typename... T>
-	constexpr bool is_variant_of_pack() {
+	consteval bool is_variant_of_pack() {
 		if constexpr ((is_variant_of<First, T>() || ...))
 			return true;
 		else {
@@ -1624,8 +1627,24 @@ namespace ecs::detail {
 		}
 	}
 
-	template <is_variant T>
-	using variant_t = typename T::variant_of;
+	template<typename T, typename V>
+	consteval bool check_for_recursive_variant() {
+		if constexpr (std::same_as<T, V>)
+			return true;
+		else if constexpr (!has_variant_alias<V>)
+			return false;
+		else
+			return check_for_recursive_variant<T, variant_t<V>>();
+	}
+
+	template <has_variant_alias T>
+	consteval bool not_recursive_variant() {
+		return !check_for_recursive_variant<T, variant_t<T>>();
+	}
+	template <typename T>
+	consteval bool not_recursive_variant() {
+		return true;
+	}
 } // namespace ecs::detail
 
 #endif
@@ -4387,21 +4406,27 @@ private:
 
 	template<typename T, typename V>
 	void setup_variant_pool(component_pool<T>& pool, component_pool<V>& variant_pool) {
-		pool.add_variant(&variant_pool);
-		variant_pool.add_variant(&pool);
-		if constexpr (is_variant<V> && !std::same_as<T, V>) {
-			setup_variant_pool(pool, get_component_pool<variant_t<V>>());
+		if constexpr (std::same_as<T, V>) {
+			return;
+		} else {
+			pool.add_variant(&variant_pool);
+			variant_pool.add_variant(&pool);
+			if constexpr (has_variant_alias<V> && !std::same_as<T, V>) {
+				setup_variant_pool(pool, get_component_pool<variant_t<V>>());
+			}
 		}
 	}
 
 	// Create a component pool for a new type
 	template <typename T>
 	component_pool_base* create_component_pool() {
+		static_assert(not_recursive_variant<T>(), "variant chain/tree is recursive");
+
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
 
 		// Set up variants
-		if constexpr (ecs::detail::is_variant<T>) {
+		if constexpr (ecs::detail::has_variant_alias<T>) {
 			setup_variant_pool(*pool.get(), get_component_pool<variant_t<T>>());
 		}
 
@@ -4428,7 +4453,7 @@ namespace ecs {
 		// Pre: entity does not already have the component, or have it in queue to be added
 		template <typename... T>
 		constexpr void add_component(entity_range const range, T&&... vals) {
-			static_assert(detail::is_unique_type_args<T...>(), "the same component was specified more than once");
+			static_assert(detail::is_unique_type_args<T...>(), "the same component type was specified more than once");
 			static_assert((!detail::global<T> && ...), "can not add global components to entities");
 			static_assert((!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
 			static_assert((!detail::is_variant_of_pack<T...>()), "Can not add more than one component from the same variant");
@@ -4532,19 +4557,6 @@ namespace ecs {
 		template <typename T>
 		void remove_component(entity_id const id, T const& = T{}) {
 			remove_component<T>({id, id});
-		}
-
-		template <typename TRemove, typename TAdd>
-		void replace_component(entity_id const id, TRemove const& rem, TAdd&& val) {
-			replace_component({id, id}, rem, std::forward<TAdd>(val));
-		}
-
-		// Replace a component with another in a range of entities.
-		// Shorthand helper for a remove/add call
-		template <typename TRemove, typename TAdd>
-		void replace_component(entity_range const range, TRemove const&, TAdd&& val) {
-			remove_component<TRemove>(range);
-			add_component(range, std::forward<TAdd>(val));
 		}
 
 		// Returns a global component.

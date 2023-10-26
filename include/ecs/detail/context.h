@@ -245,21 +245,27 @@ private:
 
 	template<typename T, typename V>
 	void setup_variant_pool(component_pool<T>& pool, component_pool<V>& variant_pool) {
-		pool.add_variant(&variant_pool);
-		variant_pool.add_variant(&pool);
-		if constexpr (is_variant<V> && !std::same_as<T, V>) {
-			setup_variant_pool(pool, get_component_pool<variant_t<V>>());
+		if constexpr (std::same_as<T, V>) {
+			return;
+		} else {
+			pool.add_variant(&variant_pool);
+			variant_pool.add_variant(&pool);
+			if constexpr (has_variant_alias<V> && !std::same_as<T, V>) {
+				setup_variant_pool(pool, get_component_pool<variant_t<V>>());
+			}
 		}
 	}
 
 	// Create a component pool for a new type
 	template <typename T>
 	component_pool_base* create_component_pool() {
+		static_assert(not_recursive_variant<T>(), "variant chain/tree is recursive");
+
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
 
 		// Set up variants
-		if constexpr (ecs::detail::is_variant<T>) {
+		if constexpr (ecs::detail::has_variant_alias<T>) {
 			setup_variant_pool(*pool.get(), get_component_pool<variant_t<T>>());
 		}
 

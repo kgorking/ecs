@@ -131,7 +131,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang-17",
-        "CMAKE_CXX_COMPILER": "clang++-17"
+        "CMAKE_CXX_COMPILER": "clang++-17",
+        "ECS_COMPILE_AS_MODULE": false
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -283,30 +284,6 @@
       }
     },
     {
-      "name": "windows-2019-debug",
-      "displayName": "Debug 2019 (v14.2)",
-      "description": "Target Windows with the Visual Studio development environment.",
-      "generator": "Visual Studio 17 2022",
-      "toolset": "14.2",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      },
-      "vendor": {
-        "microsoft.com/VisualStudioSettings/CMake/1.0": {
-          "hostOS": [
-            "Windows"
-          ],
-          "enableMicrosoftCodeAnalysis": true,
-          "codeAnalysisRuleset": "CppCoreCheckRules.ruleset"
-        }
-      }
-    },
-    {
       "name": "windows-2022-release",
       "displayName": "Release",
       "description": "Target Windows with the Visual Studio development environment.",
@@ -330,6 +307,14 @@
           "enableMicrosoftCodeAnalysis": true,
           "codeAnalysisRuleset": "CppCoreCheckRules.ruleset"
         }
+      }
+    },
+    {
+      "name": "windows-2022-release-modules",
+      "inherits": "windows-2022-release",
+      "displayName": "Release (modules)",
+      "cacheVariables": {
+        "ECS_COMPILE_AS_MODULE": true
       }
     },
     {

@@ -22,7 +22,7 @@ namespace ecs {
 		// Pre: entity does not already have the component, or have it in queue to be added
 		template <typename... T>
 		constexpr void add_component(entity_range const range, T&&... vals) {
-			static_assert(detail::is_unique_type_args<T...>(), "the same component was specified more than once");
+			static_assert(detail::is_unique_type_args<T...>(), "the same component type was specified more than once");
 			static_assert((!detail::global<T> && ...), "can not add global components to entities");
 			static_assert((!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
 			static_assert((!detail::is_variant_of_pack<T...>()), "Can not add more than one component from the same variant");
@@ -126,19 +126,6 @@ namespace ecs {
 		template <typename T>
 		void remove_component(entity_id const id, T const& = T{}) {
 			remove_component<T>({id, id});
-		}
-
-		template <typename TRemove, typename TAdd>
-		void replace_component(entity_id const id, TRemove const& rem, TAdd&& val) {
-			replace_component({id, id}, rem, std::forward<TAdd>(val));
-		}
-
-		// Replace a component with another in a range of entities.
-		// Shorthand helper for a remove/add call
-		template <typename TRemove, typename TAdd>
-		void replace_component(entity_range const range, TRemove const&, TAdd&& val) {
-			remove_component<TRemove>(range);
-			add_component(range, std::forward<TAdd>(val));
 		}
 
 		// Returns a global component.

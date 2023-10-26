@@ -9,7 +9,41 @@ TEST_CASE("Variant components", "[component][variant]") {
 		struct B { using variant_of = A; };
 		struct C { using variant_of = B; };
 
-		// TODO
+		// Compile-time checks
+		#if !defined(ECS_USE_MODULES)
+		static_assert(!ecs::detail::has_variant_alias<A>);
+		static_assert(ecs::detail::has_variant_alias<B>);
+		static_assert(ecs::detail::has_variant_alias<C>);
+		static_assert(ecs::detail::is_variant_of<A, B>());
+		static_assert(ecs::detail::is_variant_of<A, C>());
+		static_assert(ecs::detail::is_variant_of<B, A>());
+		static_assert(ecs::detail::is_variant_of<B, C>());
+		static_assert(ecs::detail::is_variant_of<C, A>());
+		static_assert(ecs::detail::is_variant_of<C, B>());
+		#endif
+
+		ecs::runtime rt;
+
+		// Add 'A'
+		rt.add_component(0, A{});
+		rt.commit_changes();
+		REQUIRE(rt.get_component_count<A>() == 1);
+		REQUIRE(rt.get_component_count<B>() == 0);
+		REQUIRE(rt.get_component_count<C>() == 0);
+
+		// Add 'B', 'A' will be removed
+		rt.add_component(0, B{});
+		rt.commit_changes();
+		REQUIRE(rt.get_component_count<A>() == 0);
+		REQUIRE(rt.get_component_count<B>() == 1);
+		REQUIRE(rt.get_component_count<C>() == 0);
+
+		// Add 'C', 'B' will be removed
+		rt.add_component(0, C{});
+		rt.commit_changes();
+		REQUIRE(rt.get_component_count<A>() == 0);
+		REQUIRE(rt.get_component_count<B>() == 0);
+		REQUIRE(rt.get_component_count<C>() == 1);
 	}
 
 	SECTION("tree-variant") {
@@ -85,6 +119,12 @@ TEST_CASE("Variant components", "[component][variant]") {
 		struct B { using variant_of = A; };
 		struct C { using variant_of = B; };
 
-		// TODO ?
+		#if !defined(ECS_USE_MODULES)
+		static_assert(!ecs::detail::not_recursive_variant<B>());
+		#endif
+
+		// Will not compile
+		//ecs::runtime rt;
+		//rt.add_component(0, A{});
 	}
 }

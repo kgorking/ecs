@@ -43,7 +43,7 @@ $files = (
 # Write all system includes
 $sys_headers = '// Auto-generated single-header include file
 #if __cpp_lib_modules
-#if defined(_MSC_VER) && _MSC_VER <= 1938
+#if defined(_MSC_VER)
 import std.core;
 #else
 import std;
@@ -60,7 +60,7 @@ import std;
 #include <iostream>
 #include <limits>
 #include <memory>
-#include <mutex> // needed for scoped_lock
+#include <mutex>
 #include <optional>
 #include <ranges>
 #include <shared_mutex>

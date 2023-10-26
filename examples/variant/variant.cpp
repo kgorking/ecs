@@ -29,6 +29,4 @@ int main() {
 	// Print nothing
 	rt.remove_component<B>(0);
 	rt.update();
-
-	//rt.add_component(0, A{}, B{}, C{}); // fails to compile
 }
