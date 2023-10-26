@@ -1,4 +1,4 @@
-name: Clang 17-18 (module)
+name: Clang 16-18 (module)
 
 on:
   workflow_run:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        version: [17, 18]
+        version: [16, 17, 18]
         modules: [false, true]
         built_type: [Debug, Release]
 

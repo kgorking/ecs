@@ -12,7 +12,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         version: [13, 16]
         built_type: [Debug, Release]
@@ -39,8 +39,8 @@ jobs:
         chmod +x llvm.sh
         sudo ./llvm.sh ${{ matrix.version }}
         sudo apt install clang-tools-${{ matrix.version }}
-        sudo apt remove libstdc++-13-dev
-        sudo apt install libstdc++-12-dev
+        #sudo apt remove libstdc++-13-dev
+        #sudo apt install libstdc++-12-dev
 
     - name: Configure
       shell: cmake -P {0}
