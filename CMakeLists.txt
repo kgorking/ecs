@@ -7,9 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set up some options
 set(ECS_STANDALONE_PROJECT OFF)
-set(ECS_COMPILE_AS_MODULE OFF CACHE BOOL "Compile 'ecs' to a module")
-set(ECS_ENABLE_CONTRACTS ON CACHE BOOL "Use contracts internally to verify state")
-set(ECS_ENABLE_CONTRACTS_AUDIT OFF CACHE BOOL "Enable expensive contracts. Should only be used for debugging")
+option(ECS_COMPILE_AS_MODULE "Compile 'ecs' to a module" OFF)
+option(ECS_ENABLE_CONTRACTS "Use contracts internally to verify state" ON)
+option(ECS_ENABLE_CONTRACTS_AUDIT "Enable expensive contracts. Should only be used for debugging" OFF)
 
 if (ECS_COMPILE_AS_MODULE)
 	# Module stuff (experimental)

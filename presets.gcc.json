@@ -1,0 +1,96 @@
+{
+  "configurePresets": [
+    {
+      "hidden": true,
+      "name": "gcc-base",
+      "description": "Target the Windows Subsystem for Linux or a remote Linux system.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "environment": {
+        "VERSION": "11"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc-$env{VERSION}",
+        "CMAKE_CXX_COMPILER": "g++-$env{VERSION}"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [
+            "Linux"
+          ],
+          "intelliSenseMode": "linux-gcc-x64"
+        },
+        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+          "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "name": "gcc-11-debug",
+      "inherits": "gcc-base",
+      "environment": {
+        "VERSION": "11"
+      }
+    },
+    {
+      "name": "gcc-11-release",
+      "inherits": "gcc-11-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "gcc-12-debug",
+      "inherits": "gcc-base",
+      "environment": {
+        "VERSION": "12"
+      }
+    },
+    {
+      "name": "gcc-12-release",
+      "inherits": "gcc-12-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "gcc-13-debug",
+      "inherits": "gcc-base",
+      "environment": {
+        "VERSION": "13"
+      }
+    },
+    {
+      "name": "gcc-13-release",
+      "inherits": "gcc-13-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "gcc-14-debug",
+      "inherits": "gcc-base",
+      "environment": {
+        "VERSION": "14"
+      }
+    },
+    {
+      "name": "gcc-14-debug-module",
+      "inherits": "gcc-base",
+      "environment": {
+        "VERSION": "14"
+      },
+      "cacheVariables": {
+        "ECS_COMPILE_AS_MODULE": true
+      }
+    },
+    {
+      "name": "gcc-14-release",
+      "inherits": "gcc-14-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ]
+}
