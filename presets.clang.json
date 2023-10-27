@@ -1,0 +1,72 @@
+{
+  "configurePresets": [
+    {
+      "hidden": true,
+      "name": "clang-base",
+      "environment": {
+        "VERSION": "14",
+        "CONFIG": "Debug"
+      },
+      "displayname": "Clang $env{VERSION} - $env{CONFIG}",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "$env{CONFIG}",
+        "CMAKE_C_COMPILER": "clang-$env{VERSION}",
+        "CMAKE_CXX_COMPILER": "clang++-$env{VERSION}"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [ "Linux" ],
+          "intelliSenseMode": "linux-gcc-x64"
+        },
+        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+          "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "name": "clang-16-debug",
+      "inherits": "clang-base",
+      "environment": {
+        "VERSION": "16",
+        "CONFIG": "Debug"
+      }
+    },
+    {
+      "name": "clang-16-debug-module",
+      "inherits": "clang-16-debug",
+      "cacheVariables": {
+        "ECS_COMPILE_AS_MODULE": true
+      }
+    },
+    {
+      "name": "clang-17-debug",
+      "inherits": "clang-16-debug",
+      "environment": {
+        "VERSION": "17"
+      }
+    },
+    {
+      "name": "clang-17-debug-module",
+      "inherits": "clang-16-debug-module",
+      "environment": {
+        "VERSION": "17"
+      }
+    },
+    {
+      "name": "clang-18-debug",
+      "inherits": "clang-17-debug",
+      "environment": {
+        "VERSION": "18"
+      }
+    },
+    {
+      "name": "clang-18-debug-module",
+      "inherits": "clang-17-debug-module",
+      "environment": {
+        "VERSION": "18"
+      }
+    }
+  ]
+}

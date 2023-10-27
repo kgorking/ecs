@@ -31,7 +31,6 @@ import std;
 #include <vector>
 #endif
 
-
 export module ecs;
 #define ECS_EXPORT export
 

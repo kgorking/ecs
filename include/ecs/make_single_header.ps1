@@ -72,7 +72,6 @@ import std;
 #include <utility>
 #include <vector>
 #endif
-
 '
 
 # Write out module

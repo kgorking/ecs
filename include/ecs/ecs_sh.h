@@ -30,7 +30,6 @@ import std;
 #include <vector>
 #endif
 
-
 #ifndef TLS_CACHE
 #define TLS_CACHE
 
