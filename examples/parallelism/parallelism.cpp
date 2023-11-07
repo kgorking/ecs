@@ -5,23 +5,24 @@
 
 int main() {
 	using namespace std::chrono_literals;
-
-	// The lambda used by both the serial- and parallel systems
-	auto constexpr sys_sleep = [](short const &) { std::this_thread::sleep_for(50ms); };
-
 	using namespace ecs::opts;
 
-	// Make the systems
-	ecs::runtime rt;
-	auto &serial_sys = rt.make_system<not_parallel, manual_update>(sys_sleep);
-	auto &parallel_sys = rt.make_system<manual_update>(sys_sleep);
+	// The lambda used by both the serial- and parallel systems
+	auto constexpr sys_sleep = [](short) { std::this_thread::sleep_for(1s); };
 
-	// Create a range of entities that would
-	// take 5 seconds to process serially
-	rt.add_component({0, 20 - 1}, short{0});
+    // print thread-count
+	std::cout << "hardware threads: " << std::thread::hardware_concurrency() << "\n\n";
+
+	// Create a range of entities
+	ecs::runtime rt;
+	rt.add_component({0, 2}, short{});
 
 	// Commit the components (does not run the systems)
 	rt.commit_changes();
+
+	// Make the systems
+	auto &serial_sys = rt.make_system<not_parallel, manual_update>(sys_sleep);
+	auto &parallel_sys = rt.make_system<manual_update>(sys_sleep);
 
 	// Time the serial system
 	std::cout << "Running serial system: ";

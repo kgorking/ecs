@@ -1615,17 +1615,22 @@ struct flags {
 // Some helper concepts/struct to detect flags
 namespace ecs::detail {
 
+// Strip a type of all its modifiers
 template <typename T>
-concept tagged = ComponentFlags::tag == (T::ecs_flags::val & ComponentFlags::tag);
+using stripped_t = std::remove_pointer_t<std::remove_cvref_t<T>>;
+
 
 template <typename T>
-concept transient = ComponentFlags::transient == (T::ecs_flags::val & ComponentFlags::transient);
+concept tagged = ComponentFlags::tag == (stripped_t<T>::ecs_flags::val & ComponentFlags::tag);
 
 template <typename T>
-concept immutable = ComponentFlags::immutable == (T::ecs_flags::val & ComponentFlags::immutable);
+concept transient = ComponentFlags::transient == (stripped_t<T>::ecs_flags::val & ComponentFlags::transient);
 
 template <typename T>
-concept global = ComponentFlags::global == (T::ecs_flags::val & ComponentFlags::global);
+concept immutable = ComponentFlags::immutable == (stripped_t<T>::ecs_flags::val & ComponentFlags::immutable);
+
+template <typename T>
+concept global = ComponentFlags::global == (stripped_t<T>::ecs_flags::val & ComponentFlags::global);
 
 template <typename T>
 concept local = !global<T>;
@@ -2786,8 +2791,7 @@ constexpr void verify_parent_component() {
 
 		if constexpr (total_subtypes > 0) {
 			// Count all the filters in the parent type
-			size_t const num_subtype_filters =
-				for_all_types<parent_subtypes>([]<typename... Types>() { return (std::is_pointer_v<Types> + ...); });
+			size_t const num_subtype_filters = count_type_if<parent_subtypes, std::is_pointer>();
 
 			// Count all the types minus filters in the parent type
 			size_t const num_parent_subtypes = total_subtypes - num_subtype_filters;
@@ -2806,7 +2810,7 @@ constexpr void verify_parent_component() {
 // Implement the requirements for tagged components
 template <typename C>
 constexpr void verify_tagged_component() {
-	if constexpr (detail::tagged<C>)
+	if constexpr (!std::is_pointer_v<C> && detail::tagged<C>)
 		static_assert(!std::is_reference_v<C> && (sizeof(C) == 1), "components flagged as 'tag' must not be references");
 }
 
@@ -2820,15 +2824,17 @@ constexpr void verify_global_component() {
 // Implement the requirements for immutable components
 template <typename C>
 constexpr void verify_immutable_component() {
-	if constexpr (detail::immutable<C>)
+	if constexpr (detail::immutable<C>) {
 		static_assert(std::is_const_v<std::remove_reference_t<C>>, "components flagged as 'immutable' must also be const");
+	}
 }
 
 template <typename R, typename FirstArg, typename... Args>
 constexpr void system_verifier() {
 	static_assert(std::is_same_v<R, void>, "systems can not have return values");
 
-	static_assert(is_unique_type_args<FirstArg, Args...>(), "component parameter types can only be specified once");
+	static_assert(is_unique_type_args < std::remove_cvref_t<FirstArg>, std::remove_cvref_t<Args>...>(),
+				  "component parameter types can only be specified once");
 
 	if constexpr (is_entity<FirstArg>) {
 		static_assert(sizeof...(Args) > 0, "systems must take at least one component argument");
@@ -2875,7 +2881,7 @@ concept type_is_function = requires(T t) {
 };
 
 template <typename OptionsTypeList, typename SystemFunc, typename SortFunc>
-consteval bool make_system_parameter_verifier() {
+constexpr bool make_system_parameter_verifier() {
 	bool constexpr is_lambda = type_is_lambda<SystemFunc>;
 	bool constexpr is_func = type_is_function<SystemFunc>;
 

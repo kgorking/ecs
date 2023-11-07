@@ -296,7 +296,7 @@ rt.make_system([](entity_id id, parent<> const& p) {
 ```
 The angular brackets are needed because `ecs::parent` is a templated component which allows you to specify which, if any, of the parents components you would like access to.
 
-### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o9fer87x6)
+### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/TMMT3crW4)
 A parents sub-components can be accessed by specifying them in a systems parent parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to access. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
 
 If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must always be taken as a value or a constant reference in systems, or an error will be reported.
@@ -386,7 +386,7 @@ rt.update(); // will not run 'manual_sys'
 manual_sys.run(); // required to run the system
 ```
 
-### `opts::not_parallel`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/MK9xcTedq)
+### `opts::not_parallel`
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
 It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::collect`](https://github.com/kgorking/tls/blob/master/examples/collect/accumulate/accumulate.cpp) in these cases, if possible.
@@ -394,7 +394,7 @@ It should not be used to avoid data races when writing to a shared variable not 
 # Component Flags
 The behavior of components can be changed by using component flags, which can change how they are managed internally and can offer performance and memory benefits.
 
-### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/dj8WjTWbE)
+### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o5TKxz4d4)
 Marking a component as a *tag* is used for components that signal some kind of state, without needing to
 take up any memory. For instance, you could use it to tag certain entities as having some form of capability,
 like a 'freezable' tag to mark stuff that can be frozen.
@@ -417,11 +417,11 @@ rt.make_system([](greeting const& g, freezable) {
 
 If tag components are marked as anything other than pass-by-value, the compiler will drop a little error message to remind you.
 
-### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/rnbsooorb)
+### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/3bM45M5WY)
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
 This is used for passing read-only data to systems. If a component is marked as `immutable` and is used in a system without being marked `const`, you will get a compile-time error reminding you to make it constant.
 
-### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/W7hvrnjT6)
+### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/cErs8M1q3)
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
@@ -435,7 +435,7 @@ rt.commit_changes(); // adds the 100 damage components
 rt.commit_changes(); // removes the 100 damage components
 ```
 
-### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/4Y9zsMPe1)
+### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/svc1qMrnn)
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
