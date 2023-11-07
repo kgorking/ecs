@@ -15,6 +15,7 @@ else()
 endif()
 endmacro()
 
+make_test (test_component_flags "component_flags.cpp")
 make_test (test_component_removal "component_removal.cpp")
 make_test (test_component_pool "component_pool.cpp")
 make_test (test_entity_range "entity_range.cpp")
