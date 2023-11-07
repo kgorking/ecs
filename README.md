@@ -409,7 +409,7 @@ It should not be used to avoid data races when writing to a shared variable not 
 # Component Flags
 The behavior of components can be changed by using component flags, which can change how they are managed internally and can offer performance and memory benefits.
 
-### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/dj8WjTWbE)
+### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o5TKxz4d4)
 Marking a component as a *tag* is used for components that signal some kind of state, without needing to
 take up any memory. For instance, you could use it to tag certain entities as having some form of capability,
 like a 'freezable' tag to mark stuff that can be frozen.
