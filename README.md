@@ -13,8 +13,8 @@ Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-
 The following example shows the basics of the library.
 
 ```cpp
+import ecs; // or #include <ecs/ecs.h> if library is not built as a module.
 #include <iostream>
-#include <ecs/ecs.h>
 
 // The component
 struct greeting {
