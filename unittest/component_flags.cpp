@@ -1,4 +1,4 @@
-#include <ecs/runtime.h>
+#include <ecs/ecs_sh.h>
 
 struct test_tag {
 	using ecs_flags = ecs::flags<ecs::tag>;
