@@ -259,12 +259,11 @@ An additional function object can be passed along to `ecs::runtime::make_system`
 ```cpp
 ecs::runtime rt;
 
-rt.make_system(
-    [](int const&) { /* ... */ },
+rt.make_system([](int, std::string) { ... },
     std::less<int>());
 ```
 
-Integers passed to the system will arrive from lowest to highest.
+The components of entities processed by the system, will arrive in the order of the integers on those entities.
 
 Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
 
