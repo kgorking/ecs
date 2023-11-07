@@ -127,4 +127,15 @@ TEST_CASE("Variant components", "[component][variant]") {
 		//ecs::runtime rt;
 		//rt.add_component(0, A{});
 	}
+
+	SECTION("Can not add more than one variant at the time") {
+		struct A {};
+		struct B { using variant_of = A; };
+
+		ecs::runtime rt;
+
+		rt.add_component(0, A{});
+		rt.add_component(0, B{});
+		rt.commit_changes();
+	}
 }
