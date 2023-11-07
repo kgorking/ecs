@@ -36,17 +36,22 @@ struct flags {
 // Some helper concepts/struct to detect flags
 namespace ecs::detail {
 
+// Strip a type of all its modifiers
 template <typename T>
-concept tagged = ComponentFlags::tag == (T::ecs_flags::val & ComponentFlags::tag);
+using stripped_t = std::remove_pointer_t<std::remove_cvref_t<T>>;
+
 
 template <typename T>
-concept transient = ComponentFlags::transient == (T::ecs_flags::val & ComponentFlags::transient);
+concept tagged = ComponentFlags::tag == (stripped_t<T>::ecs_flags::val & ComponentFlags::tag);
 
 template <typename T>
-concept immutable = ComponentFlags::immutable == (T::ecs_flags::val & ComponentFlags::immutable);
+concept transient = ComponentFlags::transient == (stripped_t<T>::ecs_flags::val & ComponentFlags::transient);
 
 template <typename T>
-concept global = ComponentFlags::global == (T::ecs_flags::val & ComponentFlags::global);
+concept immutable = ComponentFlags::immutable == (stripped_t<T>::ecs_flags::val & ComponentFlags::immutable);
+
+template <typename T>
+concept global = ComponentFlags::global == (stripped_t<T>::ecs_flags::val & ComponentFlags::global);
 
 template <typename T>
 concept local = !global<T>;

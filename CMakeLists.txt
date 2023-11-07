@@ -52,6 +52,7 @@ if (MSVC)
 
 		# allow `import std.core`
 		/experimental:module
+		/EHsc
 
         # treat warnings as errors
         /WX

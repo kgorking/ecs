@@ -2,15 +2,9 @@
 #include <iostream>
 #include <string>
 
-struct flameable_t {
-	using ecs_flags = ecs::flags<ecs::tag>;
-};
-struct freezeable_t {
-	using ecs_flags = ecs::flags<ecs::tag>;
-};
-struct shockable_t {
-	using ecs_flags = ecs::flags<ecs::tag>;
-};
+struct flameable_t { using ecs_flags = ecs::flags<ecs::tag>; };
+struct freezeable_t { using ecs_flags = ecs::flags<ecs::tag>; };
+struct shockable_t { using ecs_flags = ecs::flags<ecs::tag>; };
 
 struct Name : std::string {};
 
