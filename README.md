@@ -436,7 +436,7 @@ If tag components are marked as anything other than pass-by-value, the compiler 
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
 This is used for passing read-only data to systems. If a component is marked as `immutable` and is used in a system without being marked `const`, you will get a compile-time error reminding you to make it constant.
 
-### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/W7hvrnjT6)
+### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/cErs8M1q3)
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
