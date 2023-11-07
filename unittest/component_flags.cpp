@@ -22,3 +22,5 @@ struct test_global {
 	using ecs_flags = ecs::flags<ecs::global>;
 };
 static_assert(ecs::detail::global<test_global>);
+
+int main() {}
