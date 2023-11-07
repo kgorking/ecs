@@ -432,7 +432,7 @@ rt.make_system([](greeting const& g, freezable) {
 
 If tag components are marked as anything other than pass-by-value, the compiler will drop a little error message to remind you.
 
-### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/rnbsooorb)
+### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/3bM45M5WY)
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
 This is used for passing read-only data to systems. If a component is marked as `immutable` and is used in a system without being marked `const`, you will get a compile-time error reminding you to make it constant.
 
