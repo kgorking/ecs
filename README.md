@@ -253,32 +253,17 @@ rt.make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Ge1PMaM97)
+## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/393qs3YE1)
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
 ecs::runtime rt;
 
-// sort descending
-auto &sys_dec = rt.make_system(
-    [](int const&) { /* ... */ },
+rt.make_system([](int, std::string) { ... },
     std::less<int>());
-
-// sort ascending
-auto & sys_asc = rt.make_system(
-    [](int const&) { /* ... */ },
-    std::greater<int>());
-
-// sort length
-auto &sys_pos = rt.make_system(
-    [](position& pos, some_component const&) { /* ... */ },
-    [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
 ```
 
-* Integers passed to `sys_dec` will arrive in descending order, from highest to lowest.
-* Integers passed to `sys_asc` will arrive in ascending order.
-* Positions passed to `sys_pos` will be sorted according to their length.<br>
-  You could have sorted on the `some_component` instead.
+The components of entities processed by the system, will arrive in the order of the integers on those entities.
 
 Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
 
