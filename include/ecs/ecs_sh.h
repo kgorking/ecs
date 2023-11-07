@@ -1,4 +1,9 @@
-﻿// Auto-generated single-header include file
+﻿
+#ifndef ECS_EXPORT
+#define ECS_EXPORT
+#endif
+
+// Auto-generated single-header include file
 #if defined(__cpp_lib_modules)
 #if defined(_MSC_VER) && _MSC_VER <= 1938
 import std.core;

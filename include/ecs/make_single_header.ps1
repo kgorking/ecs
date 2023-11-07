@@ -81,7 +81,12 @@ export module ecs;
 " > ecs.ixx
 
 # Write out single-include header
-$sys_headers > ecs_sh.h
+"
+#ifndef ECS_EXPORT
+#define ECS_EXPORT
+#endif
+" > ecs_sh.h
+$sys_headers >> ecs_sh.h
 
 # Filter out the local includes from the content of each header and pipe it to ecs_sh.h
 $filtered = (sls -Path $files -SimpleMatch -Pattern '#include' -NotMatch).Line
