@@ -81,8 +81,7 @@ export module ecs;
 " > ecs.ixx
 
 # Write out single-include header
-"
-#ifndef ECS_EXPORT
+"#ifndef ECS_EXPORT
 #define ECS_EXPORT
 #endif
 " > ecs_sh.h

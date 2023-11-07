@@ -1,5 +1,4 @@
-﻿
-#ifndef ECS_EXPORT
+﻿#ifndef ECS_EXPORT
 #define ECS_EXPORT
 #endif
 
