@@ -105,7 +105,7 @@ int main() {
 		using ecs_flags = ecs::flags<ecs::transient>;
 		const char* msg = "hello!";
 	};
-	rt.make_system([](state_idle const &, ev_hello const &ev) { std::cout << "ev_hello: state_idle says '" << ev.msg << "'\n"; });
+	rt.make_system([](state_idle, ev_hello const &ev) { std::cout << "ev_hello: state_idle says '" << ev.msg << "'\n"; });
 
 	rt.add_component(fsm, ev_hello{});
 	rt.update();
