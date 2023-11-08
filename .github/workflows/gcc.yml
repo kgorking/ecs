@@ -12,7 +12,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         version: [11, 12, 13]
         built_type: [Debug, Release]
