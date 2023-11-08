@@ -170,6 +170,10 @@ public:
 			chunks.clear();
 		} else {
 			free_all_chunks();
+			deferred_adds.clear();
+			deferred_spans.clear();
+			deferred_gen.clear();
+			deferred_removes.clear();
 		}
 	}
 
@@ -276,7 +280,7 @@ public:
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	void process_changes() noexcept override {
+	void process_changes() override {
 		if constexpr (!global<T>) {
 			process_remove_components();
 			process_add_components();
@@ -573,7 +577,7 @@ private:
 	}
 
 	template <typename U>
-	void process_add_components(std::vector<U> const& vec) noexcept {
+	void process_add_components(std::vector<U> const& vec) {
 		if (vec.empty()) {
 			return;
 		}
@@ -620,7 +624,7 @@ private:
 	}
 
 	// Add new queued entities and components to the main storage.
-	void process_add_components() noexcept {
+	void process_add_components() {
 		auto const adder = [this]<typename C>(std::vector<C>& vec) {
 			if (vec.empty())
 				return;
