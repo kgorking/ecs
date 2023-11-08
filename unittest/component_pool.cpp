@@ -3,6 +3,18 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
+// Override the default handler for contract violations.
+struct unittest_handler {
+	void assertion_failed(char const* , char const* msg)        { throw std::runtime_error(msg); }
+	void precondition_violation(char const* , char const* msg)  { throw std::runtime_error(msg); }
+	void postcondition_violation(char const* , char const* msg) { throw std::runtime_error(msg); }
+};
+#ifndef __clang__ // currently bugged in clang
+template <>
+auto ecs::contract_violation_handler<> = unittest_handler{};
+#endif
+
+// A helper class that counts invocations of constructers/destructor
 struct ctr_counter {
 	inline static size_t def_ctr_count = 0;
 	inline static size_t ctr_count = 0;

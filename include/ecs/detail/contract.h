@@ -41,9 +41,10 @@ struct default_contract_violation_impl {
 } // namespace ecs::detail
 
 // The contract violation interface, which can be overridden by users
-
+ECS_EXPORT namespace ecs {
 template <typename...>
 inline auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
+}
 
 namespace ecs::detail {
 template <typename... DummyArgs>
