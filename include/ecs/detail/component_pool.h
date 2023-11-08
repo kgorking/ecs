@@ -181,8 +181,9 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	// Pre: range and span must be same size.
-	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Pre(range.count() == std::ssize(span), "range and span must be same size");
+	void add_span(entity_range const range, std::span<const T> span) requires(!detail::unbound<T>) {
+		// Check in runtime.h
+		//Pre(range.count() == std::ssize(span), "range and span must be same size");
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
@@ -602,7 +603,8 @@ private:
 
 				if (curr->range.overlaps(r)) {
 					// Delayed pre-condition check: Can not add components more than once to same entity
-					Pre(!curr->active.overlaps(r), "entity already has a component of the type");
+					// Checked in runtime.h
+					//Pre(!curr->active.overlaps(r), "entity already has a component of the type");
 
 					// Incoming range overlaps the current one, so add it into 'curr'
 					fill_data_in_existing_chunk(curr, r);
