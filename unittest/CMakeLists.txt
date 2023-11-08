@@ -1,5 +1,7 @@
 ﻿cmake_minimum_required (VERSION 3.15)
 
+set(ECS_ENABLE_CONTRACTS ON)
+
 macro(make_test)
 	add_executable (${ARGV0} ${ARGV1})
 	target_link_libraries(${ARGV0} ecs)
@@ -15,6 +17,7 @@ else()
 endif()
 endmacro()
 
+make_test (test_component_flags "component_flags.cpp")
 make_test (test_component_removal "component_removal.cpp")
 make_test (test_component_pool "component_pool.cpp")
 make_test (test_entity_range "entity_range.cpp")

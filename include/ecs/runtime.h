@@ -27,27 +27,27 @@ namespace ecs {
 			static_assert((!std::is_pointer_v<std::remove_cvref_t<T>> && ...), "can not add pointers to entities; wrap them in a struct");
 			static_assert((!detail::is_variant_of_pack<T...>()), "Can not add more than one component from the same variant");
 
-			auto const adder = [this, range]<typename Type>(Type&& val) {
-				// Add it to the component pool
-				if constexpr (detail::is_parent<Type>::value) {
-					detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
-					PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
-					pool.add(range, detail::parent_id{val.id()});
-				} else if constexpr (std::is_reference_v<Type>) {
-					using DerefT = std::remove_cvref_t<Type>;
-					static_assert(std::copyable<DerefT>, "Type must be copyable");
+		auto const adder = [this, range]<typename Type>(Type&& val) {
+			// Add it to the component pool
+			if constexpr (detail::is_parent<Type>::value) {
+				detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				pool.add(range, detail::parent_id{val.id()});
+			} else if constexpr (std::is_reference_v<Type>) {
+				using DerefT = std::remove_cvref_t<Type>;
+				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
-					detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
-					PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
-					pool.add(range, val);
-				} else {
-					static_assert(std::copyable<Type>, "Type must be copyable");
+				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				pool.add(range, val);
+			} else {
+				static_assert(std::copyable<Type>, "Type must be copyable");
 
-					detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
-					PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
-					pool.add(range, std::forward<Type>(val));
-				}
-			};
+				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				pool.add(range, std::forward<Type>(val));
+			}
+		};
 
 			(adder(std::forward<T>(vals)), ...);
 		}

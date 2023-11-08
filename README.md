@@ -13,8 +13,8 @@ Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-
 The following example shows the basics of the library.
 
 ```cpp
+import ecs; // or #include <ecs/ecs.h> if library is not built as a module.
 #include <iostream>
-#include <ecs/ecs.h>
 
 // The component
 struct greeting {
@@ -52,7 +52,7 @@ The CI build status for msvc, clang, and gcc is currently
 
 [![MSVC](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
 [![Clang](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
-[![GCC 11/12/13](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+[![GCC](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
 
 
 ## Initial support for modules
@@ -253,27 +253,17 @@ rt.make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Ge1PMaM97)
+## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/393qs3YE1)
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
 ecs::runtime rt;
 
-// Integers passed to the first system will arrive in descending order, from highest to lowest.
-rt.make_system([](int const&) { ... },
+rt.make_system([](int, std::string) { ... },
     std::less<int>());
-
-// Integers passed to the second system will arrive in ascending order.
-rt.make_system([](int const&) { ... },
-    std::greater<int>());
-
-// Positions will be sorted according to their length.
-// You could also have sorted on the `some_component` instead.
-rt.make_system([](vec3& pos, some_component const&) { ... },
-    [](vec3 const& p1, vec3 const& p2) { return p1.length() < p2.length(); });
 ```
 
-Sorting functions must correspond to one of the components that is processed by the system, or an error will be raised during compilation.
+The components of entities processed by the system, will arrive in the order of the integers on those entities.
 
 **Note:** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
 
@@ -390,7 +380,7 @@ rt.update(); // will not run 'manual_sys'
 manual_sys.run(); // required to run the system
 ```
 
-### `opts::not_parallel`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/MK9xcTedq)
+### `opts::not_parallel`
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
 It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::collect`](https://github.com/kgorking/tls/blob/master/examples/collect/accumulate/accumulate.cpp) in these cases, if possible.
@@ -452,7 +442,7 @@ I'm not totally sure what application this has, but it works as expected, so I'm
 # Component Flags
 The behavior of components can be changed by using component flags, which can change how they are managed internally and can offer performance and memory benefits.
 
-### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/dj8WjTWbE)
+### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o5TKxz4d4)
 Marking a component as a *tag* is used for components that signal some kind of state, without needing to
 take up any memory. For instance, you could use it to tag certain entities as having some form of capability,
 like a 'freezable' tag to mark stuff that can be frozen.
@@ -475,11 +465,11 @@ rt.make_system([](greeting const& g, freezable) {
 
 If tag components are marked as anything other than pass-by-value, the compiler will drop a little error message to remind you.
 
-### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/rnbsooorb)
+### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/3bM45M5WY)
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
 This is used for passing read-only data to systems. If a component is marked as `immutable` and is used in a system without being marked `const`, you will get a compile-time error reminding you to make it constant.
 
-### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/W7hvrnjT6)
+### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/cErs8M1q3)
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
@@ -493,7 +483,7 @@ rt.commit_changes(); // adds the 100 damage components
 rt.commit_changes(); // removes the 100 damage components
 ```
 
-### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/4Y9zsMPe1)
+### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/svc1qMrnn)
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
