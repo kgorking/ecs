@@ -925,9 +925,10 @@ struct default_contract_violation_impl {
 } // namespace ecs::detail
 
 // The contract violation interface, which can be overridden by users
-
+ECS_EXPORT namespace ecs {
 template <typename...>
 inline auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
+}
 
 namespace ecs::detail {
 template <typename... DummyArgs>
@@ -1507,12 +1508,14 @@ public:
 
 		// Remove from the front
 		if (other.first() == range.first()) {
-			return {entity_range{other.last() + 1, range.last()}, std::nullopt};
+			auto const [min, max] = std::minmax({range.last(), other.last()});
+			return {entity_range{min + 1, max}, std::nullopt};
 		}
 
 		// Remove from the back
 		if (other.last() == range.last()) {
-			return {entity_range{range.first(), other.first() - 1}, std::nullopt};
+			auto const [min, max] = std::minmax({range.first(), other.first()});
+			return {entity_range{min, max - 1}, std::nullopt};
 		}
 
 		if (range.contains(other)) {
