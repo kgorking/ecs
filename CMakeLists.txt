@@ -18,6 +18,14 @@ if (ECS_COMPILE_AS_MODULE)
 	add_library(ecs)
 	target_compile_definitions(ecs PUBLIC ECS_USE_MODULES)
 	target_sources(ecs PUBLIC FILE_SET CXX_MODULES FILES "include/ecs/ecs.ixx")
+
+	if (ECS_ENABLE_CONTRACTS)
+		target_compile_definitions(ecs PUBLIC ECS_ENABLE_CONTRACTS)
+
+		if (ECS_ENABLE_CONTRACTS_AUDIT)
+			target_compile_definitions(ecs PUBLIC ECS_ENABLE_CONTRACTS_AUDIT)
+		endif ()
+	endif ()
 else()
 	# creates a library 'ecs' which is an interface (header files only)
 	add_library(ecs INTERFACE)
@@ -28,15 +36,15 @@ else()
 	)
 
 	target_compile_definitions(ecs INTERFACE ECS_EXPORT=)
-endif()
 
-if (ECS_ENABLE_CONTRACTS)
-	target_compile_definitions(ecs INTERFACE ECS_ENABLE_CONTRACTS)
+	if (ECS_ENABLE_CONTRACTS)
+		target_compile_definitions(ecs INTERFACE ECS_ENABLE_CONTRACTS)
 
-	if (ECS_ENABLE_CONTRACTS_AUDIT)
-		target_compile_definitions(ecs INTERFACE ECS_ENABLE_CONTRACTS_AUDIT)
+		if (ECS_ENABLE_CONTRACTS_AUDIT)
+			target_compile_definitions(ecs INTERFACE ECS_ENABLE_CONTRACTS_AUDIT)
+		endif ()
 	endif ()
-endif ()
+endif()
 
 # determine whether this is a standalone project or included by other projects
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
