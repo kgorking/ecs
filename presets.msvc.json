@@ -10,7 +10,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "ECS_COMPILE_AS_MODULE": false,
         "ECS_ENABLE_CONTRACTS": true,
-        "ECS_ENABLE_CONTRACTS_AUDIT": true
+        "ECS_ENABLE_CONTRACTS_AUDIT": false
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -48,8 +48,7 @@
       "inherts": "windows-base",
       "displayName": "Release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "ECS_ENABLE_CONTRACTS": false
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
@@ -58,8 +57,7 @@
       "displayName": "Release/Module",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ECS_COMPILE_AS_MODULE": true,
-        "ECS_ENABLE_CONTRACTS": false
+        "ECS_COMPILE_AS_MODULE": true
       }
     },
     {
