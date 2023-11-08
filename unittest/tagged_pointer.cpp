@@ -1,5 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
+#define ECS_EXPORT
 #include <ecs/detail/tagged_pointer.h>
 #include <bit>
 

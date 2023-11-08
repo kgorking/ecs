@@ -1,5 +1,4 @@
-﻿
-#ifndef ECS_EXPORT
+﻿#ifndef ECS_EXPORT
 #define ECS_EXPORT
 #endif
 
@@ -907,8 +906,9 @@ struct default_contract_violation_impl {
 		std::cerr << why << ": \"" << how << "\"\n\t" << what << "\n\n";
 #ifdef __cpp_lib_stacktrace
 		// Dump a stack trace if available
-		std::cerr << "** Stackdump **\n" << std::stacktrace::current(3) << '\n';
+		std::cerr << "** stack dump **\n" << std::stacktrace::current(3) << '\n';
 #endif
+		std::terminate();
 	}
 
 	void assertion_failed(char const* what, char const* how) noexcept {
@@ -926,37 +926,36 @@ struct default_contract_violation_impl {
 } // namespace ecs::detail
 
 // The contract violation interface, which can be overridden by users
-
+ECS_EXPORT namespace ecs {
 template <typename...>
-inline auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
+auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
+}
+
+#if defined(ECS_ENABLE_CONTRACTS)
 
 namespace ecs::detail {
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
-inline void do_assertion_failed(char const* what, char const* how) noexcept {
-	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+inline void do_assertion_failed(char const* what, char const* how) {
+	ecs::detail::contract_violation_interface auto& cvi = ecs::contract_violation_handler<DummyArgs...>;
 	cvi.assertion_failed(what, how);
-	std::terminate();
 }
 
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
-inline void do_precondition_violation(char const* what, char const* how) noexcept {
-	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+inline void do_precondition_violation(char const* what, char const* how) {
+	ecs::detail::contract_violation_interface auto& cvi = ecs::contract_violation_handler<DummyArgs...>;
 	cvi.precondition_violation(what, how);
-	std::terminate();
 }
 
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
-inline void do_postcondition_violation(char const* what, char const* how) noexcept {
-	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+inline void do_postcondition_violation(char const* what, char const* how) {
+	ecs::detail::contract_violation_interface auto& cvi = ecs::contract_violation_handler<DummyArgs...>;
 	cvi.postcondition_violation(what, how);
-	std::terminate();
 }
 } // namespace ecs::detail
 
-#if defined(ECS_ENABLE_CONTRACTS)
 
 #define Assert(expression, message)                                                                                                        \
 	do {                                                                                                                                   \
@@ -1508,12 +1507,14 @@ public:
 
 		// Remove from the front
 		if (other.first() == range.first()) {
-			return {entity_range{other.last() + 1, range.last()}, std::nullopt};
+			auto const [min, max] = std::minmax(range.last(), other.last());
+			return {entity_range{min + 1, max}, std::nullopt};
 		}
 
 		// Remove from the back
 		if (other.last() == range.last()) {
-			return {entity_range{range.first(), other.first() - 1}, std::nullopt};
+			auto const [min, max] = std::minmax(range.first(), other.first());
+			return {entity_range{min, max - 1}, std::nullopt};
 		}
 
 		if (range.contains(other)) {
@@ -1888,6 +1889,10 @@ public:
 			chunks.clear();
 		} else {
 			free_all_chunks();
+			deferred_adds.clear();
+			deferred_spans.clear();
+			deferred_gen.clear();
+			deferred_removes.clear();
 		}
 	}
 
@@ -1895,8 +1900,9 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	// Pre: range and span must be same size.
-	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Pre(range.count() == std::ssize(span), "range and span must be same size");
+	void add_span(entity_range const range, std::span<const T> span) requires(!detail::unbound<T>) {
+		// Check in runtime.h
+		//Pre(range.count() == std::ssize(span), "range and span must be same size");
 
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
@@ -1994,7 +2000,7 @@ public:
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	void process_changes() noexcept override {
+	void process_changes() override {
 		if constexpr (!global<T>) {
 			process_remove_components();
 			process_add_components();
@@ -2069,13 +2075,26 @@ public:
 	}
 
 	// Returns true if an entity range has components in this pool
-	bool has_entity(entity_range const& range) const noexcept {
-		auto const it = find_in_ordered_active_ranges(range);
+	bool has_entity(entity_range range) const noexcept {
+		auto it = find_in_ordered_active_ranges(range);
+		while (it != chunks.end()) {
+			if (it->range.first() > range.last())
+				return false;
 
-		if (it == chunks.end())
-			return false;
+			if (it->active.contains(range))
+				return true;
 
-		return it->active.contains(range);
+			if (it->active.overlaps(range)) {
+				auto const [r, m] = entity_range::remove(range, it->active);
+				if (m)
+					return false;
+				range = r;
+			}
+
+			std::advance(it, 1);
+		}
+
+		return false;
 	}
 
 	// Clear all entities from the pool
@@ -2104,6 +2123,7 @@ public:
 private:
 	chunk_iter create_new_chunk(chunk_iter it_loc, entity_range const range, entity_range const active, T* data = nullptr,
 								bool owns_data = true, bool split_data = false) noexcept {
+		Pre(range.contains(active), "active range is not contained in the total range");
 		return chunks.emplace(it_loc, range, active, data, owns_data, split_data);
 	}
 
@@ -2227,7 +2247,7 @@ private:
 			}
 		}
 
-		if (curr->active.adjacent(r)) {
+		if (curr->active.adjacent(r) && curr->range.contains(r)) {
 			// The two ranges are next to each other, so add the data to existing chunk
 			entity_range active_range = entity_range::merge(curr->active, r);
 			curr->active = active_range;
@@ -2291,7 +2311,7 @@ private:
 	}
 
 	template <typename U>
-	void process_add_components(std::vector<U> const& vec) noexcept {
+	void process_add_components(std::vector<U>& vec) {
 		if (vec.empty()) {
 			return;
 		}
@@ -2318,10 +2338,28 @@ private:
 					// Delayed pre-condition check: Can not add components more than once to same entity
 					Pre(!curr->active.overlaps(r), "entity already has a component of the type");
 
-					// Incoming range overlaps the current one, so add it into 'curr'
-					fill_data_in_existing_chunk(curr, r);
-					if constexpr (!unbound<T>) {
-						construct_range_in_chunk(curr, r, iter->data);
+					if (!curr->active.overlaps(r)) {
+						// The incoming range overlaps an unused area in the current chunk
+
+						// split the current chunk and fill in the data
+						entity_range const active_range = entity_range::intersect(curr->range, r);
+						fill_data_in_existing_chunk(curr, active_range);
+						if constexpr (!unbound<T>) {
+							construct_range_in_chunk(curr, active_range, iter->data);
+						}
+
+						if (active_range != r) {
+							auto const [remainder, x] = entity_range::remove(active_range, r);
+							Assert(!x.has_value(), "internal: there should not be a range here; create an issue on Github and investigate");
+							iter->rng = remainder;
+							continue;
+						}
+					} else {
+						// Incoming range overlaps the current one, so add it into 'curr'
+						fill_data_in_existing_chunk(curr, r);
+						if constexpr (!unbound<T>) {
+							construct_range_in_chunk(curr, r, iter->data);
+						}
 					}
 				} else if (curr->range < r) {
 					// Incoming range is larger than the current one, so add it after 'curr'
@@ -2338,7 +2376,7 @@ private:
 	}
 
 	// Add new queued entities and components to the main storage.
-	void process_add_components() noexcept {
+	void process_add_components() {
 		auto const adder = [this]<typename C>(std::vector<C>& vec) {
 			if (vec.empty())
 				return;
@@ -4351,20 +4389,20 @@ public:
 			// Add it to the component pool
 			if constexpr (detail::is_parent<Type>::value) {
 				detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
-				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, detail::parent_id{val.id()});
 			} else if constexpr (std::is_reference_v<Type>) {
 				using DerefT = std::remove_cvref_t<Type>;
 				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
 				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
-				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, val);
 			} else {
 				static_assert(std::copyable<Type>, "Type must be copyable");
 
 				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
-				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, std::forward<Type>(val));
 			}
 		};

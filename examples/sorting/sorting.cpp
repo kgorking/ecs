@@ -1,19 +1,19 @@
 #include <ecs/ecs.h>
-#include <iostream>
+#include <cstdlib>
+#include <cstdio>
 
-// generator that returns a random number between 0 and 9
-int generator(ecs::entity_id) {
-	return rand() % 10;
+// component generator that returns a random character between 0 and 9
+char generator(ecs::entity_id) {
+	return '0' + (std::rand() % 10);
 }
 
-// system that prints an integer
-void printer(int i) {
-	std::cout << i << ' ';
+// system that prints a character
+void printer(char c) {
+	std::putchar(c);
 }
 
-// sorting-function that also moves even numbers to the front
-bool sort_even_odd(int const& l, int const& r) {
-	// sort evens to the left, odds to the right
+// sort evens to the left, odds to the right
+bool sort_even_odd(char const& l, char const& r) {
 	if (l % 2 == 0 && r % 2 != 0)
 		return true;
 	if (l % 2 != 0 && r % 2 == 0)
@@ -23,7 +23,12 @@ bool sort_even_odd(int const& l, int const& r) {
 
 int main() {
 	ecs::runtime rt;
+
 	rt.add_component_generator({0, 29}, generator);
+	rt.add_component(30, ' ');
+
+	rt.make_system(printer);
 	rt.make_system(printer, sort_even_odd);
+
 	rt.update();
 }

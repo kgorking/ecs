@@ -1,5 +1,7 @@
 ﻿cmake_minimum_required (VERSION 3.15)
 
+set(ECS_ENABLE_CONTRACTS ON)
+
 macro(make_test)
 	add_executable (${ARGV0} ${ARGV1})
 	target_link_libraries(${ARGV0} ecs)

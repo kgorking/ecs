@@ -1,4 +1,6 @@
 #include <ecs/ecs.h>
+#include <numeric>
+#include <exception>
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
@@ -131,6 +133,17 @@ TEST_CASE("The runtime interface") {
 #ifndef __clang__
 			REQUIRE_THROWS(rt.add_component_span({0, 6}, ints));
 #endif
+		}
+
+		SECTION("with a span must be equal in size") {
+			ecs::runtime rt;
+			
+			// 10 ints
+			std::array<int, 10> ints;
+			std::iota(ints.begin(), ints.end(), 0);
+
+			// 7 entities, must throw
+			REQUIRE_THROWS(rt.add_component_span({0, 6}, ints));
 		}
 
 		SECTION("of components with generator works") {
