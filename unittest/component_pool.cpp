@@ -10,8 +10,10 @@ struct unittest_handler {
 	void precondition_violation(char const* , char const* msg)  { throw std::runtime_error(msg); }
 	void postcondition_violation(char const* , char const* msg) { throw std::runtime_error(msg); }
 };
-template <> auto ecs::contract_violation_handler<> = unittest_handler{};
-
+#ifndef __clang__ // currently bugged in clang
+template <>
+auto ecs::contract_violation_handler<> = unittest_handler{};
+#endif
 
 // A helper class that counts invocations of constructers/destructor
 struct ctr_counter {

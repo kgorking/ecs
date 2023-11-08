@@ -1507,13 +1507,13 @@ public:
 
 		// Remove from the front
 		if (other.first() == range.first()) {
-			auto const [min, max] = std::minmax(range.last(), other.last());
+			auto const [min, max] = std::minmax({range.last(), other.last()});
 			return {entity_range{min + 1, max}, std::nullopt};
 		}
 
 		// Remove from the back
 		if (other.last() == range.last()) {
-			auto const [min, max] = std::minmax(range.first(), other.first());
+			auto const [min, max] = std::minmax({range.first(), other.first()});
 			return {entity_range{min, max - 1}, std::nullopt};
 		}
 
