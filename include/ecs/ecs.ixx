@@ -906,8 +906,9 @@ struct default_contract_violation_impl {
 		std::cerr << why << ": \"" << how << "\"\n\t" << what << "\n\n";
 #ifdef __cpp_lib_stacktrace
 		// Dump a stack trace if available
-		std::cerr << "** Stackdump **\n" << std::stacktrace::current(3) << '\n';
+		std::cerr << "** stack dump **\n" << std::stacktrace::current(3) << '\n';
 #endif
+		std::terminate();
 	}
 
 	void assertion_failed(char const* what, char const* how) noexcept {
@@ -935,7 +936,6 @@ template <typename... DummyArgs>
 inline void do_assertion_failed(char const* what, char const* how) noexcept {
 	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
 	cvi.assertion_failed(what, how);
-	std::terminate();
 }
 
 template <typename... DummyArgs>
@@ -943,7 +943,6 @@ template <typename... DummyArgs>
 inline void do_precondition_violation(char const* what, char const* how) noexcept {
 	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
 	cvi.precondition_violation(what, how);
-	std::terminate();
 }
 
 template <typename... DummyArgs>
@@ -951,7 +950,6 @@ template <typename... DummyArgs>
 inline void do_postcondition_violation(char const* what, char const* how) noexcept {
 	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
 	cvi.postcondition_violation(what, how);
-	std::terminate();
 }
 } // namespace ecs::detail
 
