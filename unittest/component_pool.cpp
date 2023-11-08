@@ -6,11 +6,11 @@
 
 // Override the default handler for contract violations.
 struct unittest_handler {
-	void assertion_failed(char const* , char const* msg)        { throw std::exception(msg); }
-	void precondition_violation(char const* , char const* msg)  { throw std::exception(msg); }
-	void postcondition_violation(char const* , char const* msg) { throw std::exception(msg); }
+	void assertion_failed(char const* , char const* msg)        { throw std::runtime_error(msg); }
+	void precondition_violation(char const* , char const* msg)  { throw std::runtime_error(msg); }
+	void postcondition_violation(char const* , char const* msg) { throw std::runtime_error(msg); }
 };
-template <> auto contract_violation_handler<> = unittest_handler{};
+template <> auto ecs::contract_violation_handler<> = unittest_handler{};
 
 
 // A helper class that counts invocations of constructers/destructor
