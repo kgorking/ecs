@@ -21,7 +21,6 @@ struct example_handler {
 };
 
 // Override the default handler for contract violations.
-// Comment this out to use the default handler.
 #ifndef __clang__ // currently bugged in clang
 template <> auto ecs::contract_violation_handler<> = example_handler{};
 #endif
