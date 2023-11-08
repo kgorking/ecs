@@ -42,9 +42,10 @@ struct default_contract_violation_impl {
 } // namespace ecs::detail
 
 // The contract violation interface, which can be overridden by users
-
+ECS_EXPORT namespace ecs {
 template <typename...>
-inline auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
+auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
+}
 
 #if defined(ECS_ENABLE_CONTRACTS)
 
@@ -52,21 +53,21 @@ namespace ecs::detail {
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
 inline void do_assertion_failed(char const* what, char const* how) {
-	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+	ecs::detail::contract_violation_interface auto& cvi = ecs::contract_violation_handler<DummyArgs...>;
 	cvi.assertion_failed(what, how);
 }
 
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
 inline void do_precondition_violation(char const* what, char const* how) {
-	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+	ecs::detail::contract_violation_interface auto& cvi = ecs::contract_violation_handler<DummyArgs...>;
 	cvi.precondition_violation(what, how);
 }
 
 template <typename... DummyArgs>
 	requires(sizeof...(DummyArgs) == 0)
 inline void do_postcondition_violation(char const* what, char const* how) {
-	ecs::detail::contract_violation_interface auto& cvi = contract_violation_handler<DummyArgs...>;
+	ecs::detail::contract_violation_interface auto& cvi = ecs::contract_violation_handler<DummyArgs...>;
 	cvi.postcondition_violation(what, how);
 }
 } // namespace ecs::detail
