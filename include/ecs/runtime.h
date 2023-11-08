@@ -30,20 +30,20 @@ public:
 			// Add it to the component pool
 			if constexpr (detail::is_parent<Type>::value) {
 				detail::component_pool<detail::parent_id>& pool = ctx.get_component_pool<detail::parent_id>();
-				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, detail::parent_id{val.id()});
 			} else if constexpr (std::is_reference_v<Type>) {
 				using DerefT = std::remove_cvref_t<Type>;
 				static_assert(std::copyable<DerefT>, "Type must be copyable");
 
 				detail::component_pool<DerefT>& pool = ctx.get_component_pool<DerefT>();
-				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, val);
 			} else {
 				static_assert(std::copyable<Type>, "Type must be copyable");
 
 				detail::component_pool<Type>& pool = ctx.get_component_pool<Type>();
-				PreAudit(!pool.has_entity(range), "one- or more entities in the range already has this type");
+				Pre(!pool.has_entity(range), "one- or more entities in the range already has this type");
 				pool.add(range, std::forward<Type>(val));
 			}
 		};
