@@ -617,8 +617,7 @@ private:
 
 				if (curr->range.overlaps(r)) {
 					// Delayed pre-condition check: Can not add components more than once to same entity
-					// Checked in runtime.h
-					//Pre(!curr->active.overlaps(r), "entity already has a component of the type");
+					Pre(!curr->active.overlaps(r), "entity already has a component of the type");
 
 					if (!curr->active.overlaps(r)) {
 						// The incoming range overlaps an unused area in the current chunk
