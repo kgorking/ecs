@@ -3,7 +3,6 @@ name: MSVC 2022 (v14.3)
 on:
   workflow_run:
     workflows: [Generate single-include header]
-    branches:  ${{ github.event.workflow_run.head_branch }}
     types: 
       - completed
 
@@ -22,6 +21,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
+        ref: ${{ github.event.workflow_run.head_branch }}
         submodules: true # recursive
 
     - name: Download Ninja
