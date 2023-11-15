@@ -230,13 +230,6 @@ public:
 			variants.push_back(variant);
 	}
 
-	// Remove a range from the variants
-	void remove_from_variants(entity_range const range) {
-		for (component_pool_base* variant : variants) {
-			variant->remove(range);
-		}
-	}
-
 	// Return the shared component
 	T& get_shared_component() noexcept requires global<T> {
 		return chunks.front().data[0];
@@ -490,6 +483,13 @@ private:
 	[[nodiscard]]
 	chunk_iter remove_range_to_chunk(chunk_iter it) noexcept {
 		return chunks.erase(it);
+	}
+
+	// Remove a range from the variants
+	void remove_from_variants(entity_range const range) {
+		for (component_pool_base* variant : variants) {
+			variant->remove(range);
+		}
 	}
 
 	// Flag that components has been added
