@@ -31,10 +31,12 @@ jobs:
 
   run-msvc:
     uses: ./.github/workflows/msvc.yml
+    needs: generate_header
 
   run-gcc:
     uses: ./.github/workflows/gcc.yml
+    needs: generate_header
 
   run-clang:
     uses: ./.github/workflows/clang.yml
-  
+    needs: generate_header
