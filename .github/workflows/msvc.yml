@@ -24,6 +24,10 @@ jobs:
         ref: ${{ github.event.workflow_run.head_branch }}
         submodules: true # recursive
 
+    - name: Branch name
+      shell: cmd
+      run: echo ${{ github.event.workflow_run.head_branch }}
+
     - name: Download Ninja
       shell: cmake -P {0}
       run: |
