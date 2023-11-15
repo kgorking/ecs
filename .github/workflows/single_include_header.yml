@@ -13,12 +13,30 @@ jobs:
         with:
           submodules: true # recursive
 
-      - name: Generate header
+      - name: Generate header and module
         shell: powershell
         run: |
           cd include/ecs
           ./make_single_header.ps1
+          cd ..
+          cd ..
+
+      - name: Upload changes
+        shell: powershell
+        run: |
           git config --global user.name 'github_actions'
           git config --global user.email 'github_actions@users.noreply.github.com'
           git commit -am "Automated single-include header generation"
           git push
+
+  run-msvc:
+    uses: ./.github/workflows/msvc.yml
+    needs: generate_header
+
+  run-gcc:
+    uses: ./.github/workflows/gcc.yml
+    needs: generate_header
+
+  run-clang:
+    uses: ./.github/workflows/clang.yml
+    needs: generate_header

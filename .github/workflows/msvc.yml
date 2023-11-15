@@ -1,16 +1,10 @@
 name: MSVC 2022 (v14.3)
-#name: MSVC 2019 (v14.2) / 2022 (v14.3)
 
-on:
-  workflow_run:
-    workflows: [Generate single-include header]
-    types: 
-      - completed
+on: workflow_call
 
 jobs:
   msvc:
     runs-on: windows-2022
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
       fail-fast: true
@@ -20,7 +14,7 @@ jobs:
         built_type: [Debug, Release]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true # recursive
 
