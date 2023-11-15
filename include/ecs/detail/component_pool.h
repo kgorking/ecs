@@ -428,8 +428,8 @@ public:
 #endif
 
 private:
-	template <typename T>
-	static bool ensure_no_intersection_ranges(std::vector<entity_range> const& a, std::vector<T> const& b) {
+	template <typename U>
+	static bool ensure_no_intersection_ranges(std::vector<entity_range> const& a, std::vector<U> const& b) {
 		auto it_a_curr = a.begin();
 		auto it_b_curr = b.begin();
 		auto const it_a_end = a.end();
