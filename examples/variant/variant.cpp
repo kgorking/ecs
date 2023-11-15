@@ -1,7 +1,8 @@
 #include <ecs/ecs.h>
 #include <iostream>
 
-// Prints out 'ACB'
+// Prints out 'ACB'.
+// Without the variants it would print 'AACACB'
 
 struct A { };
 struct B { using variant_of = A; };
