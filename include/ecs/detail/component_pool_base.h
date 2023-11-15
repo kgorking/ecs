@@ -16,11 +16,9 @@ public:
 	virtual void clear_flags() = 0;
 	virtual void clear() = 0;
 
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
 	// facilitate variant implementation.
 	// Called from other component pools.
-	virtual void remove_variant(entity_range const range) = 0;
-#endif
+	virtual void remove_variant(class entity_range const& range) = 0;
 };
 } // namespace ecs::detail
 

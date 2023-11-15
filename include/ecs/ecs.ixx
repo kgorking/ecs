@@ -1802,11 +1802,9 @@ public:
 	virtual void clear_flags() = 0;
 	virtual void clear() = 0;
 
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
 	// facilitate variant implementation.
 	// Called from other component pools.
-	virtual void remove_variant(entity_range const range) = 0;
-#endif
+	virtual void remove_variant(class entity_range const& range) = 0;
 };
 } // namespace ecs::detail
 
@@ -2216,19 +2214,17 @@ public:
 		components_modified = true;
 	}
 
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
 	// Called from other component pools
-	void remove_variant(entity_range const range) noexcept override {
+	void remove_variant(entity_range const& range) noexcept override {
 		deferred_removes.local().push_back(range);
 #ifdef ECS_ENABLE_CONTRACTS_AUDIT
 		deferred_variants.local().push_back(range);
 #endif
 	}
-#endif
 
 private:
-	template <typename T>
-	static bool ensure_no_intersection_ranges(std::vector<entity_range> const& a, std::vector<T> const& b) {
+	template <typename U>
+	static bool ensure_no_intersection_ranges(std::vector<entity_range> const& a, std::vector<U> const& b) {
 		auto it_a_curr = a.begin();
 		auto it_b_curr = b.begin();
 		auto const it_a_end = a.end();

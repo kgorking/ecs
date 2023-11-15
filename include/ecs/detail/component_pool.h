@@ -417,15 +417,13 @@ public:
 		components_modified = true;
 	}
 
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
 	// Called from other component pools
-	void remove_variant(entity_range const range) noexcept override {
+	void remove_variant(entity_range const& range) noexcept override {
 		deferred_removes.local().push_back(range);
 #ifdef ECS_ENABLE_CONTRACTS_AUDIT
 		deferred_variants.local().push_back(range);
 #endif
 	}
-#endif
 
 private:
 	template <typename U>
