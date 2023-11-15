@@ -5,15 +5,7 @@
 #include "catch.hpp"
 
 // Override the default handler for contract violations.
-struct unittest_handler {
-	void assertion_failed(char const* , char const* msg)        { throw std::runtime_error(msg); }
-	void precondition_violation(char const* , char const* msg)  { throw std::runtime_error(msg); }
-	void postcondition_violation(char const* , char const* msg) { throw std::runtime_error(msg); }
-};
-#ifndef __clang__ // currently bugged in clang
-template <>
-auto ecs::contract_violation_handler<> = unittest_handler{};
-#endif
+#include "override_contract_handler_to_throw.h"
 
 // A helper class that counts invocations of constructers/destructor
 struct runtime_ctr_counter {
@@ -126,7 +118,7 @@ TEST_CASE("The runtime interface") {
 			ecs::runtime rt;
 			
 			// 10 ints
-			std::array<int, 10> ints;
+			std::array<int, 10> ints{};
 			std::iota(ints.begin(), ints.end(), 0);
 
 			// 7 entities, must throw
@@ -139,7 +131,7 @@ TEST_CASE("The runtime interface") {
 			ecs::runtime rt;
 			
 			// 10 ints
-			std::array<int, 10> ints;
+			std::array<int, 10> ints{};
 			std::iota(ints.begin(), ints.end(), 0);
 
 			// 7 entities, must throw

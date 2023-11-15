@@ -100,6 +100,8 @@ import ecs;
   - [`opts::group<group number>`](#optsgroupgroup-number)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ezoq17fbr)
   - [`opts::manual_update`](#optsmanual_update)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TxvndcTEq)
   - [`opts::not_parallel`](#optsnot_parallel)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/MK9xcTedq)
+- [Variant components](#variant-components)
+  - [Variant trees](#variant-trees)
 - [Component Flags](#component-flags)
   - [`tag`](#tag)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/dj8WjTWbE)
   - [`immutable`](#immutable)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/rnbsooorb)
@@ -408,7 +410,17 @@ rt.update();
 rt.add_component(0, B{});
 rt.update();
 ```
-Trying to add more than one variant of the same chain
+Trying to add more than one variant of the same chain at the same time, will result in a compile-time error.
+```cpp
+rt.add_component(0, A{}, B{}); // errors at compile-time
+```
+
+Trying to add more than one variant of the same chain at different times, like from two systems, will result in a runtime termination.
+```cpp
+rt.add_component(0, A{});
+rt.add_component(0, B{});
+rt.commit_changes(); // terminates at runtime
+```
 
 ## Variant trees
 Some interesting emergent behavior was discovered during the implementation of variants, namely that you can create variant trees instead of lists.
@@ -437,7 +449,7 @@ rt.update();
 rt.add_component(0, A{});
 rt.update();
 ```
-I'm not totally sure what application this has, but it works as expected, so I'm leaving it in.
+I'm not totally sure what application this has, but it works as expected, so I'm leaving it in until it explodes spectacularly.
 
 # Component Flags
 The behavior of components can be changed by using component flags, which can change how they are managed internally and can offer performance and memory benefits.
