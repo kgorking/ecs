@@ -25,8 +25,4 @@ int main() {
 	// Print 'B'
 	rt.add_component(0, B{});
 	rt.update();
-
-	// Print nothing
-	rt.remove_component<B>(0);
-	rt.update();
 }
