@@ -1,7 +1,7 @@
 ﻿module;
 // Auto-generated single-header include file
-#if __cpp_lib_modules
-#if defined(_MSC_VER)
+#if defined(__cpp_lib_modules)
+#if defined(_MSC_VER) && _MSC_VER <= 1939
 import std.core;
 #else
 import std;
