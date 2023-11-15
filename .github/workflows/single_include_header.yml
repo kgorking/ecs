@@ -28,3 +28,13 @@ jobs:
           git config --global user.email 'github_actions@users.noreply.github.com'
           git commit -am "Automated single-include header generation"
           git push
+
+  run-msvc:
+    uses: ./.github/workflows/msvc.yml
+
+  run-gcc:
+    uses: ./.github/workflows/gcc.yml
+
+  run-clang:
+    uses: ./.github/workflows/clang.yml
+  

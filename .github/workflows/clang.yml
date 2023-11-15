@@ -1,15 +1,10 @@
 name: Clang 16-18 (module)
 
-on:
-  workflow_run:
-    workflows: [Generate single-include header]
-    types: 
-      - completed
+on: workflow_call
 
 jobs:
   clang:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
       fail-fast: true
@@ -21,7 +16,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.workflow_run.head_branch }}
         submodules: true # recursive
 
     - name: Download Ninja
