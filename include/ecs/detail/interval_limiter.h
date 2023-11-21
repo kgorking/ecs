@@ -9,7 +9,7 @@ template <int milliseconds, int microseconds>
 struct interval_limiter {
 	bool can_run() {
 		using namespace std::chrono_literals;
-		constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
+		static constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
 
 		auto const now = std::chrono::high_resolution_clock::now();
 		auto const diff = now - time;
@@ -25,8 +25,9 @@ private:
 	std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
 };
 
-struct no_interval_limiter {
-	constexpr bool can_run() {
+template <>
+struct interval_limiter<0, 0> {
+	static consteval bool can_run() {
 		return true;
 	}
 };
