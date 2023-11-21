@@ -3403,58 +3403,6 @@ void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, 
 } // namespace ecs::detail
 
 #endif // !ECS_FIND_ENTITY_POOL_INTERSECTIONS_H
-#ifndef ECS_DETAIL_STATIC_SCHEDULER_H
-#define ECS_DETAIL_STATIC_SCHEDULER_H
-
-
-//
-// Stuff to do before work on the scheduler can proceed:
-//   * unify the argument creation across systems
-//
-namespace ecs::detail {
-    struct operation {
-        template<typename Arguments, typename Fn>
-        explicit operation(Arguments& args, Fn& fn)
-            : arguments{&args}
-            , function(&fn)
-            , op{[](entity_id id, entity_offset offset, void *p1, void *p2){
-				auto *args = static_cast<Arguments*>(p1);
-				auto *func = static_cast<Fn*>(p2);
-				(*args)(*func, id, offset);
-            }}
-        {}
-
-        void run(entity_id id, entity_offset offset) const {
-            op(id, offset, arguments, function);
-        }
-
-    private:
-        void* arguments;
-        void* function;
-		void (*op)(entity_id id, entity_offset offset, void*, void*);
-    };
-
-    class job {
-        entity_range range;
-        operation op;
-    };
-
-    class thread_lane {
-        // The vector of jobs to run on this thread
-        std::vector<job> jobs;
-
-        // The stl thread object
-        std::thread thread;
-
-        // Time it took to run all jobs
-        double time = 0.0;
-    };
-
-    class static_scheduler {};
-
-}
-
-#endif // !ECS_DETAIL_STATIC_SCHEDULER_H
 #ifndef ECS_SYSTEM_BASE
 #define ECS_SYSTEM_BASE
 
@@ -3643,10 +3591,6 @@ public:
 		}
 	}
 
-	UpdateFn& get_update_func() {
-		return update_func;
-	}
-
 protected:
 	// Handle changes when the component pools change
 	void process_changes(bool force_rebuild) override {
@@ -3737,9 +3681,9 @@ private:
 
 		if constexpr (FirstIsEntity) {
 			for (sort_help const& sh : sorted_args) {
-				auto& [range, arg] = arguments[sh.arg_index];
+				auto& [range, argument] = arguments[sh.arg_index];
 				entity_id const ent = range.at(sh.offset);
-				arg(ent, this->update_func, sh.offset);
+				argument(ent, this->update_func, sh.offset);
 			}
 		} else {
 			for (sort_help const& sh : sorted_args) {
@@ -3839,13 +3783,10 @@ private:
 	void do_run() override {
 		for (std::size_t i = 0; i < ranges.size(); i++) {
 			auto const& range = ranges[i];
-			auto& arg = arguments[i];
-
-			operation const op(arg, this->get_update_func());
+			auto& argument = arguments[i];
 
 			for (entity_offset offset = 0; offset < range.count(); ++offset) {
-				op.run(range.first() + offset, offset);
-				//arg(this->get_update_func(), range.first() + offset, offset);
+				argument(range.first() + offset, offset, this->update_func);
 			}
 		}
 	}
@@ -3867,15 +3808,19 @@ private:
 	template <typename... Ts>
 	static auto make_argument(auto... args) {
 		if constexpr (FirstIsEntity) {
-			return [=](UpdateFn& fn, entity_id ent, entity_offset offset) { fn(ent, extract_arg_lambda<Ts>(args, offset, 0)...); };
+			return [=](entity_id ent, entity_offset offset, auto& update_func) {
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
+			};
 		} else {
-			return [=](UpdateFn& fn, entity_id    , entity_offset offset) { fn(     extract_arg_lambda<Ts>(args, offset, 0)...); };
+			return [=](entity_id    , entity_offset offset, auto& update_func) {
+				update_func(     extract_arg_lambda<Ts>(args, offset, 0)...);
+			};
 		}
 	}
 
 private:
 	// Get the type of lambda containing the arguments
-	using argument = std::remove_cvref_t<decltype(
+	using argument = std::remove_const_t<decltype(
 		for_all_types<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(component_argument<Types>{}...);
 		}
