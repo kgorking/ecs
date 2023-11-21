@@ -27,7 +27,7 @@ private:
 
 template <>
 struct interval_limiter<0, 0> {
-	static consteval bool can_run() {
+	static constexpr bool can_run() {
 		return true;
 	}
 };
