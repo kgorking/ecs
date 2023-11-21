@@ -152,9 +152,7 @@ protected:
 	using stripped_component_list = transform_type<ComponentsList, std::remove_cvref_t>;
 
 	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
-	using interval_type =
-		std::conditional_t<(user_interval::_ecs_duration > 0.0),
-						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
+	using interval_type = interval_limiter<user_interval::ms, user_interval::us>;
 
 	//
 	// ecs::parent related stuff

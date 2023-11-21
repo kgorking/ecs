@@ -7,7 +7,7 @@
 using namespace std::chrono_literals;
 
 TEST_CASE("System frequency") {
-	ecs::runtime ecs;
+	ecs::runtime rt;
 
 	constexpr int num_intervals = 8;
 	constexpr int intervals[num_intervals] = {500, 200, 100, 50, 250, 150, 50, 20};
@@ -15,22 +15,23 @@ TEST_CASE("System frequency") {
 	std::array<int, num_intervals> counters;
 	counters.fill(0);
 
-	ecs.make_system<ecs::opts::interval<intervals[0], 0>>([&counters](int const&) { ++counters[0]; });
-	ecs.make_system<ecs::opts::interval<intervals[1], 0>>([&counters](int const&) { ++counters[1]; });
-	ecs.make_system<ecs::opts::interval<intervals[2], 0>>([&counters](int const&) { ++counters[2]; });
-	ecs.make_system<ecs::opts::interval<intervals[3], 0>>([&counters](int const&) { ++counters[3]; });
-	ecs.make_system<ecs::opts::interval<0, intervals[4]>>([&counters](int const&) { ++counters[4]; });
-	ecs.make_system<ecs::opts::interval<0, intervals[5]>>([&counters](int const&) { ++counters[5]; });
-	ecs.make_system<ecs::opts::interval<0, intervals[6]>>([&counters](int const&) { ++counters[6]; });
-	ecs.make_system<ecs::opts::interval<0, intervals[7]>>([&counters](int const&) { ++counters[7]; });
+	using ecs::opts::interval;
+	rt.make_system<interval<intervals[0], 0>>([&](int) { ++counters[0]; });
+	rt.make_system<interval<intervals[1], 0>>([&](int) { ++counters[1]; });
+	rt.make_system<interval<intervals[2], 0>>([&](int) { ++counters[2]; });
+	rt.make_system<interval<intervals[3], 0>>([&](int) { ++counters[3]; });
+	rt.make_system<interval<0, intervals[4]>>([&](int) { ++counters[4]; });
+	rt.make_system<interval<0, intervals[5]>>([&](int) { ++counters[5]; });
+	rt.make_system<interval<0, intervals[6]>>([&](int) { ++counters[6]; });
+	rt.make_system<interval<0, intervals[7]>>([&](int) { ++counters[7]; });
 
-	ecs.add_component({0, 0}, int{});
-	ecs.commit_changes();
+	rt.add_component({0, 0}, int{});
+	rt.commit_changes();
 
 	// Run the systems for 1 second
 	auto const start = std::chrono::high_resolution_clock::now();
 	while (std::chrono::high_resolution_clock::now() - start <= 1s)
-		ecs.run_systems();
+		rt.run_systems();
 
 	// Verify the counter
 	for (size_t i = 0; i < 4; i++) {

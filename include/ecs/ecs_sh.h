@@ -1287,7 +1287,8 @@ struct is_interval {
 };
 template <typename T>
 requires requires {
-	T::_ecs_duration;
+	T::ms;
+	T::us;
 }
 struct is_interval<T> {
 	static constexpr bool value = true;
@@ -2850,24 +2851,24 @@ private:
 
 ECS_EXPORT namespace ecs::opts {
 	template <int I>
-struct group {
-	static constexpr int group_id = I;
-};
+	struct group {
+		static constexpr int group_id = I;
+	};
 
-template <int Milliseconds, int Microseconds = 0>
-struct interval {
-	static_assert(Milliseconds >= 0, "invalid time values specified");
-	static_assert(Microseconds >= 0 && Microseconds < 1000, "invalid time values specified");
+	template <int Milliseconds, int Microseconds = 0>
+	struct interval {
+		static_assert(Milliseconds >= 0, "time values can not be negative");
+		static_assert(Microseconds >= 0, "time values can not be negative");
+		static_assert(Microseconds <= 999, "microseconds must be in the range 0-999");
 
-	static constexpr double _ecs_duration = (1.0 * Milliseconds) + (Microseconds / 1000.0);
-	static constexpr int _ecs_duration_ms = Milliseconds;
-	static constexpr int _ecs_duration_us = Microseconds;
-};
+		static constexpr int ms = Milliseconds;
+		static constexpr int us = Microseconds;
+	};
 
-struct manual_update {};
+	struct manual_update {};
 
-struct not_parallel {};
-// struct not_concurrent {};
+	struct not_parallel {};
+	// struct not_concurrent {};
 
 } // namespace ecs::opts
 
@@ -2882,7 +2883,7 @@ template <int milliseconds, int microseconds>
 struct interval_limiter {
 	bool can_run() {
 		using namespace std::chrono_literals;
-		constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
+		static constexpr std::chrono::nanoseconds interval_size = 1ms * milliseconds + 1us * microseconds;
 
 		auto const now = std::chrono::high_resolution_clock::now();
 		auto const diff = now - time;
@@ -2898,8 +2899,9 @@ private:
 	std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
 };
 
-struct no_interval_limiter {
-	constexpr bool can_run() {
+template <>
+struct interval_limiter<0, 0> {
+	static constexpr bool can_run() {
 		return true;
 	}
 };
@@ -3614,9 +3616,7 @@ protected:
 	using stripped_component_list = transform_type<ComponentsList, std::remove_cvref_t>;
 
 	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
-	using interval_type =
-		std::conditional_t<(user_interval::_ecs_duration > 0.0),
-						   interval_limiter<user_interval::_ecs_duration_ms, user_interval::_ecs_duration_us>, no_interval_limiter>;
+	using interval_type = interval_limiter<user_interval::ms, user_interval::us>;
 
 	//
 	// ecs::parent related stuff

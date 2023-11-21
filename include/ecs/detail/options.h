@@ -28,7 +28,8 @@ struct is_interval {
 };
 template <typename T>
 requires requires {
-	T::_ecs_duration;
+	T::ms;
+	T::us;
 }
 struct is_interval<T> {
 	static constexpr bool value = true;
