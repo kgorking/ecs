@@ -47,7 +47,7 @@ template <typename...>
 auto contract_violation_handler = ecs::detail::default_contract_violation_impl{};
 }
 
-#if defined(ECS_ENABLE_CONTRACTS)
+#if ECS_ENABLE_CONTRACTS
 
 namespace ecs::detail {
 template <typename... DummyArgs>
@@ -89,7 +89,7 @@ inline void do_postcondition_violation(char const* what, char const* how) {
 	} while (false)
 
 // Audit contracts. Used for expensive checks; can be disabled.
-#if defined(ECS_ENABLE_CONTRACTS_AUDIT)
+#if ECS_ENABLE_CONTRACTS_AUDIT
 #define AssertAudit(expression, message) Assert(expression, message)
 #define PreAudit(expression, message) Pre(expression, message)
 #define PostAudit(expression, message) Post(expression, message)
