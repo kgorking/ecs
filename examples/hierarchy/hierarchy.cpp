@@ -14,7 +14,7 @@ int main() {
 	ecs::runtime rt;
 
 	// Add 4 dads
-	dad const dads[] = {"Bill"sv, "Fred"sv, "Andy"sv, "Jeff"sv};
+	dad const dads[] = {{"Bill"sv}, {"Fred"sv}, {"Andy"sv}, {"Jeff"sv}};
 	rt.add_component_span({0, 3}, dads);
 
 	// Mark 2 of them as funny
@@ -22,7 +22,7 @@ int main() {
 	rt.add_component(2, is_funny{});
 
 	// Add 6 kids
-	kid const kids[] = {"Olivia"sv, "Emma"sv, "Charlotte"sv, "Amelia"sv, "Sophia"sv, "Isabella"sv};
+	kid const kids[] = {{"Olivia"sv}, {"Emma"sv}, {"Charlotte"sv}, {"Amelia"sv}, {"Sophia"sv}, {"Isabella"sv}};
 	rt.add_component_span({10, 15}, kids);
 
 	// Set up relationships
