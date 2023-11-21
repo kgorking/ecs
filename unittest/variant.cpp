@@ -9,9 +9,8 @@ struct B { using variant_of = A; };
 struct C { using variant_of = B; };
 
 // 
+// E-F-H
 // E-G
-//  \
-//   F-H
 struct E {};
 struct F { using variant_of = E; };
 struct G { using variant_of = E; };
