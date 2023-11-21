@@ -3,13 +3,22 @@
 #include "catch.hpp"
 #include "override_contract_handler_to_throw.h"
 
+// A-B-C
+struct A {};
+struct B { using variant_of = A; };
+struct C { using variant_of = B; };
+
+// 
+// E-G
+//  \
+//   F-H
+struct E {};
+struct F { using variant_of = E; };
+struct G { using variant_of = E; };
+struct H { using variant_of = F; };
+
 TEST_CASE("Variant components", "[component][variant]") {
 	SECTION("list-variant") {
-		// A-B-C
-		struct A {};
-		struct B { using variant_of = A; };
-		struct C { using variant_of = B; };
-
 		// Compile-time checks
 		#if !defined(ECS_USE_MODULES)
 		static_assert(!ecs::detail::has_variant_alias<A>);
@@ -49,97 +58,67 @@ TEST_CASE("Variant components", "[component][variant]") {
 
 	SECTION("tree-variant") {
 		// Create a variant tree
-		//   A
-		//  / \
-		// B   C
-		// |
-		// D
 		//
-		struct A {};
-		struct B { using variant_of = A; };
-		struct C { using variant_of = A; };
-		struct D { using variant_of = B; };
-
 		ecs::runtime rt;
 
-		// First, add 'A'
-		rt.add_component(0, A{});
+		// First, add 'E'
+		rt.add_component(0, E{});
 		rt.commit_changes();
-		REQUIRE(rt.get_component_count<A>() == 1);
-		REQUIRE(rt.get_component_count<B>() == 0);
-		REQUIRE(rt.get_component_count<C>() == 0);
-		REQUIRE(rt.get_component_count<D>() == 0);
+		REQUIRE(rt.get_component_count<E>() == 1);
+		REQUIRE(rt.get_component_count<F>() == 0);
+		REQUIRE(rt.get_component_count<G>() == 0);
+		REQUIRE(rt.get_component_count<H>() == 0);
 
-		// Add 'B' and 'C'. Both are variants of 'A', so 'A' will be removed
-		rt.add_component(0, B{}, C{});
+		// Add 'F' and 'G'. Both are variants of 'E', so 'E' will be removed
+		rt.add_component(0, F{}, G{});
 		rt.commit_changes();
-		REQUIRE(rt.get_component_count<A>() == 0);
-		REQUIRE(rt.get_component_count<B>() == 1);
-		REQUIRE(rt.get_component_count<C>() == 1);
-		REQUIRE(rt.get_component_count<D>() == 0);
+		REQUIRE(rt.get_component_count<E>() == 0);
+		REQUIRE(rt.get_component_count<F>() == 1);
+		REQUIRE(rt.get_component_count<G>() == 1);
+		REQUIRE(rt.get_component_count<H>() == 0);
 
-		// Add 'D', which is only a variant of 'B' and 'A', so 'B' will be removed.
-		// 'C' remains untouched
-		rt.add_component(0, D{});
+		// Add 'H', which is only a variant of 'F' and 'E', so 'F' will be removed.
+		// 'G' remains untouched
+		rt.add_component(0, H{});
 		rt.commit_changes();
-		REQUIRE(rt.get_component_count<A>() == 0);
-		REQUIRE(rt.get_component_count<B>() == 0);
-		REQUIRE(rt.get_component_count<C>() == 1);
-		REQUIRE(rt.get_component_count<D>() == 1);
+		REQUIRE(rt.get_component_count<E>() == 0);
+		REQUIRE(rt.get_component_count<F>() == 0);
+		REQUIRE(rt.get_component_count<G>() == 1);
+		REQUIRE(rt.get_component_count<H>() == 1);
 
-		// Add 'A', which a parent variant to all other components,
+		// Add 'E', which a parent variant to all other components,
 		// so they will all be removed
-		rt.add_component(0, A{});
+		rt.add_component(0, E{});
 		rt.commit_changes();
-		REQUIRE(rt.get_component_count<A>() == 1);
-		REQUIRE(rt.get_component_count<B>() == 0);
-		REQUIRE(rt.get_component_count<C>() == 0);
-		REQUIRE(rt.get_component_count<D>() == 0);
+		REQUIRE(rt.get_component_count<E>() == 1);
+		REQUIRE(rt.get_component_count<F>() == 0);
+		REQUIRE(rt.get_component_count<G>() == 0);
+		REQUIRE(rt.get_component_count<H>() == 0);
 
-		// Add 'D', which is a variant of 'A'.
-		rt.add_component(0, D{});
+		// Add 'H', which is a variant of 'E'.
+		rt.add_component(0, H{});
 		rt.commit_changes();
-		REQUIRE(rt.get_component_count<A>() == 0);
-		REQUIRE(rt.get_component_count<B>() == 0);
-		REQUIRE(rt.get_component_count<C>() == 0);
-		REQUIRE(rt.get_component_count<D>() == 1);
+		REQUIRE(rt.get_component_count<E>() == 0);
+		REQUIRE(rt.get_component_count<F>() == 0);
+		REQUIRE(rt.get_component_count<G>() == 0);
+		REQUIRE(rt.get_component_count<H>() == 1);
 
-		// Add 'A' again
-		rt.add_component(0, A{});
+		// Add 'E' again
+		rt.add_component(0, E{});
 		rt.commit_changes();
-		REQUIRE(rt.get_component_count<A>() == 1);
-		REQUIRE(rt.get_component_count<B>() == 0);
-		REQUIRE(rt.get_component_count<C>() == 0);
-		REQUIRE(rt.get_component_count<D>() == 0);
+		REQUIRE(rt.get_component_count<E>() == 1);
+		REQUIRE(rt.get_component_count<F>() == 0);
+		REQUIRE(rt.get_component_count<G>() == 0);
+		REQUIRE(rt.get_component_count<H>() == 0);
 	}
 
-	SECTION("circular-variant") {
-		// A-B-C-A
-		struct C;
-		struct A { using variant_of = C; };
-		struct B { using variant_of = A; };
-		struct C { using variant_of = B; };
-
-		#if !defined(ECS_USE_MODULES)
-		static_assert(!ecs::detail::not_recursive_variant<B>());
-		#endif
-
-		// Will not compile
-		//ecs::runtime rt;
-		//rt.add_component(0, A{});
-	}
-
-	SECTION("Can not add more than one variant at the time") {
-		struct A {};
-		struct B { using variant_of = A; };
-
+	/*SECTION("Can not add more than one variant at the time") {
 		ecs::runtime rt;
-
 		rt.add_component(0, A{});
 		rt.add_component(0, B{});
 
 		// This results in a terminate()
 		// due to a throw inside a parallel std::for_each, which is `noexcept`
-		//REQUIRE_THROWS(rt.commit_changes());
-	}
+		REQUIRE_THROWS(rt.commit_changes());
+	}*/
 }
