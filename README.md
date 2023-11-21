@@ -415,7 +415,7 @@ Trying to add more than one variant of the same chain at the same time, will res
 rt.add_component(0, A{}, B{}); // errors at compile-time
 ```
 
-Trying to add more than one variant of the same chain at different times, like from two systems, will result in a runtime termination.
+Trying to add more than one variant of the same chain at different times during execution will result in a runtime termination, but only if ECS_ENABLE_CONTRACTS_AUDIT is set to 1. Contract audit violations are ignored otherwise, which means that improper use will put the runtime in an undefined state.
 ```cpp
 rt.add_component(0, A{});
 rt.add_component(0, B{});
