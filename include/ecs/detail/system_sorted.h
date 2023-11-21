@@ -35,9 +35,9 @@ private:
 
 		if constexpr (FirstIsEntity) {
 			for (sort_help const& sh : sorted_args) {
-				auto& [range, argument] = arguments[sh.arg_index];
+				auto& [range, arg] = arguments[sh.arg_index];
 				entity_id const ent = range.at(sh.offset);
-				argument(ent, this->update_func, sh.offset);
+				arg(ent, this->update_func, sh.offset);
 			}
 		} else {
 			for (sort_help const& sh : sorted_args) {
