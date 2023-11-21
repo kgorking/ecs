@@ -20,7 +20,7 @@
 #include "system_sorted.h"
 #include "type_hash.h"
 #include "type_list.h"
-
+#include "variant.h"
 
 namespace ecs::detail {
 // The central class of the ecs implementation. Maintains the state of the system.
@@ -32,7 +32,7 @@ class context final {
 	scheduler sched;
 
 	mutable std::shared_mutex system_mutex;
-	mutable std::shared_mutex component_pool_mutex;
+	mutable std::recursive_mutex component_pool_mutex;
 
 	bool commit_in_progress = false;
 	bool run_in_progress = false;
@@ -243,14 +243,37 @@ private:
 		}
 	}
 
+	template<typename T, typename V>
+	void setup_variant_pool(component_pool<T>& pool, component_pool<V>& variant_pool) {
+		if constexpr (std::same_as<T, V>) {
+			return;
+		} else {
+			pool.add_variant(&variant_pool);
+			variant_pool.add_variant(&pool);
+			if constexpr (has_variant_alias<V> && !std::same_as<T, V>) {
+				setup_variant_pool(pool, get_component_pool<variant_t<V>>());
+			}
+		}
+	}
+
 	// Create a component pool for a new type
 	template <typename T>
 	component_pool_base* create_component_pool() {
+		static_assert(not_recursive_variant<T>(), "variant chain/tree is recursive");
+
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
+
+		// Set up variants
+		if constexpr (ecs::detail::has_variant_alias<T>) {
+			setup_variant_pool(*pool.get(), get_component_pool<variant_t<T>>());
+		}
+
+		// Store the pool and its type hash
 		static constexpr auto hash = get_type_hash<T>();
 		pool_type_hash.push_back(hash);
 		component_pools.push_back(std::move(pool));
+
 		return component_pools.back().get();
 	}
 };

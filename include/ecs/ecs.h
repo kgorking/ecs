@@ -1,10 +1,10 @@
 #if defined(ECS_USE_MODULES)
 import ecs;
 #else
-#if 0
+#if 0 // Use this for dev
 #include "runtime.h"
 #else
-// test single-include header
+// Use the single-include header, it's faster to compile
 #include "ecs_sh.h"
 #endif
 #endif

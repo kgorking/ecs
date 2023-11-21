@@ -139,6 +139,7 @@ private:
 	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
 
 	std::vector<chunk> chunks;
+	std::vector<component_pool_base*> variants;
 
 	// Status flags
 	bool components_added : 1 = false;
@@ -150,6 +151,9 @@ private:
 	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
 	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+#if ECS_ENABLE_CONTRACTS_AUDIT
+	[[MSVC no_unique_address]] tls::unique_collect<std::vector<entity_range>> deferred_variants;
+#endif
 	[[MSVC no_unique_address]] Alloc alloc;
 
 public:
@@ -174,6 +178,9 @@ public:
 			deferred_spans.clear();
 			deferred_gen.clear();
 			deferred_removes.clear();
+#if ECS_ENABLE_CONTRACTS_AUDIT
+			deferred_variants.clear();
+#endif
 		}
 	}
 
@@ -181,10 +188,9 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	// Pre: range and span must be same size.
-	void add_span(entity_range const range, std::span<const T> span) requires(!detail::unbound<T>) {
-		// Check in runtime.h
+	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
 		//Pre(range.count() == std::ssize(span), "range and span must be same size");
-
+		remove_from_variants(range);
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
 	}
@@ -194,6 +200,7 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	template <typename Fn>
 	void add_generator(entity_range const range, Fn&& gen) {
+		remove_from_variants(range);
 		// Add the range and function to a temp storage
 		deferred_gen.local().emplace_back(range, std::forward<Fn>(gen));
 	}
@@ -202,6 +209,7 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add(entity_range const range, T&& component) noexcept {
+		remove_from_variants(range);
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
@@ -213,11 +221,19 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add(entity_range const range, T const& component) noexcept {
+		remove_from_variants(range);
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
 			deferred_adds.local().emplace_back(range, component);
 		}
+	}
+
+	// Adds a variant to this component pool
+	void add_variant(component_pool_base* variant) {
+		Pre(nullptr != variant, "variant can not be null");
+		if (std::ranges::find(variants, variant) == variants.end())
+			variants.push_back(variant);
 	}
 
 	// Return the shared component
@@ -343,11 +359,11 @@ public:
 	}
 
 	// Returns the pools entities
-	auto get_entities() const noexcept {
+	stride_view<sizeof(chunk), entity_range const> get_entities() const noexcept {
 		if (!chunks.empty())
-			return stride_view<sizeof(chunk), entity_range const>(&chunks[0].active, chunks.size());
+			return {&chunks[0].active, chunks.size()};
 		else
-			return stride_view<sizeof(chunk), entity_range const>();
+			return {};
 	}
 
 	// Returns true if an entity has a component in this pool
@@ -401,7 +417,42 @@ public:
 		components_modified = true;
 	}
 
+	// Called from other component pools
+	void remove_variant(entity_range const& range) noexcept override {
+		deferred_removes.local().push_back(range);
+#if ECS_ENABLE_CONTRACTS_AUDIT
+		deferred_variants.local().push_back(range);
+#endif
+	}
+
 private:
+	template <typename U>
+	static bool ensure_no_intersection_ranges(std::vector<entity_range> const& a, std::vector<U> const& b) {
+		auto it_a_curr = a.begin();
+		auto it_b_curr = b.begin();
+		auto const it_a_end = a.end();
+		auto const it_b_end = b.end();
+
+		while (it_a_curr != it_a_end && it_b_curr != it_b_end) {
+			if (it_a_curr->overlaps(it_b_curr->rng)) {
+				return false;
+			}
+
+			if (it_a_curr->last() < it_b_curr->rng.last()) { // range a is inside range b, move to
+															 // the next range in a
+				++it_a_curr;
+			} else if (it_b_curr->rng.last() < it_a_curr->last()) { // range b is inside range a,
+																	// move to the next range in b
+				++it_b_curr;
+			} else { // ranges are equal, move to next ones
+				++it_a_curr;
+				++it_b_curr;
+			}
+		}
+
+		return true;
+	}
+
 	chunk_iter create_new_chunk(chunk_iter it_loc, entity_range const range, entity_range const active, T* data = nullptr,
 								bool owns_data = true, bool split_data = false) noexcept {
 		Pre(range.contains(active), "active range is not contained in the total range");
@@ -473,6 +524,13 @@ private:
 	[[nodiscard]]
 	chunk_iter remove_range_to_chunk(chunk_iter it) noexcept {
 		return chunks.erase(it);
+	}
+
+	// Remove a range from the variants
+	void remove_from_variants(entity_range const range) {
+		for (component_pool_base* variant : variants) {
+			variant->remove_variant(range);
+		}
 	}
 
 	// Flag that components has been added
@@ -658,7 +716,13 @@ private:
 
 	// Add new queued entities and components to the main storage.
 	void process_add_components() {
-		auto const adder = [this]<typename C>(std::vector<C>& vec) {
+#if ECS_ENABLE_CONTRACTS_AUDIT
+		std::vector<entity_range> vec_variants;
+		deferred_variants.gather_flattened(std::back_inserter(vec_variants));
+		std::sort(vec_variants.begin(), vec_variants.end());
+#endif
+
+		auto const adder = [&]<typename C>(std::vector<C>& vec) noexcept(false) {
 			if (vec.empty())
 				return;
 
@@ -675,6 +739,9 @@ private:
 				else
 					combine_erase(vec, combiner_bound);
 			}
+
+			PreAudit(ensure_no_intersection_ranges(vec_variants, vec),
+				"Two variants have been added at the same time");
 
 			this->process_add_components(vec);
 			vec.clear();

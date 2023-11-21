@@ -5,9 +5,15 @@
 // Open to new alternatives (states/events), Open to new operations (systems)
 
 // States
-struct state_idle {};
-struct state_connected {};
+struct state_idle {
+	using ecs_flags = ecs::flags<ecs::tag>;
+};
+struct state_connected {
+	using variant_of = state_idle;
+	using ecs_flags = ecs::flags<ecs::tag>;
+};
 struct state_connecting {
+	using variant_of = state_connected;
 	static constexpr int max_n = 5;
 	int n = 0;
 };
@@ -30,9 +36,9 @@ struct ev_disconnect_t {
 void add_systems(ecs::runtime& rt) {
 
 	// state_idle + ev_connect_t -> state_connecting (1)
-	rt.make_system([&](ecs::entity_id fsm, state_idle const& idle, ev_connect_t const& /*ev*/) {
+	rt.make_system([&](ecs::entity_id fsm, state_idle, ev_connect_t const& /*ev*/) {
 		std::cout << "ev_connect_t: state_idle -> state_connecting\n";
-		rt.replace_component(fsm, idle, state_connecting{});
+		rt.add_component(fsm, state_connecting{});
 	});
 
 	// state_connecting + ev_timeout_t [-> state_idle] (2)
@@ -40,22 +46,22 @@ void add_systems(ecs::runtime& rt) {
 		std::cout << "ev_timeout_t: ";
 		if (++connecting.n >= state_connecting::max_n) {
 			std::cout << "state_connecting -> state_idle\n";
-			rt.replace_component(fsm, connecting, state_idle{});
+			rt.add_component(fsm, state_idle{});
 		} else {
 			std::cout << "n = " << connecting.n << ", retrying\n";
 		}
 	});
 
 	// state_connecting + ev_connected_t -> state_connected (3)
-	rt.make_system([&](ecs::entity_id fsm, state_connecting const& connecting, ev_connected_t const& /*ev*/) {
+	rt.make_system([&](ecs::entity_id fsm, state_connecting, ev_connected_t const& /*ev*/) {
 		std::cout << "ev_connected_t: state_connecting -> state_connected\n";
-		rt.replace_component(fsm, connecting, state_connected{});
+		rt.add_component(fsm, state_connected{});
 	});
 
 	// state_connected + ev_disconnect_t -> state_idle (4)
-	rt.make_system([&](ecs::entity_id fsm, state_connected const& connected, ev_disconnect_t const& /*ev*/) {
+	rt.make_system([&](ecs::entity_id fsm, state_connected, ev_disconnect_t const& /*ev*/) {
 		std::cout << "ev_disconnect_t: state_connected -> state_idle\n";
-		rt.replace_component(fsm, connected, state_idle{});
+		rt.add_component(fsm, state_idle{});
 	});
 }
 
@@ -99,7 +105,7 @@ int main() {
 		using ecs_flags = ecs::flags<ecs::transient>;
 		const char* msg = "hello!";
 	};
-	rt.make_system([](state_idle const &, ev_hello const &ev) { std::cout << "ev_hello: state_idle says '" << ev.msg << "'\n"; });
+	rt.make_system([](state_idle, ev_hello const &ev) { std::cout << "ev_hello: state_idle says '" << ev.msg << "'\n"; });
 
 	rt.add_component(fsm, ev_hello{});
 	rt.update();
