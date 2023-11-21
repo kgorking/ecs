@@ -21,21 +21,26 @@ public:
 
 private:
 	void do_run() override {
-		// Call the system for all the components that match the system signature
-		for (auto& [range, argument] : range_arguments) {
-			argument(range, this->update_func);
+		for (std::size_t i = 0; i < ranges.size(); i++) {
+			auto const& range = ranges[i];
+			auto& argument = arguments[i];
+
+			for (entity_offset offset = 0; offset < range.count(); ++offset) {
+				argument(range.first() + offset, offset, this->update_func);
+			}
 		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
 		// Clear current arguments
-		range_arguments.clear();
+		ranges.clear();
+		arguments.clear();
 
-		for_all_types<ComponentsList>([&]<typename... Type>() {
+		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				range_arguments.emplace_back(found_range,
-											 make_argument<Types...>(get_component<Types>(found_range.first(), this->pools)...));
+				ranges.emplace_back(found_range);
+				arguments.emplace_back(make_argument<Types...>(get_component<Types>(found_range.first(), this->pools)...));
 			});
 		});
 	}
@@ -43,18 +48,12 @@ private:
 	template <typename... Ts>
 	static auto make_argument(auto... args) {
 		if constexpr (FirstIsEntity) {
-			return [=](entity_range const range, auto update_func) {
-				entity_offset offset = 0;
-				for (entity_id const ent : range) {
-					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-					offset += 1;
-				}
+			return [=](entity_id ent, entity_offset offset, auto& update_func) {
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 			};
 		} else {
-			return [=](entity_range const range, auto update_func) {
-				for (entity_offset offset = 0; offset < range.count(); ++offset) {
-					update_func(extract_arg_lambda<Ts>(args, offset, 0)...);
-				}
+			return [=](entity_id    , entity_offset offset, auto& update_func) {
+				update_func(     extract_arg_lambda<Ts>(args, offset, 0)...);
 			};
 		}
 	}
@@ -67,12 +66,8 @@ private:
 		}
 	))>;
 
-	struct range_argument {
-		entity_range range;
-		argument arg;
-	};
-	
-	std::vector<range_argument> range_arguments;
+	std::vector<entity_range> ranges;
+	std::vector<argument> arguments;
 };
 } // namespace ecs::detail
 
