@@ -2,6 +2,7 @@
 #define ECS_SYSTEM_RANGED_H_
 
 #include "system.h"
+#include "static_scheduler.h"
 
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
@@ -23,10 +24,13 @@ private:
 	void do_run() override {
 		for (std::size_t i = 0; i < ranges.size(); i++) {
 			auto const& range = ranges[i];
-			auto& argument = arguments[i];
+			auto& arg = arguments[i];
+
+			operation const op(arg, this->get_update_func());
 
 			for (entity_offset offset = 0; offset < range.count(); ++offset) {
-				argument(range.first() + offset, offset, this->update_func);
+				op.run(range.first() + offset, offset);
+				//arg(this->get_update_func(), range.first() + offset, offset);
 			}
 		}
 	}
@@ -48,19 +52,15 @@ private:
 	template <typename... Ts>
 	static auto make_argument(auto... args) {
 		if constexpr (FirstIsEntity) {
-			return [=](entity_id ent, entity_offset offset, auto& update_func) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-			};
+			return [=](UpdateFn& fn, entity_id ent, entity_offset offset) { fn(ent, extract_arg_lambda<Ts>(args, offset, 0)...); };
 		} else {
-			return [=](entity_id    , entity_offset offset, auto& update_func) {
-				update_func(     extract_arg_lambda<Ts>(args, offset, 0)...);
-			};
+			return [=](UpdateFn& fn, entity_id    , entity_offset offset) { fn(     extract_arg_lambda<Ts>(args, offset, 0)...); };
 		}
 	}
 
 private:
 	// Get the type of lambda containing the arguments
-	using argument = std::remove_const_t<decltype(
+	using argument = std::remove_cvref_t<decltype(
 		for_all_types<ComponentsList>([]<typename... Types>() {
 			return make_argument<Types...>(component_argument<Types>{}...);
 		}

@@ -127,6 +127,10 @@ public:
 		}
 	}
 
+	UpdateFn& get_update_func() {
+		return update_func;
+	}
+
 protected:
 	// Handle changes when the component pools change
 	void process_changes(bool force_rebuild) override {

@@ -8,34 +8,32 @@
 //
 // Stuff to do before work on the scheduler can proceed:
 //   * unify the argument creation across systems
-//   * disallow mutable user supplied system lambdas
 //
 namespace ecs::detail {
-
     struct operation {
         template<typename Arguments, typename Fn>
-        explicit operation(Arguments &args, Fn& fn)
+        explicit operation(Arguments& args, Fn& fn)
             : arguments{&args}
             , function(&fn)
-            , op{[](entity_range range, void *p1, void *p2){
-                auto *args = static_cast<Arguments*>(p1);
-                auto *func = static_cast<Fn*>(p2);
-                (*args)(range, *func);
+            , op{[](entity_id id, entity_offset offset, void *p1, void *p2){
+				auto *args = static_cast<Arguments*>(p1);
+				auto *func = static_cast<Fn*>(p2);
+				(*args)(*func, id, offset);
             }}
         {}
 
-        void run(entity_range range) {
-            op(range, arguments, function);
+        void run(entity_id id, entity_offset offset) const {
+            op(id, offset, arguments, function);
         }
 
     private:
         void* arguments;
         void* function;
-        void (*op)(entity_range range, void*, void*);
+		void (*op)(entity_id id, entity_offset offset, void*, void*);
     };
 
     class job {
-        //entity_range range;
+        entity_range range;
         operation op;
     };
 

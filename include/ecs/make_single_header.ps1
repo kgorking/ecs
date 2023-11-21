@@ -30,6 +30,7 @@ $files = (
 	'detail/verification.h',
 	'detail/entity_range.h',
 	'detail/find_entity_pool_intersections.h',
+	'detail/static_scheduler.h',
 	'detail/system_base.h',
 	'detail/system.h',
 	'detail/system_sorted.h',
