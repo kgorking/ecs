@@ -8,32 +8,24 @@
 struct state_idle {
 	using ecs_flags = ecs::flags<ecs::tag>;
 };
-struct state_connected {
-	using variant_of = state_idle;
-	using ecs_flags = ecs::flags<ecs::tag>;
-};
 struct state_connecting {
-	using variant_of = state_connected;
+	using variant_of = state_idle;
 	static constexpr int max_n = 5;
 	int n = 0;
 };
+struct state_connected {
+	using variant_of = state_connecting;
+	using ecs_flags = ecs::flags<ecs::tag>;
+};
 
 // Events. Marked as transient so they are automatically removed
-struct ev_connect_t {
-	using ecs_flags = ecs::flags<ecs::transient>;
-};
-struct ev_timeout_t {
-	using ecs_flags = ecs::flags<ecs::transient>;
-};
-struct ev_connected_t {
-	using ecs_flags = ecs::flags<ecs::transient>;
-};
-struct ev_disconnect_t {
-	using ecs_flags = ecs::flags<ecs::transient>;
-};
+struct ev_connect_t { using ecs_flags = ecs::flags<ecs::transient>; };
+struct ev_timeout_t { using ecs_flags = ecs::flags<ecs::transient>; };
+struct ev_connected_t { using ecs_flags = ecs::flags<ecs::transient>; };
+struct ev_disconnect_t { using ecs_flags = ecs::flags<ecs::transient>; };
 
 // Add the systems that handle state/event interactions
-void add_systems(ecs::runtime& rt) {
+static void add_systems(ecs::runtime& rt) {
 
 	// state_idle + ev_connect_t -> state_connecting (1)
 	rt.make_system([&](ecs::entity_id fsm, state_idle, ev_connect_t const& /*ev*/) {
