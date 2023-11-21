@@ -118,9 +118,9 @@ inline void do_postcondition_violation(char const* what, char const* how) {
 #define Assert(expression, message) ASSUME(expression)
 #define Pre(expression, message) ASSUME(expression)
 #define Post(expression, message) ASSUME(expression)
-#define AssertAudit(expression, message) ASSUME(expression)
-#define PreAudit(expression, message) ASSUME(expression)
-#define PostAudit(expression, message) ASSUME(expression)
+#define AssertAudit(expression, message)
+#define PreAudit(expression, message)
+#define PostAudit(expression, message)
 #endif
 
 #endif // !ECS_CONTRACT_H

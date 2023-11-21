@@ -1002,9 +1002,9 @@ inline void do_postcondition_violation(char const* what, char const* how) {
 #define Assert(expression, message) ASSUME(expression)
 #define Pre(expression, message) ASSUME(expression)
 #define Post(expression, message) ASSUME(expression)
-#define AssertAudit(expression, message) ASSUME(expression)
-#define PreAudit(expression, message) ASSUME(expression)
-#define PostAudit(expression, message) ASSUME(expression)
+#define AssertAudit(expression, message)
+#define PreAudit(expression, message)
+#define PostAudit(expression, message)
 #endif
 
 #endif // !ECS_CONTRACT_H
@@ -1948,7 +1948,7 @@ private:
 	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
 	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
 	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
+#if ECS_ENABLE_CONTRACTS_AUDIT
 	[[MSVC no_unique_address]] tls::unique_collect<std::vector<entity_range>> deferred_variants;
 #endif
 	[[MSVC no_unique_address]] Alloc alloc;
@@ -1975,7 +1975,7 @@ public:
 			deferred_spans.clear();
 			deferred_gen.clear();
 			deferred_removes.clear();
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
+#if ECS_ENABLE_CONTRACTS_AUDIT
 			deferred_variants.clear();
 #endif
 		}
@@ -2217,7 +2217,7 @@ public:
 	// Called from other component pools
 	void remove_variant(entity_range const& range) noexcept override {
 		deferred_removes.local().push_back(range);
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
+#if ECS_ENABLE_CONTRACTS_AUDIT
 		deferred_variants.local().push_back(range);
 #endif
 	}
@@ -2513,7 +2513,7 @@ private:
 
 	// Add new queued entities and components to the main storage.
 	void process_add_components() {
-#ifdef ECS_ENABLE_CONTRACTS_AUDIT
+#if ECS_ENABLE_CONTRACTS_AUDIT
 		std::vector<entity_range> vec_variants;
 		deferred_variants.gather_flattened(std::back_inserter(vec_variants));
 		std::sort(vec_variants.begin(), vec_variants.end());
