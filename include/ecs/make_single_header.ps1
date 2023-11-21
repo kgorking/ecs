@@ -17,6 +17,7 @@ $files = (
 	'detail/options.h',
 	'entity_range.h',
 	'detail/parent_id.h',
+	'detail/variant.h',
 	'flags.h',
 	'detail/stride_view.h',
 	'detail/component_pool_base.h',

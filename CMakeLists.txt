@@ -22,6 +22,7 @@ if (ECS_COMPILE_AS_MODULE)
 	# creates module library 'ecs'
 	add_library(ecs)
 	target_compile_definitions(ecs PUBLIC ECS_USE_MODULES)
+	target_compile_definitions(ecs PRIVATE ECS_EXPORT=export)
 	target_sources(ecs PUBLIC FILE_SET CXX_MODULES FILES "include/ecs/ecs.ixx")
 
 	# Set project scope
@@ -143,6 +144,7 @@ if (ECS_STANDALONE_PROJECT)
     # Examples
     add_subdirectory ("examples/entt_example")
     add_subdirectory ("examples/example")
+    add_subdirectory ("examples/variant")
     add_subdirectory ("examples/filtering")
     add_subdirectory ("examples/interval")
     add_subdirectory ("examples/finite_state_machine")

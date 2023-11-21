@@ -7,8 +7,8 @@ using namespace std::string_view_literals;
 struct is_funny {
 	using ecs_flags = ecs::flags<ecs::tag>;
 };
-struct dad { std::string_view name; };
-struct kid { std::string_view name; };
+struct dad : std::string_view { };
+struct kid : std::string_view { };
 
 int main() {
 	ecs::runtime rt;
@@ -31,13 +31,13 @@ int main() {
 
 	// Create a system that prints which dads are funny
 	rt.make_system([](kid const& k, ecs::parent<is_funny, dad> parent) {
-		std::cout << k.name << "'s dad " << parent.get<dad>().name << " is funny\n";
+		std::cout << k << "'s dad " << parent.get<dad>() << " is funny\n";
 	});
 
 	// Create another system that prints which dads are NOT funny
 	// Uses a filter in the parent (is_funny*)
 	rt.make_system([](kid const& k, ecs::parent<is_funny*, dad> parent) {
-		std::cout << k.name << "'s dad " << parent.get<dad>().name << " is NOT funny\n";
+		std::cout << k << "'s dad " << parent.get<dad>() << " is NOT funny\n";
 	});
 
 	// Run it

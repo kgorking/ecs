@@ -3,7 +3,7 @@
 
 #include "../entity_range.h"
 
-// Find the intersectsions between two sets of ranges
+// Find the intersections between two sets of ranges
 namespace ecs::detail {
 template <typename Iter>
 struct iter_pair {

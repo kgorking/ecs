@@ -5,15 +5,7 @@
 #include "catch.hpp"
 
 // Override the default handler for contract violations.
-struct unittest_handler {
-	void assertion_failed(char const* , char const* msg)        { throw std::runtime_error(msg); }
-	void precondition_violation(char const* , char const* msg)  { throw std::runtime_error(msg); }
-	void postcondition_violation(char const* , char const* msg) { throw std::runtime_error(msg); }
-};
-#ifndef __clang__ // currently bugged in clang
-template <>
-auto ecs::contract_violation_handler<> = unittest_handler{};
-#endif
+#include "override_contract_handler_to_throw.h"
 
 // A helper class that counts invocations of constructers/destructor
 struct ctr_counter {
@@ -69,7 +61,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	}
 
 	SECTION("Adding components") {
-		SECTION("does not perform copies of components") {
+		SECTION("does not perform unneeded copies of components") {
 			ecs::detail::component_pool<ctr_counter> pool;
 			pool.add({0, 2}, ctr_counter{});
 			pool.process_changes();
@@ -234,6 +226,17 @@ TEST_CASE("Component pool specification", "[component]") {
 			pool.process_changes();
 
 			REQUIRE(pool.num_components() == 0);
+		}
+		SECTION("that don't exist does nothing") {
+			ecs::detail::component_pool<int> pool;
+			pool.remove({0, 5});
+			pool.process_changes();
+
+			pool.add({6, 10}, int{});
+			pool.process_changes();
+			pool.remove({0, 5});
+			pool.process_changes();
+			SUCCEED();
 		}
 	}
 

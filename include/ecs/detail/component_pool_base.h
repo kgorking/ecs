@@ -15,6 +15,10 @@ public:
 	virtual void process_changes() = 0;
 	virtual void clear_flags() = 0;
 	virtual void clear() = 0;
+
+	// facilitate variant implementation.
+	// Called from other component pools.
+	virtual void remove_variant(class entity_range const& range) = 0;
 };
 } // namespace ecs::detail
 
