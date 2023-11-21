@@ -1,6 +1,5 @@
-#include <complex>
 #include <ecs/ecs.h>
-#include <ecs/entity_range.h>
+#include <complex>
 #include <iostream>
 
 // Based on https://solarianprogrammer.com/2013/02/28/mandelbrot-set-cpp-11/
@@ -35,25 +34,25 @@ void mandelbrot_system(size_t& color, pos const& p) {
 }
 
 int main() {
-	ecs::runtime ecs;
+	ecs::runtime rt;
 	// Add the system
-	ecs.make_system(mandelbrot_system);
+	rt.make_system(mandelbrot_system);
 
 	// Add the size_t component to the pixels/entities
 	ecs::entity_range const ents{0, dimension * dimension - 1};
-	ecs.add_component(ents, size_t{0});
-	ecs.add_component_generator(ents, [](ecs::entity_id ent) -> pos {
+	rt.add_component(ents, size_t{0});
+	rt.add_component_generator(ents, [](ecs::entity_id ent) -> pos {
 		int const x = ent % dimension;
 		int const y = ent / dimension;
 		return {x, y};
 	});
 
 	// Commit all component changes and run the system
-	ecs.update();
+	rt.update();
 
 	// Count the pixels equal to one
 	size_t counter = 0;
-	for (size_t const& color : ecs.get_components<size_t>(ents))
+	for (size_t const& color : rt.get_components<size_t>(ents))
 		if (color == 1)
 			counter++;
 

@@ -1,14 +1,17 @@
-#include "gbench/include/benchmark/benchmark.h"
-#include <algorithm>
 #include <ecs/ecs.h>
-#include <future>
-
+#include <execution>
+#include <iterator>
+#include <span>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+#include "gbench/include/benchmark/benchmark.h"
 #include "global.h"
 
 template <bool parallel>
 void run_raw(benchmark::State &state) {
 	auto const num_items = state.range(0);
-	auto const num_entities = static_cast<ecs::detail::entity_type>(num_items);
+	auto const num_entities = static_cast<int>(num_items);
 	auto const num_colors = static_cast<size_t>(num_items) + 1;
 
 	std::vector<int> colors(num_colors);
@@ -23,15 +26,13 @@ void run_raw(benchmark::State &state) {
 			benchmark_system(ent, colors[index]);
 		});
 	}
-
-	state.SetItemsProcessed(state.iterations() * num_items);
 }
 
 // Simulates the hierarchial setup from system_hiearchy
 template <bool parallel>
 void run_hierarchy_raw(benchmark::State &state) {
 	auto const num_items = static_cast<std::size_t>(state.range(0));
-	auto const num_entities = static_cast<ecs::detail::entity_type>(num_items);
+	//auto const num_entities = static_cast<int>(num_items);
 	auto const num_colors = static_cast<size_t>(num_items) + 1;
 
 
@@ -82,8 +83,6 @@ void run_hierarchy_raw(benchmark::State &state) {
 			}
 		});
 	}
-
-	state.SetItemsProcessed(state.iterations() * num_entities);
 }
 
 void run_serial_raw(benchmark::State &state) {

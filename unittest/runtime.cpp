@@ -1,7 +1,13 @@
+#include <ecs/ecs.h>
+#include <numeric>
+#include <exception>
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include <ecs/ecs.h>
 
+// Override the default handler for contract violations.
+#include "override_contract_handler_to_throw.h"
+
+// A helper class that counts invocations of constructers/destructor
 struct runtime_ctr_counter {
 	inline static int def_ctr_count = 0;
 	inline static int ctr_count = 0;
@@ -106,6 +112,32 @@ TEST_CASE("The runtime interface") {
 				int i = *ecs.get_component<int>(ent);
 				CHECK(i == 42);
 			}
+		}
+
+		SECTION("with a span must be equal in size") {
+			ecs::runtime rt;
+			
+			// 10 ints
+			std::array<int, 10> ints{};
+			std::iota(ints.begin(), ints.end(), 0);
+
+			// 7 entities, must throw
+#ifndef __clang__
+			REQUIRE_THROWS(rt.add_component_span({0, 6}, ints));
+#endif
+		}
+
+		SECTION("with a span must be equal in size") {
+			ecs::runtime rt;
+			
+			// 10 ints
+			std::array<int, 10> ints{};
+			std::iota(ints.begin(), ints.end(), 0);
+
+			// 7 entities, must throw
+#ifndef __clang__
+			REQUIRE_THROWS(rt.add_component_span({0, 6}, ints));
+#endif
 		}
 
 		SECTION("of components with generator works") {

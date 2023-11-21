@@ -1,107 +1,45 @@
-#include <iostream>
-
-#ifndef __cpp_lib_format
-int main() {
-	std::cout << "This example requires <format>\n";
-}
-#else
 #include <ecs/ecs.h>
-#include <format>
+#include <iostream>
+#include <string_view>
 
-void print_trees(ecs::runtime& rt) {
-	const auto f = [&](int i) {
-		return *rt.get_component<int>(i);
-	};
+using namespace std::string_view_literals;
 
-	constexpr auto tree_fmt_sz = R"(    {}        {}          {}
-  / | \    / | \      / | \
- {}  {}  {}  {}  {}  {}    {}  {}  {}
- |           |             |
- {}           {}             {}
-
-)";
-	//clang-format off
-	std::cout << std::format(tree_fmt_sz, 
-		f(4), f(3), f(2),
-
-		f(5), f(6), f(7),   f(8), f(9), f(10),   f(11), f(12), f(13),
-
-		f(14), f(15), f(16));
-	//clang-format on
-}
-
+struct is_funny {
+	using ecs_flags = ecs::flags<ecs::tag>;
+};
+struct dad : std::string_view { };
+struct kid : std::string_view { };
 
 int main() {
-	using namespace ecs::opts;
 	ecs::runtime rt;
 
-	/* Creates the following trees, with ids shown as their nodes
+	// Add 4 dads
+	dad const dads[] = {{"Bill"sv}, {"Fred"sv}, {"Andy"sv}, {"Jeff"sv}};
+	rt.add_component_span({0, 3}, dads);
 
-		   4       3          2
-		  /|\     /|\       / | \
-		 5 6 7   8 9 10   11  12 13
-		 |         |             |
-		 14        15            16
-	*/
+	// Mark 2 of them as funny
+	rt.add_component(0, is_funny{});
+	rt.add_component(2, is_funny{});
 
-	// The node values
-	rt.add_component({2, 16}, int{1});
+	// Add 6 kids
+	kid const kids[] = {{"Olivia"sv}, {"Emma"sv}, {"Charlotte"sv}, {"Amelia"sv}, {"Sophia"sv}, {"Isabella"sv}};
+	rt.add_component_span({10, 15}, kids);
 
-	// The parents of the children
-	constexpr std::array<ecs::detail::parent_id, 12> parents{4, 4, 4, 3, 3, 3, 2, 2, 2, 5, 9, 13};
-	rt.add_component_span({5, 16}, parents);
+	// Set up relationships
+	ecs::detail::parent_id const parents[] = {0, 0, 1, 2, 2, 3};
+	rt.add_component_span({10, 15}, parents);
 
-
-	rt.commit_changes();
-
-	std::cout << "Trees before update:\n";
-	print_trees(rt);
-
-
-	std::cout << "Add parents value to children:\n";
-	auto& adder = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
-		i += p.get<int>();
+	// Create a system that prints which dads are funny
+	rt.make_system([](kid const& k, ecs::parent<is_funny, dad> parent) {
+		std::cout << k << "'s dad " << parent.get<dad>() << " is funny\n";
 	});
-	adder.run();
-	print_trees(rt);
 
-
-	std::cout << "Reset tree with new values:\n";
-	auto& reset = rt.make_system<manual_update>([](int& i) {
-		i = 2;
+	// Create another system that prints which dads are NOT funny
+	// Uses a filter in the parent (is_funny*)
+	rt.make_system([](kid const& k, ecs::parent<is_funny*, dad> parent) {
+		std::cout << k << "'s dad " << parent.get<dad>() << " is NOT funny\n";
 	});
-	reset.run();
-	print_trees(rt);
 
-
-	std::cout << "Subtract parents value from children:\n";
-	auto& subber = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
-		i -= p.get<int>();
-	});
-	subber.run();
-	print_trees(rt);
-
-
-	std::cout << "Add childrens value to parents:\n";
-	auto& inv_adder = rt.make_system<manual_update>([](int& i, ecs::parent<int> const& p) {
-		p.get<int>() += i;
-	});
-	inv_adder.run();
-	print_trees(rt);
-
-
-	std::cout << "Print ids in traversal order:\n";
-	auto& print_ids = rt.make_system<manual_update, not_parallel>([](ecs::entity_id id, int) {
-		std::cout << id << ' ';
-	});
-	print_ids.run();
-	std::cout << '\n';
-
-	std::cout << "Print parent ids in traversal order:\n";
-	auto& print_parent_ids = rt.make_system<manual_update, not_parallel>([](int, ecs::parent<> p) {
-		std::cout << p.id() << ' ';
-	});
-	print_parent_ids.run();
-	std::cout << '\n';
+	// Run it
+	rt.update();
 }
-#endif

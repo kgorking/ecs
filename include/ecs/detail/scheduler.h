@@ -15,15 +15,23 @@ namespace ecs::detail {
 struct scheduler_node final {
 	// Construct a node from a system.
 	// The system can not be null
-	scheduler_node(detail::system_base* _sys) : sys(_sys), dependants{}, unfinished_dependencies{0}, dependencies{0} {
-		Expects(sys != nullptr);
+	scheduler_node(detail::system_base* _sys) : sys(_sys), dependents{}, unfinished_dependencies{0}, dependencies{0} {
+		Pre(sys != nullptr, "system can not be null");
 	}
 
 	scheduler_node(scheduler_node const& other) {
 		sys = other.sys;
-		dependants = other.dependants;
+		dependents = other.dependents;
 		dependencies = other.dependencies;
 		unfinished_dependencies = other.unfinished_dependencies.load();
+	}
+
+	scheduler_node& operator=(scheduler_node const& other) {
+		sys = other.sys;
+		dependents = other.dependents;
+		dependencies = other.dependencies;
+		unfinished_dependencies = other.unfinished_dependencies.load();
+		return *this;
 	}
 
 	detail::system_base* get_system() const noexcept {
@@ -31,15 +39,15 @@ struct scheduler_node final {
 	}
 
 	// Add a dependant to this system. This system has to run to
-	// completion before the dependants can run.
-	void add_dependant(size_t node_index) {
-		dependants.push_back(node_index);
+	// completion before the dependents can run.
+	void add_dependent(size_t node_index) {
+		dependents.push_back(node_index);
 	}
 
 	// Increase the dependency counter of this system. These dependencies has to
 	// run to completion before this system can run.
 	void increase_dependency_count() {
-		Expects(dependencies != std::numeric_limits<int16_t>::max());
+		Pre(dependencies != std::numeric_limits<int16_t>::max(), "system has too many dependencies (>32k)");
 		dependencies += 1;
 	}
 
@@ -61,20 +69,14 @@ struct scheduler_node final {
 		// Run the system
 		sys->run();
 
-		// Notify the dependants that we are done
-		for (size_t const node : dependants)
+		// Notify the dependents that we are done
+		for (size_t const node : dependents)
 			nodes[node].dependency_done();
 
-		// Run the dependants in parallel
-		std::for_each(std::execution::par, dependants.begin(), dependants.end(), [&nodes](size_t node) { nodes[node].run(nodes); });
-	}
-
-	scheduler_node& operator=(scheduler_node const& other) {
-		sys = other.sys;
-		dependants = other.dependants;
-		dependencies = other.dependencies;
-		unfinished_dependencies = other.unfinished_dependencies.load();
-		return *this;
+		// Run the dependents in parallel
+		std::for_each(std::execution::par, dependents.begin(), dependents.end(), [&nodes](size_t node) {
+			nodes[node].run(nodes);
+		});
 	}
 
 private:
@@ -82,7 +84,7 @@ private:
 	detail::system_base* sys{};
 
 	// The systems that depend on this
-	std::vector<size_t> dependants{};
+	std::vector<size_t> dependents{};
 
 	// The number of systems this depends on
 	std::atomic<int> unfinished_dependencies = 0;
@@ -97,10 +99,14 @@ class scheduler final {
 		std::vector<std::size_t> entry_nodes{};
 		int id;
 
+		systems_group() {}
+		systems_group(int group_id) : id(group_id) {}
+
 		// Runs the entry nodes in parallel
 		void run() {
-			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(),
-						  [this](size_t node_id) { all_nodes[node_id].run(all_nodes); });
+			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
+				all_nodes[node_id].run(all_nodes);
+			});
 		}
 	};
 
@@ -118,14 +124,17 @@ protected:
 		}
 
 		// No group found, so find an insertion point
-		auto const insert_point =
-			std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) { return group_id < sg.id; });
+		auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) {
+			return group_id < sg.id;
+		});
 
 		// Insert the group and return it
-		return *groups.insert(insert_point, systems_group{{}, {}, id});
+		return *groups.insert(insert_point, systems_group{id});
 	}
 
 public:
+	scheduler() {}
+
 	void insert(detail::system_base* sys) {
 		// Find the group
 		auto& group = find_group(sys->get_group());
@@ -148,7 +157,7 @@ public:
 						// The system writes to the component,
 						// so there is a strong dependency here.
 						inserted = true;
-						dep_node.add_dependant(node_index);
+						dep_node.add_dependent(node_index);
 						node.increase_dependency_count();
 						break;
 					} else { // 'other' reads component

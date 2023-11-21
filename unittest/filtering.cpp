@@ -1,6 +1,7 @@
+#include <ecs/ecs.h>
+#include <atomic>
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include <ecs/ecs.h>
 
 TEST_CASE("Filtering", "[component][system]") {
 	ecs::runtime ecs;
@@ -38,4 +39,43 @@ TEST_CASE("Filtering", "[component][system]") {
 	ecs.run_systems();
 
 	CHECK(no_shorts == ecs.get_entity_count<int>());
+}
+
+TEST_CASE("Filtering regression") {
+	SECTION("empty pools when adding filtered system") {
+		ecs::runtime rt;
+		rt.add_component({0, 20}, int());
+		rt.add_component({3, 9}, float());
+		rt.add_component({14, 18}, short());
+
+		rt.make_system([](int&, float*, short*) {});
+		rt.update();
+		SUCCEED();
+	}
+
+	SECTION("empty filters when adding filtered system") {
+		ecs::runtime rt;
+		rt.add_component({0, 20}, int());
+		rt.commit_changes();
+
+		rt.add_component({3, 9}, float());
+		rt.add_component({14, 18}, short());
+
+		rt.make_system([](int&, float*, short*) {});
+		rt.update();
+		SUCCEED();
+	}
+
+	SECTION("one empty filters when adding filtered system") {
+		ecs::runtime rt;
+		rt.add_component({0, 20}, int());
+		rt.add_component({3, 9}, float());
+		rt.commit_changes();
+
+		rt.add_component({14, 18}, short());
+
+		rt.make_system([](int&, float*, short*) {});
+		rt.update();
+		SUCCEED();
+	}
 }

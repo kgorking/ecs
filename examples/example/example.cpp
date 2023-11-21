@@ -7,14 +7,14 @@ struct greeting {
 };
 
 int main() {
-	ecs::runtime ecs;
+	ecs::runtime rt;
 
 	// The system
-	ecs.make_system([](greeting const& g) { std::cout << g.msg; });
+	rt.make_system([](greeting const& g) { std::cout << g.msg; });
 
 	// The entities
-	ecs.add_component({0, 2}, greeting{"alright "});
+	rt.add_component({0, 2}, greeting{"alright "});
 
 	// Run the system on all entities with a 'greeting' component
-	ecs.update();
+	rt.update();
 }

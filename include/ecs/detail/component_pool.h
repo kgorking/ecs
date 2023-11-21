@@ -4,6 +4,8 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <utility>
+#include <ranges>
 
 #include "tls/collect.h"
 
@@ -14,14 +16,16 @@
 #include "stride_view.h"
 
 #include "component_pool_base.h"
-#include "flags.h"
+#include "../flags.h"
 #include "options.h"
 
-namespace ecs::detail {
-
 #ifdef _MSC_VER
-	#define no_unique_address msvc::no_unique_address
+#define MSVC msvc::
+#else
+#define MSVC
 #endif
+
+namespace ecs::detail {
 
 template <typename ForwardIt, typename BinaryPredicate>
 ForwardIt std_combine_erase(ForwardIt first, ForwardIt last, BinaryPredicate&& p) noexcept {
@@ -44,7 +48,7 @@ void combine_erase(Cont& cont, BinaryPredicate&& p) noexcept {
 	cont.erase(end, cont.end());
 }
 
-template <typename T, typename Alloc = std::allocator<T>>
+ECS_EXPORT template <typename T, typename Alloc = std::allocator<T>>
 class component_pool final : public component_pool_base {
 private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
@@ -62,8 +66,6 @@ private:
 			active = other.active;
 			data = other.data;
 			other.data = nullptr;
-			set_owns_data(other.get_owns_data());
-			set_has_split_data(other.get_has_split_data());
 			return *this;
 		}
 		chunk(entity_range range_, entity_range active_, T* data_ = nullptr, bool owns_data_ = false,
@@ -137,6 +139,7 @@ private:
 	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
 
 	std::vector<chunk> chunks;
+	std::vector<component_pool_base*> variants;
 
 	// Status flags
 	bool components_added : 1 = false;
@@ -144,38 +147,50 @@ private:
 	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
-	[[no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	[[no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	[[no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	[[no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
-
-	[[no_unique_address]] Alloc alloc;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+#if ECS_ENABLE_CONTRACTS_AUDIT
+	[[MSVC no_unique_address]] tls::unique_collect<std::vector<entity_range>> deferred_variants;
+#endif
+	[[MSVC no_unique_address]] Alloc alloc;
 
 public:
 	component_pool() noexcept {
 		if constexpr (global<T>) {
-			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, false, false);
+			chunks.emplace_back(entity_range::all(), entity_range::all(), nullptr, true, false);
 			chunks.front().data = new T[1];
 		}
 	}
+
 	component_pool(component_pool const&) = delete;
 	component_pool(component_pool&&) = delete;
 	component_pool& operator=(component_pool const&) = delete;
 	component_pool& operator=(component_pool&&) = delete;
 	~component_pool() noexcept override {
-		if (global<T>) {
+		if constexpr (global<T>) {
 			delete [] chunks.front().data.pointer();
+			chunks.clear();
 		} else {
 			free_all_chunks();
+			deferred_adds.clear();
+			deferred_spans.clear();
+			deferred_gen.clear();
+			deferred_removes.clear();
+#if ECS_ENABLE_CONTRACTS_AUDIT
+			deferred_variants.clear();
+#endif
 		}
 	}
 
 	// Add a span of component to a range of entities
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
+	// Pre: range and span must be same size.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		Expects(range.count() == std::ssize(span));
-
+		//Pre(range.count() == std::ssize(span), "range and span must be same size");
+		remove_from_variants(range);
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
 	}
@@ -185,6 +200,7 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	template <typename Fn>
 	void add_generator(entity_range const range, Fn&& gen) {
+		remove_from_variants(range);
 		// Add the range and function to a temp storage
 		deferred_gen.local().emplace_back(range, std::forward<Fn>(gen));
 	}
@@ -193,6 +209,7 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add(entity_range const range, T&& component) noexcept {
+		remove_from_variants(range);
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
@@ -204,11 +221,19 @@ public:
 	// Pre: entities has not already been added, or is in queue to be added
 	//      This condition will not be checked until 'process_changes' is called.
 	void add(entity_range const range, T const& component) noexcept {
+		remove_from_variants(range);
 		if constexpr (tagged<T>) {
 			deferred_adds.local().emplace_back(range);
 		} else {
 			deferred_adds.local().emplace_back(range, component);
 		}
+	}
+
+	// Adds a variant to this component pool
+	void add_variant(component_pool_base* variant) {
+		Pre(nullptr != variant, "variant can not be null");
+		if (std::ranges::find(variants, variant) == variants.end())
+			variants.push_back(variant);
 	}
 
 	// Return the shared component
@@ -272,7 +297,7 @@ public:
 
 	// Merge all the components queued for addition to the main storage,
 	// and remove components queued for removal
-	void process_changes() noexcept override {
+	void process_changes() override {
 		if constexpr (!global<T>) {
 			process_remove_components();
 			process_add_components();
@@ -334,11 +359,11 @@ public:
 	}
 
 	// Returns the pools entities
-	auto get_entities() const noexcept {
+	stride_view<sizeof(chunk), entity_range const> get_entities() const noexcept {
 		if (!chunks.empty())
-			return stride_view<sizeof(chunk), entity_range const>(&chunks[0].active, chunks.size());
+			return {&chunks[0].active, chunks.size()};
 		else
-			return stride_view<sizeof(chunk), entity_range const>();
+			return {};
 	}
 
 	// Returns true if an entity has a component in this pool
@@ -347,13 +372,26 @@ public:
 	}
 
 	// Returns true if an entity range has components in this pool
-	bool has_entity(entity_range const& range) const noexcept {
-		auto const it = find_in_ordered_active_ranges(range);
+	bool has_entity(entity_range range) const noexcept {
+		auto it = find_in_ordered_active_ranges(range);
+		while (it != chunks.end()) {
+			if (it->range.first() > range.last())
+				return false;
 
-		if (it == chunks.end())
-			return false;
+			if (it->active.contains(range))
+				return true;
 
-		return it->active.contains(range);
+			if (it->active.overlaps(range)) {
+				auto const [r, m] = entity_range::remove(range, it->active);
+				if (m)
+					return false;
+				range = r;
+			}
+
+			std::advance(it, 1);
+		}
+
+		return false;
 	}
 
 	// Clear all entities from the pool
@@ -363,10 +401,10 @@ public:
 
 		// Clear all data
 		free_all_chunks();
-		deferred_adds.reset();
-		deferred_spans.reset();
-		deferred_gen.reset();
-		deferred_removes.reset();
+		deferred_adds.clear();
+		deferred_spans.clear();
+		deferred_gen.clear();
+		deferred_removes.clear();
 		chunks.clear();
 		clear_flags();
 
@@ -379,13 +417,50 @@ public:
 		components_modified = true;
 	}
 
+	// Called from other component pools
+	void remove_variant(entity_range const& range) noexcept override {
+		deferred_removes.local().push_back(range);
+#if ECS_ENABLE_CONTRACTS_AUDIT
+		deferred_variants.local().push_back(range);
+#endif
+	}
+
 private:
+	template <typename U>
+	static bool ensure_no_intersection_ranges(std::vector<entity_range> const& a, std::vector<U> const& b) {
+		auto it_a_curr = a.begin();
+		auto it_b_curr = b.begin();
+		auto const it_a_end = a.end();
+		auto const it_b_end = b.end();
+
+		while (it_a_curr != it_a_end && it_b_curr != it_b_end) {
+			if (it_a_curr->overlaps(it_b_curr->rng)) {
+				return false;
+			}
+
+			if (it_a_curr->last() < it_b_curr->rng.last()) { // range a is inside range b, move to
+															 // the next range in a
+				++it_a_curr;
+			} else if (it_b_curr->rng.last() < it_a_curr->last()) { // range b is inside range a,
+																	// move to the next range in b
+				++it_b_curr;
+			} else { // ranges are equal, move to next ones
+				++it_a_curr;
+				++it_b_curr;
+			}
+		}
+
+		return true;
+	}
+
 	chunk_iter create_new_chunk(chunk_iter it_loc, entity_range const range, entity_range const active, T* data = nullptr,
 								bool owns_data = true, bool split_data = false) noexcept {
+		Pre(range.contains(active), "active range is not contained in the total range");
 		return chunks.emplace(it_loc, range, active, data, owns_data, split_data);
 	}
 
-	chunk_iter create_new_chunk(chunk_iter loc, std::forward_iterator auto const& iter) noexcept {
+	template <typename U>
+	chunk_iter create_new_chunk(chunk_iter loc, typename std::vector<U>::const_iterator const& iter) noexcept {
 		entity_range const r = iter->rng;
 		chunk_iter c = create_new_chunk(loc, r, r);
 		if constexpr (!unbound<T>) {
@@ -400,8 +475,8 @@ private:
 		// Check for potential ownership transfer
 		if (c->get_owns_data()) {
 			auto next = std::next(c);
-			if (c->get_has_split_data() && chunks.end() != next) {
-				Expects(c->range == next->range);
+			if (c->get_has_split_data() && next != chunks.end()) {
+				Assert(c->range == next->range, "ranges must be equal");
 				// transfer ownership
 				next->set_owns_data(true);
 			} else {
@@ -441,7 +516,7 @@ private:
 		return std::ranges::lower_bound(chunks, rng, std::less{}, &chunk::active);
 	}
 
-	ptrdiff_t ranges_dist(std::vector<chunk>::const_iterator it) const noexcept {
+	ptrdiff_t ranges_dist(typename std::vector<chunk>::const_iterator it) const noexcept {
 		return std::distance(chunks.begin(), it);
 	}
 
@@ -449,6 +524,13 @@ private:
 	[[nodiscard]]
 	chunk_iter remove_range_to_chunk(chunk_iter it) noexcept {
 		return chunks.erase(it);
+	}
+
+	// Remove a range from the variants
+	void remove_from_variants(entity_range const range) {
+		for (component_pool_base* variant : variants) {
+			variant->remove_variant(range);
+		}
 	}
 
 	// Flag that components has been added
@@ -504,7 +586,7 @@ private:
 			}
 		}
 
-		if (curr->active.adjacent(r)) {
+		if (curr->active.adjacent(r) && curr->range.contains(r)) {
 			// The two ranges are next to each other, so add the data to existing chunk
 			entity_range active_range = entity_range::merge(curr->active, r);
 			curr->active = active_range;
@@ -568,7 +650,7 @@ private:
 	}
 
 	template <typename U>
-	void process_add_components(std::vector<U> const& vec) noexcept {
+	void process_add_components(std::vector<U>& vec) {
 		if (vec.empty()) {
 			return;
 		}
@@ -580,7 +662,7 @@ private:
 		// Fill in values
 		while (iter != vec.end()) {
 			if (chunks.empty()) {
-				curr = create_new_chunk(curr, iter);
+				curr = create_new_chunk<U>(curr, iter);
 			} else {
 				entity_range const r = iter->rng;
 
@@ -592,21 +674,39 @@ private:
 				}
 
 				if (curr->range.overlaps(r)) {
-					// Can not add components more than once to same entity
-					Expects(!curr->active.overlaps(r));
+					// Delayed pre-condition check: Can not add components more than once to same entity
+					Pre(!curr->active.overlaps(r), "entity already has a component of the type");
 
-					// Incoming range overlaps the current one, so add it into 'curr'
-					fill_data_in_existing_chunk(curr, r);
-					if constexpr (!unbound<T>) {
-						construct_range_in_chunk(curr, r, iter->data);
+					if (!curr->active.overlaps(r)) {
+						// The incoming range overlaps an unused area in the current chunk
+
+						// split the current chunk and fill in the data
+						entity_range const active_range = entity_range::intersect(curr->range, r);
+						fill_data_in_existing_chunk(curr, active_range);
+						if constexpr (!unbound<T>) {
+							construct_range_in_chunk(curr, active_range, iter->data);
+						}
+
+						if (active_range != r) {
+							auto const [remainder, x] = entity_range::remove(active_range, r);
+							Assert(!x.has_value(), "internal: there should not be a range here; create an issue on Github and investigate");
+							iter->rng = remainder;
+							continue;
+						}
+					} else {
+						// Incoming range overlaps the current one, so add it into 'curr'
+						fill_data_in_existing_chunk(curr, r);
+						if constexpr (!unbound<T>) {
+							construct_range_in_chunk(curr, r, iter->data);
+						}
 					}
 				} else if (curr->range < r) {
 					// Incoming range is larger than the current one, so add it after 'curr'
-					curr = create_new_chunk(std::next(curr), iter);
+					curr = create_new_chunk<U>(std::next(curr), iter);
 					// std::advance(curr, 1);
 				} else if (r < curr->range) {
 					// Incoming range is less than the current one, so add it before 'curr' (after 'prev')
-					curr = create_new_chunk(curr, iter);
+					curr = create_new_chunk<U>(curr, iter);
 				}
 			}
 
@@ -615,8 +715,14 @@ private:
 	}
 
 	// Add new queued entities and components to the main storage.
-	void process_add_components() noexcept {
-		auto const adder = [this]<typename C>(std::vector<C>& vec) {
+	void process_add_components() {
+#if ECS_ENABLE_CONTRACTS_AUDIT
+		std::vector<entity_range> vec_variants;
+		deferred_variants.gather_flattened(std::back_inserter(vec_variants));
+		std::sort(vec_variants.begin(), vec_variants.end());
+#endif
+
+		auto const adder = [&]<typename C>(std::vector<C>& vec) noexcept(false) {
 			if (vec.empty())
 				return;
 
@@ -634,20 +740,24 @@ private:
 					combine_erase(vec, combiner_bound);
 			}
 
+			PreAudit(ensure_no_intersection_ranges(vec_variants, vec),
+				"Two variants have been added at the same time");
+
 			this->process_add_components(vec);
+			vec.clear();
 
 			// Update the state
 			set_data_added();
 		};
 
 		deferred_adds.for_each(adder);
-		deferred_adds.reset();
+		deferred_adds.clear();
 
 		deferred_spans.for_each(adder);
-		deferred_spans.reset();
+		deferred_spans.clear();
 
 		deferred_gen.for_each(adder);
-		deferred_gen.reset();
+		deferred_gen.clear();
 	}
 
 	// Removes the entities and components
@@ -665,7 +775,7 @@ private:
 			// Update the state
 			set_data_removed();
 		});
-		deferred_removes.reset();
+		deferred_removes.clear();
 	}
 
 	void process_remove_components(std::vector<entity_range>& removes) noexcept {

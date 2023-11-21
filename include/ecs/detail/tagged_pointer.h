@@ -8,12 +8,12 @@
 namespace ecs::detail {
 
 // 1-bit tagged pointer
-// Note: tags are considered seperate from the pointer, and is
-// therfore not reset when a new pointer is set
+// Note: tags are considered separate from the pointer, and is
+// therefore not reset when a new pointer is set
 template <typename T>
 struct tagged_pointer {
 	tagged_pointer(T* in) noexcept : ptr(reinterpret_cast<uintptr_t>(in)) {
-		Expects((ptr & TagMask) == 0);
+		Pre((ptr & TagMask) == 0, "pointer must not have its tag already set");
 	}
 
 	tagged_pointer() noexcept = default;
@@ -38,7 +38,7 @@ struct tagged_pointer {
 		return ptr & TagMask;
 	}
 	void set_tag(int tag) noexcept {
-		Expects(tag >= 0 && tag <= static_cast<int>(TagMask));
+		Pre(tag >= 0 && tag <= static_cast<int>(TagMask), "tag is outside supported range");
 		ptr = (ptr & PointerMask) | static_cast<uintptr_t>(tag);
 	}
 

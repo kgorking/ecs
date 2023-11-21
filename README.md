@@ -1,20 +1,20 @@
 
 # ECS: An entity/component/system library.
-This is a small project I created to better familiarize myself with the features of c++ 17/20, and to test out
+This is a small project I created to better familiarize myself with the features of c++ 17/20 and to test out
 some stuff I had been reading about [data oriented design](http://www.dataorienteddesign.com/dodbook/).
 An ecs library seemed like a good fit for both objectives.
 
 More detail on what ecs is can be found [here](http://gameprogrammingpatterns.com/component.html) and
 [here](https://github.com/EngineArchitectureClub/TalkSlides/blob/master/2012/05-Components-SeanMiddleditch/ComponentDesign.pdf).
 
-Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-explorer logo next to them have a compiler-explorer example that you can play around with. Ctrl/CMD+Click the icon to open it in a new window.
+Topics with the <img src="https://godbolt.org/favicon.ico" width="32"> compiler-explorer logo next to them have an example that you can play around with. Ctrl/CMD+Click the icon to open it in a new window.
 
 # An example[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/6eoxx5PTs)
 The following example shows the basics of the library.
 
 ```cpp
+import ecs; // or #include <ecs/ecs.h> if library is not built as a module.
 #include <iostream>
-#include <ecs/ecs.h>
 
 // The component
 struct greeting {
@@ -47,14 +47,36 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 The latter command will fetch the submodules required to build this library.
 
+## Tested compilers
+The CI build status for msvc, clang, and gcc is currently
 
-# Building 
-#### Tested compilers
-The CI build status for msvc, clang, and gcc is currently:
-* [![msvc 2022](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
-* [![gcc 11](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
-* [![clang-13 libstdc++-10](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml/badge.svg?branch=master)](https://github.com/kgorking/ecs/actions/workflows/clang_libstdc++.yml)
-  * Clang builds are currently disabled due it being to far behind gccc and msvc in terms of c++20 features.
+[![MSVC](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
+[![Clang](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
+[![GCC](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+
+
+## Initial support for modules
+The library can be built as a module that can be imported with `import ecs;`. You can also use the regular `#include <ecs/ecs.h>` which imports the module in the header when modules are enabled. This makes it easy to support both include- and modular builds.
+
+Enable module building by setting the option `ECS_COMPILE_AS_MODULE` to `true` in your CMake script (`set(ECS_COMPILE_AS_MODULE ON)`) or setting it in your CMakePresets.json file.
+
+MSVC v14.3 (2022) or clang 16+ is required to use modules. 
+GCC support will be added when version 14 is eventually released.
+
+### Note when using clang!
+Clangs ODR detection code gives false positives when used with modules, so when including other headers, make sure they appear *after* the module import.
+
+```cpp
+// Correct, should not induce ODR errors in clang
+import ecs;
+#include <vector>
+
+// Wrong, might induce ODR errors in clang
+#include <vector>
+import ecs;
+```
+
+
 
 # Table of Contents
 - [Entities](#entities)
@@ -78,6 +100,8 @@ The CI build status for msvc, clang, and gcc is currently:
   - [`opts::group<group number>`](#optsgroupgroup-number)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ezoq17fbr)
   - [`opts::manual_update`](#optsmanual_update)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TxvndcTEq)
   - [`opts::not_parallel`](#optsnot_parallel)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/MK9xcTedq)
+- [Variant components](#variant-components)
+  - [Variant trees](#variant-trees)
 - [Component Flags](#component-flags)
   - [`tag`](#tag)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/dj8WjTWbE)
   - [`immutable`](#immutable)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/rnbsooorb)
@@ -85,8 +109,9 @@ The CI build status for msvc, clang, and gcc is currently:
   - [`global`](#global)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ETjKzbE7o)
     - [Global systems](#Global-systems)
 
+
 # Entities
-Entities are the scaffolding on which you build your objects, and there are two classes in the library for managing entities.
+Entities are the scaffolding on which you build your objects. There are two classes in the library for managing entities:
 
 * [`ecs::entity_id`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_id.h) is a wrapper for an integer identifier.
 * [`ecs::entity_range`](https://github.com/kgorking/ecs/blob/master/include/ecs/entity_range.h) is the preferred way to deal with many entities at once in a concise and efficient manner. The start- and end entity id is inclusive when passed to an entity_range, so `entity_range some_range{0, 100}` will span 101 entities.
@@ -201,19 +226,19 @@ There are a few requirements and restrictions put on the lambdas:
 ## Parallel-by-default systems
 Parallel systems can offer great speed-ups on multi-core machines, if the system in question has enough work to merit it. There is always some overhead associated with running code in multiple threads, and if the systems can not supply enough work for the threads you will end up losing performance instead. A good profiler can often help with this determination.
 
-The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code if your system accesses data outside the purview of rt.
+The dangers of multi-threaded code also exist in parallel systems, so take the same precautions here as you would in regular parallel code if your system accesses data outside the purview of the runtime.
 
-Adding and removing components from entities in parallel systems is a thread-safe operation.
+Adding and removing components from entities in parallel systems is a thread-safe operation and can be done from inside systems.
 
-To disable parallelism in a system, use [`opts::not_parallel`](#optsnot_parallel).
+To disable parallelism in a system, see [`opts::not_parallel`](#optsnot_parallel).
 
 
 ## Automatic concurrency
-Whenever a system is made, it will internally be scheduled for execution concurrently with other systems, if the systems dependencies permit it. Systems are always scheduled so they don't interfere with each other, and the order in which they are made is respected.
+Whenever a system is made, it will internally be scheduled for execution concurrently with other systems, if the systems dependencies permit it. Systems are always scheduled so they don't interfere with each other, and the order in which they are made is respected. If you add systems `A` and `B`, then `B` might run concurrently with `A`, but it will not run before it.
 
 Dependencies are determined based on the components a system operate on.
 
-If a component is written to, the system that previously read from or wrote to that component becomes a dependency, which means that the system must be run to completion before the new system can execute. This ensures that no data-races occur.
+If a component is written to, any system that previously read from or wrote to that component becomes a dependency, which means that those systems will be run to completion before the new system can execute. This ensures that no data-races occur.
 
 If a component is read from, the system that previously wrote to it becomes a dependency.
 
@@ -230,40 +255,23 @@ rt.make_system([](ecs::entity_id ent, greeting const& g) {
 ```
 
 
-## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/xKfTdWqnY)
+## Sorting[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/393qs3YE1)
 An additional function object can be passed along to `ecs::runtime::make_system` to specify the order in which components are processed. It must adhere to the [*Compare*](https://en.cppreference.com/w/cpp/named_req/Compare) requirements.
 
 ```cpp
 ecs::runtime rt;
 
-// sort descending
-auto &sys_dec = rt.make_system(
-    [](int const&) { /* ... */ },
+rt.make_system([](int, std::string) { ... },
     std::less<int>());
-
-// sort ascending
-auto & sys_asc = rt.make_system(
-    [](int const&) { /* ... */ },
-    std::greater<int>());
-
-// sort length
-auto &sys_pos = rt.make_system(
-    [](position& pos, some_component const&) { /* ... */ },
-    [](position const& p1, position const& p2) { return p1.length() < p2.length(); });
 ```
 
-* Integers passed to `sys_dec` will arrive in descending order, from highest to lowest.
-* Integers passed to `sys_asc` will arrive in ascending order.
-* Positions passed to `sys_pos` will be sorted according to their length.<br>
-  You could have sorted on the `some_component` instead.
+The components of entities processed by the system, will arrive in the order of the integers on those entities.
 
-Sorting functions must correspond to a type that is processed by the system, or an error will be raised during compilation.
-
-**Note** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
+**Note:** Adding a sorting function takes up additional memory to maintain the sorted state, and it might adversely affect cache efficiency. Only use it if necessary.
 
 
-## Filtering[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/zE9Yh5Kbh)
-Components can be filtered by marking the component you wish to filter as a pointer argument:
+## Filtering[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/zeqGa7nEv)
+Entities can be filtered by marking the component you wish to filter as a pointer argument:
 ```cpp
 rt.make_system([](int&, float*) { /* ... */ });
 ```
@@ -282,55 +290,43 @@ rt.add_component({1}, ecs::parent{0});
 This alone does not create a hierarchy, but it makes it possible for systems to act on this relationship data. To access the parent component in a system, add a `ecs::parent<>` parameter:
 
 ```cpp
-rt.make_system([](entity_id id, parent<> const& p) {
+rt.make_system([](ecs::entity_id id, ecs::parent<> const& p) {
   // id == 1, p.id() == 0
 });
 ```
 The angular brackets are needed because `ecs::parent` is a templated component which allows you to specify which, if any, of the parents components you would like access to.
 
-### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/Toxc5MTbj)
-A parents sub-components can be accessed by specifying them in a systems parent parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to access. If `T` is not specified in the sub-components of a systems parent parameter, an error will be raised.
+### Accessing parent components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o9fer87x6)
+A parents components can be accessed by specifying them in a systems `ecs::parent<>` parameter. The components can the be accessed through the `get<T>` function on `ecs::parent`, where `T` specifies the type you want to access. If `T` is not specified in the components of a systems parent parameter, an error will be raised.
 
-If an `ecs::parent` has any non-filter sub-components the `ecs::parent` must always be taken as a value or a constant reference in systems, or an error will be reported.
+If an `ecs::parent` has any non-filter components the `ecs::parent` must always be taken as a value or a constant reference in systems, or an error will be reported.
 
- More than one sub-component can be specified; there is no upper limit.
+ More than one parent component can be specified; there is no upper limit.
 ```cpp
-rt.add_component(2, short{10});
-rt.add_component(3, long{20});
-rt.add_component(4, float{30});
+rt.add_component(0, short{1}, long{2});
+rt.add_component(1, ecs::parent{0});
 
-rt.add_component({5, 7}, ecs::parent{2});  // short children, parent 2 has a short
-rt.add_component({7, 9}, ecs::parent{3});  // long children, parent 3 has a long
-rt.add_component({9, 11}, ecs::parent{4}); // float children, parent 4 has a float
-
-// Systems that only runs on entities that has a parent with a specific component,
-rt.make_system([](ecs::parent<short> const& p) { /* 10 == p.get<short>() */ });  // runs on entities 5-7
-rt.make_system([](ecs::parent<long>  const& p) { /* 20 == p.get<long>() */ });   // runs on entities 7-9
-rt.make_system([](ecs::parent<float> const& p) { /* 30 == p.get<float>() */ });  // runs on entities 9-11
-rt.make_system([](ecs::parent<short, long> const& p) { // runs on entity 7
-  /* 10 == p.get<short>() */
-  /* 20 == p.get<long>() */
+rt.make_system([](ecs::parent<short, long> p) { // runs on entity 1
+  assert(1 == p.get<short>());
+  assert(2 == p.get<long>());
 ); 
-
-// Fails
-//rt.make_system([](ecs::parent<short> const& p) { p.get<int>(); });  // will not compile; no 'int' in 'p'
 ```
 
-### Filtering on parents components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/v14T1efbK)
-Filters work like regular component filters and can be specified on a parents sub-components:
+### Filtering on parents components[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o9fer87x6)
+Filters work like regular component filters and can be specified on a parents components. An `ecs::parent` that only consist of filters does not need to be passed as a constant reference.
 ```cpp
-rt.make_system([](ecs::parent<short*> p) { });  // runs on entities 8-11
+rt.make_system([](ecs::parent<short*> p) { });
 ```
-An `ecs::parent` that only consist of filters does not need to be passed as a constant reference.
+This system will run on all entities whose parent does not have a `short` component on them.
 
-
-Marking the parent itself as a filter means that any entity with a parent component on it will be ignored. Any sub-components specified are ignored.
+Marking the parent itself as a filter means that any entity with a parent component on it will be ignored. Any parent components specified are ignored.
 ```cpp
-rt.make_system([](int, ecs::parent<> *p) { });  // runs on entities with an int and no parents
+rt.make_system([](int, ecs::parent<> *p) { });
 ```
+This system will run on all entities that have an `ìnt` component and no `ecs::parent`.
 
 ### Traversal and layout
-Hierarchies in this library are [topological sorted](https://en.wikipedia.org/wiki/Topological_sorting) and can be processed in parallel. An entity's parent is always processed before the entity itself.
+Hierarchies are [topological sorted](https://en.wikipedia.org/wiki/Topological_sorting) and can be processed in parallel. An entity's parent is always processed before the entity itself.
 
 
 # System options
@@ -348,8 +344,8 @@ rt.make_system<ecs::opts::interval<16, 667>>([](int const&) {
 ```
 
 
-### `opts::group<group number>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ezoq17fbr)
-Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put in group 0.
+### `opts::group<N>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ezoq17fbr)
+Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put into the default group 0.
 
 ```cpp
 rt.make_system<ecs::opts::group<1>>([](int const&) {
@@ -386,23 +382,86 @@ rt.update(); // will not run 'manual_sys'
 manual_sys.run(); // required to run the system
 ```
 
-### `opts::not_parallel`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/MK9xcTedq)
+### `opts::not_parallel`
 This option will prevent a system from processing components in parallel, which can be beneficial when a system does little work.
 
 It should not be used to avoid data races when writing to a shared variable not under ecs control, such as a global variable or variables catured be reference in system lambdas. Use atomics, mutexes, or even [`tls::collect`](https://github.com/kgorking/tls/blob/master/examples/collect/accumulate/accumulate.cpp) in these cases, if possible.
 
-# Component Flags
-The behavior of components can be changed by using component flags, which can change how they are managed
-internally and can offer performance and memory benefits. Flags can be added to components using the `ecs_flags()` macro:
+# Variant components
+By setting a special alias in a component, `using variant_of = X;`, you can mark it as part of a variant chain. This offers functionality similar to `std::variant`.
 
-### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/dj8WjTWbE)
+```cpp
+// Create variant A-B-C
+struct A { };
+struct B { using variant_of = A; };
+struct C { using variant_of = B; };
+
+ecs::runtime rt;
+
+// Adds 'A'
+rt.add_component(0, A{});
+rt.update();
+
+// Replaces 'A' with 'C'
+rt.add_component(0, C{});
+rt.update();
+
+// Replaces 'C' with 'B'
+rt.add_component(0, B{});
+rt.update();
+```
+Trying to add more than one variant of the same chain at the same time, will result in a compile-time error.
+```cpp
+rt.add_component(0, A{}, B{}); // errors at compile-time
+```
+
+Trying to add more than one variant of the same chain at different times during execution will result in a runtime termination, but only if ECS_ENABLE_CONTRACTS_AUDIT is set to 1. Contract audit violations are ignored otherwise, which means that improper use will put the runtime in an undefined state.
+```cpp
+rt.add_component(0, A{});
+rt.add_component(0, B{});
+rt.commit_changes(); // terminates at runtime
+```
+
+## Variant trees
+Some interesting emergent behavior was discovered during the implementation of variants, namely that you can create variant trees instead of lists.
+
+```cpp
+//   A
+//  / \
+// B   C
+//
+// or alternatively
+//
+// A-B
+// A-C
+
+struct A { };
+struct B { using variant_of = A; };
+struct C { using variant_of = A; };
+
+ecs::runtime rt;
+
+// Adds 'B' and 'C', which are not considered variants of each other
+rt.add_component(0, B{}, C{});
+rt.update();
+
+// Replaces 'B' and 'C'  with 'A'
+rt.add_component(0, A{});
+rt.update();
+```
+I'm not totally sure what application this has, but it works as expected, so I'm leaving it in until it explodes spectacularly.
+
+# Component Flags
+The behavior of components can be changed by using component flags, which can change how they are managed internally and can offer performance and memory benefits.
+
+### `tag`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/o5TKxz4d4)
 Marking a component as a *tag* is used for components that signal some kind of state, without needing to
 take up any memory. For instance, you could use it to tag certain entities as having some form of capability,
 like a 'freezable' tag to mark stuff that can be frozen.
 
 ```cpp
 struct freezable {
-    ecs_flags(ecs::flag::tag);
+    using ecs_flags = ecs::flags<ecs::tag>;
 };
 ```
 
@@ -418,16 +477,16 @@ rt.make_system([](greeting const& g, freezable) {
 
 If tag components are marked as anything other than pass-by-value, the compiler will drop a little error message to remind you.
 
-### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/rnbsooorb)
+### `immutable`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/3bM45M5WY)
 Marking a component as *immutable* (a.k.a. const) is used for components that are not to be changed by systems.
 This is used for passing read-only data to systems. If a component is marked as `immutable` and is used in a system without being marked `const`, you will get a compile-time error reminding you to make it constant.
 
-### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/W7hvrnjT6)
+### `transient`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/cErs8M1q3)
 Marking a component as *transient* is used for components that only exists on entities temporarily. The runtime will remove these components
 from entities automatically after one cycle.
 ```cpp
 struct damage {
-    ecs_flags(ecs::flag::transient);
+    using ecs_flags = ecs::flags<ecs::transient>;
     double value;
 };
 // ...
@@ -436,12 +495,12 @@ rt.commit_changes(); // adds the 100 damage components
 rt.commit_changes(); // removes the 100 damage components
 ```
 
-### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ETjKzbE7o)
+### `global`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/svc1qMrnn)
 Marking a component as *global* is used for components that hold data that is shared between all systems the component is added to, without the need to explicitly add the component to any entity. Adding global components to entities is not possible.
 
 ```cpp
 struct frame_data {
-    ecs_flags(ecs::flag::global);
+    using ecs_flags = ecs::flags<ecs::global>;
     double delta_time = 0.0;
 };
 // ...
@@ -451,8 +510,6 @@ rt.make_system([](position& pos, velocity const& vel, frame_data const& fd) {
     pos += vel * fd.delta_time;
 });
 ```
-**Note!** Beware of using mutable global components in parallel systems, as it can lead to race conditions. Combine it with `immutable`, if possible,
-to disallow systems modifying the global component, using `ecs_flags(ecs::flag::global, ecs::flag::immutable);`
 
 Global components can contain `std::atomic<>` types, unlike regular components, due to the fact that they are never copied.
 

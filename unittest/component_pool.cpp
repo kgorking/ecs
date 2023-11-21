@@ -1,7 +1,13 @@
+#include <ecs/ecs.h>
+#include <exception>
+#include <numeric>
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include <ecs/ecs.h>
 
+// Override the default handler for contract violations.
+#include "override_contract_handler_to_throw.h"
+
+// A helper class that counts invocations of constructers/destructor
 struct ctr_counter {
 	inline static size_t def_ctr_count = 0;
 	inline static size_t ctr_count = 0;
@@ -13,7 +19,7 @@ struct ctr_counter {
 		def_ctr_count++;
 		ctr_count++;
 	}
-	ctr_counter(ctr_counter const& /*other*/) {
+	ctr_counter(ctr_counter const& /*other*/) noexcept {
 		copy_count++;
 		ctr_count++;
 	}
@@ -21,7 +27,7 @@ struct ctr_counter {
 		move_count++;
 		ctr_count++;
 	}
-	~ctr_counter() {
+	~ctr_counter() noexcept {
 		dtr_count++;
 	}
 
@@ -31,13 +37,6 @@ struct ctr_counter {
 
 // A bunch of tests to ensure that the component_pool behaves as expected
 TEST_CASE("Component pool specification", "[component]") {
-	auto x = sizeof(ecs::detail::component_pool<int>);
-	(void)x;
-	auto y = sizeof(tls::collect<std::vector<int>>);
-	(void)y;
-	auto z = alignof(void*);
-	(void)z;
-
 	SECTION("A new component pool is empty") {
 		ecs::detail::component_pool<int> pool;
 		REQUIRE(pool.num_entities() == 0);
@@ -62,7 +61,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	}
 
 	SECTION("Adding components") {
-		SECTION("does not perform unneccesary copies of components") {
+		SECTION("does not perform unneeded copies of components") {
 			ecs::detail::component_pool<ctr_counter> pool;
 			pool.add({0, 2}, ctr_counter{});
 			pool.process_changes();
@@ -107,6 +106,43 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(50 == pool.num_components());
 			REQUIRE(50 == pool.num_entities());
+		}
+		SECTION("has_entity works correctly") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 10}, 0);
+			pool.process_changes();
+
+			pool.remove({1, 10});
+			pool.process_changes();
+
+			pool.add({8, 15}, 1);
+			pool.process_changes();
+		}
+	}
+
+	SECTION("Testing components") {
+		SECTION("stradling ranges works") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 10}, 0);
+			pool.process_changes();
+			pool.add({11, 20}, 0);
+			pool.process_changes();
+
+			CHECK(2 == pool.num_chunks());
+			REQUIRE(pool.has_entity({5, 15}));
+		}
+
+		SECTION("stradling ranges with gaps works") {
+			ecs::detail::component_pool<int> pool;
+			pool.add({0, 9}, 0);
+			pool.process_changes();
+			pool.add({11, 20}, 0);
+			pool.process_changes();
+			pool.add({21, 30}, 0);
+			pool.process_changes();
+
+			CHECK(3 == pool.num_chunks());
+			REQUIRE(!pool.has_entity({5, 15})); // entity 10 missing
 		}
 	}
 
@@ -191,6 +227,17 @@ TEST_CASE("Component pool specification", "[component]") {
 
 			REQUIRE(pool.num_components() == 0);
 		}
+		SECTION("that don't exist does nothing") {
+			ecs::detail::component_pool<int> pool;
+			pool.remove({0, 5});
+			pool.process_changes();
+
+			pool.add({6, 10}, int{});
+			pool.process_changes();
+			pool.remove({0, 5});
+			pool.process_changes();
+			SUCCEED();
+		}
 	}
 
 	SECTION("A non empty pool") {
@@ -248,7 +295,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("Transient components") {
 		SECTION("are automatically removed in process_changes()") {
 			struct tr_test {
-				ecs_flags(ecs::flag::transient);
+				using ecs_flags = ecs::flags<ecs::transient>;
 			};
 			ecs::detail::component_pool<tr_test> pool;
 			pool.add({0, 9}, tr_test{});
@@ -262,7 +309,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("Tagged components") {
 		SECTION("maintains sorting of entities") { // test case is response to a found bug
 			struct some_tag {
-				ecs_flags(ecs::flag::tag);
+				using ecs_flags = ecs::flags<ecs::tag>;
 			};
 			ecs::detail::component_pool<some_tag> pool;
 			pool.add({0, 0}, {});
@@ -278,7 +325,7 @@ TEST_CASE("Component pool specification", "[component]") {
 	SECTION("Global components") {
 		SECTION("are always available") {
 			struct some_global {
-				ecs_flags(ecs::flag::global);
+				using ecs_flags = ecs::flags<ecs::global>;
 				int v = 0;
 			};
 			ecs::detail::component_pool<some_global> pool;
@@ -421,6 +468,34 @@ TEST_CASE("Component pool specification", "[component]") {
 			REQUIRE(3 == *pool.find_component_data(3));
 			REQUIRE(4 == *pool.find_component_data(4));
 			REQUIRE(5 == *pool.find_component_data(5));
+		}
+
+		SECTION("overflowing gaps") {
+			ecs::detail::component_pool<int> pool;
+			// active: 0-10
+			pool.add({0, 10}, 0);
+			pool.process_changes();
+
+			// active: 0-0
+			pool.remove({1, 10});
+			pool.process_changes();
+
+			// active: 0-0
+			// active: 8-10
+			// active: 11-15
+			pool.add({8, 15}, 1);
+			pool.process_changes();
+
+			// There should be 3 chunks
+			REQUIRE(3 == pool.num_chunks());
+
+			// Verify the active ranges
+			auto const chunk1 = pool.get_head_chunk();
+			auto const chunk2 = std::next(chunk1);
+			auto const chunk3 = std::next(chunk2);
+			REQUIRE(ecs::entity_range{ 0,  0} == chunk1->active);
+			REQUIRE(ecs::entity_range{ 8, 10} == chunk2->active);
+			REQUIRE(ecs::entity_range{11, 15} == chunk3->active);
 		}
 
 		SECTION("filling gaps in unrelated ranges") {

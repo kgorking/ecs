@@ -7,26 +7,25 @@
 namespace ecs::detail {
 // Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
 // will be passed to the user supplied lambda in a sorted manner
-template <typename Options, typename UpdateFn, typename SortFunc, typename TupPools, bool FirstIsEntity, typename ComponentsList>
-struct system_sorted final : public system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList> {
-	using base = system<Options, UpdateFn, TupPools, FirstIsEntity, ComponentsList>;
+template <typename Options, typename UpdateFn, typename SortFunc, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+struct system_sorted final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
 
 	// Determine the execution policy from the options (or lack thereof)
 	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
 												std::execution::parallel_policy>;
 
 public:
-	system_sorted(UpdateFn func, SortFunc sort, TupPools in_pools)
-		: base(func, in_pools), sort_func{sort} {
+	system_sorted(UpdateFn func, SortFunc sort, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)}, sort_func{sort} {
 		this->process_changes(true);
 	}
 
 private:
 	void do_run() override {
-		auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-
 		// Sort the arguments if the component data has been modified
 		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
+			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
 			std::sort(e_p, sorted_args.begin(), sorted_args.end(), [this](sort_help const& l, sort_help const& r) {
 				return sort_func(*l.sort_val_ptr, *r.sort_val_ptr);
 			});

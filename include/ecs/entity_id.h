@@ -1,5 +1,5 @@
-#ifndef ECS_ENTITY_ID
-#define ECS_ENTITY_ID
+#ifndef ECS_ENTITY_ID_H
+#define ECS_ENTITY_ID_H
 
 namespace ecs {
 namespace detail {
@@ -8,7 +8,7 @@ using entity_offset = unsigned int; // must cover the entire entity_type domain
 } // namespace detail
 
 // A simple struct that is an entity identifier.
-struct entity_id {
+ECS_EXPORT struct entity_id {
 	// Uninitialized entity ids are not allowed, because they make no sense
 	entity_id() = delete;
 
@@ -26,4 +26,4 @@ private:
 };
 } // namespace ecs
 
-#endif // !ECS_ENTITY_ID
+#endif // !ECS_ENTITY_ID_H

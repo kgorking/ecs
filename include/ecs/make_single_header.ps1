@@ -11,23 +11,22 @@ $files = (
 	'detail/type_list.h',
 	'detail/contract.h',
 	'detail/type_hash.h',
+	'detail/tagged_pointer.h',
 	'entity_id.h',
 	'detail/entity_iterator.h',
 	'detail/options.h',
 	'entity_range.h',
 	'detail/parent_id.h',
+	'detail/variant.h',
 	'flags.h',
-	'detail/flags.h',
+	'detail/stride_view.h',
 	'detail/component_pool_base.h',
 	'detail/component_pool.h',
-	'detail/component_pools.h',
 	'detail/system_defs.h',
+	'detail/component_pools.h',
 	'parent.h',
 	'options.h',
 	'detail/interval_limiter.h',
-	'detail/pool_entity_walker.h',
-	'detail/pool_range_walker.h',
-	'detail/entity_offset.h',
 	'detail/verification.h',
 	'detail/entity_range.h',
 	'detail/find_entity_pool_intersections.h',
@@ -42,9 +41,13 @@ $files = (
 	'runtime.h')
 
 # Write all system includes
-'// Auto-generated single-header include file
-#if 0 //defined(__has_cpp_attribute) && __has_cpp_attribute(__cpp_lib_modules)
+$sys_headers = '// Auto-generated single-header include file
+#if defined(__cpp_lib_modules)
+#if defined(_MSC_VER) && _MSC_VER <= 1939
+import std.core;
+#else
 import std;
+#endif
 #else
 #include <algorithm>
 #include <array>
@@ -54,25 +57,39 @@ import std;
 #include <cstdint>
 #include <execution>
 #include <functional>
-#include <iterator>
+#include <iostream>
 #include <limits>
-#include <map>
 #include <memory>
-#include <numeric>
+#include <mutex>
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
-#include <mutex> // needed for scoped_lock
+#if __has_include(<stacktrace>)
+#include <stacktrace>
+#endif
 #include <span>
-#include <string_view>
-#include <tuple>
 #include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 #endif
+'
 
-' > ecs_sh.h
+# Write out module
+"module;
+$sys_headers
+export module ecs;
+#define ECS_EXPORT export
+" > ecs.ixx
+
+# Write out single-include header
+"#ifndef ECS_EXPORT
+#define ECS_EXPORT
+#endif
+" > ecs_sh.h
+$sys_headers >> ecs_sh.h
 
 # Filter out the local includes from the content of each header and pipe it to ecs_sh.h
-(sls -Path $files -SimpleMatch -Pattern '#include' -NotMatch).Line >> ecs_sh.h
+$filtered = (sls -Path $files -SimpleMatch -Pattern '#include' -NotMatch).Line
+
+$filtered >> ecs.ixx
+$filtered >> ecs_sh.h

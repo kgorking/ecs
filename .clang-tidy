@@ -1,5 +1,8 @@
 ---
-Checks:          '*,-altera-*,-cert-*,-fuchsia-*,-google-*,-zircon-*,-abseil-*,-modernize-use-trailing-return-type,-llvm-*,-llvmlibc*,-hicpp-braces-around-statements,-readability-magic-numbers,-cppcoreguidelines-avoid-magic-numbers,-readability-identifier-length,-cert-err58-cpp,-cppcoreguidelines-owning-memory,-readability-braces-around-statements,-bugprone-suspicious-semicolon'
+Checks:
+    modernize-*,
+    portability-*,
+    cppcoreguidelines-*
 WarningsAsErrors: '1'
 HeaderFilterRegex: 'ecs\\include'
 FormatStyle:     none

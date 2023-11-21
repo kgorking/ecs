@@ -1,21 +1,27 @@
-name: clang-13 libstdc++-11
+name: Clang 16-18 (module)
 
-# on: [push]  # disabled until clang gets its shit together.
+on: workflow_call
 
 jobs:
-  build:
+  clang:
     runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v2
+    strategy:
+      fail-fast: true
+      matrix:
+        version: [17, 18]
+        modules: [false, true]
+        built_type: [Debug, Release]
 
-    - name: Checkout submodules
-      run: git submodule update --init --recursive --remote
-      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true # recursive
+
     - name: Download Ninja
       shell: cmake -P {0}
       run: |
-        set(ninja_version "1.9.0")
+        set(ninja_version "1.11.1") # needed for module support
         
         set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-linux.zip")
         file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
@@ -23,23 +29,20 @@ jobs:
 
         execute_process(COMMAND chmod +x ninja)
 
-    - name: Install Clang 13
-      uses: egor-tensin/setup-clang@v1
-      with:
-        version: 13
-
-    - name: Install libstdc++ 11
+    - name: Install clang ${{ matrix.version }}
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get update
-        sudo apt-get install libstdc++6 libstdc++-11-dev
-      shell: bash
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh ${{ matrix.version }}
+        sudo apt install clang-tools-${{ matrix.version }}
+        #sudo apt remove libstdc++-13-dev
+        #sudo apt install libstdc++-12-dev
 
     - name: Configure
       shell: cmake -P {0}
       run: |
-        set(ENV{CC} "/usr/bin/clang-13")
-        set(ENV{CXX} "/usr/bin/clang++-13")
+        set(ENV{CC} "/usr/bin/clang-${{ matrix.version }}")
+        set(ENV{CXX} "/usr/bin/clang++-${{ matrix.version }}")
 
         file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/ninja" ninja_program)
 
@@ -47,8 +50,9 @@ jobs:
           COMMAND cmake
             -S .
             -B build
-            -D CMAKE_BUILD_TYPE=Debug
             -G Ninja
+            -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
+            -D ECS_COMPILE_AS_MODULE=${{ matrix.modules }}
             -D CMAKE_MAKE_PROGRAM=${ninja_program}
           RESULT_VARIABLE result
         )

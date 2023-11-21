@@ -18,7 +18,11 @@ public:
 		: first{reinterpret_cast<char const*>(first_)}
 		, curr {reinterpret_cast<char const*>(first_)}
 		, last {reinterpret_cast<char const*>(first_) + Stride*count_} {
-		Expects(first_ != nullptr);
+		Pre(first_ != nullptr, "input pointer can not be null");
+	}
+
+	consteval std::size_t stride_size() const {
+		return Stride;
 	}
 
 	T const* current() const noexcept {

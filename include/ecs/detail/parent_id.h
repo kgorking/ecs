@@ -6,7 +6,7 @@
 namespace ecs::detail {
 
 // The parent type stored internally in component pools
-struct parent_id : entity_id {
+ECS_EXPORT struct parent_id : entity_id {
 	constexpr parent_id(detail::entity_type _id) noexcept : entity_id(_id) {}
 };
 

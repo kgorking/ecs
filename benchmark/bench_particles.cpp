@@ -1,5 +1,5 @@
-#include <complex>
 #include <ecs/ecs.h>
+#include <complex>
 
 #include "global.h"
 #include "gbench/include/benchmark/benchmark.h"
@@ -11,14 +11,12 @@
 
 constexpr float delta_time = 1.0f / 60.0f;
 
-using namespace ecs::flag;
-
 struct particle { float x, y; };
 struct color    { float r, g, b; };
 struct velocity { float x, y; };
 struct life     { float val; };
-struct dead_tag { ecs_flags(tag, transient); };
-struct gravity  { ecs_flags(global); float g = 0.2f; };
+struct dead_tag { using ecs_flags = ecs::flags<ecs::tag, ecs::transient>; };
+struct gravity  { using ecs_flags = ecs::flags<ecs::global>; float g = 0.2f; };
 
 // Helper lambda to initialize a particle
 auto constexpr particle_init = []() -> particle {
@@ -114,7 +112,7 @@ void make_systems(ecs::runtime &ecs) {
 
 void particles(benchmark::State& state) {
 	auto const range = static_cast<std::size_t>(state.range(0));
-	auto const num_particles = static_cast<ecs::detail::entity_type>(state.range(0));
+	auto const num_particles = static_cast<int>(state.range(0));
 
 	std::vector<particle> particles(range + 1);
 	std::vector<velocity> velocities(range + 1);
@@ -126,18 +124,16 @@ void particles(benchmark::State& state) {
 	std::ranges::generate(colors, color_init);
 	std::ranges::generate(lifes, life_init);
 
-    for ([[maybe_unused]] auto const _ : state) {
-        ecs::runtime ecs;
-        make_systems(ecs);
-		ecs.add_component_span({0, num_particles}, particles);
-		ecs.add_component_span({0, num_particles}, velocities);
-		ecs.add_component_span({0, num_particles}, colors);
-		ecs.add_component_span({0, num_particles}, lifes);
-        ecs.commit_changes();
+	ecs::runtime ecs;
+	make_systems(ecs);
+	ecs.add_component_span({0, num_particles}, particles);
+	ecs.add_component_span({0, num_particles}, velocities);
+	ecs.add_component_span({0, num_particles}, colors);
+	ecs.add_component_span({0, num_particles}, lifes);
+	ecs.commit_changes();
 
+	for ([[maybe_unused]] auto const _ : state) {
 		ecs.update();
 	}
-
-	state.SetItemsProcessed(state.iterations() * num_particles);
 }
 ECS_BENCHMARK(particles);

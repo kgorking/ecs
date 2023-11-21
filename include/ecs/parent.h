@@ -2,12 +2,13 @@
 #define ECS_PARENT_H_
 
 #include "detail/system_defs.h"
+#include "detail/component_pools.h"
 #include "entity_id.h"
 
 // forward decls
 namespace ecs::detail {
-	template <typename Pools> struct pool_entity_walker;
-	template <typename Pools> struct pool_range_walker;
+	//template <typename Pools> struct pool_entity_walker;
+	//template <typename Pools> struct pool_range_walker;
 
 	template<std::size_t Size>
 	struct void_ptr_storage {
@@ -19,9 +20,10 @@ namespace ecs::detail {
 
 namespace ecs {
 // Special component that allows parent/child relationships
-template <typename... ParentTypes>
-struct parent : entity_id,
-				private std::conditional_t<(sizeof...(ParentTypes) > 0), detail::void_ptr_storage<sizeof...(ParentTypes)>, detail::empty_storage> {
+ECS_EXPORT template <typename... ParentTypes>
+struct parent : entity_id, private std::conditional_t<(sizeof...(ParentTypes) > 0), detail::void_ptr_storage<sizeof...(ParentTypes)>, detail::empty_storage> {
+	static_assert((!detail::global<ParentTypes> && ...), "global components are not allowed in parents");
+	static_assert((!detail::is_parent<ParentTypes>::value && ...), "parents in parents is not supported");
 
 	explicit parent(entity_id id) : entity_id(id) {}
 
@@ -47,8 +49,8 @@ private:
 	template <typename Component>
 	friend decltype(auto) detail::extract_arg_lambda(auto& cmp, ptrdiff_t offset, auto pools);
 
-	template <typename Pools> friend struct detail::pool_entity_walker;
-	template <typename Pools> friend struct detail::pool_range_walker;
+	//template <typename Pools> friend struct detail::pool_entity_walker;
+	//template <typename Pools> friend struct detail::pool_range_walker;
 
 	parent(entity_id id, ParentTypes*... pt)
 		requires(sizeof...(ParentTypes) > 0)

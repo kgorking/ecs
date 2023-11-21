@@ -1,9 +1,9 @@
-#ifndef ECS_CONTEXT
-#define ECS_CONTEXT
+#ifndef ECS_CONTEXT_H
+#define ECS_CONTEXT_H
 
 #include <map>
 #include <memory>
-#include <mutex>
+//#include <mutex>
 #include <shared_mutex>
 #include <vector>
 #include <execution>
@@ -20,6 +20,7 @@
 #include "system_sorted.h"
 #include "type_hash.h"
 #include "type_list.h"
+#include "variant.h"
 
 namespace ecs::detail {
 // The central class of the ecs implementation. Maintains the state of the system.
@@ -27,16 +28,28 @@ class context final {
 	// The values that make up the ecs core.
 	std::vector<std::unique_ptr<system_base>> systems;
 	std::vector<std::unique_ptr<component_pool_base>> component_pools;
-	std::map<type_hash, component_pool_base*> type_pool_lookup; // TODO vector
-	tls::split<tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>> type_caches;
+	std::vector<type_hash> pool_type_hash;
 	scheduler sched;
 
 	mutable std::shared_mutex system_mutex;
-	mutable std::shared_mutex component_pool_mutex;
+	mutable std::recursive_mutex component_pool_mutex;
+
+	bool commit_in_progress = false;
+	bool run_in_progress = false;
+
+	using cache_type = tls::cache<type_hash, component_pool_base*, get_type_hash<void>()>;
+	tls::split<cache_type> type_caches;
 
 public:
+	~context() {
+		reset();
+	}
+
 	// Commits the changes to the entities.
 	void commit_changes() {
+		Pre(!commit_in_progress, "a commit is already in progress");
+		Pre(!run_in_progress, "can not commit changes while systems are running");
+
 		// Prevent other threads from
 		//  adding components
 		//  registering new component types
@@ -44,6 +57,8 @@ public:
 		std::shared_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
+
+		commit_in_progress = true;
 
 		static constexpr auto process_changes = [](auto const& inst) {
 			inst->process_changes();
@@ -59,15 +74,23 @@ public:
 		for (auto const& pool : component_pools) {
 			pool->clear_flags();
 		}
+
+		commit_in_progress = false;
 	}
 
 	// Calls the 'update' function on all the systems in the order they were added.
 	void run_systems() {
+		Pre(!commit_in_progress, "can not run systems while changes are being committed");
+		Pre(!run_in_progress, "systems are already running");
+
 		// Prevent other threads from adding new systems during the run
 		std::shared_lock system_lock(system_mutex);
+		run_in_progress = true;
 
 		// Run all the systems
 		sched.run();
+
+		run_in_progress = false;
 	}
 
 	// Returns true if a pool for the type exists
@@ -77,20 +100,23 @@ public:
 		std::shared_lock component_pool_lock(component_pool_mutex);
 
 		static constexpr auto hash = get_type_hash<T>();
-		return type_pool_lookup.contains(hash);
+		return std::ranges::find(pool_type_hash, hash) != pool_type_hash.end();
 	}
 
 	// Resets the runtime state. Removes all systems, empties component pools
 	void reset() {
+		Pre(!commit_in_progress, "a commit is already in progress");
+		Pre(!run_in_progress, "can not commit changes while systems are running");
+
 		std::unique_lock system_lock(system_mutex, std::defer_lock);
 		std::unique_lock component_pool_lock(component_pool_mutex, std::defer_lock);
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
 		systems.clear();
 		sched.clear();
-		type_pool_lookup.clear();
+		pool_type_hash.clear();
 		component_pools.clear();
-		type_caches.reset();
+		type_caches.clear();
 	}
 
 	// Returns a reference to a components pool.
@@ -103,6 +129,9 @@ public:
 		static_assert(std::is_same_v<T, std::remove_pointer_t<std::remove_cvref_t<T>>>,
 					  "This function only takes naked types, like 'int', and not 'int const&' or 'int*'");
 
+		// Don't call this when a commit is in progress
+		Pre(!commit_in_progress, "can not get a component pool while a commit is in progress");
+
 		auto& cache = type_caches.local();
 
 		static constexpr auto hash = get_type_hash<T>();
@@ -111,12 +140,12 @@ public:
 			std::unique_lock component_pool_lock(component_pool_mutex);
 
 			// Look in the pool for the type
-			auto const it = type_pool_lookup.find(_hash);
-			if (it == type_pool_lookup.end()) {
+			auto const it = std::ranges::find(pool_type_hash, _hash);
+			if (it == pool_type_hash.end()) {
 				// The pool wasn't found so create it.
 				return create_component_pool<T>();
 			} else {
-				return it->second;
+				return component_pools[std::distance(pool_type_hash.begin(), it)].get();
 			}
 		});
 
@@ -142,21 +171,21 @@ public:
 	}
 
 private:
-	template<typename T>
-	using stripper = reduce_parent_t<std::remove_pointer_t<std::remove_cvref_t<T>>>;
-
 	template <impl::TypeList ComponentList>
 	auto make_pools() {
-		using stripped_list = transform_type<ComponentList, stripper>;
+		using NakedComponentList = transform_type<ComponentList, naked_component_t>;
 
-		return for_all_types<stripped_list>([this]<typename... Types>() {
-			return detail::component_pools<stripped_list>{
+		return for_all_types<NakedComponentList>([this]<typename... Types>() {
+			return detail::component_pools<NakedComponentList>{
 				&this->get_component_pool<Types>()...};
 		});
 	}
 
 	template <typename Options, typename UpdateFn, typename SortFn, typename FirstComponent, typename... Components>
 	decltype(auto) create_system(UpdateFn update_func, SortFn sort_func) {
+		Pre(!commit_in_progress, "can not create systems while changes are being committed");
+		Pre(!run_in_progress, "can not create systems while systems are running");
+
 		// Is the first component an entity_id?
 		static constexpr bool first_is_entity = is_entity<FirstComponent>;
 
@@ -173,7 +202,6 @@ private:
 				return (detail::global<Types> && ...);
 			});
 
-		// Global systems cannot have a sort function
 		static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
 
 		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchical and sorted");
@@ -183,14 +211,12 @@ private:
 			std::unique_lock system_lock(system_mutex);
 
 			[[maybe_unused]] auto sys_ptr = system.get();
-
 			systems.push_back(std::move(system));
-			detail::system_base* ptr_system = systems.back().get();
-			Ensures(ptr_system != nullptr);
 
-			// -vv-  msvc shenanigans
+			// -vv-  MSVC shenanigans
 			[[maybe_unused]] static bool constexpr request_manual_update = has_option<opts::manual_update, Options>();
 			if constexpr (!request_manual_update) {
+				detail::system_base* ptr_system = systems.back().get();
 				sched.insert(ptr_system);
 			} else {
 				return (*sys_ptr);
@@ -199,39 +225,59 @@ private:
 
 		// Create the system instance
 		if constexpr (has_parent) {
-			auto const pools = make_pools<detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>>();
-			using typed_system = system_hierarchy<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using combined_list = detail::merge_type_lists<component_list, parent_type_list_t<parent_type>>;
+			using typed_system = system_hierarchy<Options, UpdateFn, first_is_entity, component_list, combined_list, transform_type<combined_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<combined_list>());
 			return insert_system(sys);
 		} else if constexpr (is_global_sys) {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_global<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using typed_system = system_global<Options, UpdateFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else if constexpr (has_sort_func) {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_sorted<Options, UpdateFn, SortFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, sort_func, pools);
+			using typed_system = system_sorted<Options, UpdateFn, SortFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, sort_func, make_pools<component_list>());
 			return insert_system(sys);
 		} else {
-			auto const pools = make_pools<component_list>();
-			using typed_system = system_ranged<Options, UpdateFn, decltype(pools), first_is_entity, component_list>;
-			auto sys = std::make_unique<typed_system>(update_func, pools);
+			using typed_system = system_ranged<Options, UpdateFn, first_is_entity, component_list, transform_type<component_list, naked_component_t>>;
+			auto sys = std::make_unique<typed_system>(update_func, make_pools<component_list>());
 			return insert_system(sys);
+		}
+	}
+
+	template<typename T, typename V>
+	void setup_variant_pool(component_pool<T>& pool, component_pool<V>& variant_pool) {
+		if constexpr (std::same_as<T, V>) {
+			return;
+		} else {
+			pool.add_variant(&variant_pool);
+			variant_pool.add_variant(&pool);
+			if constexpr (has_variant_alias<V> && !std::same_as<T, V>) {
+				setup_variant_pool(pool, get_component_pool<variant_t<V>>());
+			}
 		}
 	}
 
 	// Create a component pool for a new type
 	template <typename T>
 	component_pool_base* create_component_pool() {
+		static_assert(not_recursive_variant<T>(), "variant chain/tree is recursive");
+
 		// Create a new pool
 		auto pool = std::make_unique<component_pool<T>>();
+
+		// Set up variants
+		if constexpr (ecs::detail::has_variant_alias<T>) {
+			setup_variant_pool(*pool.get(), get_component_pool<variant_t<T>>());
+		}
+
+		// Store the pool and its type hash
 		static constexpr auto hash = get_type_hash<T>();
-		type_pool_lookup.emplace(hash, pool.get());
+		pool_type_hash.push_back(hash);
 		component_pools.push_back(std::move(pool));
+
 		return component_pools.back().get();
 	}
 };
 } // namespace ecs::detail
 
-#endif // !ECS_CONTEXT
+#endif // !ECS_CONTEXT_H

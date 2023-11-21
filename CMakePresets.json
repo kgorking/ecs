@@ -1,0 +1,8 @@
+{
+  "version": 6,
+  "include": [
+    "presets.clang.json",
+    "presets.gcc.json",
+    "presets.msvc.json"
+  ]
+}
