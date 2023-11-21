@@ -18,7 +18,6 @@ void component_add_spans(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
 		ecs.add_component_span({0, nentities}, ints);
 		ecs.commit_changes();
 	}
@@ -30,7 +29,6 @@ void component_add_generator(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
 		ecs.add_component_generator({0, nentities}, [i = 0](ecs::entity_id ) mutable {
 			return i++;
 		});
@@ -44,7 +42,6 @@ void component_add(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
 		ecs.add_component({0, nentities}, test_component);
 		ecs.commit_changes();
 	}
@@ -56,7 +53,6 @@ void component_add_1k_blocks(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
 		for (ecs::entity_id i = 0; i < nentities; i += 1024) {
 			ecs.add_component({i, i + 1023}, test_component);
 			ecs.commit_changes();
@@ -70,12 +66,8 @@ void component_add_half_front(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
-		state.PauseTiming();
-			ecs.add_component({nentities / 2 + 1, nentities}, test_component);
-			ecs.commit_changes();
-		state.ResumeTiming();
-
+		ecs.add_component({nentities / 2 + 1, nentities}, test_component);
+		ecs.commit_changes();
 		ecs.add_component({0, nentities / 2}, test_component);
 		ecs.commit_changes();
 	}
@@ -87,12 +79,8 @@ void component_add_half_back(benchmark::State& state) {
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
-		state.PauseTiming();
-			ecs.add_component({0, nentities / 2}, test_component);
-			ecs.commit_changes();
-		state.ResumeTiming();
-
+		ecs.add_component({0, nentities / 2}, test_component);
+		ecs.commit_changes();
 		ecs.add_component({nentities / 2 + 1, nentities}, test_component);
 		ecs.commit_changes();
 	}
@@ -169,18 +157,15 @@ ECS_BENCHMARK(component_add_remove_half_middle);
 
 void component_randomized_add(benchmark::State& state) {
 	auto const range = static_cast<std::size_t>(state.range(0));
-	//auto const nentities = static_cast<int>(state.range(0));
 
-	std::vector<ecs::entity_id> ids;
-	ids.reserve(range);
-	std::generate_n(std::back_inserter(ids), range, [i = ecs::entity_id{0}]() mutable { return i++; });
+	std::vector<int> ids(range);
+	std::iota(ids.begin(), ids.end(), 0);
 	std::random_device rd;
 	std::mt19937 g(rd());
 	std::shuffle(ids.begin(), ids.end(), g);
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
 		for (auto id : ids) {
 			ecs.add_component(id, test_component);
 		}
@@ -193,16 +178,14 @@ void component_add_randomized_remove(benchmark::State& state) {
 	auto const range = static_cast<std::size_t>(state.range(0));
 	auto const nentities = static_cast<int>(state.range(0));
 
-	std::vector<ecs::entity_id> ids;
-	ids.reserve(range);
-	std::generate_n(std::back_inserter(ids), range, [i = ecs::entity_id{0}]() mutable { return i++; });
+	std::vector<int> ids(range);
+	std::iota(ids.begin(), ids.end(), 0);
 	std::random_device rd;
 	std::mt19937 g(rd());
 	std::shuffle(ids.begin(), ids.end(), g);
 
 	for ([[maybe_unused]] auto const _ : state) {
 		ecs::runtime ecs;
-
 		ecs.add_component({0, nentities - 1}, test_component);
 		ecs.commit_changes();
 
