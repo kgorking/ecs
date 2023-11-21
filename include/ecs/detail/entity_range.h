@@ -35,7 +35,7 @@ std::vector<entity_range> intersect_ranges_iter(iter_pair<Iter1> it_a, iter_pair
 	return result;
 }
 
-// Find the intersectsions between two sets of ranges
+// Find the intersections between two sets of ranges
 /* inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
 	std::vector<entity_range> result;
 
