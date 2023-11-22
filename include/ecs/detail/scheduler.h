@@ -99,7 +99,7 @@ class scheduler final {
 		std::vector<std::size_t> entry_nodes{};
 		int id;
 
-		systems_group() {}
+		systems_group() : id(0) {}
 		systems_group(int group_id) : id(group_id) {}
 
 		// Runs the entry nodes in parallel
