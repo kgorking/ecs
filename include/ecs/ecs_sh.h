@@ -1266,20 +1266,6 @@ private:
 namespace ecs::detail {
 
 //
-// Check if type is a group
-template <typename T>
-struct is_group {
-	static constexpr bool value = false;
-};
-template <typename T>
-requires requires {
-	T::group_id;
-}
-struct is_group<T> {
-	static constexpr bool value = true;
-};
-
-//
 // Check if type is an interval
 template <typename T>
 struct is_interval {
@@ -2850,11 +2836,6 @@ private:
 #define ECS_OPTIONS_H
 
 ECS_EXPORT namespace ecs::opts {
-	template <int I>
-	struct group {
-		static constexpr int group_id = I;
-	};
-
 	template <int Milliseconds, int Microseconds = 0>
 	struct interval {
 		static_assert(Milliseconds >= 0, "time values can not be negative");
@@ -3434,6 +3415,13 @@ namespace ecs::detail {
 		void (*op)(entity_id id, entity_offset offset, void*, void*);
     };
 
+	inline auto fuse_ops(operation a, operation b) {
+		return [=](entity_id id, entity_offset offset) {
+			a.run(id, offset);
+			b.run(id, offset);
+		};
+	}
+
     class job {
         entity_range range;
         operation op;
@@ -3497,9 +3485,6 @@ public:
 		return enabled;
 	}
 
-	// Returns the group this system belongs to
-	[[nodiscard]] virtual int get_group() const noexcept = 0;
-
 	// Get the hashes of types used by the system with const/reference qualifiers removed
 	[[nodiscard]] virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;
 
@@ -3532,173 +3517,184 @@ private:
 
 namespace ecs::detail {
 
-// The implementation of a system specialized on its components
-template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
-class system : public system_base {
-	virtual void do_run() = 0;
-	virtual void do_build() = 0;
+	struct bridge_fn {
+		template <typename Fn>
+		explicit bridge_fn(Fn& fn)
+			: function(&fn)
+			, op{[](void* p1) {
+				  auto* func = static_cast<Fn*>(p1);
+				  (*func)();
+			  }} {}
 
-public:
-	system(UpdateFn func, component_pools<PoolsList>&& in_pools)
-		: update_func{func}, pools{std::forward<component_pools<PoolsList>>(in_pools)} {
-	}
-
-	void run() override {
-		if (!is_enabled()) {
-			return;
+		void run() const {
+			op(function);
 		}
 
-		if (!interval_checker.can_run()) {
-			return;
-		}
+	private:
+		void* function;
+		void (*op)(void*);
+	};
 
-		do_run();
+	// The implementation of a system specialized on its components
+	template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+	class system : public system_base {
+		virtual void do_run() = 0;
+		virtual void do_build() = 0;
 
-		// Notify pools if data was written to them
-		for_each_type<ComponentsList>([this]<typename T>() {
-			this->notify_pool_modifed<T>();
-		});
-	}
+	public:
+		system(UpdateFn func, component_pools<PoolsList>&& in_pools)
+			: update_func{func}, pools{std::forward<component_pools<PoolsList>>(in_pools)} {}
 
-	template <typename T>
-	void notify_pool_modifed() {
-		if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
-			// Recurse into the parent types
-			for_each_type<parent_type_list_t<T>>([this]<typename... ParentTypes>() {
-				(this->notify_pool_modifed<ParentTypes>(), ...);
+		void run() override {
+			if (!is_enabled()) {
+				return;
+			}
+
+			if (!interval_checker.can_run()) {
+				return;
+			}
+
+			do_run();
+
+			// Notify pools if data was written to them
+			for_each_type<ComponentsList>([this]<typename T>() {
+				this->notify_pool_modifed<T>();
 			});
-		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
-			pools.template get<std::remove_reference_t<T>>().notify_components_modified();
 		}
-	}
 
-	constexpr int get_group() const noexcept override {
-		using group = test_option_type_or<is_group, Options, opts::group<0>>;
-		return group::group_id;
-	}
+		template <typename T>
+		void notify_pool_modifed() {
+			if constexpr (detail::is_parent<T>::value && !is_read_only<T>()) { // writeable parent
+				// Recurse into the parent types
+				for_each_type<parent_type_list_t<T>>([this]<typename... ParentTypes>() {
+					(this->notify_pool_modifed<ParentTypes>(), ...);
+				});
+			} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
+				pools.template get<std::remove_reference_t<T>>().notify_components_modified();
+			}
+		}
 
 	constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
 		return type_hashes;
 	}
 
-	constexpr bool has_component(detail::type_hash hash) const noexcept override {
-		auto const check_hash = [hash]<typename T>() {
-			return get_type_hash<T>() == hash;
-		};
+		constexpr bool has_component(detail::type_hash hash) const noexcept override {
+			auto const check_hash = [hash]<typename T>() {
+				return get_type_hash<T>() == hash;
+			};
 
-		if (any_of_type<stripped_component_list>(check_hash))
-			return true;
-
-		if constexpr (has_parent_types) {
-			return any_of_type<parent_component_list>(check_hash);
-		} else {
-			return false;
-		}
-	}
-
-	constexpr bool depends_on(system_base const* other) const noexcept override {
-		return any_of_type<stripped_component_list>([this, other]<typename T>() {
-			constexpr auto hash = get_type_hash<T>();
-
-			// If the other system doesn't touch the same component,
-			// then there can be no dependecy
-			if (!other->has_component(hash))
-				return false;
-
-			bool const other_writes = other->writes_to_component(hash);
-			if (other_writes) {
-				// The other system writes to the component,
-				// so there is a strong dependency here.
-				// Order is preserved.
+			if (any_of_type<stripped_component_list>(check_hash))
 				return true;
-			} else { // 'other' reads component
-				bool const this_writes = writes_to_component(hash);
-				if (this_writes) {
-					// This system writes to the component,
+
+			if constexpr (has_parent_types) {
+				return any_of_type<parent_component_list>(check_hash);
+			} else {
+				return false;
+			}
+		}
+
+		constexpr bool depends_on(system_base const* other) const noexcept override {
+			return any_of_type<stripped_component_list>([this, other]<typename T>() {
+				constexpr auto hash = get_type_hash<T>();
+
+				// If the other system doesn't touch the same component,
+				// then there can be no dependecy
+				if (!other->has_component(hash))
+					return false;
+
+				bool const other_writes = other->writes_to_component(hash);
+				if (other_writes) {
+					// The other system writes to the component,
 					// so there is a strong dependency here.
 					// Order is preserved.
 					return true;
-				} else {
-					// These systems have a weak read/read dependency
-					// and can be scheduled concurrently
-					// Order does not need to be preserved.
-					return false;
+				} else { // 'other' reads component
+					bool const this_writes = writes_to_component(hash);
+					if (this_writes) {
+						// This system writes to the component,
+						// so there is a strong dependency here.
+						// Order is preserved.
+						return true;
+					} else {
+						// These systems have a weak read/read dependency
+						// and can be scheduled concurrently
+						// Order does not need to be preserved.
+						return false;
+					}
 				}
+			});
+		}
+
+		constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
+			auto const check_writes = [hash]<typename T>() {
+				return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>();
+			};
+
+			if (any_of_type<ComponentsList>(check_writes))
+				return true;
+
+			if constexpr (has_parent_types) {
+				return any_of_type<parent_component_list>(check_writes);
+			} else {
+				return false;
 			}
-		});
-	}
-
-	constexpr bool writes_to_component(detail::type_hash hash) const noexcept override {
-		auto const check_writes = [hash]<typename T>() {
-			return get_type_hash<std::remove_cvref_t<T>>() == hash && !is_read_only<T>();
-		};
-
-		if (any_of_type<ComponentsList>(check_writes))
-			return true;
-
-		if constexpr (has_parent_types) {
-			return any_of_type<parent_component_list>(check_writes);
-		} else {
-			return false;
-		}
-	}
-
-	UpdateFn& get_update_func() {
-		return update_func;
-	}
-
-protected:
-	// Handle changes when the component pools change
-	void process_changes(bool force_rebuild) override {
-		if (force_rebuild) {
-			do_build();
-			return;
 		}
 
-		if (!is_enabled()) {
-			return;
+		UpdateFn& get_update_func() {
+			return update_func;
 		}
 
-		if (pools.has_component_count_changed()) {
-			do_build();
+	protected:
+		// Handle changes when the component pools change
+		void process_changes(bool force_rebuild) override {
+			if (force_rebuild) {
+				do_build();
+				return;
+			}
+
+			if (!is_enabled()) {
+				return;
+			}
+
+			if (pools.has_component_count_changed()) {
+				do_build();
+			}
 		}
-	}
 
-protected:
-	// Number of components
-	static constexpr size_t num_components = type_list_size<ComponentsList>;
+	protected:
+		// Number of components
+		static constexpr size_t num_components = type_list_size<ComponentsList>;
 
-	// List of components used, with all modifiers stripped
-	using stripped_component_list = transform_type<ComponentsList, std::remove_cvref_t>;
+		// List of components used, with all modifiers stripped
+		using stripped_component_list = transform_type<ComponentsList, std::remove_cvref_t>;
 
-	using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
-	using interval_type = interval_limiter<user_interval::ms, user_interval::us>;
+		using user_interval = test_option_type_or<is_interval, Options, opts::interval<0, 0>>;
+		using interval_type = interval_limiter<user_interval::ms, user_interval::us>;
 
-	//
-	// ecs::parent related stuff
+		//
+		// ecs::parent related stuff
 
-	// The parent type, or void
-	using full_parent_type = test_option_type_or<is_parent, stripped_component_list, void>;
-	using stripped_parent_type = std::remove_pointer_t<std::remove_cvref_t<full_parent_type>>;
-	using parent_component_list = parent_type_list_t<stripped_parent_type>;
-	static constexpr bool has_parent_types = !std::is_same_v<full_parent_type, void>;
+		// The parent type, or void
+		using full_parent_type = test_option_type_or<is_parent, stripped_component_list, void>;
+		using stripped_parent_type = std::remove_pointer_t<std::remove_cvref_t<full_parent_type>>;
+		using parent_component_list = parent_type_list_t<stripped_parent_type>;
+		static constexpr bool has_parent_types = !std::is_same_v<full_parent_type, void>;
 
+		// Number of filters
+		static constexpr size_t num_filters = count_type_if<ComponentsList, std::is_pointer>();
+		static_assert((num_components - num_filters) > 0, "systems must have at least one non-filter component");
 
-	// Number of filters
-	static constexpr size_t num_filters = count_type_if<ComponentsList, std::is_pointer>();
-	static_assert(num_components-num_filters > 0, "systems must have at least one non-filter component");
+		// Hashes of stripped types used by this system ('int' instead of 'int const&')
+		static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
 
-	// Hashes of stripped types used by this system ('int' instead of 'int const&')
-	static constexpr std::array<detail::type_hash, num_components> type_hashes = get_type_hashes_array<stripped_component_list>();
+		// The user supplied system
+		UpdateFn update_func;
 
-	// The user supplied system
-	UpdateFn update_func;
+		// Fully typed component pools used by this system
+		component_pools<PoolsList> const pools;
 
-	// Fully typed component pools used by this system
-	component_pools<PoolsList> const pools;
-
-	interval_type interval_checker;
-};
+		interval_type interval_checker;
+	};
 } // namespace ecs::detail
 
 #endif // !ECS_SYSTEM
@@ -4242,65 +4238,26 @@ private:
 
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
-	// A group of systems with the same group id
-	struct systems_group final {
-		std::vector<scheduler_node> all_nodes;
-		std::vector<std::size_t> entry_nodes{};
-		int id;
-
-		systems_group() {}
-		systems_group(int group_id) : id(group_id) {}
-
-		// Runs the entry nodes in parallel
-		void run() {
-			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
-				all_nodes[node_id].run(all_nodes);
-			});
-		}
-	};
-
-	std::vector<systems_group> groups;
-
-protected:
-	systems_group& find_group(int id) {
-		// Look for an existing group
-		if (!groups.empty()) {
-			for (auto& g : groups) {
-				if (g.id == id) {
-					return g;
-				}
-			}
-		}
-
-		// No group found, so find an insertion point
-		auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) {
-			return group_id < sg.id;
-		});
-
-		// Insert the group and return it
-		return *groups.insert(insert_point, systems_group{id});
-	}
+	std::vector<scheduler_node> all_nodes;
+	std::vector<std::size_t> entry_nodes{};
 
 public:
 	scheduler() {}
 
 	void insert(detail::system_base* sys) {
-		// Find the group
-		auto& group = find_group(sys->get_group());
-
 		// Create a new node with the system
-		size_t const node_index = group.all_nodes.size();
-		scheduler_node& node = group.all_nodes.emplace_back(sys);
+		size_t const node_index = all_nodes.size();
+		scheduler_node& node = all_nodes.emplace_back(sys);
 
 		// Find a dependant system for each component
 		bool inserted = false;
-		auto const end = group.all_nodes.rend();
+		auto const end = all_nodes.rend();
 		for (auto const hash : sys->get_type_hashes()) {
-			auto it = std::next(group.all_nodes.rbegin()); // 'next' to skip the newly added system
+			auto it = std::next(all_nodes.rbegin()); // 'next' to skip the newly added system
 			while (it != end) {
 				scheduler_node& dep_node = *it;
 				// If the other system doesn't touch the same component,
-				// then there can be no dependecy
+				// then there can be no dependency
 				if (dep_node.get_system()->has_component(hash)) {
 					if (dep_node.get_system()->writes_to_component(hash) || sys->writes_to_component(hash)) {
 						// The system writes to the component,
@@ -4321,26 +4278,25 @@ public:
 
 		// The system has no dependencies, so make it an entry node
 		if (!inserted) {
-			group.entry_nodes.push_back(node_index);
+			entry_nodes.push_back(node_index);
 		}
 	}
 
 	// Clears all the schedulers data
 	void clear() {
-		groups.clear();
+		all_nodes.clear();
+		entry_nodes.clear();
 	}
 
 	void run() {
 		// Reset the execution data
-		for (auto& group : groups) {
-			for (auto& node : group.all_nodes)
-				node.reset_unfinished_dependencies();
-		}
+		for (auto& node : all_nodes)
+			node.reset_unfinished_dependencies();
 
-		// Run the groups in succession
-		for (auto& group : groups) {
-			group.run();
-		}
+		// Run the nodes concurrently
+		std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
+			all_nodes[node_id].run(all_nodes);
+		});
 	}
 };
 
