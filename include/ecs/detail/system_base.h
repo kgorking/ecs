@@ -42,9 +42,6 @@ public:
 		return enabled;
 	}
 
-	// Returns the group this system belongs to
-	[[nodiscard]] virtual int get_group() const noexcept = 0;
-
 	// Get the hashes of types used by the system with const/reference qualifiers removed
 	[[nodiscard]] virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;
 

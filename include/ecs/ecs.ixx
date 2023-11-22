@@ -1266,20 +1266,6 @@ private:
 namespace ecs::detail {
 
 //
-// Check if type is a group
-template <typename T>
-struct is_group {
-	static constexpr bool value = false;
-};
-template <typename T>
-requires requires {
-	T::group_id;
-}
-struct is_group<T> {
-	static constexpr bool value = true;
-};
-
-//
 // Check if type is an interval
 template <typename T>
 struct is_interval {
@@ -2850,11 +2836,6 @@ private:
 #define ECS_OPTIONS_H
 
 ECS_EXPORT namespace ecs::opts {
-	template <int I>
-	struct group {
-		static constexpr int group_id = I;
-	};
-
 	template <int Milliseconds, int Microseconds = 0>
 	struct interval {
 		static_assert(Milliseconds >= 0, "time values can not be negative");
@@ -3133,7 +3114,7 @@ std::vector<entity_range> intersect_ranges_iter(iter_pair<Iter1> it_a, iter_pair
 	return result;
 }
 
-// Find the intersections between two sets of ranges
+// Find the intersectsions between two sets of ranges
 /* inline std::vector<entity_range> intersect_ranges(entity_range_view view_a, entity_range_view view_b) {
 	std::vector<entity_range> result;
 
@@ -3445,9 +3426,6 @@ public:
 		return enabled;
 	}
 
-	// Returns the group this system belongs to
-	[[nodiscard]] virtual int get_group() const noexcept = 0;
-
 	// Get the hashes of types used by the system with const/reference qualifiers removed
 	[[nodiscard]] virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;
 
@@ -3518,11 +3496,6 @@ public:
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
 			pools.template get<std::remove_reference_t<T>>().notify_components_modified();
 		}
-	}
-
-	constexpr int get_group() const noexcept override {
-		using group = test_option_type_or<is_group, Options, opts::group<0>>;
-		return group::group_id;
 	}
 
 	constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
@@ -3679,27 +3652,19 @@ private:
 			needs_sorting = false;
 		}
 
-		if constexpr (FirstIsEntity) {
-			for (sort_help const& sh : sorted_args) {
-				auto& [range, argument] = arguments[sh.arg_index];
-				entity_id const ent = range.at(sh.offset);
-				argument(ent, this->update_func, sh.offset);
-			}
-		} else {
-			for (sort_help const& sh : sorted_args) {
-				arguments[sh.arg_index].arg(this->update_func, sh.offset);
-			}
+		for (sort_help const& sh : sorted_args) {
+			lambda_arguments[sh.arg_index](this->update_func, sh.offset);
 		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
 		sorted_args.clear();
-		arguments.clear();
+		lambda_arguments.clear();
 
 		for_all_types<ComponentsList>([&]<typename... Types>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
-				arguments.emplace_back(range, make_argument<Types...>(get_component<Types>(range.first(), this->pools)...));
+				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
 
 				for (entity_id const entity : range) {
 					entity_offset const offset = range.offset(entity);
@@ -3714,16 +3679,15 @@ private:
 	}
 
 	template <typename... Ts>
-	static auto make_argument(auto... args) {
-		if constexpr (FirstIsEntity) {
-			return [=](entity_id const ent, auto update_func, entity_offset offset) {
+	static auto make_argument(entity_range range, auto... args) {
+		return [=](auto update_func, entity_offset offset) {
+			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
+			if constexpr (FirstIsEntity) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-			};
-		} else {
-			return [=](auto update_func, entity_offset offset) {
-				update_func(extract_arg_lambda<Ts>(args, offset, 0)...);
-			};
-		}
+			} else {
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
+			}
+		};
 	}
 
 private:
@@ -3743,18 +3707,11 @@ private:
 	};
 	std::vector<sort_help> sorted_args;
 
-	using argument = std::remove_const_t<decltype(
-		for_all_types<ComponentsList>([]<typename... Types>() {
-			return make_argument<Types...>(component_argument<Types>{}...);
-		}
-	))>;
-
-	struct range_argument {
-		entity_range range;
-		argument arg;
-	};
-
-	std::vector<range_argument> arguments;
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
+		}));
+	
+	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
 };
 } // namespace ecs::detail
 
@@ -3781,53 +3738,48 @@ public:
 
 private:
 	void do_run() override {
-		for (std::size_t i = 0; i < ranges.size(); i++) {
-			auto const& range = ranges[i];
-			auto& argument = arguments[i];
-
-			for (entity_offset offset = 0; offset < range.count(); ++offset) {
-				argument(range.first() + offset, offset, this->update_func);
-			}
+		// Call the system for all the components that match the system signature
+		for (auto& argument : lambda_arguments) {
+			argument(this->update_func);
 		}
 	}
 
 	// Convert a set of entities into arguments that can be passed to the system
 	void do_build() override {
 		// Clear current arguments
-		ranges.clear();
-		arguments.clear();
+		lambda_arguments.clear();
 
-		for_all_types<ComponentsList>([&]<typename... Types>() {
+		for_all_types<ComponentsList>([&]<typename... Type>() {
 			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				ranges.emplace_back(found_range);
-				arguments.emplace_back(make_argument<Types...>(get_component<Types>(found_range.first(), this->pools)...));
+				lambda_arguments.push_back(make_argument<Type...>(found_range, get_component<Type>(found_range.first(), this->pools)...));
 			});
 		});
 	}
 
 	template <typename... Ts>
-	static auto make_argument(auto... args) {
-		if constexpr (FirstIsEntity) {
-			return [=](entity_id ent, entity_offset offset, auto& update_func) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-			};
-		} else {
-			return [=](entity_id    , entity_offset offset, auto& update_func) {
-				update_func(     extract_arg_lambda<Ts>(args, offset, 0)...);
-			};
-		}
+	static auto make_argument(entity_range const range, auto... args) {
+		return [=](auto update_func) noexcept {
+			auto constexpr e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+			std::for_each(e_p, range.begin(), range.end(), [=](entity_id const ent) mutable noexcept {
+				auto const offset = ent - range.first();
+
+				if constexpr (FirstIsEntity) {
+					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
+				} else {
+					update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
+				}
+			});
+		};
 	}
 
 private:
-	// Get the type of lambda containing the arguments
-	using argument = std::remove_const_t<decltype(
-		for_all_types<ComponentsList>([]<typename... Types>() {
-			return make_argument<Types...>(component_argument<Types>{}...);
-		}
-	))>;
+	/// XXX
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
+		}));
+	
+	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
 
-	std::vector<entity_range> ranges;
-	std::vector<argument> arguments;
 };
 } // namespace ecs::detail
 
@@ -4187,65 +4139,26 @@ private:
 
 // Schedules systems for concurrent execution based on their components.
 class scheduler final {
-	// A group of systems with the same group id
-	struct systems_group final {
-		std::vector<scheduler_node> all_nodes;
-		std::vector<std::size_t> entry_nodes{};
-		int id;
-
-		systems_group() {}
-		systems_group(int group_id) : id(group_id) {}
-
-		// Runs the entry nodes in parallel
-		void run() {
-			std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
-				all_nodes[node_id].run(all_nodes);
-			});
-		}
-	};
-
-	std::vector<systems_group> groups;
-
-protected:
-	systems_group& find_group(int id) {
-		// Look for an existing group
-		if (!groups.empty()) {
-			for (auto& g : groups) {
-				if (g.id == id) {
-					return g;
-				}
-			}
-		}
-
-		// No group found, so find an insertion point
-		auto const insert_point = std::upper_bound(groups.begin(), groups.end(), id, [](int group_id, systems_group const& sg) {
-			return group_id < sg.id;
-		});
-
-		// Insert the group and return it
-		return *groups.insert(insert_point, systems_group{id});
-	}
+	std::vector<scheduler_node> all_nodes;
+	std::vector<std::size_t> entry_nodes{};
 
 public:
 	scheduler() {}
 
 	void insert(detail::system_base* sys) {
-		// Find the group
-		auto& group = find_group(sys->get_group());
-
 		// Create a new node with the system
-		size_t const node_index = group.all_nodes.size();
-		scheduler_node& node = group.all_nodes.emplace_back(sys);
+		size_t const node_index = all_nodes.size();
+		scheduler_node& node = all_nodes.emplace_back(sys);
 
 		// Find a dependant system for each component
 		bool inserted = false;
-		auto const end = group.all_nodes.rend();
+		auto const end = all_nodes.rend();
 		for (auto const hash : sys->get_type_hashes()) {
-			auto it = std::next(group.all_nodes.rbegin()); // 'next' to skip the newly added system
+			auto it = std::next(all_nodes.rbegin()); // 'next' to skip the newly added system
 			while (it != end) {
 				scheduler_node& dep_node = *it;
 				// If the other system doesn't touch the same component,
-				// then there can be no dependecy
+				// then there can be no dependency
 				if (dep_node.get_system()->has_component(hash)) {
 					if (dep_node.get_system()->writes_to_component(hash) || sys->writes_to_component(hash)) {
 						// The system writes to the component,
@@ -4266,26 +4179,25 @@ public:
 
 		// The system has no dependencies, so make it an entry node
 		if (!inserted) {
-			group.entry_nodes.push_back(node_index);
+			entry_nodes.push_back(node_index);
 		}
 	}
 
 	// Clears all the schedulers data
 	void clear() {
-		groups.clear();
+		all_nodes.clear();
+		entry_nodes.clear();
 	}
 
 	void run() {
 		// Reset the execution data
-		for (auto& group : groups) {
-			for (auto& node : group.all_nodes)
-				node.reset_unfinished_dependencies();
-		}
+		for (auto& node : all_nodes)
+			node.reset_unfinished_dependencies();
 
-		// Run the groups in succession
-		for (auto& group : groups) {
-			group.run();
-		}
+		// Run the nodes concurrently
+		std::for_each(std::execution::par, entry_nodes.begin(), entry_nodes.end(), [this](size_t node_id) {
+			all_nodes[node_id].run(all_nodes);
+		});
 	}
 };
 
@@ -4479,8 +4391,7 @@ private:
 			});
 
 		static_assert(!(is_global_sys == has_sort_func && is_global_sys), "Global systems can not be sorted");
-
-		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchical and sorted");
+		static_assert(!(has_sort_func == has_parent && has_parent == true), "Systems can not both be hierarchial and sorted");
 
 		// Helper-lambda to insert system
 		auto const insert_system = [this](auto& system) -> decltype(auto) {
