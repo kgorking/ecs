@@ -56,11 +56,6 @@ public:
 		}
 	}
 
-	constexpr int get_group() const noexcept override {
-		using group = test_option_type_or<is_group, Options, opts::group<0>>;
-		return group::group_id;
-	}
-
 	constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
 		return type_hashes;
 	}
