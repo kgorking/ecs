@@ -154,15 +154,15 @@ TEST_CASE("type_list") {
 	}
 
 	SECTION("run_if") {
-        using TL_o = type_list<int, ecs::opts::group<1>>;
+        using TL_o = type_list<int, int*>;
         using TL2 = type_list<int, float>;
 
         int runs = 0;
-        int const ret_run = run_if<is_group, TL_o>([&]<typename>() {
+        int const ret_run = run_if<std::is_pointer, TL_o>([&]<typename>() {
             runs += 1;
             return runs;
         });
-        run_if<is_group, TL2>([&]<typename>() {
+		run_if<std::is_pointer, TL2>([&]<typename>() {
             runs += 1;
         });
 

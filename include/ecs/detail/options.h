@@ -7,20 +7,6 @@
 namespace ecs::detail {
 
 //
-// Check if type is a group
-template <typename T>
-struct is_group {
-	static constexpr bool value = false;
-};
-template <typename T>
-requires requires {
-	T::group_id;
-}
-struct is_group<T> {
-	static constexpr bool value = true;
-};
-
-//
 // Check if type is an interval
 template <typename T>
 struct is_interval {
