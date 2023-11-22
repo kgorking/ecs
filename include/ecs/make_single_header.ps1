@@ -69,6 +69,7 @@ import std;
 #include <stacktrace>
 #endif
 #include <span>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
