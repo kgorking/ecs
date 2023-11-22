@@ -32,6 +32,13 @@ namespace ecs::detail {
 		void (*op)(entity_id id, entity_offset offset, void*, void*);
     };
 
+	inline auto fuse_ops(operation a, operation b) {
+		return [=](entity_id id, entity_offset offset) {
+			a.run(id, offset);
+			b.run(id, offset);
+		};
+	}
+
     class job {
         entity_range range;
         operation op;
