@@ -16,9 +16,9 @@ namespace ecs::detail {
             : arguments{&args}
             , function(&fn)
             , op{[](entity_id id, entity_offset offset, void *p1, void *p2){
-				auto *args = static_cast<Arguments*>(p1);
+				auto *arg = static_cast<Arguments*>(p1);
 				auto *func = static_cast<Fn*>(p2);
-				(*args)(*func, id, offset);
+				(*arg)(*func, id, offset);
             }}
         {}
 
