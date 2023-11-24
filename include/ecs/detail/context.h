@@ -13,6 +13,7 @@
 
 #include "component_pools.h"
 #include "scheduler.h"
+#include "static_scheduler.h"
 #include "system.h"
 #include "system_global.h"
 #include "system_hierachy.h"
@@ -30,6 +31,7 @@ class context final {
 	std::vector<std::unique_ptr<component_pool_base>> component_pools;
 	std::vector<type_hash> pool_type_hash;
 	scheduler sched;
+	static_scheduler ssched;
 
 	mutable std::shared_mutex system_mutex;
 	mutable std::recursive_mutex component_pool_mutex;
@@ -59,6 +61,8 @@ public:
 		std::lock(system_lock, component_pool_lock); // lock both without deadlock
 
 		commit_in_progress = true;
+
+		ssched.build();
 
 		static constexpr auto process_changes = [](auto const& inst) {
 			inst->process_changes();
@@ -218,6 +222,7 @@ private:
 			if constexpr (!request_manual_update) {
 				detail::system_base* ptr_system = systems.back().get();
 				sched.insert(ptr_system);
+				ssched.insert(ptr_system);
 			} else {
 				return (*sys_ptr);
 			}

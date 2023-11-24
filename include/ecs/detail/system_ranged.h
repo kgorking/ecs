@@ -4,6 +4,16 @@
 #include "system.h"
 #include "static_scheduler.h"
 
+//
+// TODO:
+// * Find a systems dependencies
+// * Create a make_argument function.
+//     Should create- and store arguments, returns an `operation`
+//     Takes ranges that are removed from system (handled in parent)
+// * Fuse operations into a pipeline
+// * Test
+//
+
 namespace ecs::detail {
 // Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
 template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>

@@ -16,7 +16,7 @@ public:
 	system_base& operator=(system_base const&) = delete;
 	system_base& operator=(system_base&&) = default;
 
-	// Run this system on all of its associated components
+	// Run this system on all of its associated entities
 	virtual void run() = 0;
 
 	// Enables this system for updates and runs
@@ -29,7 +29,7 @@ public:
 		set_enable(false);
 	}
 
-	// Sets wheter the system is enabled or disabled
+	// Sets whether the system is enabled or disabled
 	void set_enable(bool is_enabled) {
 		enabled = is_enabled;
 		if (is_enabled) {
@@ -40,6 +40,20 @@ public:
 	// Returns true if this system is enabled
 	[[nodiscard]] bool is_enabled() const {
 		return enabled;
+	}
+
+	// Add a system that this system depends on
+	void add_dependency(system_base* sys) {
+		dependencies.push_back(sys);
+	}
+
+	// Clear all stored system dependencies
+	void clear_dependencies() {
+		dependencies.clear();
+	}
+
+	std::span<system_base* const> get_dependencies() const {
+		return dependencies;
 	}
 
 	// Get the hashes of types used by the system with const/reference qualifiers removed
@@ -60,6 +74,10 @@ private:
 
 	// Process changes to component layouts
 	virtual void process_changes(bool force_rebuild = false) = 0;
+
+private:
+	// Other systems that need to be run before this system can safely run
+	std::vector<system_base*> dependencies;
 
 	// Whether this system is enabled or disabled. Disabled systems are neither updated nor run.
 	bool enabled = true;
