@@ -1,30 +1,14 @@
 #ifndef ECS_DETAIL_STATIC_SCHEDULER_H
 #define ECS_DETAIL_STATIC_SCHEDULER_H
 
-#include "entity_range.h"
+#include <set>
 #include <thread>
 #include <vector>
+#include "entity_range.h"
+#include "operation.h"
+#include "system_base.h"
 
 namespace ecs::detail {
-	struct operation final {
-		template <typename Arguments, typename Fn>
-		explicit operation(Arguments& args, Fn& fn)
-			: arguments{&args}, function(&fn), op{[](entity_id id, entity_offset offset, void* p1, void* p2) {
-				  auto* arg = static_cast<Arguments*>(p1);
-				  auto* func = static_cast<Fn*>(p2);
-				  (*arg)(*func, id, offset);
-			  }} {}
-
-		void run(entity_id id, entity_offset offset) const {
-			op(id, offset, arguments, function);
-		}
-
-	private:
-		void* arguments;
-		void* function;
-		void (*op)(entity_id id, entity_offset offset, void*, void*);
-	};
-
 	inline auto fuse_ops(operation a, operation b) {
 		return [=](entity_id id, entity_offset offset) {
 			a.run(id, offset);
@@ -40,7 +24,7 @@ namespace ecs::detail {
 	}
 
 	class job final {
-		entity_range range;
+		//entity_range range;
 		operation op;
 	};
 
@@ -64,28 +48,28 @@ namespace ecs::detail {
 			for (system_base* sys : systems)
 				sys->clear_dependencies();
 
-			// Find a dependant system for each component
+			// Find all system dependencies
 			for (auto it = systems.rbegin(); it != systems.rend(); ++it) {
 				system_base* sys = *it;
 
-				for (auto dep_it = std::next(it); dep_it != systems.rend(); ++dep_it) {
-					system_base* dep_sys = *dep_it;
+				for (auto prev_it = std::next(it); prev_it != systems.rend(); ++prev_it) {
+					system_base* prev_sys = *prev_it;
 
 					for (auto const hash : sys->get_type_hashes()) {
-						if (dep_sys->writes_to_component(hash) || sys->writes_to_component(hash)) {
-							// The system writes to the component,
-							// so there is a strong dependency here.
-							sys->add_dependency(dep_sys);
+						if (prev_sys->has_component(hash)) {
+							sys->add_dependency(prev_sys);
 							break;
-						} else { // 'other' reads component
-									// These systems have a weak read/read dependency
-									// and can be scheduled concurrently
 						}
 					}
 				}
 			}
 
-			// TODO
+			// Get the systems needed
+			for (system_base* sys : systems) {
+				std::vector<system_base*> v;
+				std::unordered_set<system_base*> visited;
+				sys->get_flattened_dependencies(v, visited);
+			}
 		}
 
 	private:

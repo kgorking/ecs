@@ -3,15 +3,16 @@
 
 #include "system.h"
 #include "static_scheduler.h"
+#include "operation.h"
 
 //
 // TODO:
-// * Find a systems dependencies
-// * Create a make_argument function.
+// V Find a systems dependencies
+// X Create a make_argument function.
 //     Should create- and store arguments, returns an `operation`
 //     Takes ranges that are removed from system (handled in parent)
-// * Fuse operations into a pipeline
-// * Test
+// X Fuse operations into a pipeline
+// X Test
 //
 
 namespace ecs::detail {
@@ -31,12 +32,18 @@ public:
 	}
 
 private:
+	operation make_operation() override {
+		return operation{(argument*)0, this->get_update_func()};
+	}
+
 	void do_run() override {
+		auto op = make_operation();
+
 		for (std::size_t i = 0; i < ranges.size(); i++) {
 			auto const& range = ranges[i];
 			auto& arg = arguments[i];
 
-			operation const op(arg, this->get_update_func());
+			op.set_args(&arg);
 
 			for (entity_offset offset = 0; offset < range.count(); ++offset) {
 				op.run(range.first() + offset, offset);

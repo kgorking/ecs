@@ -22,6 +22,10 @@ public:
 	}
 
 private:
+	operation make_operation() override {
+		return operation{(argument*)0, this->get_update_func()};
+	}
+
 	void do_run() override {
 		// Sort the arguments if the component data has been modified
 		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
@@ -33,15 +37,21 @@ private:
 			needs_sorting = false;
 		}
 
+		auto op = make_operation();
+
 		if constexpr (FirstIsEntity) {
 			for (sort_help const& sh : sorted_args) {
 				auto& [range, arg] = arguments[sh.arg_index];
 				entity_id const ent = range.at(sh.offset);
-				arg(ent, this->update_func, sh.offset);
+				op.set_args(&arg);
+				op.run(ent, sh.offset);
+				//arg(this->update_func, ent, sh.offset);
 			}
 		} else {
 			for (sort_help const& sh : sorted_args) {
-				arguments[sh.arg_index].arg(this->update_func, sh.offset);
+				op.set_args(&arguments[sh.arg_index].arg);
+				op.run(0, sh.offset);
+				// arguments[sh.arg_index].arg(this->update_func, 0, sh.offset);
 			}
 		}
 	}
@@ -70,11 +80,11 @@ private:
 	template <typename... Ts>
 	static auto make_argument(auto... args) {
 		if constexpr (FirstIsEntity) {
-			return [=](entity_id const ent, auto update_func, entity_offset offset) {
+			return [=](auto update_func, entity_id const ent, entity_offset offset) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 			};
 		} else {
-			return [=](auto update_func, entity_offset offset) {
+			return [=](auto update_func, entity_id const , entity_offset offset) {
 				update_func(extract_arg_lambda<Ts>(args, offset, 0)...);
 			};
 		}

@@ -2,7 +2,10 @@
 #define ECS_SYSTEM_BASE
 
 #include "type_hash.h"
+#include "contract.h"
+#include "operation.h"
 #include <span>
+#include <unordered_set>
 
 namespace ecs::detail {
 class context;
@@ -55,6 +58,19 @@ public:
 	std::span<system_base* const> get_dependencies() const {
 		return dependencies;
 	}
+
+	void get_flattened_dependencies(std::vector<system_base*>& deps, std::unordered_set<system_base*>& visited) {
+		if (visited.contains(this))
+			return;
+
+		for (system_base* sys : dependencies)
+			sys->get_flattened_dependencies(deps, visited);
+
+		deps.push_back(this);
+		visited.insert(this);
+	}
+
+	virtual operation make_operation() = 0;
 
 	// Get the hashes of types used by the system with const/reference qualifiers removed
 	[[nodiscard]] virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;

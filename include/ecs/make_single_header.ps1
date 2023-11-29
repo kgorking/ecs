@@ -30,13 +30,14 @@ $files = (
 	'detail/verification.h',
 	'detail/entity_range.h',
 	'detail/find_entity_pool_intersections.h',
-	'detail/static_scheduler.h',
+	'detail/operation.h',
 	'detail/system_base.h',
 	'detail/system.h',
 	'detail/system_sorted.h',
 	'detail/system_ranged.h',
 	'detail/system_hierachy.h',
 	'detail/system_global.h',
+	'detail/static_scheduler.h',
 	'detail/scheduler.h',
 	'detail/context.h',
 	'runtime.h')
@@ -71,6 +72,7 @@ import std;
 #include <span>
 #include <thread>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #endif

@@ -28,6 +28,7 @@ import std;
 #include <span>
 #include <thread>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #endif
@@ -2759,7 +2760,7 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 	} else if constexpr (detail::is_parent<T>::value) {
 		parent_id const pid = *(cmp + offset);
 
-		// TODO store this in seperate container in system_hierarchy? might not be
+		// TODO store this in separate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
 		return for_all_types<parent_type_list_t<T>>([&]<typename... ParentTypes>() {
 			return T{pid, get_component<ParentTypes>(pid, pools)...};
@@ -3385,19 +3386,26 @@ void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, 
 } // namespace ecs::detail
 
 #endif // !ECS_FIND_ENTITY_POOL_INTERSECTIONS_H
-#ifndef ECS_DETAIL_STATIC_SCHEDULER_H
-#define ECS_DETAIL_STATIC_SCHEDULER_H
+#ifndef ECS_DETAIL_OPERATION_H
+#define ECS_DETAIL_OPERATION_H
 
 
 namespace ecs::detail {
 	struct operation final {
 		template <typename Arguments, typename Fn>
-		explicit operation(Arguments& args, Fn& fn)
-			: arguments{&args}, function(&fn), op{[](entity_id id, entity_offset offset, void* p1, void* p2) {
-				  auto* arg = static_cast<Arguments*>(p1);
-				  auto* func = static_cast<Fn*>(p2);
-				  (*arg)(*func, id, offset);
-			  }} {}
+		explicit operation(Arguments* unused_args, Fn& fn) : arguments{nullptr}, function(&fn) {
+			Pre(unused_args == nullptr, "This value is only used to get the type; pass nullptr.");
+
+			op = [](entity_id id, entity_offset offset, void* p1, void* p2) {
+				auto* arg = static_cast<Arguments*>(p1);
+				auto* func = static_cast<Fn*>(p2);
+				(*arg)(*func, id, offset);
+			};
+		}
+
+		void set_args(void* args) {
+			arguments = args;
+		}
 
 		void run(entity_id id, entity_offset offset) const {
 			op(id, offset, arguments, function);
@@ -3408,77 +3416,9 @@ namespace ecs::detail {
 		void* function;
 		void (*op)(entity_id id, entity_offset offset, void*, void*);
 	};
-
-	inline auto fuse_ops(operation a, operation b) {
-		return [=](entity_id id, entity_offset offset) {
-			a.run(id, offset);
-			b.run(id, offset);
-		};
-	}
-
-	inline auto fuse_ops(operation a, auto arg, auto func) {
-		return [=](entity_id id, entity_offset offset) {
-			a.run(id, offset);
-			(*arg)(*func, id, offset);
-		};
-	}
-
-	class job final {
-		entity_range range;
-		operation op;
-	};
-
-	struct pipeline final {
-		// The vector of jobs to run on this thread
-		std::vector<job> jobs;
-
-		// The thread to execute the pipeline on
-		std::thread thread;
-
-		// Time it took to run all jobs
-		double time = 0.0;
-	};
-
-	struct static_scheduler final {
-		void insert(system_base* sys) {
-			systems.push_back(sys);
-		}
-
-		void build() {
-			for (system_base* sys : systems)
-				sys->clear_dependencies();
-
-			// Find a dependant system for each component
-			for (auto it = systems.rbegin(); it != systems.rend(); ++it) {
-				system_base* sys = *it;
-
-				for (auto dep_it = std::next(it); dep_it != systems.rend(); ++dep_it) {
-					system_base* dep_sys = *dep_it;
-
-					for (auto const hash : sys->get_type_hashes()) {
-						if (dep_sys->writes_to_component(hash) || sys->writes_to_component(hash)) {
-							// The system writes to the component,
-							// so there is a strong dependency here.
-							sys->add_dependency(dep_sys);
-							break;
-						} else { // 'other' reads component
-									// These systems have a weak read/read dependency
-									// and can be scheduled concurrently
-						}
-					}
-				}
-			}
-
-			// TODO
-		}
-
-	private:
-		std::vector<system_base*> systems;
-	};
-
 } // namespace ecs::detail
 
-#endif // !ECS_DETAIL_STATIC_SCHEDULER_H
+#endif
 #ifndef ECS_SYSTEM_BASE
 #define ECS_SYSTEM_BASE
 
@@ -3534,6 +3474,19 @@ public:
 	std::span<system_base* const> get_dependencies() const {
 		return dependencies;
 	}
+
+	void get_flattened_dependencies(std::vector<system_base*>& deps, std::unordered_set<system_base*>& visited) {
+		if (visited.contains(this))
+			return;
+
+		for (system_base* sys : dependencies)
+			sys->get_flattened_dependencies(deps, visited);
+
+		deps.push_back(this);
+		visited.insert(this);
+	}
+
+	virtual operation make_operation() = 0;
 
 	// Get the hashes of types used by the system with const/reference qualifiers removed
 	[[nodiscard]] virtual std::span<detail::type_hash const> get_type_hashes() const noexcept = 0;
@@ -3652,7 +3605,7 @@ namespace ecs::detail {
 				constexpr auto hash = get_type_hash<T>();
 
 				// If the other system doesn't touch the same component,
-				// then there can be no dependecy
+				// then there can be no dependency
 				if (!other->has_component(hash))
 					return false;
 
@@ -3774,6 +3727,10 @@ public:
 	}
 
 private:
+	operation make_operation() override {
+		return operation{(argument*)0, this->get_update_func()};
+	}
+
 	void do_run() override {
 		// Sort the arguments if the component data has been modified
 		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
@@ -3785,15 +3742,21 @@ private:
 			needs_sorting = false;
 		}
 
+		auto op = make_operation();
+
 		if constexpr (FirstIsEntity) {
 			for (sort_help const& sh : sorted_args) {
 				auto& [range, arg] = arguments[sh.arg_index];
 				entity_id const ent = range.at(sh.offset);
-				arg(ent, this->update_func, sh.offset);
+				op.set_args(&arg);
+				op.run(ent, sh.offset);
+				//arg(this->update_func, ent, sh.offset);
 			}
 		} else {
 			for (sort_help const& sh : sorted_args) {
-				arguments[sh.arg_index].arg(this->update_func, sh.offset);
+				op.set_args(&arguments[sh.arg_index].arg);
+				op.run(0, sh.offset);
+				// arguments[sh.arg_index].arg(this->update_func, 0, sh.offset);
 			}
 		}
 	}
@@ -3822,11 +3785,11 @@ private:
 	template <typename... Ts>
 	static auto make_argument(auto... args) {
 		if constexpr (FirstIsEntity) {
-			return [=](entity_id const ent, auto update_func, entity_offset offset) {
+			return [=](auto update_func, entity_id const ent, entity_offset offset) {
 				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
 			};
 		} else {
-			return [=](auto update_func, entity_offset offset) {
+			return [=](auto update_func, entity_id const , entity_offset offset) {
 				update_func(extract_arg_lambda<Ts>(args, offset, 0)...);
 			};
 		}
@@ -3871,12 +3834,12 @@ private:
 
 //
 // TODO:
-// * Find a systems dependencies
-// * Create a make_argument function.
+// V Find a systems dependencies
+// X Create a make_argument function.
 //     Should create- and store arguments, returns an `operation`
 //     Takes ranges that are removed from system (handled in parent)
-// * Fuse operations into a pipeline
-// * Test
+// X Fuse operations into a pipeline
+// X Test
 //
 
 namespace ecs::detail {
@@ -3896,12 +3859,18 @@ public:
 	}
 
 private:
+	operation make_operation() override {
+		return operation{(argument*)0, this->get_update_func()};
+	}
+
 	void do_run() override {
+		auto op = make_operation();
+
 		for (std::size_t i = 0; i < ranges.size(); i++) {
 			auto const& range = ranges[i];
 			auto& arg = arguments[i];
 
-			operation const op(arg, this->get_update_func());
+			op.set_args(&arg);
 
 			for (entity_offset offset = 0; offset < range.count(); ++offset) {
 				op.run(range.first() + offset, offset);
@@ -3983,19 +3952,21 @@ public:
 	}
 
 private:
-	void do_run() override {
-		auto const& this_pools = this->pools;
+	operation make_operation() override {
+		return operation{(base_argument*)0, this->get_update_func()};
+	}
 
+	void do_run() override {
 		if constexpr (is_parallel) {
 			std::for_each(std::execution::par, info_spans.begin(), info_spans.end(), [&](hierarchy_span span) {
 				auto const ei_span = std::span<entity_info>{infos.data() + span.offset, span.count};
 				for (entity_info const& info : ei_span) {
-					arguments[info.l.index](this->update_func, info.l.offset, this_pools);
+					arguments[info.l.index](this->update_func, 0, info.l.offset);
 				}
 			});
 		} else {
 			for (entity_info const& info : infos) {
-				arguments[info.l.index](this->update_func, info.l.offset, this->pools);
+				arguments[info.l.index](this->update_func, 0, info.l.offset);
 			}
 		}
 	}
@@ -4051,7 +4022,7 @@ private:
 		// Build the arguments for the ranges
 		for_all_types<ComponentsList>([&]<typename... T>() {
 			for (unsigned index = 0; entity_range const range : ranges) {
-				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
+				arguments.push_back(make_argument<T...>(range, &(this->pools), get_component<T>(range.first(), this->pools)...));
 
 				for (entity_id const id : range) {
 					infos.push_back({0, *(pool_parent_id->find_component_data(id)), {index, range.offset(id)}});
@@ -4138,13 +4109,13 @@ private:
 	}
 
 	template <typename... Ts>
-	static auto make_argument(entity_range range, auto... args) noexcept {
-		return [=](auto update_func, entity_offset offset, component_pools<PoolsList> const& pools) mutable {
+	static auto make_argument(entity_range range, component_pools<PoolsList> const* pools, auto... args) noexcept {
+		return [=](auto update_func, entity_id, entity_offset offset) mutable {
 			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, *pools)...);
 			} else {
-				update_func(/**/ extract_arg_lambda<Ts>(args, offset, pools)...);
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, *pools)...);
 			}
 		};
 	}
@@ -4158,7 +4129,8 @@ private:
 
 	// The argument for parameter to pass to system func
 	using base_argument_ptr = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
-		return make_argument<Types...>(entity_range{0, 0}, component_argument<Types>{0}...);
+		return make_argument<Types...>(entity_range{0, 0}, static_cast<component_pools<PoolsList> const*>(nullptr),
+									   component_argument<Types>{0}...);
 	}));
 	using base_argument = std::remove_const_t<base_argument_ptr>;
 
@@ -4189,30 +4161,122 @@ private:
 
 
 namespace ecs::detail {
-// The implementation of a system specialized on its components
-template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
-class system_global final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
-	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
+	// The implementation of a system specialized on its components
+	template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+	class system_global final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+		static_assert(false == FirstIsEntity, "global systems does not work on entities, they are stand-alone");
+		using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
 
-public:
-	system_global(UpdateFn func, component_pools<PoolsList>&& in_pools)
-		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
-		this->process_changes(true);
-	  }
+	public:
+		system_global(UpdateFn func, component_pools<PoolsList>&& in_pools)
+			: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
+			this->process_changes(true);
+		}
 
-private:
-	void do_run() override {
-		for_all_types<PoolsList>([&]<typename... Types>() {
-			this->update_func(this->pools.template get<Types>().get_shared_component()...);
-		});
-	}
+	private:
+		operation make_operation() override {
+			return operation{(argument*)0, this->get_update_func()};
+		}
 
-	void do_build() override {
-	}
-};
+		template <typename... Ts>
+		static auto make_argument(auto... args) {
+			return [=](UpdateFn& fn, entity_id, entity_offset offset) {
+				for_all_types<ComponentsList>([&]<typename... Types>() {
+					fn(extract_arg_lambda<Types>(args, offset, 0)...);
+				});
+			};
+		}
+
+		void do_run() override {
+			for_all_types<PoolsList>([&]<typename... Types>() {
+				this->update_func(this->pools.template get<Types>().get_shared_component()...);
+			});
+		}
+
+		void do_build() override {}
+
+		using argument = std::remove_cvref_t<decltype(for_all_types<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(component_argument<Types>{}...);
+		}))>;
+	};
 } // namespace ecs::detail
 
 #endif // !ECS_SYSTEM_GLOBAL_H
+#ifndef ECS_DETAIL_STATIC_SCHEDULER_H
+#define ECS_DETAIL_STATIC_SCHEDULER_H
+
+
+namespace ecs::detail {
+	inline auto fuse_ops(operation a, operation b) {
+		return [=](entity_id id, entity_offset offset) {
+			a.run(id, offset);
+			b.run(id, offset);
+		};
+	}
+
+	inline auto fuse_ops(operation a, auto arg, auto func) {
+		return [=](entity_id id, entity_offset offset) {
+			a.run(id, offset);
+			(*arg)(*func, id, offset);
+		};
+	}
+
+	class job final {
+		//entity_range range;
+		operation op;
+	};
+
+	struct pipeline final {
+		// The vector of jobs to run on this thread
+		std::vector<job> jobs;
+
+		// The thread to execute the pipeline on
+		std::thread thread;
+
+		// Time it took to run all jobs
+		double time = 0.0;
+	};
+
+	struct static_scheduler final {
+		void insert(system_base* sys) {
+			systems.push_back(sys);
+		}
+
+		void build() {
+			for (system_base* sys : systems)
+				sys->clear_dependencies();
+
+			// Find all system dependencies
+			for (auto it = systems.rbegin(); it != systems.rend(); ++it) {
+				system_base* sys = *it;
+
+				for (auto prev_it = std::next(it); prev_it != systems.rend(); ++prev_it) {
+					system_base* prev_sys = *prev_it;
+
+					for (auto const hash : sys->get_type_hashes()) {
+						if (prev_sys->has_component(hash)) {
+							sys->add_dependency(prev_sys);
+							break;
+						}
+					}
+				}
+			}
+
+			// Get the systems needed
+			for (system_base* sys : systems) {
+				std::vector<system_base*> v;
+				std::unordered_set<system_base*> visited;
+				sys->get_flattened_dependencies(v, visited);
+			}
+		}
+
+	private:
+		std::vector<system_base*> systems;
+	};
+
+} // namespace ecs::detail
+
+#endif // !ECS_DETAIL_STATIC_SCHEDULER_H
 #ifndef ECS_SYSTEM_SCHEDULER
 #define ECS_SYSTEM_SCHEDULER
 

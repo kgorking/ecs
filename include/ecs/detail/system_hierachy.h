@@ -39,19 +39,21 @@ public:
 	}
 
 private:
-	void do_run() override {
-		auto const& this_pools = this->pools;
+	operation make_operation() override {
+		return operation{(base_argument*)0, this->get_update_func()};
+	}
 
+	void do_run() override {
 		if constexpr (is_parallel) {
 			std::for_each(std::execution::par, info_spans.begin(), info_spans.end(), [&](hierarchy_span span) {
 				auto const ei_span = std::span<entity_info>{infos.data() + span.offset, span.count};
 				for (entity_info const& info : ei_span) {
-					arguments[info.l.index](this->update_func, info.l.offset, this_pools);
+					arguments[info.l.index](this->update_func, 0, info.l.offset);
 				}
 			});
 		} else {
 			for (entity_info const& info : infos) {
-				arguments[info.l.index](this->update_func, info.l.offset, this->pools);
+				arguments[info.l.index](this->update_func, 0, info.l.offset);
 			}
 		}
 	}
@@ -107,7 +109,7 @@ private:
 		// Build the arguments for the ranges
 		for_all_types<ComponentsList>([&]<typename... T>() {
 			for (unsigned index = 0; entity_range const range : ranges) {
-				arguments.push_back(make_argument<T...>(range, get_component<T>(range.first(), this->pools)...));
+				arguments.push_back(make_argument<T...>(range, &(this->pools), get_component<T>(range.first(), this->pools)...));
 
 				for (entity_id const id : range) {
 					infos.push_back({0, *(pool_parent_id->find_component_data(id)), {index, range.offset(id)}});
@@ -194,13 +196,13 @@ private:
 	}
 
 	template <typename... Ts>
-	static auto make_argument(entity_range range, auto... args) noexcept {
-		return [=](auto update_func, entity_offset offset, component_pools<PoolsList> const& pools) mutable {
+	static auto make_argument(entity_range range, component_pools<PoolsList> const* pools, auto... args) noexcept {
+		return [=](auto update_func, entity_id, entity_offset offset) mutable {
 			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
 			if constexpr (FirstIsEntity) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset, pools)...);
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, *pools)...);
 			} else {
-				update_func(/**/ extract_arg_lambda<Ts>(args, offset, pools)...);
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, *pools)...);
 			}
 		};
 	}
@@ -214,7 +216,8 @@ private:
 
 	// The argument for parameter to pass to system func
 	using base_argument_ptr = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
-		return make_argument<Types...>(entity_range{0, 0}, component_argument<Types>{0}...);
+		return make_argument<Types...>(entity_range{0, 0}, static_cast<component_pools<PoolsList> const*>(nullptr),
+									   component_argument<Types>{0}...);
 	}));
 	using base_argument = std::remove_const_t<base_argument_ptr>;
 

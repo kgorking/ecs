@@ -98,7 +98,7 @@ namespace ecs::detail {
 				constexpr auto hash = get_type_hash<T>();
 
 				// If the other system doesn't touch the same component,
-				// then there can be no dependecy
+				// then there can be no dependency
 				if (!other->has_component(hash))
 					return false;
 
