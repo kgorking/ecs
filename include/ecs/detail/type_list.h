@@ -68,7 +68,8 @@ namespace impl {
 		return []<std::size_t... Ns>(std::index_sequence<Ns...>) {
 			int index = 0;
 			((index += (std::is_same_v<T, Types> * (1 + Ns))) || ...);
-			// if(0 == index) throw "type not found in list";
+			if(0 == index)
+				throw "type not found in list";
 			return index - 1;
 		}(std::index_sequence_for<Types...>{});
 	}
