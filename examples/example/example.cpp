@@ -1,4 +1,4 @@
-import ecs; //#include <ecs/ecs.h>
+#include <ecs/ecs.h>
 #include <iostream>
 
 // The component
