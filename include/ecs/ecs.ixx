@@ -681,6 +681,8 @@ namespace impl {
 
 	struct merger {
 #if 0// defined(_MSC_VER) && !defined(__clang__)
+		// ! Triggers ICE in 17.9+
+
 		// This optimization is only possible in msvc due to it not checking templates
 		// before they are instantiated.
 
