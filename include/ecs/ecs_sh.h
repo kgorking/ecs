@@ -1,16 +1,4 @@
-﻿#ifndef ECS_EXPORT
-#define ECS_EXPORT
-#endif
-
-// Auto-generated single-header include file
-#if defined(__cpp_lib_modules)
-#if defined(_MSC_VER) && _MSC_VER <= 1939
-import std.core;
-#else
-import std;
-#endif
-#else
-#include <algorithm>
+﻿#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -32,6 +20,9 @@ import std;
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#ifndef ECS_EXPORT
+#define ECS_EXPORT
 #endif
 
 #ifndef TLS_CACHE
@@ -407,8 +398,8 @@ using unique_collect = collect<T, decltype(U)>;
 } // namespace tls
 
 #endif // !TLS_COLLECT_H
-#ifndef TYPE_LIST_H_
-#define TYPE_LIST_H_
+#ifndef ECS_DETAIL_TYPE_LIST_H
+#define ECS_DETAIL_TYPE_LIST_H
 
 
 namespace ecs::detail {
@@ -690,7 +681,7 @@ namespace impl {
 	-> type_list<Types1..., Types2...>*;
 
 	struct merger {
-#if defined(_MSC_VER) && !defined(__clang__)
+#if 0// defined(_MSC_VER) && !defined(__clang__)
 		// This optimization is only possible in msvc due to it not checking templates
 		// before they are instantiated.
 
@@ -884,9 +875,9 @@ using merge_type_lists = std::remove_pointer_t<decltype(
 	impl::merger::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 } // namespace ecs::detail
-#endif // !TYPE_LIST_H_
-#ifndef ECS_CONTRACT_H
-#define ECS_CONTRACT_H
+#endif // !ECS_DETAIL_TYPE_LIST_H
+#ifndef ECS_DETAIL_CONTRACT_H
+#define ECS_DETAIL_CONTRACT_H
 
 #if __has_include(<stacktrace>)
 #endif
@@ -1007,9 +998,9 @@ inline void do_postcondition_violation(char const* what, char const* how) {
 #define PostAudit(expression, message)
 #endif
 
-#endif // !ECS_CONTRACT_H
-#ifndef ECS_TYPE_HASH
-#define ECS_TYPE_HASH
+#endif // !ECS_DETAIL_CONTRACT_H
+#ifndef ECS_DETAIL_TYPE_HASH_H
+#define ECS_DETAIL_TYPE_HASH_H
 
 
 // Beware of using this with local defined structs/classes
@@ -1046,7 +1037,7 @@ consteval auto get_type_hashes_array() {
 
 } // namespace ecs::detail
 
-#endif // !ECS_TYPE_HASH
+#endif // !ECS_DETAIL_TYPE_HASH_H
 #ifndef ECS_DETAIL_TAGGED_POINTER_H
 #define ECS_DETAIL_TAGGED_POINTER_H
 
@@ -1188,8 +1179,8 @@ private:
 } // namespace ecs
 
 #endif // !ECS_ENTITY_ID_H
-#ifndef ECS_ENTITY_ITERATOR
-#define ECS_ENTITY_ITERATOR
+#ifndef ECS_DETAIL_ENTITY_ITERATOR_H
+#define ECS_DETAIL_ENTITY_ITERATOR_H
 
 
 namespace ecs::detail {
@@ -1258,7 +1249,7 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_ENTITY_RANGE
+#endif // !ECS_DETAIL_ENTITY_ITERATOR_H
 #ifndef ECS_DETAIL_OPTIONS_H
 #define ECS_DETAIL_OPTIONS_H
 
@@ -1380,8 +1371,8 @@ constexpr bool has_option() {
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_OPTIONS_H
-#ifndef ECS_ENTITY_RANGE
-#define ECS_ENTITY_RANGE
+#ifndef ECS_ENTITY_RANGE_H
+#define ECS_ENTITY_RANGE_H
 
 
 
@@ -1551,7 +1542,7 @@ using entity_range_view = std::span<entity_range const>;
 
 } // namespace ecs
 
-#endif // !ECS_ENTITTY_RANGE
+#endif // !ECS_ENTITTY_RANGE_H
 #ifndef ECS_DETAIL_PARENT_H
 #define ECS_DETAIL_PARENT_H
 
@@ -1771,8 +1762,8 @@ public:
 }
 
 #endif //!ECS_DETAIL_STRIDE_VIEW_H
-#ifndef ECS_COMPONENT_POOL_BASE
-#define ECS_COMPONENT_POOL_BASE
+#ifndef ECS_DETAIL_COMPONENT_POOL_BASE_H
+#define ECS_DETAIL_COMPONENT_POOL_BASE_H
 
 namespace ecs::detail {
 // The baseclass of typed component pools
@@ -1795,7 +1786,7 @@ public:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_COMPONENT_POOL_BASE
+#endif // !ECS_DETAIL_COMPONENT_POOL_BASE_H
 #ifndef ECS_DETAIL_COMPONENT_POOL_H
 #define ECS_DETAIL_COMPONENT_POOL_H
 
@@ -2610,8 +2601,8 @@ private:
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_COMPONENT_POOL_H
-#ifndef ECS_SYSTEM_DEFS_H_
-#define ECS_SYSTEM_DEFS_H_
+#ifndef ECS_DETAIL_SYSTEM_DEFS_H
+#define ECS_DETAIL_SYSTEM_DEFS_H
 
 // Contains definitions that are used by the systems classes
 
@@ -2677,7 +2668,7 @@ using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Comp
 											  std::remove_cvref_t<Component>*>; // rest are pointers
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_DEFS_H_
+#endif // !ECS_DETAIL_SYSTEM_DEFS_H
 #ifndef ECS_DETAIL_COMPONENT_POOLS_H
 #define ECS_DETAIL_COMPONENT_POOLS_H
 
@@ -2758,7 +2749,7 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 	} else if constexpr (detail::is_parent<T>::value) {
 		parent_id const pid = *(cmp + offset);
 
-		// TODO store this in seperate container in system_hierarchy? might not be
+		// TODO store this in separate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
 		return for_all_types<parent_type_list_t<T>>([&]<typename... ParentTypes>() {
 			return T{pid, get_component<ParentTypes>(pid, pools)...};
@@ -2794,8 +2785,8 @@ ECS_EXPORT namespace ecs::opts {
 } // namespace ecs::opts
 
 #endif // !ECS_OPTIONS_H
-#ifndef ECS_PARENT_H_
-#define ECS_PARENT_H_
+#ifndef ECS_PARENT_H
+#define ECS_PARENT_H
 
 
 // forward decls
@@ -2853,9 +2844,9 @@ private:
 };
 } // namespace ecs
 
-#endif // !ECS_PARENT_H_
-#ifndef ECS_FREQLIMIT_H
-#define ECS_FREQLIMIT_H
+#endif // !ECS_PARENT_H
+#ifndef ECS_DETAIL_INTERVAL_LIMITER_H
+#define ECS_DETAIL_INTERVAL_LIMITER_H
 
 
 namespace ecs::detail {
@@ -2889,9 +2880,9 @@ struct interval_limiter<0, 0> {
 
 } // namespace ecs::detail
 
-#endif // !ECS_FREQLIMIT_H
-#ifndef ECS_VERIFICATION_H
-#define ECS_VERIFICATION_H
+#endif // !ECS_DETAIL_INTERVAL_LIMITER_H
+#ifndef ECS_DETAIL_VERIFICATION_H
+#define ECS_DETAIL_VERIFICATION_H
 
 
 
@@ -3077,9 +3068,9 @@ constexpr bool make_system_parameter_verifier() {
 
 } // namespace ecs::detail
 
-#endif // !ECS_VERIFICATION_H
-#ifndef ECS_DETAIL_ENTITY_RANGE
-#define ECS_DETAIL_ENTITY_RANGE
+#endif // !ECS_DETAIL_VERIFICATION_H
+#ifndef ECS_DETAIL_ENTITY_RANGE_H
+#define ECS_DETAIL_ENTITY_RANGE_H
 
 
 // Find the intersections between two sets of ranges
@@ -3221,7 +3212,7 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 }
 } // namespace ecs::detail
 
-#endif // !ECS_DETAIL_ENTITY_RANGE
+#endif // !ECS_DETAIL_ENTITY_RANGE_H
 #ifndef ECS_FIND_ENTITY_POOL_INTERSECTIONS_H
 #define ECS_FIND_ENTITY_POOL_INTERSECTIONS_H
 
@@ -3384,8 +3375,8 @@ void find_entity_pool_intersections_cb(component_pools<PoolsList> const& pools, 
 } // namespace ecs::detail
 
 #endif // !ECS_FIND_ENTITY_POOL_INTERSECTIONS_H
-#ifndef ECS_SYSTEM_BASE
-#define ECS_SYSTEM_BASE
+#ifndef ECS_DETAIL_SYSTEM_BASE_H
+#define ECS_DETAIL_SYSTEM_BASE_H
 
 
 namespace ecs::detail {
@@ -3450,9 +3441,9 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_BASE
-#ifndef ECS_SYSTEM
-#define ECS_SYSTEM
+#endif // !ECS_DETAIL_SYSTEM_BASE_H
+#ifndef ECS_DETAIL_SYSTEM_H
+#define ECS_DETAIL_SYSTEM_H
 
 
 
@@ -3618,174 +3609,9 @@ protected:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM
-#ifndef ECS_SYSTEM_SORTED_H_
-#define ECS_SYSTEM_SORTED_H_
-
-
-namespace ecs::detail {
-// Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
-// will be passed to the user supplied lambda in a sorted manner
-template <typename Options, typename UpdateFn, typename SortFunc, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
-struct system_sorted final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
-	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
-
-	// Determine the execution policy from the options (or lack thereof)
-	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
-												std::execution::parallel_policy>;
-
-public:
-	system_sorted(UpdateFn func, SortFunc sort, component_pools<PoolsList>&& in_pools)
-		: base{func, std::forward<component_pools<PoolsList>>(in_pools)}, sort_func{sort} {
-		this->process_changes(true);
-	}
-
-private:
-	void do_run() override {
-		// Sort the arguments if the component data has been modified
-		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
-			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::sort(e_p, sorted_args.begin(), sorted_args.end(), [this](sort_help const& l, sort_help const& r) {
-				return sort_func(*l.sort_val_ptr, *r.sort_val_ptr);
-			});
-
-			needs_sorting = false;
-		}
-
-		for (sort_help const& sh : sorted_args) {
-			lambda_arguments[sh.arg_index](this->update_func, sh.offset);
-		}
-	}
-
-	// Convert a set of entities into arguments that can be passed to the system
-	void do_build() override {
-		sorted_args.clear();
-		lambda_arguments.clear();
-
-		for_all_types<ComponentsList>([&]<typename... Types>() {
-			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
-				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
-
-				for (entity_id const entity : range) {
-					entity_offset const offset = range.offset(entity);
-					sorted_args.push_back({index, offset, get_component<sort_types>(entity, this->pools)});
-				}
-
-				index += 1;
-			});
-		});
-
-		needs_sorting = true;
-	}
-
-	template <typename... Ts>
-	static auto make_argument(entity_range range, auto... args) {
-		return [=](auto update_func, entity_offset offset) {
-			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
-			if constexpr (FirstIsEntity) {
-				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-			} else {
-				update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
-			}
-		};
-	}
-
-private:
-	// The user supplied sorting function
-	SortFunc sort_func;
-
-	// The type used for sorting
-	using sort_types = sorter_predicate_type_t<SortFunc>;
-
-	// True if the data needs to be sorted
-	bool needs_sorting = false;
-
-	struct sort_help {
-		unsigned arg_index;
-		entity_offset offset;
-		sort_types* sort_val_ptr;
-	};
-	std::vector<sort_help> sorted_args;
-
-	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
-			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
-		}));
-	
-	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
-};
-} // namespace ecs::detail
-
-#endif // !ECS_SYSTEM_SORTED_H_
-#ifndef ECS_SYSTEM_RANGED_H_
-#define ECS_SYSTEM_RANGED_H_
-
-
-namespace ecs::detail {
-// Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
-template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
-class system_ranged final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
-	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
-
-	// Determine the execution policy from the options (or lack thereof)
-	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
-												std::execution::parallel_policy>;
-
-public:
-	system_ranged(UpdateFn func, component_pools<PoolsList>&& in_pools)
-		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
-		this->process_changes(true);
-	}
-
-private:
-	void do_run() override {
-		// Call the system for all the components that match the system signature
-		for (auto& argument : lambda_arguments) {
-			argument(this->update_func);
-		}
-	}
-
-	// Convert a set of entities into arguments that can be passed to the system
-	void do_build() override {
-		// Clear current arguments
-		lambda_arguments.clear();
-
-		for_all_types<ComponentsList>([&]<typename... Type>() {
-			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
-				lambda_arguments.push_back(make_argument<Type...>(found_range, get_component<Type>(found_range.first(), this->pools)...));
-			});
-		});
-	}
-
-	template <typename... Ts>
-	static auto make_argument(entity_range const range, auto... args) {
-		return [=](auto update_func) noexcept {
-			auto constexpr e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
-			std::for_each(e_p, range.begin(), range.end(), [=](entity_id const ent) mutable noexcept {
-				auto const offset = ent - range.first();
-
-				if constexpr (FirstIsEntity) {
-					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
-				} else {
-					update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
-				}
-			});
-		};
-	}
-
-private:
-	/// XXX
-	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
-			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
-		}));
-	
-	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
-
-};
-} // namespace ecs::detail
-
-#endif // !ECS_SYSTEM_RANGED_H_
-#ifndef ECS_SYSTEM_HIERARCHY_H_
-#define ECS_SYSTEM_HIERARCHY_H_
+#endif // !ECS_DETAIL_SYSTEM_H
+#ifndef ECS_DETAIL_SYSTEM_HIERARCHY_H
+#define ECS_DETAIL_SYSTEM_HIERARCHY_H
 
 
 namespace ecs::detail {
@@ -3805,7 +3631,6 @@ class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, C
 		std::uint32_t parent_count;
 		entity_type root_id;
 		location l;
-
 		auto operator<=>(entity_info const&) const = default;
 	};
 	struct hierarchy_span {
@@ -3909,7 +3734,7 @@ private:
 			auto prev_it = infos.begin();
 			unsigned hierarchy_level = 1;
 
-			// The lambda used to partion non-root entities
+			// The lambda used to partition non-root entities
 			const auto parter = [&](entity_info& info) {
 				// update the parent count while we are here anyway
 				info.parent_count = hierarchy_level;
@@ -4020,9 +3845,174 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_HIERARCHY_H_
-#ifndef ECS_SYSTEM_GLOBAL_H
-#define ECS_SYSTEM_GLOBAL_H
+#endif // !ECS_DETAIL_SYSTEM_HIERARCHY_H
+#ifndef ECS_DETAIL_SYSTEM_SORTED_H
+#define ECS_DETAIL_SYSTEM_SORTED_H
+
+
+namespace ecs::detail {
+// Manages sorted arguments. Neither cache- nor storage space friendly, but arguments
+// will be passed to the user supplied lambda in a sorted manner
+template <typename Options, typename UpdateFn, typename SortFunc, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+struct system_sorted final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
+
+	// Determine the execution policy from the options (or lack thereof)
+	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
+												std::execution::parallel_policy>;
+
+public:
+	system_sorted(UpdateFn func, SortFunc sort, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)}, sort_func{sort} {
+		this->process_changes(true);
+	}
+
+private:
+	void do_run() override {
+		// Sort the arguments if the component data has been modified
+		if (needs_sorting || this->pools.template get<sort_types>().has_components_been_modified()) {
+			auto const e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+			std::sort(e_p, sorted_args.begin(), sorted_args.end(), [this](sort_help const& l, sort_help const& r) {
+				return sort_func(*l.sort_val_ptr, *r.sort_val_ptr);
+			});
+
+			needs_sorting = false;
+		}
+
+		for (sort_help const& sh : sorted_args) {
+			lambda_arguments[sh.arg_index](this->update_func, sh.offset);
+		}
+	}
+
+	// Convert a set of entities into arguments that can be passed to the system
+	void do_build() override {
+		sorted_args.clear();
+		lambda_arguments.clear();
+
+		for_all_types<ComponentsList>([&]<typename... Types>() {
+			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this, index = 0u](entity_range range) mutable {
+				lambda_arguments.push_back(make_argument<Types...>(range, get_component<Types>(range.first(), this->pools)...));
+
+				for (entity_id const entity : range) {
+					entity_offset const offset = range.offset(entity);
+					sorted_args.push_back({index, offset, get_component<sort_types>(entity, this->pools)});
+				}
+
+				index += 1;
+			});
+		});
+
+		needs_sorting = true;
+	}
+
+	template <typename... Ts>
+	static auto make_argument(entity_range range, auto... args) {
+		return [=](auto update_func, entity_offset offset) {
+			entity_id const ent = static_cast<entity_type>(static_cast<entity_offset>(range.first()) + offset);
+			if constexpr (FirstIsEntity) {
+				update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
+			} else {
+				update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
+			}
+		};
+	}
+
+private:
+	// The user supplied sorting function
+	SortFunc sort_func;
+
+	// The type used for sorting
+	using sort_types = sorter_predicate_type_t<SortFunc>;
+
+	// True if the data needs to be sorted
+	bool needs_sorting = false;
+
+	struct sort_help {
+		unsigned arg_index;
+		entity_offset offset;
+		sort_types* sort_val_ptr;
+	};
+	std::vector<sort_help> sorted_args;
+
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
+		}));
+	
+	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
+};
+} // namespace ecs::detail
+
+#endif // !ECS_DETAIL_SYSTEM_SORTED_H
+#ifndef ECS_DETAIL_SYSTEM_RANGED_H
+#define ECS_DETAIL_SYSTEM_RANGED_H
+
+
+namespace ecs::detail {
+// Manages arguments using ranges. Very fast linear traversal and minimal storage overhead.
+template <typename Options, typename UpdateFn, bool FirstIsEntity, typename ComponentsList, typename PoolsList>
+class system_ranged final : public system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList> {
+	using base = system<Options, UpdateFn, FirstIsEntity, ComponentsList, PoolsList>;
+
+	// Determine the execution policy from the options (or lack thereof)
+	using execution_policy = std::conditional_t<ecs::detail::has_option<opts::not_parallel, Options>(), std::execution::sequenced_policy,
+												std::execution::parallel_policy>;
+
+public:
+	system_ranged(UpdateFn func, component_pools<PoolsList>&& in_pools)
+		: base{func, std::forward<component_pools<PoolsList>>(in_pools)} {
+		this->process_changes(true);
+	}
+
+private:
+	void do_run() override {
+		// Call the system for all the components that match the system signature
+		for (auto& argument : lambda_arguments) {
+			argument(this->update_func);
+		}
+	}
+
+	// Convert a set of entities into arguments that can be passed to the system
+	void do_build() override {
+		// Clear current arguments
+		lambda_arguments.clear();
+
+		for_all_types<ComponentsList>([&]<typename... Type>() {
+			find_entity_pool_intersections_cb<ComponentsList>(this->pools, [this](entity_range found_range) {
+				lambda_arguments.push_back(make_argument<Type...>(found_range, get_component<Type>(found_range.first(), this->pools)...));
+			});
+		});
+	}
+
+	template <typename... Ts>
+	static auto make_argument(entity_range const range, auto... args) {
+		return [=](auto update_func) noexcept {
+			auto constexpr e_p = execution_policy{}; // cannot pass 'execution_policy{}' directly to for_each in gcc
+			std::for_each(e_p, range.begin(), range.end(), [=](entity_id const ent) mutable noexcept {
+				auto const offset = ent - range.first();
+
+				if constexpr (FirstIsEntity) {
+					update_func(ent, extract_arg_lambda<Ts>(args, offset, 0)...);
+				} else {
+					update_func(/**/ extract_arg_lambda<Ts>(args, offset, 0)...);
+				}
+			});
+		};
+	}
+
+private:
+	/// XXX
+	using base_argument = decltype(for_all_types<ComponentsList>([]<typename... Types>() {
+			return make_argument<Types...>(entity_range{0,0}, component_argument<Types>{}...);
+		}));
+	
+	std::vector<std::remove_const_t<base_argument>> lambda_arguments;
+
+};
+} // namespace ecs::detail
+
+#endif // !ECS_DETAIL_SYSTEM_RANGED_H
+#ifndef ECS_DETAIL_SYSTEM_GLOBAL_H
+#define ECS_DETAIL_SYSTEM_GLOBAL_H
 
 
 namespace ecs::detail {
@@ -4049,9 +4039,9 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_GLOBAL_H
-#ifndef ECS_SYSTEM_SCHEDULER
-#define ECS_SYSTEM_SCHEDULER
+#endif // !ECS_DETAIL_SYSTEM_GLOBAL_H
+#ifndef ECS_DETAIL_SCHEDULER_H
+#define ECS_DETAIL_SCHEDULER_H
 
 
 
@@ -4203,9 +4193,9 @@ public:
 
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_SCHEDULER
-#ifndef ECS_CONTEXT_H
-#define ECS_CONTEXT_H
+#endif // !ECS_DETAIL_SCHEDULER_H
+#ifndef ECS_DETAIL_CONTEXT_H
+#define ECS_DETAIL_CONTEXT_H
 
 
 
@@ -4467,9 +4457,9 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_CONTEXT_H
-#ifndef ECS_RUNTIME
-#define ECS_RUNTIME
+#endif // !ECS_DETAIL_CONTEXT_H
+#ifndef ECS_RUNTIME_H
+#define ECS_RUNTIME_H
 
 
 
@@ -4716,4 +4706,4 @@ namespace ecs {
 
 } // namespace ecs
 
-#endif // !ECS_RUNTIME
+#endif // !ECS_RUNTIME_H

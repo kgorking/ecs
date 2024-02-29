@@ -282,7 +282,7 @@ namespace impl {
 	-> type_list<Types1..., Types2...>*;
 
 	struct merger {
-#if defined(_MSC_VER) && !defined(__clang__)
+#if 0// defined(_MSC_VER) && !defined(__clang__)
 		// This optimization is only possible in msvc due to it not checking templates
 		// before they are instantiated.
 

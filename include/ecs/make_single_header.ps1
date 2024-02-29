@@ -66,31 +66,13 @@ $sys_headers = '#include <algorithm>
 
 # Write out module
 "module;
-#if !defined(__cpp_lib_modules)
 $sys_headers
-#endif
 export module ecs;
-#if defined(__cpp_lib_modules)
-#if defined(_MSC_VER) && _MSC_VER <= 1940
-import std.core;
-#else
-import std;
-#endif
-#endif
-
 #define ECS_EXPORT export
 " > ecs.ixx
 
 # Write out single-include header
-"#if defined(__cpp_lib_modules)
-#if defined(_MSC_VER) && _MSC_VER <= 1940
-import std.core;
-#else
-import std;
-#endif
-#else
-$sys_headers
-#endif
+"$sys_headers
 
 #ifndef ECS_EXPORT
 #define ECS_EXPORT
