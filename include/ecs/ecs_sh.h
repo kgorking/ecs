@@ -462,22 +462,22 @@ namespace impl {
 	// type_list indices and type lookup
     template <typename T, class... Types>
 	consteval int index_of(type_list<Types...>*) noexcept {
-		return []<std::size_t... Ns>(std::index_sequence<Ns...>) {
+		return []<int... Ns>(std::integer_sequence<int, Ns...>) {
 			int index = 0;
 			((index += (std::is_same_v<T, Types> * (1 + Ns))) || ...);
 			if(0 == index)
 				throw "type not found in list";
 			return index - 1;
-		}(std::index_sequence_for<Types...>{});
+		}(std::make_integer_sequence<int, sizeof...(Types)>{});
 	}
 
 	template <int N, typename... Types>
 	consteval auto type_at(type_list<Types...>*) noexcept {
-		return []<std::size_t... Ns>(std::index_sequence<Ns...>) {
+		return []<int... Ns>(std::integer_sequence<int, Ns...>) {
 			return [&](wrap_t<decltype(Ns)>..., auto nth, auto...) {
 				return nth;
 			}(wrap_t<Types>{}...);
-		}(std::make_index_sequence<N>{});
+		}(std::make_integer_sequence<int, N>{});
 	}
 
 	//
