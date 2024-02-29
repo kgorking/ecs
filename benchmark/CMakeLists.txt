@@ -10,7 +10,7 @@ FetchContent_Declare(gbench
 FetchContent_MakeAvailable(gbench)
 
 add_executable (ecs_bench "main.cpp" "bench_component.cpp" "bench_baseline.cpp" "bench_ranged.cpp" "bench_sorting.cpp" "bench_hierarchy.cpp" "bench_particles.cpp" "shared_system.cpp")
-target_link_libraries(ecs_bench ecs gbench)
+target_link_libraries(ecs_bench ecs benchmark::benchmark)
 
 add_executable (ecs_bench_lower_bound "bench_lower_bound.cpp")
-target_link_libraries(ecs_bench_lower_bound gbench)
+target_link_libraries(ecs_bench_lower_bound benchmark::benchmark)
