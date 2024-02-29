@@ -418,11 +418,11 @@ struct type_pair {
 	using second = Second;
 };
 
-#if defined(_MSC_VER)
-#define ECS_NULLBODY ;
-#else
+//#if defined(_MSC_VER)
+//#define ECS_NULLBODY ;
+//#else
 #define ECS_NULLBODY { return nullptr; }
-#endif
+//#endif
 
 namespace impl {
 	// type wrapper
