@@ -596,7 +596,7 @@ namespace impl {
 	};
 
 	template <typename T, typename... Types>
-	static constexpr type_list<Types..., T>* add_type(type_list<Types...>*) ECS_NULLBODY
+	constexpr type_list<Types..., T>* add_type(type_list<Types...>*) ECS_NULLBODY
 
 	template <typename TL, typename T>
 	using add_type_t = std::remove_pointer_t<decltype(add_type<T>(static_cast<TL*>(nullptr)))>;
