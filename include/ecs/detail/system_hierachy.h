@@ -24,7 +24,6 @@ class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, C
 		std::uint32_t parent_count;
 		entity_type root_id;
 		location l;
-
 		auto operator<=>(entity_info const&) const = default;
 	};
 	struct hierarchy_span {
@@ -128,7 +127,7 @@ private:
 			auto prev_it = infos.begin();
 			unsigned hierarchy_level = 1;
 
-			// The lambda used to partion non-root entities
+			// The lambda used to partition non-root entities
 			const auto parter = [&](entity_info& info) {
 				// update the parent count while we are here anyway
 				info.parent_count = hierarchy_level;
