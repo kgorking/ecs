@@ -1,5 +1,5 @@
-#ifndef ECS_CONTRACT_H
-#define ECS_CONTRACT_H
+#ifndef ECS_DETAIL_CONTRACT_H
+#define ECS_DETAIL_CONTRACT_H
 
 #include <concepts>
 #include <iostream>
@@ -123,4 +123,4 @@ inline void do_postcondition_violation(char const* what, char const* how) {
 #define PostAudit(expression, message)
 #endif
 
-#endif // !ECS_CONTRACT_H
+#endif // !ECS_DETAIL_CONTRACT_H

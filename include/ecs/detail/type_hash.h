@@ -1,5 +1,5 @@
-#ifndef ECS_TYPE_HASH
-#define ECS_TYPE_HASH
+#ifndef ECS_DETAIL_TYPE_HASH_H
+#define ECS_DETAIL_TYPE_HASH_H
 
 #include <cstdint>
 
@@ -37,4 +37,4 @@ consteval auto get_type_hashes_array() {
 
 } // namespace ecs::detail
 
-#endif // !ECS_TYPE_HASH
+#endif // !ECS_DETAIL_TYPE_HASH_H

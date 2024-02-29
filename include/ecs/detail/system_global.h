@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM_GLOBAL_H
-#define ECS_SYSTEM_GLOBAL_H
+#ifndef ECS_DETAIL_SYSTEM_GLOBAL_H
+#define ECS_DETAIL_SYSTEM_GLOBAL_H
 
 #include "system.h"
 
@@ -27,4 +27,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_GLOBAL_H
+#endif // !ECS_DETAIL_SYSTEM_GLOBAL_H

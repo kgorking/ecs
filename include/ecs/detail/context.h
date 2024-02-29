@@ -1,5 +1,5 @@
-#ifndef ECS_CONTEXT_H
-#define ECS_CONTEXT_H
+#ifndef ECS_DETAIL_CONTEXT_H
+#define ECS_DETAIL_CONTEXT_H
 
 #include <map>
 #include <memory>
@@ -279,4 +279,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_CONTEXT_H
+#endif // !ECS_DETAIL_CONTEXT_H

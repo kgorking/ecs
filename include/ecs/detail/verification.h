@@ -1,5 +1,5 @@
-#ifndef ECS_VERIFICATION_H
-#define ECS_VERIFICATION_H
+#ifndef ECS_DETAIL_VERIFICATION_H
+#define ECS_DETAIL_VERIFICATION_H
 
 #include <concepts>
 #include <type_traits>
@@ -191,4 +191,4 @@ constexpr bool make_system_parameter_verifier() {
 
 } // namespace ecs::detail
 
-#endif // !ECS_VERIFICATION_H
+#endif // !ECS_DETAIL_VERIFICATION_H

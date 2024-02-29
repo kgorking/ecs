@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM
-#define ECS_SYSTEM
+#ifndef ECS_DETAIL_SYSTEM_H
+#define ECS_DETAIL_SYSTEM_H
 
 #include <array>
 #include <type_traits>
@@ -176,4 +176,4 @@ protected:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM
+#endif // !ECS_DETAIL_SYSTEM_H

@@ -1,5 +1,5 @@
-#ifndef TYPE_LIST_H_
-#define TYPE_LIST_H_
+#ifndef ECS_DETAIL_TYPE_LIST_H
+#define ECS_DETAIL_TYPE_LIST_H
 
 #include <type_traits>
 
@@ -476,4 +476,4 @@ using merge_type_lists = std::remove_pointer_t<decltype(
 	impl::merger::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 } // namespace ecs::detail
-#endif // !TYPE_LIST_H_
+#endif // !ECS_DETAIL_TYPE_LIST_H

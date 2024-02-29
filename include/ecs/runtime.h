@@ -1,5 +1,5 @@
-#ifndef ECS_RUNTIME
-#define ECS_RUNTIME
+#ifndef ECS_RUNTIME_H
+#define ECS_RUNTIME_H
 
 #include <concepts>
 #include <type_traits>
@@ -258,4 +258,4 @@ namespace ecs {
 
 } // namespace ecs
 
-#endif // !ECS_RUNTIME
+#endif // !ECS_RUNTIME_H

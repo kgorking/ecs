@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM_HIERARCHY_H_
-#define ECS_SYSTEM_HIERARCHY_H_
+#ifndef ECS_DETAIL_SYSTEM_HIERARCHY_H
+#define ECS_DETAIL_SYSTEM_HIERARCHY_H
 
 #include "../parent.h"
 #include "find_entity_pool_intersections.h"
@@ -239,4 +239,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_HIERARCHY_H_
+#endif // !ECS_DETAIL_SYSTEM_HIERARCHY_H

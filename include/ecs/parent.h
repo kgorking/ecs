@@ -1,5 +1,5 @@
-#ifndef ECS_PARENT_H_
-#define ECS_PARENT_H_
+#ifndef ECS_PARENT_H
+#define ECS_PARENT_H
 
 #include "detail/system_defs.h"
 #include "detail/component_pools.h"
@@ -60,4 +60,4 @@ private:
 };
 } // namespace ecs
 
-#endif // !ECS_PARENT_H_
+#endif // !ECS_PARENT_H

@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM_BASE
-#define ECS_SYSTEM_BASE
+#ifndef ECS_DETAIL_SYSTEM_BASE_H
+#define ECS_DETAIL_SYSTEM_BASE_H
 
 #include "type_hash.h"
 #include <span>
@@ -66,4 +66,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_BASE
+#endif // !ECS_DETAIL_SYSTEM_BASE_H

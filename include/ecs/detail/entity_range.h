@@ -1,5 +1,5 @@
-#ifndef ECS_DETAIL_ENTITY_RANGE
-#define ECS_DETAIL_ENTITY_RANGE
+#ifndef ECS_DETAIL_ENTITY_RANGE_H
+#define ECS_DETAIL_ENTITY_RANGE_H
 
 #include "../entity_range.h"
 
@@ -142,4 +142,4 @@ inline std::vector<entity_range> difference_ranges(entity_range_view view_a, ent
 }
 } // namespace ecs::detail
 
-#endif // !ECS_DETAIL_ENTITY_RANGE
+#endif // !ECS_DETAIL_ENTITY_RANGE_H

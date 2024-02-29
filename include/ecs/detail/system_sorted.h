@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM_SORTED_H_
-#define ECS_SYSTEM_SORTED_H_
+#ifndef ECS_DETAIL_SYSTEM_SORTED_H
+#define ECS_DETAIL_SYSTEM_SORTED_H
 
 #include "system.h"
 #include "verification.h"
@@ -96,4 +96,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_SORTED_H_
+#endif // !ECS_DETAIL_SYSTEM_SORTED_H

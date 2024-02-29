@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM_DEFS_H_
-#define ECS_SYSTEM_DEFS_H_
+#ifndef ECS_DETAIL_SYSTEM_DEFS_H
+#define ECS_DETAIL_SYSTEM_DEFS_H
 
 // Contains definitions that are used by the systems classes
 #include "component_pool.h"
@@ -68,4 +68,4 @@ using component_argument = std::conditional_t<is_parent<std::remove_cvref_t<Comp
 											  std::remove_cvref_t<Component>*>; // rest are pointers
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_DEFS_H_
+#endif // !ECS_DETAIL_SYSTEM_DEFS_H

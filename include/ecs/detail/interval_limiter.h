@@ -1,5 +1,5 @@
-#ifndef ECS_FREQLIMIT_H
-#define ECS_FREQLIMIT_H
+#ifndef ECS_DETAIL_INTERVAL_LIMITER_H
+#define ECS_DETAIL_INTERVAL_LIMITER_H
 
 #include <chrono>
 
@@ -34,4 +34,4 @@ struct interval_limiter<0, 0> {
 
 } // namespace ecs::detail
 
-#endif // !ECS_FREQLIMIT_H
+#endif // !ECS_DETAIL_INTERVAL_LIMITER_H
