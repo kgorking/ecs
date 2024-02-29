@@ -429,11 +429,8 @@ namespace impl {
 	template <typename T>
 	struct wrap_t {
 		using type = T;
+		wrap_t(...) {}
 	};
-
-	// size wrapper
-	template<int I>
-	struct wrap_size {};
 
 	//
 	// detect type_list
@@ -463,29 +460,25 @@ namespace impl {
 
 	//
 	// type_list indices and type lookup
-	template<int Index, typename...>
-	struct type_list_index {
-		static auto index_of(struct type_not_found_in_list*) noexcept -> int;
-		static auto type_at(...) noexcept -> struct index_out_of_range_in_list*;
-	};
-
-	template<int Index, typename T, typename... Rest>
-	struct type_list_index<Index, T, Rest...> : type_list_index<1+Index, Rest...> {
-		using type_list_index<1+Index, Rest...>::index_of;
-		using type_list_index<1+Index, Rest...>::type_at;
-
-		consteval static int index_of(wrap_t<T>*) noexcept {
-			return Index;
-		}
-
-		static wrap_t<T>* type_at(wrap_size<Index>* = nullptr) noexcept;
-	};
-
-	template<typename... Types>
-	consteval auto type_list_indices(type_list<Types...>*) noexcept {
-		return impl::type_list_index<0, Types...>{};
+    template <typename T, class... Types>
+	consteval int index_of(type_list<Types...>*) noexcept {
+		return []<std::size_t... Ns>(std::index_sequence<Ns...>) {
+			int index = 0;
+			((index += (std::is_same_v<T, Types> * (1 + Ns))) || ...);
+			if(0 == index)
+				throw "type not found in list";
+			return index - 1;
+		}(std::index_sequence_for<Types...>{});
 	}
 
+	template <int N, typename... Types>
+	consteval auto type_at(type_list<Types...>*) noexcept {
+		return []<std::size_t... Ns>(std::index_sequence<Ns...>) {
+			return [&](wrap_t<decltype(Ns)>..., auto nth, auto...) {
+				return nth;
+			}(wrap_t<Types>{}...);
+		}(std::make_index_sequence<N>{});
+	}
 
 	//
 	// helper functions
@@ -731,23 +724,17 @@ constexpr bool type_list_is_empty = (0 == impl::type_list_size<TL>::value);
 
 // TODO change type alias to *_t
 
-// Classes can inherit from type_list_indices with a provided type_list
-// to have 'index_of(wrap_t<T>*)' functions injected into it, for O(1) lookups
-// of the indices of the types in the type_list
-template<typename TL>
-using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
-
-// Small helper to get the index of a type in a type_list
+// Get the index of a type in a type_list.
+// This only returns the index of the first type found.
 template <typename T, impl::NonEmptyTypeList TL>
 consteval int index_of() {
-	using TLI = type_list_indices<TL>;
-	return TLI::index_of(static_cast<impl::wrap_t<T>*>(nullptr));
+	return impl::index_of<T>((TL*)nullptr);
 }
 
-// Small helper to get the type at an index in a type_list
-template <int I, impl::NonEmptyTypeList TL>
-	requires (I >= 0 && I < type_list_size<TL>)
-using type_at = typename std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>::type;
+// Get the type of an index in a type_list
+template <int N, impl::NonEmptyTypeList TL>
+	requires (N < type_list_size<TL>)
+using type_at = typename decltype(impl::type_at<N>(impl::null_tlist<TL>()))::type;
 
 // Return the first type in a type_list
 template <impl::NonEmptyTypeList TL>
