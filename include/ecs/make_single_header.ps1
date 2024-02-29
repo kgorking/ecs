@@ -32,24 +32,16 @@ $files = (
 	'detail/find_entity_pool_intersections.h',
 	'detail/system_base.h',
 	'detail/system.h',
+	'detail/system_hierachy.h',
 	'detail/system_sorted.h',
 	'detail/system_ranged.h',
-	'detail/system_hierachy.h',
 	'detail/system_global.h',
 	'detail/scheduler.h',
 	'detail/context.h',
 	'runtime.h')
 
 # Write all system includes
-$sys_headers = '// Auto-generated single-header include file
-#if 0 //defined(__cpp_lib_modules)
-#if defined(_MSC_VER) && _MSC_VER <= 1939
-import std.core;
-#else
-import std;
-#endif
-#else
-#include <algorithm>
+$sys_headers = '#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -70,19 +62,36 @@ import std;
 #include <span>
 #include <type_traits>
 #include <utility>
-#include <vector>
-#endif
-'
+#include <vector>'
 
 # Write out module
 "module;
+#if !defined(__cpp_lib_modules)
 $sys_headers
+#endif
 export module ecs;
+#if defined(__cpp_lib_modules)
+#if defined(_MSC_VER) && _MSC_VER <= 1940
+import std.core;
+#else
+import std;
+#endif
+#endif
+
 #define ECS_EXPORT export
 " > ecs.ixx
 
 # Write out single-include header
-"$sys_headers
+"#if defined(__cpp_lib_modules)
+#if defined(_MSC_VER) && _MSC_VER <= 1940
+import std.core;
+#else
+import std;
+#endif
+#else
+$sys_headers
+#endif
+
 #ifndef ECS_EXPORT
 #define ECS_EXPORT
 #endif
