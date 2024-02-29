@@ -42,7 +42,7 @@ $files = (
 
 # Write all system includes
 $sys_headers = '// Auto-generated single-header include file
-#if defined(__cpp_lib_modules)
+#if 0 //defined(__cpp_lib_modules)
 #if defined(_MSC_VER) && _MSC_VER <= 1939
 import std.core;
 #else
@@ -82,11 +82,11 @@ export module ecs;
 " > ecs.ixx
 
 # Write out single-include header
-"#ifndef ECS_EXPORT
+"$sys_headers
+#ifndef ECS_EXPORT
 #define ECS_EXPORT
 #endif
 " > ecs_sh.h
-$sys_headers >> ecs_sh.h
 
 # Filter out the local includes from the content of each header and pipe it to ecs_sh.h
 $filtered = (sls -Path $files -SimpleMatch -Pattern '#include' -NotMatch).Line
