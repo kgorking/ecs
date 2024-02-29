@@ -3,7 +3,6 @@
     {
       "hidden": true,
       "name": "windows-base",
-      "toolset": "14.3",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
@@ -30,7 +29,7 @@
     {
       "name": "windows-2022-debug-audit",
       "inherts": "windows-base",
-      "displayName": "Debug/Audit",
+      "displayName": "Debug with Audit",
       "cacheVariables": {
         "ECS_ENABLE_CONTRACTS_AUDIT": true
       }
@@ -38,7 +37,7 @@
     {
       "name": "windows-2022-debug-modules",
       "inherits": "windows-2022-debug",
-      "displayName": "Debug/Modules",
+      "displayName": "Debug with Modules",
       "cacheVariables": {
         "ECS_COMPILE_AS_MODULE": true
       }
@@ -54,7 +53,7 @@
     {
       "name": "windows-2022-release-modules",
       "inherts": "windows-base",
-      "displayName": "Release/Module",
+      "displayName": "Release with Module",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "ECS_COMPILE_AS_MODULE": true
@@ -70,7 +69,7 @@
     },
     {
       "name": "windows-2022-profile-modules",
-      "displayName": "Profile/Modules",
+      "displayName": "Profile with Modules",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "ECS_COMPILE_AS_MODULE": true,

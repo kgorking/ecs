@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 3.15)
+﻿cmake_minimum_required (VERSION 3.28)
 
 project (ecs CXX)
 
@@ -13,12 +13,11 @@ option(ECS_COMPILE_AS_MODULE "Compile 'ecs' to a module" OFF)
 option(ECS_ENABLE_CONTRACTS "Use contracts internally to verify state" ON)
 option(ECS_ENABLE_CONTRACTS_AUDIT "Enable expensive contracts. Should only be used for debugging" OFF)
 
+# Set up module scanning
+set(CMAKE_CXX_SCAN_FOR_MODULES ${ECS_COMPILE_AS_MODULE})
 
 # Set up the project
 if (ECS_COMPILE_AS_MODULE)
-	# Module stuff (experimental)
-	include(cxx_modules_rules.cmake)
-
 	# creates module library 'ecs'
 	add_library(ecs)
 	target_compile_definitions(ecs PUBLIC ECS_USE_MODULES)
@@ -57,8 +56,8 @@ if (MSVC)
         /W4
 
 		# allow `import std.core`
-		/experimental:module
-		/EHsc
+		#/experimental:module
+		#/EHsc
 
         # -- Dump compilation info ---
         #/Bt                     # total time spent in frontend (d1) and backend (d2)
