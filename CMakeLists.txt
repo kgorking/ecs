@@ -96,6 +96,7 @@ else()
         -Wextra
         -Wpedantic
         -Wshadow
+		-Wno-deprecated-declarations # silence deprecations in libstdc++, which breaks compilation
         #-Wsign-conversion
         #-ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
 	)
