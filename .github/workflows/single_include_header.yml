@@ -13,13 +13,14 @@ jobs:
         with:
           submodules: true # recursive
 
-      - name: Generate header and module
+      - name: Configure, Generate header and module
         shell: powershell
         run: |
+          cmake -S . -B out
           cd include/ecs
           ./make_single_header.ps1
           cd ..
-          cd ..
+          cd 
 
       - name: Upload changes
         shell: powershell
