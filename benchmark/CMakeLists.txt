@@ -9,6 +9,8 @@ FetchContent_Declare(gbench
 )
 FetchContent_MakeAvailable(gbench)
 
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
+
 add_executable (ecs_bench "main.cpp" "bench_component.cpp" "bench_baseline.cpp" "bench_ranged.cpp" "bench_sorting.cpp" "bench_hierarchy.cpp" "bench_particles.cpp" "shared_system.cpp")
 target_link_libraries(ecs_bench ecs benchmark::benchmark)
 

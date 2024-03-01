@@ -137,8 +137,6 @@ target_link_libraries(ecs ${ECS_INTERNAL_SCOPE} tls)
 
 if (ECS_STANDALONE_PROJECT)
     # Benchmark
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
-    #add_subdirectory ("benchmark/gbench")
     add_subdirectory ("benchmark")
 
     # Examples
