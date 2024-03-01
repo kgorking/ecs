@@ -9,17 +9,22 @@ jobs:
   generate_header:
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true # recursive
+      - name: Check out ECS
+        uses: actions/checkout@v4
 
-      - name: Generate header and module
+      - name: Check out TLS
+        uses: actions/checkout@v4
+        with:
+          repository: kgorking/tls
+          path: tls
+
+      - name: Configure, Generate header and module
         shell: powershell
         run: |
           cd include/ecs
           ./make_single_header.ps1
           cd ..
-          cd ..
+          cd 
 
       - name: Upload changes
         shell: powershell

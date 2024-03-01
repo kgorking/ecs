@@ -79,7 +79,7 @@ decltype(auto) extract_arg_lambda(auto& cmp, [[maybe_unused]] ptrdiff_t offset, 
 	} else if constexpr (detail::is_parent<T>::value) {
 		parent_id const pid = *(cmp + offset);
 
-		// TODO store this in seperate container in system_hierarchy? might not be
+		// TODO store this in separate container in system_hierarchy? might not be
 		//      needed after O(1) pool lookup implementation
 		return for_all_types<parent_type_list_t<T>>([&]<typename... ParentTypes>() {
 			return T{pid, get_component<ParentTypes>(pid, pools)...};

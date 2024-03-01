@@ -268,3 +268,4 @@ __pycache__/
 /benchmark/starbench.tar.gz
 /benchmark/starbench
 /docs/cpumemory.pdf
+/llvm.sh

@@ -1,5 +1,5 @@
-#ifndef ECS_ENTITY_RANGE
-#define ECS_ENTITY_RANGE
+#ifndef ECS_ENTITY_RANGE_H
+#define ECS_ENTITY_RANGE_H
 
 #include <algorithm>
 #include <limits>
@@ -176,4 +176,4 @@ using entity_range_view = std::span<entity_range const>;
 
 } // namespace ecs
 
-#endif // !ECS_ENTITTY_RANGE
+#endif // !ECS_ENTITTY_RANGE_H

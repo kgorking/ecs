@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM_RANGED_H_
-#define ECS_SYSTEM_RANGED_H_
+#ifndef ECS_DETAIL_SYSTEM_RANGED_H
+#define ECS_DETAIL_SYSTEM_RANGED_H
 
 #include "system.h"
 
@@ -66,4 +66,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_RANGED_H_
+#endif // !ECS_DETAIL_SYSTEM_RANGED_H

@@ -2,11 +2,6 @@
 #define ECS_OPTIONS_H
 
 ECS_EXPORT namespace ecs::opts {
-	template <int I>
-	struct group {
-		static constexpr int group_id = I;
-	};
-
 	template <int Milliseconds, int Microseconds = 0>
 	struct interval {
 		static_assert(Milliseconds >= 0, "time values can not be negative");

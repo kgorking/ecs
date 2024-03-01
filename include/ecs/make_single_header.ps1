@@ -24,32 +24,24 @@ $files = (
 	'detail/component_pool.h',
 	'detail/system_defs.h',
 	'detail/component_pools.h',
-	'parent.h',
 	'options.h',
+	'parent.h',
 	'detail/interval_limiter.h',
 	'detail/verification.h',
 	'detail/entity_range.h',
 	'detail/find_entity_pool_intersections.h',
 	'detail/system_base.h',
 	'detail/system.h',
+	'detail/system_hierachy.h',
 	'detail/system_sorted.h',
 	'detail/system_ranged.h',
-	'detail/system_hierachy.h',
 	'detail/system_global.h',
 	'detail/scheduler.h',
 	'detail/context.h',
 	'runtime.h')
 
 # Write all system includes
-$sys_headers = '// Auto-generated single-header include file
-#if defined(__cpp_lib_modules)
-#if defined(_MSC_VER) && _MSC_VER <= 1939
-import std.core;
-#else
-import std;
-#endif
-#else
-#include <algorithm>
+$sys_headers = '#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -70,9 +62,7 @@ import std;
 #include <span>
 #include <type_traits>
 #include <utility>
-#include <vector>
-#endif
-'
+#include <vector>'
 
 # Write out module
 "module;
@@ -82,11 +72,12 @@ export module ecs;
 " > ecs.ixx
 
 # Write out single-include header
-"#ifndef ECS_EXPORT
+"$sys_headers
+
+#ifndef ECS_EXPORT
 #define ECS_EXPORT
 #endif
 " > ecs_sh.h
-$sys_headers >> ecs_sh.h
 
 # Filter out the local includes from the content of each header and pipe it to ecs_sh.h
 $filtered = (sls -Path $files -SimpleMatch -Pattern '#include' -NotMatch).Line

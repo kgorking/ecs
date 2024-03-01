@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM
-#define ECS_SYSTEM
+#ifndef ECS_DETAIL_SYSTEM_H
+#define ECS_DETAIL_SYSTEM_H
 
 #include <array>
 #include <type_traits>
@@ -54,11 +54,6 @@ public:
 		} else if constexpr (std::is_reference_v<T> && !is_read_only<T>() && !std::is_pointer_v<T>) {
 			pools.template get<std::remove_reference_t<T>>().notify_components_modified();
 		}
-	}
-
-	constexpr int get_group() const noexcept override {
-		using group = test_option_type_or<is_group, Options, opts::group<0>>;
-		return group::group_id;
 	}
 
 	constexpr std::span<detail::type_hash const> get_type_hashes() const noexcept override {
@@ -181,4 +176,4 @@ protected:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM
+#endif // !ECS_DETAIL_SYSTEM_H

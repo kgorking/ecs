@@ -42,10 +42,10 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 # Getting the Source
 
-1. Clone this project
-2. `git submodule update --init --recursive --remote`
+1. Clone this project.
+2. Configure- and build it.
 
-The latter command will fetch the submodules required to build this library.
+All dependencies will be automatically downloaded.
 
 ## Tested compilers
 The CI build status for msvc, clang, and gcc is currently
@@ -60,7 +60,7 @@ The library can be built as a module that can be imported with `import ecs;`. Yo
 
 Enable module building by setting the option `ECS_COMPILE_AS_MODULE` to `true` in your CMake script (`set(ECS_COMPILE_AS_MODULE ON)`) or setting it in your CMakePresets.json file.
 
-MSVC v14.3 (2022) or clang 16+ is required to use modules. 
+MSVC v14.3 (2022) or clang 17+ is required to use modules. 
 GCC support will be added when version 14 is eventually released.
 
 ### Note when using clang!
@@ -97,7 +97,6 @@ import ecs;
     - [Traversal and layout](#Traversal-and-layout)
 - [System options](#system-options)
   - [`opts::interval<ms, us>`](#optsintervalms-us)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/aGM86KWdf)
-  - [`opts::group<group number>`](#optsgroupgroup-number)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/ezoq17fbr)
   - [`opts::manual_update`](#optsmanual_update)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/TxvndcTEq)
   - [`opts::not_parallel`](#optsnot_parallel)[<img src="https://godbolt.org/favicon.ico" width="16">](https://godbolt.org/z/MK9xcTedq)
 - [Variant components](#variant-components)
@@ -342,32 +341,6 @@ rt.make_system<ecs::opts::interval<16, 667>>([](int const&) {
     std::cout << "at least 16.667 ms has passed\n";
 });
 ```
-
-
-### `opts::group<N>`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/ezoq17fbr)
-Systems can be segmented into groups by passing along `opts::group<N>`, where `N` is a compile-time integer constant, as a template parameter to `ecs::make_system`. Systems are roughly executed in the order they are made, but groups ensure absolute separation of systems. Systems with no group id specified are put into the default group 0.
-
-```cpp
-rt.make_system<ecs::opts::group<1>>([](int const&) {
-    std::cout << "hello from group one\n";
-});
-rt.make_system<ecs::opts::group<-1>>([](int const&) {
-    std::cout << "hello from group negative one\n";
-});
-rt.make_system([](int const&) { // same as 'ecs::opts::group<0>'
-    std::cout << "hello from group whatever\n";
-});
-// ...
-rt.add_component(0, int{});
-rt.update();
-```
-
-Running the above code will print out
-> hello from group negative one\
-> hello from group whatever\
-> hello from group one
-
-**Note:** systems from different groups are never executed concurrently, and all systems in one group will run to completion before the next group is run.
 
 
 ### `opts::manual_update`[<img src="https://godbolt.org/favicon.ico" width="32">](https://godbolt.org/z/TxvndcTEq)

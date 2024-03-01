@@ -1,5 +1,5 @@
-#ifndef ECS_SYSTEM_HIERARCHY_H_
-#define ECS_SYSTEM_HIERARCHY_H_
+#ifndef ECS_DETAIL_SYSTEM_HIERARCHY_H
+#define ECS_DETAIL_SYSTEM_HIERARCHY_H
 
 #include "../parent.h"
 #include "find_entity_pool_intersections.h"
@@ -24,7 +24,6 @@ class system_hierarchy final : public system<Options, UpdateFn, FirstIsEntity, C
 		std::uint32_t parent_count;
 		entity_type root_id;
 		location l;
-
 		auto operator<=>(entity_info const&) const = default;
 	};
 	struct hierarchy_span {
@@ -128,7 +127,7 @@ private:
 			auto prev_it = infos.begin();
 			unsigned hierarchy_level = 1;
 
-			// The lambda used to partion non-root entities
+			// The lambda used to partition non-root entities
 			const auto parter = [&](entity_info& info) {
 				// update the parent count while we are here anyway
 				info.parent_count = hierarchy_level;
@@ -239,4 +238,4 @@ private:
 };
 } // namespace ecs::detail
 
-#endif // !ECS_SYSTEM_HIERARCHY_H_
+#endif // !ECS_DETAIL_SYSTEM_HIERARCHY_H

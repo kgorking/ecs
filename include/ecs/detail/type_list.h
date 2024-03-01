@@ -1,7 +1,9 @@
-#ifndef TYPE_LIST_H_
-#define TYPE_LIST_H_
+#ifndef ECS_DETAIL_TYPE_LIST_H
+#define ECS_DETAIL_TYPE_LIST_H
 
 #include <type_traits>
+#include <utility>
+#include <concepts>
 
 namespace ecs::detail {
 
@@ -19,22 +21,19 @@ struct type_pair {
 	using second = Second;
 };
 
-#if defined(_MSC_VER)
-#define ECS_NULLBODY ;
-#else
+//#if defined(_MSC_VER)
+//#define ECS_NULLBODY ;
+//#else
 #define ECS_NULLBODY { return nullptr; }
-#endif
+//#endif
 
 namespace impl {
 	// type wrapper
 	template <typename T>
 	struct wrap_t {
 		using type = T;
+		wrap_t(...) {}
 	};
-
-	// size wrapper
-	template<int I>
-	struct wrap_size {};
 
 	//
 	// detect type_list
@@ -64,29 +63,25 @@ namespace impl {
 
 	//
 	// type_list indices and type lookup
-	template<int Index, typename...>
-	struct type_list_index {
-		static auto index_of(struct type_not_found_in_list*) noexcept -> int;
-		static auto type_at(...) noexcept -> struct index_out_of_range_in_list*;
-	};
-
-	template<int Index, typename T, typename... Rest>
-	struct type_list_index<Index, T, Rest...> : type_list_index<1+Index, Rest...> {
-		using type_list_index<1+Index, Rest...>::index_of;
-		using type_list_index<1+Index, Rest...>::type_at;
-
-		consteval static int index_of(wrap_t<T>*) noexcept {
-			return Index;
-		}
-
-		static wrap_t<T>* type_at(wrap_size<Index>* = nullptr) noexcept;
-	};
-
-	template<typename... Types>
-	consteval auto type_list_indices(type_list<Types...>*) noexcept {
-		return impl::type_list_index<0, Types...>{};
+    template <typename T, class... Types>
+	consteval int index_of(type_list<Types...>*) noexcept {
+		return []<int... Ns>(std::integer_sequence<int, Ns...>) {
+			int index = 0;
+			((index += (std::is_same_v<T, Types> * (1 + Ns))) || ...);
+			if(0 == index)
+				throw "type not found in list";
+			return index - 1;
+		}(std::make_integer_sequence<int, sizeof...(Types)>{});
 	}
 
+	template <int N, typename... Types>
+	consteval auto type_at(type_list<Types...>*) noexcept {
+		return []<int... Ns>(std::integer_sequence<int, Ns...>) {
+			return [&](wrap_t<decltype(Ns)>..., auto nth, auto...) {
+				return nth;
+			}(wrap_t<Types>{}...);
+		}(std::make_integer_sequence<int, N>{});
+	}
 
 	//
 	// helper functions
@@ -282,7 +277,9 @@ namespace impl {
 	-> type_list<Types1..., Types2...>*;
 
 	struct merger {
-#if defined(_MSC_VER) && !defined(__clang__)
+#if 0// defined(_MSC_VER) && !defined(__clang__)
+		// ! Triggers ICE in 17.9+
+
 		// This optimization is only possible in msvc due to it not checking templates
 		// before they are instantiated.
 
@@ -301,22 +298,18 @@ namespace impl {
 		consteval static auto helper(LeftList* left, RightList* right)
 			-> decltype(merger::helper(left, skip_first_type(right)));
 #else
-		// clang/gcc needs the function bodies.
-
 		template <typename LeftList>
-		constexpr static LeftList* helper(LeftList*, type_list<>*)
+		consteval static LeftList* helper(LeftList*, type_list<>*)
 		{ return nullptr; }
 
 		template <typename LeftList, typename FirstRight, typename... Right>
 			requires(!list_contains_type<FirstRight, LeftList>())
-		constexpr static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
-		//-> decltype(merger::helper(add_type<FirstRight>(left), null_list<Right...>())); // Doesn't work
-		{	return    merger::helper(add_type<FirstRight>(left), null_list<Right...>()); }
+		consteval static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
+		{ return merger::helper(add_type<FirstRight>(left), null_list<Right...>()); }
 
 		template <typename LeftList, typename RightList>
-		constexpr static auto helper(LeftList* left, RightList* right)
-		//-> decltype(merger::helper((LeftList*)left, skip_first_type(right))); // Doesn't work
-		{	return    merger::helper(left, skip_first_type(right)); }
+		consteval static auto helper(LeftList* left, RightList* right)
+		{ return merger::helper(left, skip_first_type(right)); }
 #endif
 	};
 
@@ -330,23 +323,17 @@ constexpr bool type_list_is_empty = (0 == impl::type_list_size<TL>::value);
 
 // TODO change type alias to *_t
 
-// Classes can inherit from type_list_indices with a provided type_list
-// to have 'index_of(wrap_t<T>*)' functions injected into it, for O(1) lookups
-// of the indices of the types in the type_list
-template<typename TL>
-using type_list_indices = decltype(impl::type_list_indices(static_cast<TL*>(nullptr)));
-
-// Small helper to get the index of a type in a type_list
+// Get the index of a type in a type_list.
+// This only returns the index of the first type found.
 template <typename T, impl::NonEmptyTypeList TL>
 consteval int index_of() {
-	using TLI = type_list_indices<TL>;
-	return TLI::index_of(static_cast<impl::wrap_t<T>*>(nullptr));
+	return impl::index_of<T>((TL*)nullptr);
 }
 
-// Small helper to get the type at an index in a type_list
-template <int I, impl::NonEmptyTypeList TL>
-	requires (I >= 0 && I < type_list_size<TL>)
-using type_at = typename std::remove_pointer_t<decltype(type_list_indices<TL>::type_at(static_cast<impl::wrap_size<I>*>(nullptr)))>::type;
+// Get the type of an index in a type_list
+template <int N, impl::NonEmptyTypeList TL>
+	requires (N < type_list_size<TL>)
+using type_at = typename decltype(impl::type_at<N>(impl::null_tlist<TL>()))::type;
 
 // Return the first type in a type_list
 template <impl::NonEmptyTypeList TL>
@@ -427,7 +414,7 @@ constexpr bool any_of_type(F&& f) {
 	return impl::any_of_type(f, static_cast<TL*>(nullptr));
 }
 
-// Runs F once when a type satifies the tester. F takes a type template parameter and can return a value.
+// Runs F once when a type satisfies the tester. F takes a type template parameter and can return a value.
 template <template <typename O> typename Tester, impl::TypeList TL, typename F>
 constexpr auto run_if(F&& f) {
 	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
@@ -476,4 +463,4 @@ using merge_type_lists = std::remove_pointer_t<decltype(
 	impl::merger::helper(static_cast<TL1*>(nullptr), static_cast<TL2*>(nullptr)))>;
 
 } // namespace ecs::detail
-#endif // !TYPE_LIST_H_
+#endif // !ECS_DETAIL_TYPE_LIST_H

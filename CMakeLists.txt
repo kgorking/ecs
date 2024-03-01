@@ -1,4 +1,6 @@
-﻿cmake_minimum_required (VERSION 3.15)
+﻿cmake_minimum_required (VERSION 3.28)
+
+include(FetchContent)
 
 project (ecs CXX)
 
@@ -13,12 +15,11 @@ option(ECS_COMPILE_AS_MODULE "Compile 'ecs' to a module" OFF)
 option(ECS_ENABLE_CONTRACTS "Use contracts internally to verify state" ON)
 option(ECS_ENABLE_CONTRACTS_AUDIT "Enable expensive contracts. Should only be used for debugging" OFF)
 
+# Set up module scanning
+set(CMAKE_CXX_SCAN_FOR_MODULES ${ECS_COMPILE_AS_MODULE})
 
 # Set up the project
 if (ECS_COMPILE_AS_MODULE)
-	# Module stuff (experimental)
-	include(cxx_modules_rules.cmake)
-
 	# creates module library 'ecs'
 	add_library(ecs)
 	target_compile_definitions(ecs PUBLIC ECS_USE_MODULES)
@@ -57,8 +58,8 @@ if (MSVC)
         /W4
 
 		# allow `import std.core`
-		/experimental:module
-		/EHsc
+		#/experimental:module
+		#/EHsc
 
         # -- Dump compilation info ---
         #/Bt                     # total time spent in frontend (d1) and backend (d2)
@@ -97,6 +98,7 @@ else()
         -Wextra
         -Wpedantic
         -Wshadow
+		-Wno-deprecated-declarations # silence deprecations in libstdc++, which breaks compilation
         #-Wsign-conversion
         #-ftime-trace  # produce json flamegraph files. open with chrome://tracing or edge://tracing
 	)
@@ -132,13 +134,17 @@ else()
 endif()
 
 # add tls library
-add_subdirectory ("tls")
+#add_subdirectory ("tls")
+FetchContent_Declare(tls
+  GIT_REPOSITORY "https://github.com/kgorking/tls.git"
+  GIT_TAG "origin/master"
+  SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/tls"
+)
+FetchContent_MakeAvailable(tls)
 target_link_libraries(ecs ${ECS_INTERNAL_SCOPE} tls)
 
 if (ECS_STANDALONE_PROJECT)
     # Benchmark
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
-    add_subdirectory ("benchmark/gbench")
     add_subdirectory ("benchmark")
 
     # Examples
