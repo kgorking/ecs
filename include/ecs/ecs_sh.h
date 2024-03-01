@@ -343,7 +343,9 @@ public:
 	}
 
 	// Gathers all the threads data and sends it to the output iterator. This clears all stored data.
-	static void gather_flattened(auto dest_iterator) {
+	static void gather_flattened(auto dest_iterator)
+		requires(std::ranges::range<T>)
+	{
 		std::unique_lock sl(mtx);
 
 		for (T& per_thread_data : data) {
