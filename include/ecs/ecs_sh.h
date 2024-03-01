@@ -811,7 +811,7 @@ constexpr bool any_of_type(F&& f) {
 	return impl::any_of_type(f, static_cast<TL*>(nullptr));
 }
 
-// Runs F once when a type satifies the tester. F takes a type template parameter and can return a value.
+// Runs F once when a type satisfies the tester. F takes a type template parameter and can return a value.
 template <template <typename O> typename Tester, impl::TypeList TL, typename F>
 constexpr auto run_if(F&& f) {
 	return impl::run_if<Tester>(f, static_cast<TL*>(nullptr));
