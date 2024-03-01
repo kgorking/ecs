@@ -60,7 +60,7 @@ The library can be built as a module that can be imported with `import ecs;`. Yo
 
 Enable module building by setting the option `ECS_COMPILE_AS_MODULE` to `true` in your CMake script (`set(ECS_COMPILE_AS_MODULE ON)`) or setting it in your CMakePresets.json file.
 
-MSVC v14.3 (2022) or clang 16+ is required to use modules. 
+MSVC v14.3 (2022) or clang 17+ is required to use modules. 
 GCC support will be added when version 14 is eventually released.
 
 ### Note when using clang!
