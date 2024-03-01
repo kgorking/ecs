@@ -1,4 +1,0 @@
-[submodule "tls"]
-	path = tls
-	url = https://github.com/kgorking/tls
-	branch = master

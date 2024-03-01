@@ -1,5 +1,7 @@
 ﻿cmake_minimum_required (VERSION 3.28)
 
+include(FetchContent)
+
 project (ecs CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -132,7 +134,13 @@ else()
 endif()
 
 # add tls library
-add_subdirectory ("tls")
+#add_subdirectory ("tls")
+FetchContent_Declare(tls
+  GIT_REPOSITORY "https://github.com/kgorking/tls.git"
+  GIT_TAG "origin/master"
+  SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/tls"
+)
+FetchContent_MakeAvailable(tls)
 target_link_libraries(ecs ${ECS_INTERNAL_SCOPE} tls)
 
 if (ECS_STANDALONE_PROJECT)

@@ -1,7 +1,5 @@
 ﻿cmake_minimum_required (VERSION 3.15)
 
-include(FetchContent)
-
 # Use google benchmark
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
 FetchContent_Declare(gbench

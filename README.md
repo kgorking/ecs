@@ -42,10 +42,10 @@ This is a fairly simplistic sample, but there are plenty of ways to extend it to
 
 # Getting the Source
 
-1. Clone this project
-2. `git submodule update --init --recursive --remote`
+1. Clone this project.
+2. Configure- and build it.
 
-The latter command will fetch the submodules required to build this library.
+All dependencies will be automatically downloaded.
 
 ## Tested compilers
 The CI build status for msvc, clang, and gcc is currently
