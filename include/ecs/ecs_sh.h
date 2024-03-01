@@ -695,22 +695,18 @@ namespace impl {
 		consteval static auto helper(LeftList* left, RightList* right)
 			-> decltype(merger::helper(left, skip_first_type(right)));
 #else
-		// clang/gcc needs the function bodies.
-
 		template <typename LeftList>
-		constexpr static LeftList* helper(LeftList*, type_list<>*)
+		consteval static LeftList* helper(LeftList*, type_list<>*)
 		{ return nullptr; }
 
 		template <typename LeftList, typename FirstRight, typename... Right>
 			requires(!list_contains_type<FirstRight, LeftList>())
-		constexpr static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
-		//-> decltype(merger::helper(add_type<FirstRight>(left), null_list<Right...>())); // Doesn't work
-		{	return    merger::helper(add_type<FirstRight>(left), null_list<Right...>()); }
+		consteval static auto helper(LeftList* left, type_list<FirstRight, Right...>*)
+		{ return merger::helper(add_type<FirstRight>(left), null_list<Right...>()); }
 
 		template <typename LeftList, typename RightList>
-		constexpr static auto helper(LeftList* left, RightList* right)
-		//-> decltype(merger::helper((LeftList*)left, skip_first_type(right))); // Doesn't work
-		{	return    merger::helper(left, skip_first_type(right)); }
+		consteval static auto helper(LeftList* left, RightList* right)
+		{ return merger::helper(left, skip_first_type(right)); }
 #endif
 	};
 
