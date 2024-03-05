@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstdint>
 #include <execution>
+#include <forward_list>
 #include <functional>
 #include <iostream>
 #include <limits>
