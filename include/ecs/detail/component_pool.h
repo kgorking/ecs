@@ -147,10 +147,10 @@ private:
 	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_data>, std::vector, component_pool<T>> deferred_adds;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, std::vector, component_pool<T>> deferred_spans;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, std::vector, component_pool<T>> deferred_gen;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, std::vector, component_pool<T>> deferred_removes;
 #if ECS_ENABLE_CONTRACTS_AUDIT
 	[[MSVC no_unique_address]] tls::unique_collect<std::vector<entity_range>> deferred_variants;
 #endif
