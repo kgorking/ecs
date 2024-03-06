@@ -162,7 +162,7 @@ private:
 	inline static std::forward_list<thread_data*> head{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
-	inline constinit static std::shared_mutex mtx;
+	inline static std::shared_mutex mtx;
 
 	// Adds a new thread
 	static void init_thread(thread_data* t) {
