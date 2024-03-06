@@ -1,8 +1,7 @@
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
 #define ECS_EXPORT
 #include <ecs/detail/tagged_pointer.h>
 #include <bit>
+#include <catch2/catch_test_macros.hpp>
 
 template<typename T>
 using tagged_pointer = ecs::detail::tagged_pointer<T>;

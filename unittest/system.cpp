@@ -1,7 +1,6 @@
 #include <ecs/ecs.h>
 #include <numeric>
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("System specification", "[system]") {
 	SECTION("Running a system works") {

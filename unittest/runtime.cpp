@@ -1,8 +1,8 @@
 #include <ecs/ecs.h>
+#include <array>
 #include <numeric>
 #include <exception>
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <catch2/catch_test_macros.hpp>
 
 // Override the default handler for contract violations.
 #include "override_contract_handler_to_throw.h"

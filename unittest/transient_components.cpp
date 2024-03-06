@@ -1,6 +1,5 @@
 #include <ecs/ecs.h>
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <catch2/catch_test_macros.hpp>
 
 struct _dummy {
 	using ecs_flags = ecs::flags<ecs::transient>;

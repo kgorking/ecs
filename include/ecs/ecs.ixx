@@ -1595,6 +1595,32 @@ template <typename T>
 constexpr bool is_read_only_v = detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
 } // namespace ecs::detail
 
+
+// Unittest
+namespace {
+	struct test_tag {
+		using ecs_flags = ecs::flags<ecs::tag>;
+	};
+	static_assert(ecs::detail::tagged<test_tag>);
+
+	struct test_transient {
+		using ecs_flags = ecs::flags<ecs::transient>;
+	};
+	static_assert(ecs::detail::transient<test_transient>);
+
+	struct test_immutable {
+		using ecs_flags = ecs::flags<ecs::immutable>;
+	};
+	static_assert(ecs::detail::immutable<test_immutable>);
+	static_assert(ecs::detail::immutable<test_immutable&>);
+	static_assert(ecs::detail::immutable<test_immutable const&>);
+	static_assert(ecs::detail::immutable<test_immutable*>);
+
+	struct test_global {
+		using ecs_flags = ecs::flags<ecs::global>;
+	};
+	static_assert(ecs::detail::global<test_global>);
+} // namespace
 #endif // !ECS_FLAGS_H
 #ifndef ECS_DETAIL_STRIDE_VIEW_H
 #define ECS_DETAIL_STRIDE_VIEW_H
