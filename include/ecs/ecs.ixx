@@ -357,9 +357,9 @@ namespace ecs::detail {
 		template <typename T, class... Types>
 		consteval int index_of(type_list<Types...>*) noexcept {
 			constexpr int index = []<int... Ns>(std::integer_sequence<int, Ns...>) {
-				int index = 0;
-				((index += (std::is_same_v<T, Types> * (1 + Ns))) || ...);
-				return index - 1;
+				int type_index = 0;
+				((type_index += (std::is_same_v<T, Types> * (1 + Ns))) || ...);
+				return type_index - 1;
 			}(std::make_integer_sequence<int, sizeof...(Types)>{});
 			static_assert(index != -1, "type not found in list");
 			return index;
