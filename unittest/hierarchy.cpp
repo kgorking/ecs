@@ -1,10 +1,9 @@
 #include <ecs/ecs.h>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 #include <atomic>
-
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("Hierarchies") {
 	SECTION("can extract parent info") {

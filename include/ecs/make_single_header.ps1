@@ -6,8 +6,8 @@ $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 # All the files to concat into the single header
 $files = (
 	'../../tls/include/tls/cache.h',
-	'../../tls/include/tls/split.h',
 	'../../tls/include/tls/collect.h',
+	'../../tls/include/tls/split.h',
 	'detail/type_list.h',
 	'detail/contract.h',
 	'detail/type_hash.h',
@@ -48,6 +48,7 @@ $sys_headers = '#include <algorithm>
 #include <concepts>
 #include <cstdint>
 #include <execution>
+#include <forward_list>
 #include <functional>
 #include <iostream>
 #include <limits>

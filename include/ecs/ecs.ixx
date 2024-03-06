@@ -6,6 +6,7 @@
 #include <concepts>
 #include <cstdint>
 #include <execution>
+#include <forward_list>
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -91,147 +92,24 @@ private:
 } // namespace tls
 
 #endif // !TLS_CACHE
-#ifndef TLS_SPLIT_H
-#define TLS_SPLIT_H
-
-
-namespace tls {
-// Provides a thread-local instance of the type T for each thread that
-// accesses it. Data is not preserved when threads die.
-// This class locks when a thread is created/destroyed.
-// The thread_local T's can be accessed through split::for_each.
-// Use `tls::unique_split` or pass different types to 'UnusedDifferentiatorType'
-// to create different types.
-template <typename T, typename UnusedDifferentiaterType = void>
-class split {
-	// This struct manages the instances that access the thread-local data.
-	// Its lifetime is marked as thread_local, which means that it can live longer than
-	// the split<> instance that spawned it.
-	struct thread_data {
-		thread_data() {
-			split::init_thread(this);
-		}
-
-		~thread_data() {
-			split::remove_thread(this);
-		}
-
-		// Return a reference to an instances local data
-		[[nodiscard]] T& get() noexcept {
-			return data;
-		}
-
-		void remove() noexcept {
-			data = {};
-			next = nullptr;
-		}
-
-		[[nodiscard]] T* get_data() noexcept {
-			return &data;
-		}
-		[[nodiscard]] T const* get_data() const noexcept {
-			return &data;
-		}
-
-		void set_next(thread_data* ia) noexcept {
-			next = ia;
-		}
-		[[nodiscard]] thread_data* get_next() noexcept {
-			return next;
-		}
-		[[nodiscard]] thread_data const* get_next() const noexcept {
-			return next;
-		}
-
-	private:
-		T data{};
-		thread_data* next = nullptr;
-	};
-
-private:
-	// the head of the threads
-	inline static thread_data* head{};
-
-	// Mutex for serializing access for adding/removing thread-local instances
-	inline static std::shared_mutex mtx;
-
-protected:
-	// Adds a thread_data
-	static void init_thread(thread_data* t) {
-		std::unique_lock sl(mtx);
-		t->set_next(head);
-		head = t;
-	}
-
-	// Remove the thread_data
-	static void remove_thread(thread_data* t) {
-		std::unique_lock sl(mtx);
-		// Remove the thread from the linked list
-		if (head == t) {
-			head = t->get_next();
-		} else {
-			auto curr = head;
-			while (curr->get_next() != nullptr) {
-				if (curr->get_next() == t) {
-					curr->set_next(t->get_next());
-					return;
-				} else {
-					curr = curr->get_next();
-				}
-			}
-		}
-	}
-
-public:
-	// Get the thread-local instance of T
-	T& local() noexcept {
-		thread_local thread_data var{};
-		return var.get();
-	}
-
-	// Performa an action on all each instance of the data
-	template <class Fn>
-	static void for_each(Fn&& fn) {
-		if constexpr (std::invocable<Fn, T const&>) {
-			std::shared_lock sl(mtx);
-			for (thread_data const* thread = head; thread != nullptr; thread = thread->get_next()) {
-				fn(*thread->get_data());
-			}
-		} else {
-			std::unique_lock sl(mtx);
-			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
-				fn(*thread->get_data());
-			}
-		}
-	}
-
-	// Clears all data
-	static void clear() {
-		std::unique_lock sl(mtx);
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
-			*(thread->get_data()) = {};
-		}
-	}
-};
-
-template <typename T, auto U = [] {}>
-using unique_split = split<T, decltype(U)>;
-
-} // namespace tls
-
-#endif // !TLS_SPLIT_H
 #ifndef TLS_COLLECT_H
 #define TLS_COLLECT_H
 
 
 namespace tls {
+
+// Pass this type to the 'Container' argument of 'tls::collect' to not store
+// data from expired threads. Or use 'tls::split', which does the same thing.
+template<typename>
+class none {};
+
 // Provides a thread-local instance of the type T for each thread that
 // accesses it. Data is preserved when threads die.
 // You can collect the thread_local T's with collect::gather*,
 // which also resets the data on the threads by moving it.
 // Use `tls::unique_collect` or pass different types to 'UnusedDifferentiatorType'
 // to create different types.
-template <typename T, typename UnusedDifferentiatorType = void>
+template <typename T, template<class...> typename Container = std::vector, typename UnusedDifferentiatorType = void>
 class collect final {
 	// This struct manages the instances that access the thread-local data.
 	// Its lifetime is marked as thread_local, which means that it can live longer than
@@ -278,47 +156,40 @@ class collect final {
 	};
 
 private:
+	static constexpr bool has_container = not std::same_as<Container<T>, none<T>>;
+
 	// the head of the threads
-	inline static thread_data* head{};
+	inline static std::forward_list<thread_data*> head{};
 
 	// Mutex for serializing access for adding/removing thread-local instances
 	inline static std::shared_mutex mtx;
 
-	// All the data collected from threads
-	inline static std::vector<T> data{};
-
 	// Adds a new thread
 	static void init_thread(thread_data* t) {
 		std::unique_lock sl(mtx);
-
-		t->set_next(head);
-		head = t;
+		head.push_front(t);
 	}
 
 	// Removes the thread
 	static void remove_thread(thread_data* t) {
 		std::unique_lock sl(mtx);
 
-		// Take the thread data
-		T* local_data = t->get_data();
-		data.push_back(static_cast<T&&>(*local_data));
+		if constexpr (has_container) {
+			// Take the thread data
+			T* local_data = t->get_data();
+			collected_data().push_back(static_cast<T&&>(*local_data));
+		}
 
 		// Remove the thread from the linked list
-		if (head == t) {
-			head = t->get_next();
-		} else {
-			auto curr = head;
-			if (nullptr != curr) {
-				while (curr->get_next() != nullptr) {
-					if (curr->get_next() == t) {
-						curr->set_next(t->get_next());
-						return;
-					} else {
-						curr = curr->get_next();
-					}
-				}
-			}
-		}
+		head.remove(t);
+	}
+
+	// Returns all the data collected from threads
+	static Container<T>& collected_data()
+		requires(has_container)
+	{
+		static Container<T> data{};
+		return data;
 	}
 
 public:
@@ -330,10 +201,13 @@ public:
 
 	// Gathers all the threads data and returns it. This clears all stored data.
 	[[nodiscard]]
-	static std::vector<T> gather() {
+	static Container<T> gather()
+		requires(has_container)
+	{
 		std::unique_lock sl(mtx);
 
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+		auto& data = collected_data();
+		for (thread_data* thread : head) {
 			data.push_back(std::move(*thread->get_data()));
 			*thread->get_data() = T{};
 		}
@@ -343,16 +217,16 @@ public:
 
 	// Gathers all the threads data and sends it to the output iterator. This clears all stored data.
 	static void gather_flattened(auto dest_iterator)
-		requires(std::ranges::range<T>)
+		requires(std::ranges::range<T> && has_container)
 	{
 		std::unique_lock sl(mtx);
 
-		for (T& per_thread_data : data) {
+		for (T& per_thread_data : collected_data()) {
 			std::move(per_thread_data.begin(), per_thread_data.end(), dest_iterator);
 		}
-		data.clear();
+		collected_data().clear();
 
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+		for (thread_data* thread : head) {
 			T* ptr_per_thread_data = thread->get_data();
 			std::move(ptr_per_thread_data->begin(), ptr_per_thread_data->end(), dest_iterator);
 			//*ptr_per_thread_data = T{};
@@ -365,40 +239,57 @@ public:
 	static void for_each(Fn&& fn) {
 		if constexpr (std::invocable<Fn, T const&>) {
 			std::shared_lock sl(mtx);
-			for (thread_data const* thread = head; thread != nullptr; thread = thread->get_next()) {
+			for (thread_data const* thread : head) {
 				fn(*thread->get_data());
 			}
 
-			for (auto const& d : data)
-				fn(d);
+			if constexpr (has_container)
+				for (auto const& d : collected_data())
+					fn(d);
 		} else {
 			std::unique_lock sl(mtx);
-			for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+			for (thread_data* thread : head) {
 				fn(*thread->get_data());
 			}
 
-			for (auto& d : data)
-				fn(d);
+			if constexpr (has_container)
+				for (auto& d : collected_data())
+					fn(d);
 		}
 	}
 
 	// Clears all data
 	static void clear() {
 		std::unique_lock sl(mtx);
-		for (thread_data* thread = head; thread != nullptr; thread = thread->get_next()) {
+		for (thread_data* thread : head) {
 			*(thread->get_data()) = {};
 		}
 
-		data.clear();
+		if constexpr (has_container)
+			collected_data().clear();
 	}
 };
 
-template <typename T, auto U = [] {}>
-using unique_collect = collect<T, decltype(U)>;
+template <typename T, template<class...> typename Container = std::vector, auto U = [] {}>
+using unique_collect = collect<T, Container, decltype(U)>;
 
 } // namespace tls
 
 #endif // !TLS_COLLECT_H
+#ifndef TLS_SPLIT_H
+#define TLS_SPLIT_H
+
+
+namespace tls {
+template <typename T, typename UnusedDifferentiaterType = void>
+using split = collect<T, none, UnusedDifferentiaterType>;
+
+template <typename T, auto U = [] {}>
+using unique_split = split<T, decltype(U)>;
+
+} // namespace tls
+
+#endif // !TLS_SPLIT_H
 #ifndef ECS_DETAIL_TYPE_LIST_H
 #define ECS_DETAIL_TYPE_LIST_H
 
@@ -1130,7 +1021,7 @@ private:
 	constexpr static uintptr_t TagMask = sizeof(void*) - 1;
 	constexpr static uintptr_t PointerMask = ~TagMask;
 
-	uintptr_t ptr;
+	uintptr_t ptr = 0;
 };
 
 } // namespace ecs::detail
@@ -1704,6 +1595,32 @@ template <typename T>
 constexpr bool is_read_only_v = detail::immutable<T> || detail::tagged<T> || std::is_const_v<std::remove_reference_t<T>>;
 } // namespace ecs::detail
 
+
+// Unittest
+namespace {
+	struct test_tag {
+		using ecs_flags = ecs::flags<ecs::tag>;
+	};
+	static_assert(ecs::detail::tagged<test_tag>);
+
+	struct test_transient {
+		using ecs_flags = ecs::flags<ecs::transient>;
+	};
+	static_assert(ecs::detail::transient<test_transient>);
+
+	struct test_immutable {
+		using ecs_flags = ecs::flags<ecs::immutable>;
+	};
+	static_assert(ecs::detail::immutable<test_immutable>);
+	static_assert(ecs::detail::immutable<test_immutable&>);
+	static_assert(ecs::detail::immutable<test_immutable const&>);
+	static_assert(ecs::detail::immutable<test_immutable*>);
+
+	struct test_global {
+		using ecs_flags = ecs::flags<ecs::global>;
+	};
+	static_assert(ecs::detail::global<test_global>);
+} // namespace
 #endif // !ECS_FLAGS_H
 #ifndef ECS_DETAIL_STRIDE_VIEW_H
 #define ECS_DETAIL_STRIDE_VIEW_H
@@ -1908,10 +1825,10 @@ private:
 	bool components_modified : 1 = false;
 
 	// Keep track of which components to add/remove each cycle
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_data>, component_pool<T>> deferred_adds;
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, component_pool<T>> deferred_spans;
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, component_pool<T>> deferred_gen;
-	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, component_pool<T>> deferred_removes;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_data>, std::vector, component_pool<T>> deferred_adds;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_span>, std::vector, component_pool<T>> deferred_spans;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_gen>, std::vector, component_pool<T>> deferred_gen;
+	[[MSVC no_unique_address]] tls::collect<std::vector<entity_range>, std::vector, component_pool<T>> deferred_removes;
 #if ECS_ENABLE_CONTRACTS_AUDIT
 	[[MSVC no_unique_address]] tls::unique_collect<std::vector<entity_range>> deferred_variants;
 #endif

@@ -2,8 +2,7 @@
 #include <ecs/detail/type_list.h>
 #include <ecs/detail/options.h>
 #include <ecs/parent.h>
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <catch2/catch_test_macros.hpp>
 
 using namespace ecs::detail;
 

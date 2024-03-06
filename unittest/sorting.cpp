@@ -1,8 +1,8 @@
 #include <ecs/ecs.h>
 #include <functional>
 #include <numeric>
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include <random>
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("Sorting") {
 	ecs::runtime ecs;
