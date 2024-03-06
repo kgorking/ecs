@@ -1021,7 +1021,7 @@ private:
 	constexpr static uintptr_t TagMask = sizeof(void*) - 1;
 	constexpr static uintptr_t PointerMask = ~TagMask;
 
-	uintptr_t ptr;
+	uintptr_t ptr = 0;
 };
 
 } // namespace ecs::detail
