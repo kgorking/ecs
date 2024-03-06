@@ -19,6 +19,8 @@
 #include "../flags.h"
 #include "options.h"
 
+#include "range_tree.h"
+
 #ifdef _MSC_VER
 #define MSVC msvc::
 #else
