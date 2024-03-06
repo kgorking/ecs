@@ -50,9 +50,9 @@ All dependencies will be automatically downloaded.
 ## Tested compilers
 The CI build status for msvc, clang, and gcc is currently
 
-[![MSVC](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/msvc.yml)
-[![Clang](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/clang.yml)
-[![GCC](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg)](https://github.com/kgorking/ecs/actions/workflows/gcc.yml)
+![MSVC](https://github.com/kgorking/ecs/actions/workflows/msvc.yml/badge.svg?event=push)
+![Clang](https://github.com/kgorking/ecs/actions/workflows/clang.yml/badge.svg?event=push)
+![GCC](https://github.com/kgorking/ecs/actions/workflows/gcc.yml/badge.svg?event=push)
 
 
 ## Initial support for modules
