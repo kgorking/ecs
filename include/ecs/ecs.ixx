@@ -276,7 +276,6 @@ using unique_collect = collect<T, Container, decltype(U)>;
 } // namespace tls
 
 #endif // !TLS_COLLECT_H
-
 #ifndef TLS_SPLIT_H
 #define TLS_SPLIT_H
 
@@ -291,7 +290,6 @@ using unique_split = split<T, decltype(U)>;
 } // namespace tls
 
 #endif // !TLS_SPLIT_H
-
 #ifndef ECS_DETAIL_TYPE_LIST_H
 #define ECS_DETAIL_TYPE_LIST_H
 
