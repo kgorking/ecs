@@ -46,7 +46,7 @@ public:
 	}
 
 	[[nodiscard]] constexpr bool operator<(entity_id const& id) const {
-		return last_ < id;
+		return first_ < id;
 	}
 
 	// Returns the first entity in the range
