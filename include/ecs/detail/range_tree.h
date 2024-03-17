@@ -1,11 +1,11 @@
 #ifndef ECS_DETAIL_RANGE_TREE_H
 #define ECS_DETAIL_RANGE_TREE_H
 
-#include "entity_range.h"
 #include "contract.h"
+#include "entity_range.h"
 #include <coroutine>
-#include <vector>
 #include <iterator>
+#include <vector>
 
 namespace ecs::detail {
 
@@ -14,7 +14,7 @@ namespace ecs::detail {
 	// Ranges may be merged iof adjacent, ie. [0,2] and [3,5] may become [0,5]
 	// Currently uses a compact layout, can hopefully be optimized to a linear layout (van Emde Boas or Eytzinger)
 	class range_tree {
-		struct node {
+		struct node_t {
 			entity_range range;
 			entity_id max = 0;
 			int children[2] = {-1, -1};
@@ -28,10 +28,18 @@ namespace ecs::detail {
 			struct promise_type { // required
 				entity_range value{0, 0};
 
-				iterator get_return_object() { return iterator(handle_type::from_promise(*this)); }
-				std::suspend_never initial_suspend() { return {}; }
-				std::suspend_always final_suspend() noexcept { return {}; }
-				void unhandled_exception() { std::terminate(); }
+				iterator get_return_object() {
+					return iterator(handle_type::from_promise(*this));
+				}
+				std::suspend_never initial_suspend() {
+					return {};
+				}
+				std::suspend_always final_suspend() noexcept {
+					return {};
+				}
+				void unhandled_exception() {
+					std::terminate();
+				}
 				void return_void() {}
 
 				std::suspend_always yield_value(entity_range r) {
@@ -58,8 +66,12 @@ namespace ecs::detail {
 				return !handle.done();
 			}
 
-			void operator++() { handle.resume(); }
-			void operator++(int) { handle.resume(); }
+			void operator++() {
+				handle.resume();
+			}
+			void operator++(int) {
+				handle.resume();
+			}
 
 		private:
 		};
@@ -67,7 +79,13 @@ namespace ecs::detail {
 
 	public:
 		int size() const {
-			return static_cast<int>(nodes.size());
+			int s = static_cast<int>(nodes.size());
+			int f = free;
+			while (f != -1) {
+				s -= 1;
+				f = nodes[f].level;
+			}
+			return s;
 		}
 
 		int height() const {
@@ -88,14 +106,24 @@ namespace ecs::detail {
 			return {};
 		}
 
-		void insert(entity_range r) {
-			PreAudit(!overlaps(r), "can not add range that overlaps with existing range");
+		void insert(entity_range range) {
+			PreAudit(!overlaps(range), "can not add range that overlaps with existing range");
 
 			if (nodes.empty()) {
-				nodes.emplace_back(r, r.last());
+				nodes.emplace_back(range, range.last());
 				root = 0;
 			} else {
-				root = insert(root, r);
+				root = insert(root, range);
+			}
+		}
+
+		void remove(entity_range range) {
+			PreAudit(overlaps(range), "range must overlap existing range");
+
+			if (nodes.empty()) {
+				return;
+			} else {
+				root = remove(root, range);
 			}
 		}
 
@@ -109,7 +137,7 @@ namespace ecs::detail {
 	private:
 		iterator iterate(int index) {
 			if (index != -1) {
-				for(auto x = iterate(nodes[index].children[0]); x; ++x)
+				for (auto x = iterate(nodes[index].children[0]); x; ++x)
 					co_yield *x;
 				co_yield nodes[index].range;
 				for (auto x = iterate(nodes[index].children[1]); x; x++)
@@ -117,19 +145,70 @@ namespace ecs::detail {
 			}
 		}
 
-		int insert(int index, entity_range r) {
-			if (index == -1) {
-				int const size = static_cast<int>(std::ssize(nodes));
-				nodes.emplace_back(r, r.last());
-				return size;
+		int insert(int i, entity_range range) {
+			if (i == -1) {
+				return create_node(range);
 			} else {
-				bool const left_right = (r.first() >= nodes[index].max);
-				nodes[index].children[left_right] = insert(nodes[index].children[left_right], r);
-				nodes[index].max = std::max(nodes[index].max, r.last());
-				index = skew(index);
-				index = split(index);
-				return index;
+				bool const is_right_node = (range.first() >= nodes[i].max);
+				nodes[i].children[is_right_node] = insert(nodes[i].children[is_right_node], range);
+				nodes[i].max = std::max(nodes[i].max, range.last());
+				i = skew(i);
+				i = split(i);
+				return i;
 			}
+		}
+
+		int remove(int i, entity_range range) {
+			if (i == -1)
+				return -1;
+
+			if (left(i) != -1 && range.overlaps(nodes[left(i)].range)) {
+				left(i) = remove(left(i), range);
+			}
+			if (right(i) != -1 && range.overlaps(nodes[right(i)].range)) {
+				right(i) = remove(right(i), range);
+			}
+			
+			if (range.contains(node(i).range)) {
+				// The range removes this node whole
+				if (leaf(i)) {
+					free_node(i);
+					return -1;
+				} else if (-1 == left(i)) {
+					int const s = successor(i);
+					right(i) = remove(right(i), node(s).range);
+					node(i).range = node(s).range;
+				} else {
+					int const s = predecessor(i);
+					left(i) = remove(left(i), node(s).range);
+					node(i).range = node(s).range;
+				}
+			} else if(range.overlaps(node(i).range)) {
+				// it's a partial remove, update the current node
+				auto [rng_l, rng_r] = entity_range::remove(node(i).range, range);
+				node(i).range = rng_l;
+				if (rng_r) {
+					// Range was split in two, so add the new range
+					right(i) = insert(right(i), *rng_r);
+				}
+			}
+
+			int const level_l = (-1 == left(i)) ? 1 : level(left(i));
+			int const level_r = (-1 == right(i)) ? 1 : level(right(i));
+			int const new_level = 1 + std::min(level_l, level_r);
+			if (new_level < level(i)) {
+				level(i) = new_level;
+				if (-1 != right(i) && new_level < level(right(i)))
+					level(right(i)) = new_level;
+			}
+
+			i = skew(i);
+			right(i) = skew(right(i));
+			if (-1 != right(i))
+				right(right(i)) = skew(right(right(i)));
+			i = split(i);
+			right(i) = split(right(i));
+			return i;
 		}
 
 		bool overlaps(int index, entity_range r) const {
@@ -154,18 +233,61 @@ namespace ecs::detail {
 				calc_height(right, depth + 1, h);
 		}
 
-		int& left(int node) {
-			Pre(node != -1, "index must be valid");
-			return nodes[node].children[0];
+		int create_node(entity_range range) {
+			if (free == -1) {
+				int const size = static_cast<int>(std::ssize(nodes));
+				nodes.emplace_back(range, range.last());
+				return size;
+			} else {
+				int const i = free;
+				free = nodes[free].level;
+				nodes[i] = {range, range.last()};
+				return i;
+			}
 		}
 
-		int& right(int node) {
-			Pre(node != -1, "index must be valid");
-			return nodes[node].children[1];
+		void free_node(int i) {
+			if (i == -1)
+				return;
+			nodes[i].level = free;
+			free = i;
 		}
 
-		int& level(int node) {
-			return nodes[node].level;
+		node_t& node(int i) {
+			return nodes[i];
+		}
+
+		bool leaf(int i) const {
+			return nodes[i].children[0] == -1 && nodes[i].children[1] == -1;
+		}
+
+		int successor(int i) {
+			i = right(i);
+			while (left(i) != -1)
+				i = left(i);
+			return i;
+		}
+
+		int predecessor(int i) {
+			i = left(i);
+			while (right(i) != -1)
+				i = right(i);
+			return i;
+		}
+
+		int& left(int i) {
+			Pre(i != -1, "index must be valid");
+			return nodes[i].children[0];
+		}
+
+		int& right(int i) {
+			Pre(i != -1, "index must be valid");
+			return nodes[i].children[1];
+		}
+
+		int& level(int i) {
+			Pre(i != -1, "index must be valid");
+			return nodes[i].level;
 		}
 
 		// Removes left-horizontal links
@@ -187,27 +309,28 @@ namespace ecs::detail {
 		}
 
 		// Removes consecutive horizontal links
-		int split(int node) {
-			if (node == -1)
+		int split(int i) {
+			if (i == -1)
 				return -1;
 
-			if (right(node) == -1 || right(right(node)) == -1)
-				return node;
+			if (right(i) == -1 || right(right(i)) == -1)
+				return i;
 
-			if (level(node) == level(right(right(node)))) {
-				int r = right(node);
-				right(node) = left(r);
-				left(r) = node;
+			if (level(i) == level(right(right(i)))) {
+				int r = right(i);
+				right(i) = left(r);
+				left(r) = i;
 				level(r) += 1;
 				return r;
 			}
 
-			return node;
+			return i;
 		}
 
 	private:
 		int root = -1;
-		std::vector<node> nodes;
+		int free = -1; // free list.
+		std::vector<node_t> nodes;
 	};
 } // namespace ecs::detail
 

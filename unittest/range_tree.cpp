@@ -22,7 +22,7 @@ TEST_CASE("range_tree specification") {
 		REQUIRE(tree.size() == 0);
 	}
 
-	SECTION("inserting ranges works") {
+	SECTION("insert") {
 		SECTION("overlap testing works") {
 			ecs::detail::range_tree tree;
 			tree.insert({1, 3});
@@ -49,11 +49,51 @@ TEST_CASE("range_tree specification") {
 		}
 	}
 
-	SECTION("balancing") {
+	SECTION("remove") {
 		ecs::detail::range_tree tree;
-		for (auto r : random_ranges)
-			tree.insert(r);
 
-		CHECK(tree.height() < (int)random_ranges.size());
+		SECTION("full interval removal") {
+			tree.insert({0, 10});
+			tree.remove({0, 10});
+			REQUIRE(tree.size() == 0);
+		}
+
+		SECTION("partial interval removal") {
+			tree.insert({0, 10});
+			tree.remove({1, 9});
+			REQUIRE(tree.size() == 2);
+		}
+
+		SECTION("multiple interval removals") {
+			tree.insert({0, 2});
+			tree.insert({5, 7});
+			tree.insert({9, 14});
+			tree.remove({-10, 20});
+			REQUIRE(tree.size() == 0);
+		}
+
+		SECTION("multiple+partial interval removals") {
+			tree.insert({-2, 2});
+			tree.insert({4, 7});
+			tree.insert({19, 24});
+
+			tree.remove({0, 6});
+			REQUIRE(tree.size() == 3);
+
+			std::vector<ecs::entity_range> ranges;
+			for (auto const range : tree)
+				ranges.push_back(range);
+			REQUIRE(ranges.size() == (std::size_t)3);
+			std::vector<ecs::entity_range> expected{{-2, -1}, {7, 7}, {19, 24}};
+			REQUIRE(expected == ranges);
+
+			tree.remove({6, 20});
+			REQUIRE(tree.size() == 2);
+			ranges.clear();
+			for (auto const range : tree)
+				ranges.push_back(range);
+			expected = {{-2, -1}, {21, 24}};
+			REQUIRE(expected == ranges);
+		}
 	}
 }
