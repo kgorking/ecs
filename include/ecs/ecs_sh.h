@@ -1289,7 +1289,7 @@ public:
 	}
 
 	[[nodiscard]] constexpr bool operator<(entity_id const& id) const {
-		return last_ < id;
+		return first_ < id;
 	}
 
 	// Returns the first entity in the range
@@ -1692,6 +1692,7 @@ public:
 #endif // !ECS_DETAIL_COMPONENT_POOL_BASE_H
 #ifndef ECS_DETAIL_COMPONENT_POOL_H
 #define ECS_DETAIL_COMPONENT_POOL_H
+
 
 
 
