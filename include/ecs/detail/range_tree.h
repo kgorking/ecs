@@ -2,16 +2,23 @@
 #define ECS_DETAIL_RANGE_TREE_H
 
 #include "entity_range.h"
+#include "contract.h"
 #include <coroutine>
 #include <vector>
 #include <iterator>
 
 namespace ecs::detail {
+
+	// A tree of ranges (technically an interval tree) to be implemented as an AA tree (https://en.wikipedia.org/wiki/AA_tree)
+	// Ranges can not overlap in the tree
+	// Ranges may be merged iof adjacent, ie. [0,2] and [3,5] may become [0,5]
+	// Currently uses a compact layout, can hopefully be optimized to a linear layout (van Emde Boas or Eytzinger)
 	class range_tree {
 		struct node {
 			entity_range range;
 			entity_id max = 0;
 			int children[2] = {-1, -1};
+			int level = 1;
 		};
 
 		struct iterator {
@@ -59,23 +66,36 @@ namespace ecs::detail {
 		friend iterator;
 
 	public:
-		std::size_t size() const {
-			return nodes.size();
+		int size() const {
+			return static_cast<int>(nodes.size());
+		}
+
+		int height() const {
+			if (nodes.empty())
+				return 0;
+			else {
+				int h = 1;
+				calc_height(root, 1, h);
+				return h;
+			}
 		}
 
 		iterator begin() {
-			return iterate(0);
+			return iterate(root);
 		}
 
-		auto end() const {
-			return std::default_sentinel;
+		std::default_sentinel_t end() const {
+			return {};
 		}
 
 		void insert(entity_range r) {
+			PreAudit(!overlaps(r), "can not add range that overlaps with existing range");
+
 			if (nodes.empty()) {
 				nodes.emplace_back(r, r.last());
+				root = 0;
 			} else {
-				insert(0, r);
+				root = insert(root, r);
 			}
 		}
 
@@ -83,7 +103,7 @@ namespace ecs::detail {
 			if (nodes.empty())
 				return false;
 			else
-				return overlaps(0, r);
+				return overlaps(root, r);
 		}
 
 	private:
@@ -106,6 +126,8 @@ namespace ecs::detail {
 				bool const left_right = (r.first() >= nodes[index].max);
 				nodes[index].children[left_right] = insert(nodes[index].children[left_right], r);
 				nodes[index].max = std::max(nodes[index].max, r.last());
+				index = skew(index);
+				index = split(index);
 				return index;
 			}
 		}
@@ -121,7 +143,70 @@ namespace ecs::detail {
 			}
 		}
 
+		void calc_height(int node, int depth, int& h) const {
+			if (depth > h)
+				h = depth;
+
+			auto const [left, right] = nodes[node].children;
+			if (left != -1)
+				calc_height(left, depth + 1, h);
+			if (right != -1)
+				calc_height(right, depth + 1, h);
+		}
+
+		int& left(int node) {
+			Pre(node != -1, "index must be valid");
+			return nodes[node].children[0];
+		}
+
+		int& right(int node) {
+			Pre(node != -1, "index must be valid");
+			return nodes[node].children[1];
+		}
+
+		int& level(int node) {
+			return nodes[node].level;
+		}
+
+		// Removes left-horizontal links
+		int skew(int node) {
+			if (node == -1)
+				return -1;
+
+			int l = left(node);
+			if (l == -1)
+				return node;
+
+			if (level(l) == level(node)) {
+				left(node) = right(l);
+				right(l) = node;
+				return l;
+			}
+
+			return node;
+		}
+
+		// Removes consecutive horizontal links
+		int split(int node) {
+			if (node == -1)
+				return -1;
+
+			if (right(node) == -1 || right(right(node)) == -1)
+				return node;
+
+			if (level(node) == level(right(right(node)))) {
+				int r = right(node);
+				right(node) = left(r);
+				left(r) = node;
+				level(r) += 1;
+				return r;
+			}
+
+			return node;
+		}
+
 	private:
+		int root = -1;
 		std::vector<node> nodes;
 	};
 } // namespace ecs::detail
