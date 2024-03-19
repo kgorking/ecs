@@ -11,10 +11,13 @@ namespace ecs::detail {
 	concept callback_takes_a_span = std::invocable<Fn, std::span<T>>;
 
 	// the 'Array Scatter Allocator'.
-	// * Optimized for allocating arrays of objects, instead of one-at-the-time
-	//   like the stl allocators do.
+	// * When a pool is allocated, all elements are default-initialized.
+	//   This way I don't have to keep track of which objects are live/dead.
 	// * A single allocation can result in many addresses being returned, as the
 	//   allocator fills in holes in the internal pools of memory.
+	// * Deallocated memory is reused before new memory is taken from pools.
+	//   This way old pools will be filled with new data before newer pools are tapped.
+	//   Filling it 'from the back' like this should keep fragmentation down.
 	template <typename T, int DefaultStartingSize = 16>
 	struct array_scatter_allocator {
 		static_assert(DefaultStartingSize > 0);
