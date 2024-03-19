@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <memory_resource>
-std::pmr::unsynchronized_pool_resource;
 
 namespace ecs::detail {
 	template <typename T, typename Alloc = std::allocator<T>>
