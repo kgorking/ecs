@@ -3,6 +3,7 @@
 
 #include "contract.h"
 #include <memory>
+#include <algorithm>
 #include <span>
 
 namespace ecs::detail {
@@ -11,7 +12,7 @@ namespace ecs::detail {
 
 	// the 'Array Scatter Allocator'.
 	// * Optimized for allocating arrays of objects, instead of one-at-the-time
-	//   that the stl allocators do.
+	//   like the stl allocators do.
 	// * A single allocation can result in many addresses being returned, as the
 	//   allocator fills in holes in the internal pools of memory.
 	template <typename T, int DefaultStartingSize = 16>
@@ -31,13 +32,19 @@ namespace ecs::detail {
 		}
 
 		template <typename... Ts>
-		constexpr int allocate_with_callback(int const count, callback_takes_a_span<T> auto&& alloc_callback, Ts&&... args) {
-			int splits = 0;
+		constexpr void allocate_with_callback(int const count, callback_takes_a_span<T> auto&& alloc_callback, Ts&&... args) {
 			int remaining_count = count;
+
+			// Destruct- and construct a span of objects
+			auto reinit = [&](std::span<T> span) {
+				std::destroy_n(span.data(), span.size());
+				for (T& val : span)
+					std::construct_at(&val, std::forward<Ts>(args)...);
+			};
 
 			// Take space from free list
 			std::unique_ptr<free_block>* ptr_free = &free_list;
-			while (remaining_count > 0 && *ptr_free) {
+			while (*ptr_free) {
 				free_block* ptr = ptr_free->get();
 				int const min_space = std::min(remaining_count, (int)(ptr->span.size()));
 				if (min_space == 0) {
@@ -46,21 +53,23 @@ namespace ecs::detail {
 				}
 
 				std::span<T> span = ptr->span.subspan(0, min_space);
-				for (T& val : span)
-					val = {args...};
+				reinit(span);
+				alloc_callback(span);
 
-				splits += 1;
 				remaining_count -= min_space;
+				if (remaining_count == 0)
+					return;
 
 				if (min_space == (int)ptr->span.size()) {
-					*ptr_free = std::move(ptr->next);
+					auto next = std::move(ptr->next);
+					*ptr_free = std::move(next);
 				} else {
 					ptr->span = ptr->span.subspan(min_space + 1);
 					ptr_free = &ptr->next;
 				}
 			}
 
-			// Take space from pool(s)
+			// Take space from pools
 			pool* ptr_pool = pools.get();
 			while (remaining_count > 0) {
 				if (ptr_pool == nullptr)
@@ -69,24 +78,17 @@ namespace ecs::detail {
 				pool& p = *ptr_pool;
 				ptr_pool = ptr_pool->next.get();
 
-				unsigned const min_space = std::min(remaining_count, p.unused);
+				unsigned const min_space = std::min({remaining_count, (p.capacity - p.next_available)});
 				if (min_space == 0)
 					continue;
 
-				splits += 1;
-				remaining_count -= min_space;
-				p.unused -= min_space;
+				std::span<T> span{p.base.get() + p.next_available, min_space};
+				reinit(span);
+				alloc_callback(span);
 
-				T* ptr = p.base.get() + p.next_available;
 				p.next_available += min_space;
-
-				for (unsigned i = 0; i < min_space; i++)
-					ptr[i] = {args...};
-
-				alloc_callback(std::span<T>{ptr, min_space});
+				remaining_count  -= min_space;
 			}
-
-			return splits;
 		}
 
 		constexpr void deallocate(std::span<T> const span) {
@@ -96,18 +98,23 @@ namespace ecs::detail {
 
 	private:
 		constexpr auto* add_pool(int const size) {
-			pools = std::make_unique<pool>(std::move(pools), std::make_unique_for_overwrite<T[]>(size), size, size, 0);
+			pools = std::make_unique<pool>(std::move(pools), std::make_unique_for_overwrite<T[]>(size), 0, size);
 			return pools.get();
 		}
 
+		static constexpr bool valid_addr(T* p, T* begin, T* end) {
+			// It is undefined behavior to compare pointers directly,
+			// so use distances instead. This also works at compile time.
+			auto const size = std::distance(begin, end);
+			return
+				std::distance(begin, p) >= 0 &&
+				std::distance(p, end) <= size;
+		}
+
 		constexpr bool validate_addr(std::span<T> const span) {
-			auto* p = pools.get();
-			while (p != nullptr) {
-				T const* const begin = p->base.get();
-				T const* const end = begin + p->capacity;
-				if (span.data() >= begin && (span.data() + span.size()) < end)
+			for (auto* p = pools.get(); p; p = p->next.get()) {
+				if (valid_addr(span.data(), p->base.get(), p->base.get() + p->capacity))
 					return true;
-				p = p->next.get();
 			}
 			return false;
 		}
@@ -120,9 +127,8 @@ namespace ecs::detail {
 		struct pool {
 			std::unique_ptr<pool> next;
 			std::unique_ptr<T[]> base;
-			int unused;
-			int capacity;
 			int next_available;
+			int capacity;
 		};
 
 		std::unique_ptr<pool> pools;
@@ -132,7 +138,7 @@ namespace ecs::detail {
 	// UNIT TESTS
 	static_assert(
 		[] {
-			constexpr std::size_t elems_to_alloc = 12'345;
+			constexpr std::size_t elems_to_alloc = 123;
 			array_scatter_allocator<int> alloc;
 			std::size_t total_alloc = 0;
 			alloc.allocate_with_callback(elems_to_alloc, [&](std::span<int> s) {
@@ -165,17 +171,26 @@ namespace ecs::detail {
 			auto const subspan = r[0].subspan(3, 4);
 			alloc.deallocate(subspan);
 			return true;
-		},
+		}(),
 		"Array-scatter allocator frees correctly");
 
 	static_assert(
 		[] {
-			array_scatter_allocator<int> alloc;
-			auto vec = alloc.allocate(10);			// +10
-			alloc.deallocate(vec[0].subspan(3, 4)); // -4
-			vec = alloc.allocate(20);				// +20
-			return true;
-		},
+			array_scatter_allocator<int, 16> alloc;
+			auto vec = alloc.allocate(10);
+			alloc.deallocate(vec[0].subspan(2, 2));
+			alloc.deallocate(vec[0].subspan(4, 2));
+
+			// Fills in the two holes (2+2), the rest of the first pool (6),
+			// and remaining in new second pool (10)
+			int count = 0;
+			std::size_t sizes[] = {2, 2, 6, 10};
+			alloc.allocate_with_callback(20, [&](auto span) {
+				Assert(sizes[count] == span.size(), "unexpected span size");
+				count += 1;
+			});
+			return (count == 4);
+		}(),
 		"Array-scatter allocator scatters correctly");
 } // namespace ecs::detail
 

@@ -4,8 +4,18 @@
 using ecs::detail::array_scatter_allocator;
 
 TEST_CASE("Array-scatter allocator") {
-	array_scatter_allocator<int> alloc;
-	auto vec = alloc.allocate(10);			// +10
-	alloc.deallocate(vec[0].subspan(3, 4)); // -4
-	vec = alloc.allocate(20);				// +20
+	array_scatter_allocator<int, 16> alloc;
+	auto vec = alloc.allocate(10);
+	alloc.deallocate(vec[0].subspan(2, 2));
+	alloc.deallocate(vec[0].subspan(4, 2));
+
+	// Fills in the two holes (4), the rest of the first pool (6), 
+	// and remaining in new second pool (10)
+	int count = 0;
+	std::size_t sizes[] = {2, 2, 6, 10};
+	alloc.allocate_with_callback(20, [&](auto span) {
+		CHECK(sizes[count] == span.size());
+		count += 1;
+	});
+	REQUIRE(count == 4);
 }
