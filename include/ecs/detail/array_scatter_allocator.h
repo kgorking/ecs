@@ -13,6 +13,7 @@ namespace ecs::detail {
 	// the 'Array Scatter Allocator'.
 	// * A single allocation can result in many addresses being returned, as the
 	//   allocator fills in holes in the internal pools of memory.
+	// * It is *not* thread safe. Checks for invalid access in debug builds.
 	// * Deallocated memory is reused before new memory is taken from pools.
 	//   This way old pools will be filled with new data before newer pools are tapped.
 	//   Filling it 'from the back' like this should keep fragmentation down.
@@ -29,6 +30,10 @@ namespace ecs::detail {
 		}
 
 		constexpr void allocate_with_callback(int const count, callback_takes_a_span<T> auto&& alloc_callback) {
+			#ifdef _DEBUG
+			if (!std::is_constant_evaluated())
+				Assert(active_threads_access_count++ == 0, "Re-entrant access, or more than one thread is accessing this allocator at the same time!");
+			#endif
 			int remaining_count = count;
 
 			// Take space from free list
@@ -76,11 +81,23 @@ namespace ecs::detail {
 				p.next_available += min_space;
 				remaining_count -= min_space;
 			}
+#ifdef _DEBUG
+			if (!std::is_constant_evaluated())
+				active_threads_access_count--;
+#endif
 		}
 
 		constexpr void deallocate(std::span<T> const span) {
+#ifdef _DEBUG
+			if (!std::is_constant_evaluated())
+				Assert(active_threads_access_count++ == 0, "More than one thread is accessing this allocator at the same time!");
+#endif
 			PreAudit(validate_addr(span), "Invalid address passed to deallocate()");
 			free_list = std::make_unique<free_block>(std::move(free_list), span);
+#ifdef _DEBUG
+			if (!std::is_constant_evaluated())
+				active_threads_access_count--;
+#endif
 		}
 
 	private:
@@ -118,6 +135,9 @@ namespace ecs::detail {
 
 		std::unique_ptr<pool> pools;
 		std::unique_ptr<free_block> free_list;
+		#ifdef _DEBUG
+		std::atomic_int active_threads_access_count = 0;
+		#endif
 	};
 
 	// UNIT TESTS
