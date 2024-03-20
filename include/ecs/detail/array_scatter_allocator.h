@@ -20,7 +20,6 @@ namespace ecs::detail {
 	struct array_scatter_allocator {
 		static_assert(DefaultStartingSize > 0);
 
-		template <typename... Ts>
 		constexpr std::vector<std::span<T>> allocate(int const count) {
 			std::vector<std::span<T>> r;
 			allocate_with_callback(count, [&r](std::span<T> s) {
@@ -29,7 +28,6 @@ namespace ecs::detail {
 			return r;
 		}
 
-		template <typename... Ts>
 		constexpr void allocate_with_callback(int const count, callback_takes_a_span<T> auto&& alloc_callback) {
 			int remaining_count = count;
 
