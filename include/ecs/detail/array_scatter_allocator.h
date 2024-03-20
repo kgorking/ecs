@@ -2,8 +2,8 @@
 #define ECS_DETAIL_ARRAY_SCATTER_ALLOCATOR_H
 
 #include "contract.h"
-#include <memory>
 #include <algorithm>
+#include <memory>
 #include <span>
 
 namespace ecs::detail {
@@ -11,8 +11,6 @@ namespace ecs::detail {
 	concept callback_takes_a_span = std::invocable<Fn, std::span<T>>;
 
 	// the 'Array Scatter Allocator'.
-	// * When a pool is allocated, all elements are default-initialized.
-	//   This way I don't have to keep track of which objects are live/dead.
 	// * A single allocation can result in many addresses being returned, as the
 	//   allocator fills in holes in the internal pools of memory.
 	// * Deallocated memory is reused before new memory is taken from pools.
@@ -23,27 +21,17 @@ namespace ecs::detail {
 		static_assert(DefaultStartingSize > 0);
 
 		template <typename... Ts>
-		constexpr std::vector<std::span<T>> allocate(int const count, Ts&&... args) {
+		constexpr std::vector<std::span<T>> allocate(int const count) {
 			std::vector<std::span<T>> r;
-			allocate_with_callback(
-				count,
-				[&r](std::span<T> s) {
-					r.push_back(s);
-				},
-				std::forward<Ts>(args)...);
+			allocate_with_callback(count, [&r](std::span<T> s) {
+				r.push_back(s);
+			});
 			return r;
 		}
 
 		template <typename... Ts>
-		constexpr void allocate_with_callback(int const count, callback_takes_a_span<T> auto&& alloc_callback, Ts&&... args) {
+		constexpr void allocate_with_callback(int const count, callback_takes_a_span<T> auto&& alloc_callback) {
 			int remaining_count = count;
-
-			// Destruct- and construct a span of objects
-			auto reinit = [&](std::span<T> span) {
-				std::destroy_n(span.data(), span.size());
-				for (T& val : span)
-					std::construct_at(&val, std::forward<Ts>(args)...);
-			};
 
 			// Take space from free list
 			std::unique_ptr<free_block>* ptr_free = &free_list;
@@ -56,7 +44,6 @@ namespace ecs::detail {
 				}
 
 				std::span<T> span = ptr->span.subspan(0, min_space);
-				reinit(span);
 				alloc_callback(span);
 
 				remaining_count -= min_space;
@@ -86,17 +73,16 @@ namespace ecs::detail {
 					continue;
 
 				std::span<T> span{p.base.get() + p.next_available, min_space};
-				reinit(span);
 				alloc_callback(span);
 
 				p.next_available += min_space;
-				remaining_count  -= min_space;
+				remaining_count -= min_space;
 			}
 		}
 
 		constexpr void deallocate(std::span<T> const span) {
 			PreAudit(validate_addr(span), "Invalid address passed to deallocate()");
-			free_list = std::make_unique<free_block>(span, std::move(free_list));
+			free_list = std::make_unique<free_block>(std::move(free_list), span);
 		}
 
 	private:
@@ -109,9 +95,7 @@ namespace ecs::detail {
 			// It is undefined behavior to compare pointers directly,
 			// so use distances instead. This also works at compile time.
 			auto const size = std::distance(begin, end);
-			return
-				std::distance(begin, p) >= 0 &&
-				std::distance(p, end) <= size;
+			return std::distance(begin, p) >= 0 && std::distance(p, end) <= size;
 		}
 
 		constexpr bool validate_addr(std::span<T> const span) {
@@ -123,8 +107,8 @@ namespace ecs::detail {
 		}
 
 		struct free_block {
-			std::span<T> span;
 			std::unique_ptr<free_block> next;
+			std::span<T> span;
 		};
 
 		struct pool {
@@ -150,22 +134,6 @@ namespace ecs::detail {
 			return elems_to_alloc == total_alloc;
 		}(),
 		"Array-scatter allocator allocates correctly");
-
-	static_assert(
-		[] {
-			array_scatter_allocator<int> alloc;
-
-			int sum = 0;
-			alloc.allocate_with_callback(
-				10,
-				[&](std::span<int> s) {
-					for (int val : s)
-						sum += val;
-				},
-				5);
-			return 50 == sum;
-		}(),
-		"Array-scatter allocator initializes correctly");
 
 	static_assert(
 		[] {
