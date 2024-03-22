@@ -14,6 +14,7 @@
 #include "parent_id.h"
 #include "tagged_pointer.h"
 #include "stride_view.h"
+#include "array_scatter_allocator.h"
 
 #include "component_pool_base.h"
 #include "../flags.h"
@@ -54,62 +55,16 @@ private:
 	static_assert(!is_parent<T>::value, "can not have pools of any ecs::parent<type>");
 
 	struct chunk {
-		chunk() noexcept = default;
-		chunk(chunk const&) = delete;
-		chunk(chunk&& other) noexcept
-			: range{other.range}, active{other.active}, data{other.data} {
-			other.data = nullptr;
-		}
-		chunk& operator=(chunk const&) = delete;
-		chunk& operator=(chunk&& other) noexcept {
-			range = other.range;
-			active = other.active;
-			data = other.data;
-			other.data = nullptr;
-			return *this;
-		}
-		chunk(entity_range range_, entity_range active_, T* data_ = nullptr, bool owns_data_ = false,
-						bool has_split_data_ = false) noexcept
-			: range(range_), active(active_), data(data_) {
-			set_owns_data(owns_data_);
-			set_has_split_data(has_split_data_);
-		}
-
-		// The full range this chunk covers.
+		// The range this chunk covers.
 		entity_range range;
 
-		// The partial range of active entities inside this chunk
-		entity_range active;
+		// The data for the full range of the chunk
+		T* data;
 
-		// The data for the full range of the chunk (range.count())
-		// Tagged:
-		//   bit1 = owns data
-		//   bit2 = has split data
-		tagged_pointer<T> data;
-
-		// Signals if this chunk owns this data and should clean it up
-		void set_owns_data(bool owns) noexcept {
-			if (owns)
-				data.set_bit1();
-			else
-				data.clear_bit1();
-		}
-		bool get_owns_data() const noexcept {
-			return data.test_bit1();
-		}
-
-		// Signals if this chunk has been split
-		void set_has_split_data(bool split) noexcept {
-			if (split)
-				data.set_bit2();
-			else
-				data.clear_bit2();
-		}
-		bool get_has_split_data() const noexcept {
-			return data.test_bit2();
-		}
+		// Skip list stuff
+		std::array<chunk*, 2> next;
 	};
-	static_assert(sizeof(chunk) == 24);
+	static_assert(sizeof(chunk) == 32);
 
 	//
 	struct entity_empty {
@@ -138,6 +93,8 @@ private:
 	using chunk_iter = typename std::vector<chunk>::iterator;
 	using chunk_const_iter = typename std::vector<chunk>::const_iterator;
 
+	array_scatter_allocator<T> as_alloc;
+	array_scatter_allocator<chunk> chunk_alloc;
 	std::vector<chunk> chunks;
 	std::vector<component_pool_base*> variants;
 
@@ -189,7 +146,7 @@ public:
 	//      This condition will not be checked until 'process_changes' is called.
 	// Pre: range and span must be same size.
 	void add_span(entity_range const range, std::span<const T> span) noexcept requires(!detail::unbound<T>) {
-		//Pre(range.count() == std::ssize(span), "range and span must be same size");
+		Pre(range.count() == std::ssize(span), "range and span must be same size");
 		remove_from_variants(range);
 		// Add the range and function to a temp storage
 		deferred_spans.local().emplace_back(range, span);
