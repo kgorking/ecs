@@ -9,59 +9,104 @@
 using ecs::detail::listarray;
 
 struct node {
-	int test;
-	int data;
+	node* next_power;
 	node* next;
+	int data;
 };
 
 struct stepper {
 	int target;
-	int destination;
 	int size;
+	int offset;
+	node* from;
 	bool operator<(stepper other) const {
-		return (target > other.target);
+		return (other.target < target);
 	}
 };
 
+int search(node* n, int val) {
+	std::cout << n->data;
+
+	int steps = 0;
+	while (val > n->data) {
+		if (val >= n->next_power->data) {
+			n = n->next_power;
+			std::cout << " -> " << n->data;
+		} else {
+			n = n->next;
+			std::cout << " -> " << n->data;
+		}
+		steps += 1;
+	}
+	return (val == n->data) ? steps : -1;
+}
+
 TEST_CASE("Gorking list") {
-	constexpr int N = 100;
+	constexpr int N = 99;
 	std::array<node, N> nodes;
-	std::priority_queue<stepper> stack;
 
-	int const log_n = (int)std::ceil(std::log2(N));
+	int log_n = (int)std::ceil(std::log2(N));
+	//int log_n = 1;
+	//while (N >= (1 << log_n))
+	//	log_n += 1;
 	std::cout << "log " << N << " =" << log_n << '\n';
+	std::cout << "1<<log_n " << (1 << log_n) << '\n';
 
-	// Load up log(N)-1 steppers
-	for (int i = 0; i < log_n; i++) {
-		int const step = ((N - 1) / (int)std::pow(2, i));
-		stack.emplace(i + step, i, step);
+	// Load up steppers
+	std::priority_queue<stepper> stack;
+	stack.emplace(N - 1, N - 1, 0, &nodes[0]);
+	for (int i = 1; i < log_n+1; i++) {
+		int const step = 1 << (log_n-i);
+		stack.emplace(i + step, step, i, &nodes[i]);
 	}
 
 	for (int i = 0; i < N; i += 1) {
-		nodes[i] = {-1, i, nullptr};
+		node* next = (i < N - 1) ? &nodes[i + 1] : nullptr;
+		nodes[i] = {nullptr, next, i};
 
 		while (!stack.empty() && stack.top().target == i) {
 			auto st = stack.top();
 			stack.pop();
-			if (i > nodes[st.destination].test)
-				nodes[st.destination].test = i;
-			st.target += st.size;
-			st.destination = i;
-			if (st.target < N)
+
+			st.from->next_power = &nodes[i];
+			st.target = i + st.size;
+
+			if (st.target < N) {
+				st.from = &nodes[i];
 				stack.push(st);
+			}
 		}
 	}
 
-	bool const broken = !stack.empty();
-	while (!stack.empty()) {
-		std::cout << "garbage: " << stack.top().target << ", " << stack.top().destination << '\n';
-		stack.pop();
-	}
+	CHECK(stack.empty());
 
 	for (node& n : nodes) {
-		std::cout << n.data << " -> " << n.test << "  distance: " << (n.test-n.data) << '\n';
-		//		std::cout << n.test << '\t';
+		std::cout << n.data;
+		if (n.next_power != nullptr) {
+			auto const dist = std::distance(&nodes[n.data], n.next_power);
+			std::cout << " -> " << (n.data + dist);
+			std::cout << "  distance: " << dist;
+		}
+		std::cout << '\n';
 	}
 
-	CHECK(!broken);
+	node* root = &nodes[0];
+#if 1
+	int total_steps = 0;
+	int max_steps = 0;
+	for (node& n : nodes) {
+		std::cout << "search '" << n.data << "' : \t";
+		int steps = search(root, n.data);
+		total_steps += steps;
+		max_steps = std::max(max_steps, steps);
+		std::cout << " (" << steps << ")\n";
+	}
+	std::cout << "\nMaximum steps: " << max_steps << '\n';
+	std::cout << "Total steps: " << total_steps << '\n';
+#else
+	static_assert(N == 100);
+	std::cout << '\n';
+	std::cout << "steps: " << search(root, 37) << '\n';
+	std::cout << "steps: " << search(root, 83) << '\n';
+#endif
 }
