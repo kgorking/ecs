@@ -71,11 +71,15 @@ TEST_CASE("Gorking list") {
 			st.from->next_power = &nodes[i];
 			st.target = i + st.size;
 
-			if (st.target < N) {
+			/*if (st.target < N)*/ {
 				st.from = &nodes[i];
 				stack.push(st);
 			}
 		}
+	}
+	while (!stack.empty() ) {
+		stack.top().from->next_power = &nodes.back();
+		stack.pop();
 	}
 
 	CHECK(stack.empty());
