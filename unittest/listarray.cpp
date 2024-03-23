@@ -42,12 +42,12 @@ int search(node* n, int val) {
 }
 
 TEST_CASE("Gorking list") {
-	constexpr int N = 99;
+	constexpr int N = 127;
 	std::array<node, N> nodes;
 
 	int log_n = (int)std::ceil(std::log2(N));
-	//int log_n = 1;
-	//while (N >= (1 << log_n))
+	// int log_n = 1;
+	// while (N >= (1 << log_n))
 	//	log_n += 1;
 	std::cout << "log " << N << " =" << log_n << '\n';
 	std::cout << "1<<log_n " << (1 << log_n) << '\n';
@@ -55,8 +55,8 @@ TEST_CASE("Gorking list") {
 	// Load up steppers
 	std::priority_queue<stepper> stack;
 	stack.emplace(N - 1, N - 1, 0, &nodes[0]);
-	for (int i = 1; i < log_n+1; i++) {
-		int const step = 1 << (log_n-i);
+	for (int i = 1; i < log_n + 1; i++) {
+		int const step = 1 << (log_n - i);
 		stack.emplace(i + step, step, i, &nodes[i]);
 	}
 
@@ -80,6 +80,7 @@ TEST_CASE("Gorking list") {
 
 	CHECK(stack.empty());
 
+#if 0
 	for (node& n : nodes) {
 		std::cout << n.data;
 		if (n.next_power != nullptr) {
@@ -89,7 +90,7 @@ TEST_CASE("Gorking list") {
 		}
 		std::cout << '\n';
 	}
-
+#endif
 	node* root = &nodes[0];
 #if 1
 	int total_steps = 0;
