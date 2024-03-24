@@ -38,19 +38,17 @@ namespace ecs::detail {
 				std::intptr_t target;
 				std::intptr_t size;
 				node* from;
-				bool operator<(stepper const& a) const {
+				constexpr bool operator<(stepper const& a) const {
 					return (a.target < target);
 				}
 			};
 
 			// Load up steppers
-			//std::vector<stepper> stack(log_n);
 			stepper stack[32];
-			stack[0] = {size - 1, size - 1, root.get()};
-			node* current = root->next.get();
-			for (int i = 1; i < log_n && i < size - 1; i++) {
+			node* current = root.get();
+			for (int i = 0; i < log_n; i++) {
 				int const step = 1 << (log_n - i);
-				stack[i] = {i + step, step, current};
+				stack[log_n-1-i] = {i + step, step, current};
 				current = current->next.get();
 			}
 			//std::ranges::make_heap(stack, stack + log_n, std::less{});
@@ -58,19 +56,14 @@ namespace ecs::detail {
 			// Set up the jump points
 			current = root.get();
 			std::intptr_t i = 0;
+			stepper* min_step = &stack[log_n - 1];
 			while (current->next != nullptr) {
-				int index = log_n - 1;
-				while (stack[index].target == i) {
-					stepper& st = stack[index];
-					index -= 1;
-
-					//std::ranges::pop_heap(stack, stack + index, std::less{});
-
-					st.from->next_power = current->next.get();
-
-					st.from = current;
-					st.target = i + st.size;
-					//std::ranges::push_heap(stack, stack + index + 1, std::less{});
+				while (stack[0].target == i) {
+					std::pop_heap(stack, stack + log_n);
+					min_step->from->next_power = current->next.get();
+					min_step->from = current;
+					min_step->target += min_step->size;
+					std::push_heap(stack, stack + log_n);
 				}
 
 				i += 1;
@@ -98,6 +91,22 @@ namespace ecs::detail {
 		}
 
 	private:
+		constexpr struct node* find(T val) const {
+			if (val < root->data || val > root->next_power->data)
+				return nullptr;
+
+			node* n = root.get();
+			while (val > n->data) {
+				if (val >= n->next_power->data) {
+					n = n->next_power;
+				} else {
+					n = n->next.get();
+				}
+			}
+
+			return (val == n->data) ? n : nullptr;
+		}
+
 		struct node {
 			std::unique_ptr<node> next;
 			node* next_power;
@@ -108,7 +117,7 @@ namespace ecs::detail {
 		std::intptr_t size = 0;
 	};
 
-	//static_assert(gorking_list<int>(std::views::iota(-2, 100)).contains(-1));
+	static_assert(gorking_list<int>(std::views::iota(-2, 100)).contains(-1));
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_GORKING_LIST_H

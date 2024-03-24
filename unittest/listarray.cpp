@@ -48,11 +48,10 @@ int search(node* n, int val) {
 }
 
 TEST_CASE("Gorking list") {
-	constexpr unsigned int N = 78;
+	constexpr unsigned int N = 102;
 	int constexpr log_n = std::bit_width(N);
 
 	std::array<node, N> nodes{};
-	std::priority_queue<stepper> stack;
 
 	// Init linked list
 	for (int i = 0; i < N - 1; i += 1) {
@@ -62,36 +61,34 @@ TEST_CASE("Gorking list") {
 	nodes[N - 1] = {&nodes[N - 1], nullptr, N - 1};
 
 	// Load up steppers
-	stack.emplace(N - 1, N - 1, &nodes[0]);
-	for (int i = 1; i < log_n && i < N - 1; i++) {
+	node* current = &nodes[0];
+	stepper stack[32];
+	for (int i = 0; i < log_n; i++) {
 		int const step = 1 << (log_n - i);
-		stack.emplace(i + step, step, &nodes[i]);
+		stack[log_n-1-i] = {i + step, step, current};
+		current = current->next;
 	}
+	//std::make_heap(stack, stack + log_n);
 
 	// Set up the jump points
-	node* current = &nodes[0];
 	int i = 0;
+	current = &nodes[0];
+	stepper* min_step = &stack[log_n - 1];
 	while (current->next != nullptr) {
-		while (stack.top().target == i) {
-			stepper st = stack.top();
-			stack.pop();
-
-			st.from->next_power = current->next;
-
-			st.from = current;
-			st.target = i + st.size;
-			stack.push(st);
+		while (stack[0].target == i) {
+			std::pop_heap(stack, stack + log_n);
+			min_step->from->next_power = current->next;
+			min_step->from = current;
+			min_step->target = i + min_step->size;
+			std::push_heap(stack, stack + log_n);
 		}
 
 		i += 1;
 		current = current->next;
 	}
-	while (!stack.empty()) {
-		stack.top().from->next_power = current;
-		stack.pop();
+	for (i = 0; i < log_n; i++) {
+		stack[i].from->next_power = current;
 	}
-
-	CHECK(stack.empty());
 
 #if 1
 	for (node& n : nodes) {
