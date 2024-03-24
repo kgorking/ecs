@@ -1,3 +1,4 @@
+#include "ecs/detail/gorking_list.h"
 #include <array>
 #include <bit>
 #include <catch2/catch_test_macros.hpp>
@@ -5,7 +6,6 @@
 #include <iostream>
 #include <queue>
 #include <ranges>
-#include "ecs/detail/gorking_list.h"
 
 using ecs::detail::listarray;
 
@@ -14,8 +14,7 @@ constexpr int log_2(std::unsigned_integral auto i) {
 }
 
 struct node {
-	node* next_power;
-	node* next;
+	node* next[2];
 	int data;
 };
 
@@ -31,16 +30,12 @@ struct stepper {
 int search(node* n, int val) {
 	std::cout << n->data;
 
-	if (val < n->data || val > n->next_power->data)
+	if (val < n->data || val > n->next[1]->data)
 		return -1;
 
 	int steps = 0;
 	while (val > n->data) {
-		if (val >= n->next_power->data) {
-			n = n->next_power;
-		} else {
-			n = n->next;
-		}
+		n = n->next[val >= n->next[1]->data];
 		std::cout << " -> " << n->data;
 		steps += 1;
 	}
@@ -56,45 +51,45 @@ TEST_CASE("Gorking list") {
 	// Init linked list
 	for (int i = 0; i < N - 1; i += 1) {
 		node* const next = &nodes[i + 1];
-		nodes[i] = {next, next, i};
+		nodes[i] = {{next, next}, i};
 	}
-	nodes[N - 1] = {&nodes[N - 1], nullptr, N - 1};
+	nodes[N - 1] = {{nullptr, &nodes[N - 1]}, N - 1};
 
 	// Load up steppers
 	node* current = &nodes[0];
 	stepper stack[32];
 	for (int i = 0; i < log_n; i++) {
 		int const step = 1 << (log_n - i);
-		stack[log_n-1-i] = {i + step, step, current};
-		current = current->next;
+		stack[log_n - 1 - i] = {i + step, step, current};
+		current = current->next[0];
 	}
-	//std::make_heap(stack, stack + log_n);
+	// std::make_heap(stack, stack + log_n);
 
 	// Set up the jump points
 	int i = 0;
 	current = &nodes[0];
 	stepper* min_step = &stack[log_n - 1];
-	while (current->next != nullptr) {
+	while (current->next[0] != nullptr) {
 		while (stack[0].target == i) {
 			std::pop_heap(stack, stack + log_n);
-			min_step->from->next_power = current->next;
+			min_step->from->next[1] = current->next[0];
 			min_step->from = current;
 			min_step->target = i + min_step->size;
 			std::push_heap(stack, stack + log_n);
 		}
 
 		i += 1;
-		current = current->next;
+		current = current->next[0];
 	}
 	for (i = 0; i < log_n; i++) {
-		stack[i].from->next_power = current;
+		stack[i].from->next[1] = current;
 	}
 
 #if 1
 	for (node& n : nodes) {
 		std::cout << n.data;
-		if (n.next_power != nullptr) {
-			auto const dist = std::distance(&nodes[n.data], n.next_power);
+		if (n.next[1] != nullptr) {
+			auto const dist = std::distance(&nodes[n.data], n.next[1]);
 			std::cout << " -> " << (n.data + dist);
 			std::cout << "  distance: " << dist;
 		}

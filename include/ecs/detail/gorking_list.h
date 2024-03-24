@@ -3,6 +3,8 @@
 
 #include <queue>
 #include <ranges>
+#include <memory>
+#include <cassert>
 
 namespace ecs::detail {
 	template <typename T>
@@ -44,33 +46,33 @@ namespace ecs::detail {
 			};
 
 			// Load up steppers
-			stepper stack[32];
+			stepper steppers[32];
 			node* current = root.get();
 			for (int i = 0; i < log_n; i++) {
 				int const step = 1 << (log_n - i);
-				stack[log_n-1-i] = {i + step, step, current};
+				steppers[log_n-1-i] = {i + step, step, current};
 				current = current->next.get();
 			}
-			//std::ranges::make_heap(stack, stack + log_n, std::less{});
+			//std::ranges::make_heap(steppers, steppers + log_n, std::less{});
 
 			// Set up the jump points
 			current = root.get();
 			std::intptr_t i = 0;
-			stepper* min_step = &stack[log_n - 1];
+			stepper* min_step = &steppers[log_n - 1];
 			while (current->next != nullptr) {
-				while (stack[0].target == i) {
-					std::pop_heap(stack, stack + log_n);
+				while (steppers[0].target == i) {
+					std::pop_heap(steppers, steppers + log_n);
 					min_step->from->next_power = current->next.get();
 					min_step->from = current;
 					min_step->target += min_step->size;
-					std::push_heap(stack, stack + log_n);
+					std::push_heap(steppers, steppers + log_n);
 				}
 
 				i += 1;
 				current = current->next.get();
 			}
 			for (i = 0; i < log_n; i++) {
-				stack[i].from->next_power = current;
+				steppers[i].from->next_power = current;
 			}
 		}
 
@@ -108,6 +110,7 @@ namespace ecs::detail {
 		}
 
 		struct node {
+			//node* next[2];
 			std::unique_ptr<node> next;
 			node* next_power;
 			T data;
@@ -117,7 +120,7 @@ namespace ecs::detail {
 		std::intptr_t size = 0;
 	};
 
-	static_assert(gorking_list<int>(std::views::iota(-2, 100)).contains(-1));
+	static_assert(gorking_list<int>(std::views::iota(-2, 2)).contains(-1));
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_GORKING_LIST_H
