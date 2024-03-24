@@ -1,12 +1,17 @@
 #include <array>
+#include <bit>
 #include <catch2/catch_test_macros.hpp>
 #include <ecs/detail/listarray.h>
 #include <iostream>
 #include <queue>
 #include <ranges>
-#include <stack>
+#include "ecs/detail/gorking_list.h"
 
 using ecs::detail::listarray;
+
+constexpr int log_2(std::unsigned_integral auto i) {
+	return sizeof(i) * 8 - std::countl_zero(i); // (int)std::ceil(std::log2(N));
+}
 
 struct node {
 	node* next_power;
@@ -17,7 +22,6 @@ struct node {
 struct stepper {
 	int target;
 	int size;
-	int offset;
 	node* from;
 	bool operator<(stepper other) const {
 		return (other.target < target);
@@ -27,64 +31,69 @@ struct stepper {
 int search(node* n, int val) {
 	std::cout << n->data;
 
+	if (val < n->data || val > n->next_power->data)
+		return -1;
+
 	int steps = 0;
 	while (val > n->data) {
 		if (val >= n->next_power->data) {
 			n = n->next_power;
-			std::cout << " -> " << n->data;
 		} else {
 			n = n->next;
-			std::cout << " -> " << n->data;
 		}
+		std::cout << " -> " << n->data;
 		steps += 1;
 	}
 	return (val == n->data) ? steps : -1;
 }
 
 TEST_CASE("Gorking list") {
-	constexpr int N = 127;
-	std::array<node, N> nodes;
+	constexpr unsigned int N = 78;
+	int constexpr log_n = std::bit_width(N);
 
-	int log_n = (int)std::ceil(std::log2(N));
-	// int log_n = 1;
-	// while (N >= (1 << log_n))
-	//	log_n += 1;
-	std::cout << "log " << N << " =" << log_n << '\n';
-	std::cout << "1<<log_n " << (1 << log_n) << '\n';
+	std::array<node, N> nodes{};
+	std::priority_queue<stepper> stack;
+
+	// Init linked list
+	for (int i = 0; i < N - 1; i += 1) {
+		node* const next = &nodes[i + 1];
+		nodes[i] = {next, next, i};
+	}
+	nodes[N - 1] = {&nodes[N - 1], nullptr, N - 1};
 
 	// Load up steppers
-	std::priority_queue<stepper> stack;
-	stack.emplace(N - 1, N - 1, 0, &nodes[0]);
-	for (int i = 1; i < log_n + 1; i++) {
+	stack.emplace(N - 1, N - 1, &nodes[0]);
+	for (int i = 1; i < log_n && i < N - 1; i++) {
 		int const step = 1 << (log_n - i);
-		stack.emplace(i + step, step, i, &nodes[i]);
+		stack.emplace(i + step, step, &nodes[i]);
 	}
 
-	for (int i = 0; i < N; i += 1) {
-		node* next = (i < N - 1) ? &nodes[i + 1] : nullptr;
-		nodes[i] = {nullptr, next, i};
-
-		while (!stack.empty() && stack.top().target == i) {
-			auto st = stack.top();
+	// Set up the jump points
+	node* current = &nodes[0];
+	int i = 0;
+	while (current->next != nullptr) {
+		while (stack.top().target == i) {
+			stepper st = stack.top();
 			stack.pop();
 
-			st.from->next_power = &nodes[i];
-			st.target = i + st.size;
+			st.from->next_power = current->next;
 
-			/*if (st.target < N)*/ {
-				st.from = &nodes[i];
-				stack.push(st);
-			}
+			st.from = current;
+			st.target = i + st.size;
+			stack.push(st);
 		}
+
+		i += 1;
+		current = current->next;
 	}
-	while (!stack.empty() ) {
-		stack.top().from->next_power = &nodes.back();
+	while (!stack.empty()) {
+		stack.top().from->next_power = current;
 		stack.pop();
 	}
 
 	CHECK(stack.empty());
 
-#if 0
+#if 1
 	for (node& n : nodes) {
 		std::cout << n.data;
 		if (n.next_power != nullptr) {
@@ -95,8 +104,8 @@ TEST_CASE("Gorking list") {
 		std::cout << '\n';
 	}
 #endif
-	node* root = &nodes[0];
 #if 1
+	node* root = &nodes[0];
 	int total_steps = 0;
 	int max_steps = 0;
 	for (node& n : nodes) {
@@ -107,11 +116,13 @@ TEST_CASE("Gorking list") {
 		std::cout << " (" << steps << ")\n";
 	}
 	std::cout << "\nMaximum steps: " << max_steps << '\n';
-	std::cout << "Total steps: " << total_steps << '\n';
-#else
-	static_assert(N == 100);
-	std::cout << '\n';
-	std::cout << "steps: " << search(root, 37) << '\n';
-	std::cout << "steps: " << search(root, 83) << '\n';
+	std::cout << "Total steps  : " << total_steps << '\n';
+#endif
+#if 1
+	ecs::detail::gorking_list<int> list(std::views::iota(-2, 100));
+	for (int const val : std::views::iota(-2, 100))
+		REQUIRE(list.contains(val));
+	REQUIRE(!list.contains(-3));
+	REQUIRE(!list.contains(101));
 #endif
 }
