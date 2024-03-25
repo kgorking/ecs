@@ -43,8 +43,8 @@ int search(node* n, int val) {
 }
 
 TEST_CASE("Gorking list") {
-	constexpr unsigned int N = 102;
-	int constexpr log_n = std::bit_width(N);
+	constexpr int N = 102;
+	int constexpr log_n = std::bit_width((unsigned)N);
 
 	std::array<node, N> nodes{};
 

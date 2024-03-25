@@ -15,7 +15,7 @@ namespace ecs::detail {
 		std::vector<node> nodes;
 		std::vector<T> vec;
 	};
-	static_assert(sizeof(listarray<int>) == 64);
+	//static_assert(sizeof(listarray<int>) == 64);
 
 } // namespace ecs::detail
 

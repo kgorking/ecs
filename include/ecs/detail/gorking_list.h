@@ -5,6 +5,7 @@
 #include <ranges>
 #include <memory>
 #include <cassert>
+#include <algorithm>
 
 namespace ecs::detail {
 	template <typename T>
@@ -16,18 +17,26 @@ namespace ecs::detail {
 
 			node* curr = nullptr;
 			for (auto val : range) {
-				auto n = std::make_unique<node>(nullptr, nullptr, val);
+				node* n = new node{{nullptr, nullptr}, val};
 				if (!curr) {
-					root = std::move(n);
-					curr = root.get();
+					root = curr = n;
 				} else {
-					curr->next = std::move(n);
-					curr->next_power = curr->next.get();
-					curr = curr->next.get();
+					curr->next[0] = n;
+					curr->next[1] = n;
+					curr = n;
 				}
 			}
 
 			rebalance();
+		}
+
+		constexpr ~gorking_list() {
+			node* n = root;
+			while (n) {
+				node* next = n->next[0];
+				delete n;
+				n = next;
+			}
 		}
 
 		constexpr void rebalance() {
@@ -47,76 +56,56 @@ namespace ecs::detail {
 
 			// Load up steppers
 			stepper steppers[32];
-			node* current = root.get();
+			node* current = root;
 			for (int i = 0; i < log_n; i++) {
 				int const step = 1 << (log_n - i);
 				steppers[log_n-1-i] = {i + step, step, current};
-				current = current->next.get();
+				current = current->next[0];
 			}
 			//std::ranges::make_heap(steppers, steppers + log_n, std::less{});
 
 			// Set up the jump points
-			current = root.get();
+			current = root;
 			std::intptr_t i = 0;
 			stepper* min_step = &steppers[log_n - 1];
-			while (current->next != nullptr) {
+			while (current->next[0] != nullptr) {
 				while (steppers[0].target == i) {
 					std::pop_heap(steppers, steppers + log_n);
-					min_step->from->next_power = current->next.get();
+					min_step->from->next[1] = current->next[0];
 					min_step->from = current;
 					min_step->target += min_step->size;
 					std::push_heap(steppers, steppers + log_n);
 				}
 
 				i += 1;
-				current = current->next.get();
+				current = current->next[0];
 			}
 			for (i = 0; i < log_n; i++) {
-				steppers[i].from->next_power = current;
+				steppers[i].from->next[1] = current;
 			}
 		}
 
 		constexpr bool contains(T const& val) const {
-			if (val < root->data || val > root->next_power->data)
-				return false;
-
-			node* n = root.get();
-			while (val > n->data) {
-				if (val >= n->next_power->data) {
-					n = n->next_power;
-				} else {
-					n = n->next.get();
-				}
-			}
-
+			node* n = root;
+			while (val > n->data)
+				n = n->next[val >= n->next[1]->data];
 			return (val == n->data);
 		}
 
 	private:
 		constexpr struct node* find(T val) const {
-			if (val < root->data || val > root->next_power->data)
-				return nullptr;
-
-			node* n = root.get();
-			while (val > n->data) {
-				if (val >= n->next_power->data) {
-					n = n->next_power;
-				} else {
-					n = n->next.get();
-				}
-			}
-
+			node* n = root;
+			while (val > n->data)
+				n = n->next[val >= n->next[1]->data];
 			return (val == n->data) ? n : nullptr;
 		}
 
 		struct node {
-			//node* next[2];
-			std::unique_ptr<node> next;
-			node* next_power;
-			T data;
+			node* next[2]{};
+			T data{};
 		};
 
-		std::unique_ptr<node> root = nullptr;
+		node* root = nullptr;
 		std::intptr_t size = 0;
 	};
 
