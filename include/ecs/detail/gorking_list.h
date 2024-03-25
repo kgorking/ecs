@@ -1,19 +1,142 @@
 #ifndef ECS_DETAIL_GORKING_LIST_H
 #define ECS_DETAIL_GORKING_LIST_H
 
+#include "contract.h"
+#include <algorithm>
+#include <memory>
 #include <queue>
 #include <ranges>
-#include <memory>
-#include <cassert>
-#include <algorithm>
 
 namespace ecs::detail {
 	template <typename T>
-	struct gorking_list {
-		constexpr gorking_list(std::ranges::sized_range auto const& range) {
-			assert(std::ranges::is_sorted(range));
+	class gorking_list {
+		struct node {
+			node* next[2]{};
+			T data{};
+		};
 
-			size = std::ssize(range);
+		struct balance_helper {
+			struct stepper {
+				std::size_t target;
+				std::size_t size;
+				node* from;
+				constexpr bool operator<(stepper const& a) const {
+					return (a.target < target);
+				}
+			};
+
+			node* curr{};
+			node* last{};
+			std::size_t log_n{};
+			std::size_t index{0};
+			std::array<stepper, 32> steppers{};
+
+			constexpr balance_helper(node* n, std::size_t count) : curr(n), log_n(std::bit_width(count)) {
+				Pre(std::cmp_less(log_n, steppers.size()), "List is too large, increase array capacity");
+
+				// Load up steppers
+				node* current = n;
+				for (std::size_t i = 0; i < log_n; i++) {
+					std::size_t const step = std::size_t{1} << (log_n - i);
+					steppers[log_n - 1 - i] = {i + step, step, current};
+					current = current->next[0];
+				}
+			}
+			constexpr ~balance_helper() {
+				while (*this)
+					balance_current_and_advance();
+
+				for (std::size_t i = 0; i < log_n; i++)
+					steppers[i].from->next[1] = last;
+			}
+			constexpr void balance_current_and_advance() {
+				stepper* min_step = &steppers[log_n - 1];
+				while (steppers[0].target == index) {
+					std::pop_heap(steppers.data(), steppers.data() + log_n);
+					min_step->from->next[1] = curr->next[0];
+					min_step->from = curr;
+					min_step->target += min_step->size;
+					std::push_heap(steppers.data(), steppers.data() + log_n);
+				}
+
+				last = curr;
+				curr = curr->next[0];
+				index += 1;
+			}
+			constexpr operator bool() const {
+				return nullptr != curr;
+			}
+		};
+
+	public:
+		struct iterator {
+			friend class gorking_list;
+
+			// iterator traits
+			using difference_type = ptrdiff_t;
+			using value_type = T;
+			using pointer = const T*;
+			using reference = const T&;
+			using iterator_category = std::forward_iterator_tag;
+
+			constexpr iterator() noexcept = default;
+			constexpr iterator(node* n, std::size_t count) : curr(n) {
+				if (count > 0)
+					helper = new balance_helper(n, count);
+			}
+			constexpr iterator(node* curr, node* prev) : curr(curr), prev(prev) {}
+			constexpr ~iterator() {
+				if (helper)
+					delete helper;
+			}
+
+			constexpr iterator& operator++() {
+				Pre(curr != nullptr, "Trying to step past end of list");
+				if (helper)
+					helper->balance_current_and_advance();
+				prev = curr;
+				curr = curr->next[0];
+				return *this;
+			}
+
+			constexpr iterator operator++(int) {
+				iterator const retval = *this;
+				++(*this);
+				return retval;
+			}
+
+			constexpr bool operator==(std::default_sentinel_t) const {
+				return curr == nullptr;
+			}
+
+			constexpr bool operator==(iterator other) const {
+				return curr == other.curr;
+			}
+
+			constexpr bool operator!=(iterator other) const {
+				return !(*this == other);
+			}
+
+			constexpr operator bool() const {
+				return curr != nullptr;
+			}
+
+			constexpr value_type operator*() const {
+				Pre(curr != nullptr, "Dereferencing null");
+				return curr->data;
+			}
+
+		private:
+			node* curr{};
+			node* prev{};
+			balance_helper* helper{};
+		};
+
+		constexpr gorking_list() = default;
+		constexpr gorking_list(std::ranges::sized_range auto const& range) {
+			Pre(std::ranges::is_sorted(range), "Input range must be sorted");
+
+			count = std::size(range);
 
 			node* curr = nullptr;
 			for (auto val : range) {
@@ -27,6 +150,7 @@ namespace ecs::detail {
 				}
 			}
 
+			needs_rebalance = true;
 			rebalance();
 		}
 
@@ -39,77 +163,156 @@ namespace ecs::detail {
 			}
 		}
 
-		constexpr void rebalance() {
-			if (!root)
+		constexpr iterator begin() {
+			return {root, static_cast<std::size_t>(needs_rebalance ? count : 0)};
+		}
+
+		constexpr std::default_sentinel_t end() {
+			return {};
+		}
+
+		constexpr std::size_t size() const {
+			return count;
+		}
+
+		constexpr bool empty() const {
+			return nullptr == root;
+		}
+
+		constexpr void insert(T val) {
+			if (root == nullptr) {
+				root = new node{{nullptr, nullptr}, val};
+				root->next[1] = root;
+			} else if (val < root->data) {
+				root = new node{{root, root->next[1]}, val};
+			} else if (node* last = root->next[1]; last && val >= last->data) {
+				node* n = new node{{nullptr, nullptr}, val};
+				last->next[0] = n;
+				last->next[1] = n;
+				root->next[1] = n;
+			} else {
+				node* prev = root;
+				node* n = root->next[val > root->data];
+				while (val > n->data) {
+					prev = n;
+					n = n->next[val >= n->next[1]->data];
+				}
+
+				prev->next[0] = new node{{n, n}, val};
+			}
+
+			count += 1;
+			needs_rebalance = true;
+		}
+
+		constexpr void remove(T val) {
+			erase(find_prev(val));
+		}
+
+		constexpr void erase(iterator it) {
+			if (!it)
 				return;
 
-			int const log_n = std::bit_width<std::uintptr_t>(size);
+			node* n = it.curr;
+			node* next = n->next[0];
+			delete n;
+			it.prev->next[0] = next;
 
-			struct stepper {
-				std::intptr_t target;
-				std::intptr_t size;
-				node* from;
-				constexpr bool operator<(stepper const& a) const {
-					return (a.target < target);
-				}
-			};
+			count -= 1;
+			needs_rebalance = true;
+		}
 
-			// Load up steppers
-			stepper steppers[32];
-			node* current = root;
-			for (int i = 0; i < log_n; i++) {
-				int const step = 1 << (log_n - i);
-				steppers[log_n-1-i] = {i + step, step, current};
-				current = current->next[0];
+		constexpr void rebalance() {
+			if (root && needs_rebalance) {
+				balance_helper bh(root, count);
+				while (bh)
+					bh.balance_current_and_advance();
 			}
-			//std::ranges::make_heap(steppers, steppers + log_n, std::less{});
 
-			// Set up the jump points
-			current = root;
-			std::intptr_t i = 0;
-			stepper* min_step = &steppers[log_n - 1];
-			while (current->next[0] != nullptr) {
-				while (steppers[0].target == i) {
-					std::pop_heap(steppers, steppers + log_n);
-					min_step->from->next[1] = current->next[0];
-					min_step->from = current;
-					min_step->target += min_step->size;
-					std::push_heap(steppers, steppers + log_n);
-				}
-
-				i += 1;
-				current = current->next[0];
-			}
-			for (i = 0; i < log_n; i++) {
-				steppers[i].from->next[1] = current;
-			}
+			needs_rebalance = false;
 		}
 
 		constexpr bool contains(T const& val) const {
-			node* n = root;
-			while (val > n->data)
-				n = n->next[val >= n->next[1]->data];
-			return (val == n->data);
+			return find_prev(val);
 		}
 
 	private:
-		constexpr struct node* find(T val) const {
+		constexpr struct iterator find_prev(T const& val) const {
+			if (root == nullptr || val < root->data || val > root->next[1]->data)
+				return {};
+
+			node* prev = nullptr;
 			node* n = root;
-			while (val > n->data)
+			while (val > n->data) {
+				prev = n;
 				n = n->next[val >= n->next[1]->data];
-			return (val == n->data) ? n : nullptr;
+			}
+
+			if (n->data == val)
+				return {n, prev};
+			else
+				return {};
 		}
 
-		struct node {
-			node* next[2]{};
-			T data{};
-		};
-
 		node* root = nullptr;
-		std::intptr_t size = 0;
+		std::size_t count : 63 = 0;
+		std::size_t needs_rebalance : 1 = false;
 	};
 
-	static_assert(gorking_list<int>(std::views::iota(-2, 2)).contains(-1));
+	// UNIT TESTS
+	static_assert(
+		[] {
+			gorking_list<int> list;
+			list.remove(123);
+			return list.empty() && list.size() == 0 && !list.contains(0);
+		}(),
+		"Empty list");
+
+	static_assert(
+		[] {
+			auto const iota = std::views::iota(-2, 2);
+			gorking_list<int> list(iota);
+			for (int v : iota)
+				Assert(list.contains(v), "Value not found");
+			return true;
+		}(),
+		"Construction from a range");
+
+	static_assert(
+		[] {
+			auto const iota = std::views::iota(-2, 2);
+			gorking_list<int> list;
+			for (int v : iota)
+				list.insert(v);
+			for (int v : iota)
+				if (!list.contains(v))
+					return false;
+			return true;
+		}(),
+		"Insert");
+
+	static_assert(
+		[] {
+			auto const iota = std::views::iota(-200, 200);
+			gorking_list<int> list;
+			for (int v : iota)
+				list.insert(v);
+			list.rebalance();
+			return list.contains(1);
+		}(),
+		"Explicit rebalance");
+
+	static_assert(
+		[] {
+			auto const iota = std::views::iota(-200, 200);
+			gorking_list<int> list;
+			for (int v : iota)
+				list.insert(v);
+			for (int v : list)
+				v += 0;
+			return list.contains(1);
+		}(),
+		"Implicit rebalance");
 } // namespace ecs::detail
 
 #endif // !ECS_DETAIL_GORKING_LIST_H

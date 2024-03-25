@@ -9,10 +9,6 @@
 
 using ecs::detail::listarray;
 
-constexpr int log_2(std::unsigned_integral auto i) {
-	return sizeof(i) * 8 - std::countl_zero(i); // (int)std::ceil(std::log2(N));
-}
-
 struct node {
 	node* next[2];
 	int data;
@@ -110,11 +106,32 @@ TEST_CASE("Gorking list") {
 	std::cout << "\nMaximum steps: " << max_steps << '\n';
 	std::cout << "Total steps  : " << total_steps << '\n';
 #endif
-#if 1
+
+#if 0
 	ecs::detail::gorking_list<int> list(std::views::iota(-2, 100));
 	for (int const val : std::views::iota(-2, 100))
 		REQUIRE(list.contains(val));
 	REQUIRE(!list.contains(-3));
 	REQUIRE(!list.contains(101));
+
+	list.insert(101);
+	REQUIRE(list.contains(101));
+	list.insert(-3);
+	REQUIRE(list.contains(-3));
+	list.insert(22);
+	REQUIRE(list.contains(22));
+
+	ecs::detail::gorking_list<int> list2;
+	for (int const val : std::views::iota(-2, 100))
+		list2.insert(val);
+	for (int val : list2)
+		val++;
+	REQUIRE(list2.contains(83));
+
+	list2.remove(83);
+	REQUIRE(list2.contains(82));
+	REQUIRE(!list2.contains(83));
+	REQUIRE(list2.contains(84));
+
 #endif
 }
