@@ -9,7 +9,7 @@
 
 namespace ecs::detail {
 	template <typename T>
-	class gorking_list {
+	class power_list {
 		struct node {
 			node* next[2]{};
 			T data{};
@@ -70,7 +70,7 @@ namespace ecs::detail {
 
 	public:
 		struct iterator {
-			friend class gorking_list;
+			friend class power_list;
 
 			// iterator traits
 			using difference_type = ptrdiff_t;
@@ -132,8 +132,8 @@ namespace ecs::detail {
 			balance_helper* helper{};
 		};
 
-		constexpr gorking_list() = default;
-		constexpr gorking_list(std::ranges::sized_range auto const& range) {
+		constexpr power_list() = default;
+		constexpr power_list(std::ranges::sized_range auto const& range) {
 			Pre(std::ranges::is_sorted(range), "Input range must be sorted");
 
 			count = std::size(range);
@@ -154,7 +154,7 @@ namespace ecs::detail {
 			rebalance();
 		}
 
-		constexpr ~gorking_list() {
+		constexpr ~power_list() {
 			node* n = root;
 			while (n) {
 				node* next = n->next[0];
@@ -262,7 +262,7 @@ namespace ecs::detail {
 	// UNIT TESTS
 	static_assert(
 		[] {
-			gorking_list<int> list;
+			power_list<int> list;
 			list.remove(123);
 			return list.empty() && list.size() == 0 && !list.contains(0);
 		}(),
@@ -271,7 +271,7 @@ namespace ecs::detail {
 	static_assert(
 		[] {
 			auto const iota = std::views::iota(-2, 2);
-			gorking_list<int> list(iota);
+			power_list<int> list(iota);
 			for (int v : iota)
 				Assert(list.contains(v), "Value not found");
 			return true;
@@ -281,7 +281,7 @@ namespace ecs::detail {
 	static_assert(
 		[] {
 			auto const iota = std::views::iota(-2, 2);
-			gorking_list<int> list;
+			power_list<int> list;
 			for (int v : iota)
 				list.insert(v);
 			for (int v : iota)
@@ -294,7 +294,7 @@ namespace ecs::detail {
 	static_assert(
 		[] {
 			auto const iota = std::views::iota(-200, 200);
-			gorking_list<int> list;
+			power_list<int> list;
 			for (int v : iota)
 				list.insert(v);
 			list.rebalance();
@@ -305,7 +305,7 @@ namespace ecs::detail {
 	static_assert(
 		[] {
 			auto const iota = std::views::iota(-200, 200);
-			gorking_list<int> list;
+			power_list<int> list;
 			for (int v : iota)
 				list.insert(v);
 			for (int v : list)

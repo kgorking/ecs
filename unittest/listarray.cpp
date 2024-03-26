@@ -1,13 +1,10 @@
-#include "ecs/detail/gorking_list.h"
+#include "ecs/detail/power_list.h"
 #include <array>
 #include <bit>
 #include <catch2/catch_test_macros.hpp>
-#include <ecs/detail/listarray.h>
 #include <iostream>
 #include <queue>
 #include <ranges>
-
-using ecs::detail::listarray;
 
 struct node {
 	node* next[2];
@@ -108,7 +105,7 @@ TEST_CASE("Gorking list") {
 #endif
 
 #if 0
-	ecs::detail::gorking_list<int> list(std::views::iota(-2, 100));
+	ecs::detail::power_list<int> list(std::views::iota(-2, 100));
 	for (int const val : std::views::iota(-2, 100))
 		REQUIRE(list.contains(val));
 	REQUIRE(!list.contains(-3));
@@ -121,7 +118,7 @@ TEST_CASE("Gorking list") {
 	list.insert(22);
 	REQUIRE(list.contains(22));
 
-	ecs::detail::gorking_list<int> list2;
+	ecs::detail::power_list<int> list2;
 	for (int const val : std::views::iota(-2, 100))
 		list2.insert(val);
 	for (int val : list2)
