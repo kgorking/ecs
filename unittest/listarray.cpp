@@ -36,8 +36,8 @@ int search(node* n, int val) {
 }
 
 TEST_CASE("Gorking list") {
-	constexpr int N = 102;
-	int constexpr log_n = std::bit_width((unsigned)N);
+	constexpr int N = 64;
+	int constexpr log_n = std::bit_width((unsigned)N-1);
 
 	std::array<node, N> nodes{};
 
@@ -58,7 +58,7 @@ TEST_CASE("Gorking list") {
 	}
 	// std::make_heap(stack, stack + log_n);
 
-	// Set up the jump points
+	// Rebuild the jump points in O(n log log n) time
 	int i = 0;
 	current = &nodes[0];
 	stepper* min_step = &stack[log_n - 1];
@@ -83,8 +83,16 @@ TEST_CASE("Gorking list") {
 		std::cout << n.data;
 		if (n.next[1] != nullptr) {
 			auto const dist = std::distance(&nodes[n.data], n.next[1]);
-			std::cout << " -> " << (n.data + dist);
-			std::cout << "  distance: " << dist;
+			std::cout << "\t -> " << (n.data + dist);
+			//std::cout << "  distance: " << dist;
+
+			if (dist > 1) {
+				int ix = std::bit_width(unsigned(dist - 2));
+				std::cout << "\t  pow2: " << (1 << ix);
+
+				int const next_pow2 = 1 << std::bit_width(unsigned((ix | (ix - 1)) + 1));
+				std::cout << "\t  next pow2: " << (next_pow2);
+			}
 		}
 		std::cout << '\n';
 	}
@@ -103,6 +111,15 @@ TEST_CASE("Gorking list") {
 	std::cout << "\nMaximum steps: " << max_steps << '\n';
 	std::cout << "Total steps  : " << total_steps << '\n';
 #endif
+
+	auto const iota = std::views::iota(-200, 200);
+	ecs::detail::power_list<int> list;
+	for (int v : iota)
+		list.insert(v);
+	for (int v : list)
+		v += 0;
+	for (int v : iota)
+		REQUIRE(list.contains(v));
 
 #if 0
 	ecs::detail::power_list<int> list(std::views::iota(-2, 100));
@@ -131,4 +148,58 @@ TEST_CASE("Gorking list") {
 	REQUIRE(list2.contains(84));
 
 #endif
+}
+
+
+#include <bit>
+#include <cassert>
+#include <format>
+#include <iostream>
+
+void print_steppers_bitpattern() {
+	constexpr unsigned N = 256;
+	constexpr unsigned log_N = std::bit_width(N);
+
+	// Diag data
+	unsigned arr[N + 1]{};
+	unsigned max[N + 1]{};
+	unsigned mask[N + 1]{};
+	std::fill_n(arr, N, 0);
+	std::fill_n(max, N, 0);
+	std::fill_n(mask, N, 0);
+
+	struct stepper {
+		unsigned target;
+		unsigned size;
+	};
+
+	constexpr unsigned num_steppers = log_N;
+	std::array<stepper, num_steppers> steppers;
+	for (unsigned curr_log = 0; curr_log < num_steppers; curr_log++) {
+		unsigned const log_stepsize = (log_N - 1 - curr_log);
+		unsigned const stepsize = 1 << log_stepsize;
+		steppers[log_stepsize] = {curr_log + stepsize, stepsize};
+
+		arr[curr_log] = stepsize;
+		max[curr_log] = stepsize;
+		mask[curr_log] = stepsize;
+	}
+
+	for (unsigned i = num_steppers; i < N; i++) {
+		unsigned mask_i = 0;
+		mask[i] = mask_i;
+
+		for (unsigned curr_log = 0; curr_log < num_steppers; curr_log++) {
+			if (steppers[curr_log].target == i) {
+				arr[i] |= steppers[curr_log].size;
+				max[i] = std::max(max[i], steppers[curr_log].size);
+				steppers[curr_log].target += steppers[curr_log].size;
+			}
+		}
+	}
+
+	std::cout << std::format("\nN = {:>3}, log(N) = {:>3}\n\n", N, log_N);
+	for (unsigned i = 0; i < N; i++) {
+		std::cout << std::format("{:>3} : {:>12b} - {:>12} - {}\n", i, arr[i], mask[i], max[i]);
+	}
 }

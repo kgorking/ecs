@@ -26,12 +26,11 @@ namespace ecs::detail {
 			};
 
 			node* curr{};
-			node* last{};
 			std::size_t log_n{};
 			std::size_t index{0};
 			std::array<stepper, 32> steppers{};
 
-			constexpr balance_helper(node* n, std::size_t count) : curr(n), log_n(std::bit_width(count)) {
+			constexpr balance_helper(node* n, std::size_t count) : curr(n), log_n(std::bit_width(count-1)) {
 				Pre(std::cmp_less(log_n, steppers.size()), "List is too large, increase array capacity");
 
 				// Load up steppers
@@ -47,24 +46,24 @@ namespace ecs::detail {
 					balance_current_and_advance();
 
 				for (std::size_t i = 0; i < log_n; i++)
-					steppers[i].from->next[1] = last;
+					steppers[i].from->next[1] = curr;
 			}
 			constexpr void balance_current_and_advance() {
-				stepper* min_step = &steppers[log_n - 1];
+				Assert(*this, "Called without checking validity");
+				stepper& min_step = steppers[log_n - 1];
 				while (steppers[0].target == index) {
 					std::pop_heap(steppers.data(), steppers.data() + log_n);
-					min_step->from->next[1] = curr->next[0];
-					min_step->from = curr;
-					min_step->target += min_step->size;
+					min_step.from->next[1] = curr->next[0];
+					min_step.from = curr;
+					min_step.target += min_step.size;
 					std::push_heap(steppers.data(), steppers.data() + log_n);
 				}
 
-				last = curr;
 				curr = curr->next[0];
 				index += 1;
 			}
 			constexpr operator bool() const {
-				return nullptr != curr;
+				return nullptr != curr->next[0];
 			}
 		};
 
@@ -92,7 +91,7 @@ namespace ecs::detail {
 
 			constexpr iterator& operator++() {
 				Pre(curr != nullptr, "Trying to step past end of list");
-				if (helper)
+				if (helper && *helper)
 					helper->balance_current_and_advance();
 				prev = curr;
 				curr = curr->next[0];
@@ -134,6 +133,9 @@ namespace ecs::detail {
 
 		constexpr power_list() = default;
 		constexpr power_list(std::ranges::sized_range auto const& range) {
+			if (range.empty())
+				return;
+
 			Pre(std::ranges::is_sorted(range), "Input range must be sorted");
 
 			count = std::size(range);
